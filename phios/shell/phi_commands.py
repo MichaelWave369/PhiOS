@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import platform
 import select
+import subprocess
 import sys
 import termios
 import time
@@ -181,6 +183,7 @@ def cmd_help(_: list[str], session: object | None = None) -> str:
             "  desktop [status|install|config|reset]",
             "  wallpaper [generate|set|watch]",
             "  launcher                    Open sovereign launcher",
+            "  build [iso|status|clean]",
             "  notify [test|status|history]",
             "  exit                        Exit REPL",
         ]
@@ -531,6 +534,55 @@ def cmd_notify(args: list[str], session: object | None = None) -> str:
     return "Usage: notify [test|status|history]"
 
 
+def _iso_status() -> dict[str, object]:
+    dist_dir = Path("dist")
+    latest = None
+    if dist_dir.exists():
+        isos = sorted(dist_dir.glob("phios-v*-x86_64.iso"))
+        if isos:
+            latest = isos[-1]
+    if latest is None:
+        return {"exists": False, "path": None, "size": None, "sha256": None}
+
+    data = latest.read_bytes()
+    return {
+        "exists": True,
+        "path": str(latest),
+        "size": latest.stat().st_size,
+        "sha256": hashlib.sha256(data).hexdigest(),
+    }
+
+
+def cmd_build(args: list[str], session: object | None = None) -> str:
+    action = args[0] if args else "status"
+    if action == "status":
+        return json.dumps(_iso_status(), indent=2)
+    if action == "clean":
+        removed: list[str] = []
+        for target in [Path("build/work"), Path("build/out")]:
+            if target.exists():
+                import shutil
+
+                shutil.rmtree(target)
+                removed.append(str(target))
+        dist_dir = Path("dist")
+        if dist_dir.exists():
+            for iso in dist_dir.glob("phios-v*-x86_64.iso"):
+                iso.unlink()
+                removed.append(str(iso))
+        return json.dumps({"removed": removed}, indent=2)
+    if action == "iso":
+        confirmed = len(args) > 1 and args[1] == "--yes"
+        if not confirmed:
+            return "Refusing to build ISO without explicit confirmation. Re-run: phi build iso --yes"
+        proc = subprocess.run(["bash", "build/build_iso.sh"], capture_output=True, text=True, check=False)
+        output = (proc.stdout or "") + (proc.stderr or "")
+        if proc.returncode != 0:
+            return f"ISO build failed\n{output}"
+        return f"ISO build completed\n{output}"
+    return "Usage: build [iso|status|clean]"
+
+
 COMMANDS: dict[str, CommandHandler] = {
     "help": cmd_help,
     "version": cmd_version,
@@ -548,4 +600,5 @@ COMMANDS: dict[str, CommandHandler] = {
     "wallpaper": cmd_wallpaper,
     "launcher": cmd_launcher,
     "notify": cmd_notify,
+    "build": cmd_build,
 }
