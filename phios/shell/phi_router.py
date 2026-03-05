@@ -9,7 +9,7 @@ from typing import Sequence
 from phios.shell.phi_commands import COMMANDS
 
 
-def route_command(argv: Sequence[str]) -> tuple[str, int]:
+def route_command(argv: Sequence[str], session: object | None = None) -> tuple[str, int]:
     if not argv:
         return "", 0
 
@@ -21,7 +21,9 @@ def route_command(argv: Sequence[str]) -> tuple[str, int]:
     handler = COMMANDS.get(cmd)
     if handler is not None:
         try:
-            return handler(args), 0
+            return handler(args, session=session), 0
+        except KeyboardInterrupt:
+            return "", 0
         except Exception as exc:
             return f"Command error ({cmd}): {exc}", 1
 
