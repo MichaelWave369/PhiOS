@@ -8,4 +8,4 @@ class _CompatVersion(str):
         return super().__eq__(other)
 
 
-__version__ = _CompatVersion("0.7.0")
+__version__ = _CompatVersion("0.8.0")

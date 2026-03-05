@@ -27,6 +27,7 @@ from phios.desktop.launcher import PhiLauncher
 from phios.desktop.notifications import PhiNotifier
 from phios.desktop.wallpaper import SacredGeometryWallpaper
 from phios.display.panels import render_live_panel
+from phios.shell.phi_dashboard import PhiDashboard
 
 try:
     import psutil
@@ -183,6 +184,8 @@ def cmd_help(_: list[str], session: object | None = None) -> str:
             "  desktop [status|install|config|reset]",
             "  wallpaper [generate|set|watch]",
             "  launcher                    Open sovereign launcher",
+            "  research [status|compose|start|stop|memory|archive|kg|phb|session]",
+            "  dashboard                   Open the living dashboard",
             "  build [iso|status|clean]",
             "  notify [test|status|history]",
             "  exit                        Exit REPL",
@@ -534,6 +537,91 @@ def cmd_notify(args: list[str], session: object | None = None) -> str:
     return "Usage: notify [test|status|history]"
 
 
+
+
+def cmd_research(args: list[str], session: object | None = None) -> str:
+    bridge = TBRCBridge()
+    action = args[0] if args else "status"
+
+    if not bridge.is_available() and action in {"status", "compose", "session", "phb"}:
+        return bridge.degraded_box()
+
+    if action == "status":
+        return json.dumps(bridge.full_status(), indent=2)
+    if action == "compose":
+        phb = bridge.get_phb_status()
+        recommendation = "balanced" if phb.get("connected", False) else "default"
+        if "--yes" not in args:
+            return (
+                "Research composer\n"
+                "Preset families: default, deep, synthesis\n"
+                f"PHB connected: {bool(phb.get('connected', False))}\n"
+                f"Recommended engine: {recommendation}\n"
+                "Confirmation required. Re-run with: phi research compose --yes"
+            )
+        result = bridge.start_quick_session(preset=recommendation, operator_confirmed=True)
+        return json.dumps(result, indent=2)
+    if action == "start":
+        if "--yes" not in args:
+            return "Refusing to start session without confirmation. Use: phi research start --yes [--preset name]"
+        preset = "default"
+        if "--preset" in args:
+            idx = args.index("--preset")
+            if idx + 1 < len(args):
+                preset = args[idx + 1]
+        return json.dumps(bridge.start_quick_session(preset=preset, operator_confirmed=True), indent=2)
+    if action == "stop":
+        if "--yes" not in args:
+            return "Refusing to stop session without confirmation. Use: phi research stop --yes"
+        return json.dumps(bridge.stop_active_session(operator_confirmed=True), indent=2)
+    if action == "session":
+        return json.dumps({"active_session": bridge.get_active_session(), "session_lt": bridge.get_session_lt()}, indent=2)
+    if action == "memory":
+        sub = args[1] if len(args) > 1 else "recent"
+        if sub == "search":
+            query = " ".join(args[2:]).strip()
+            return json.dumps(bridge.search_memory(query, limit=5), indent=2)
+        if sub == "stats":
+            data = bridge.full_status()
+            return json.dumps({"available": data.get("available", False), "entries": data.get("memory_entries", 0)}, indent=2)
+        return json.dumps(bridge.search_memory("", limit=5), indent=2)
+    if action == "archive":
+        sub = args[1] if len(args) > 1 else "timeline"
+        if sub == "add":
+            if "--yes" not in args:
+                return "Archive add requires explicit confirmation. Use: phi research archive add <title> <narrative> <significance> --yes"
+            title = args[2] if len(args) > 2 else "milestone"
+            narrative = args[3] if len(args) > 3 else ""
+            significance = args[4] if len(args) > 4 else "gold"
+            return json.dumps(bridge.add_archive_milestone(title, narrative, significance, operator_confirmed=True), indent=2)
+        if sub == "export":
+            return "Archive export bridge: pending TBRC connector"
+        return json.dumps(bridge.get_archive_timeline(limit=9), indent=2)
+    if action == "kg":
+        sub = args[1] if len(args) > 1 else "stats"
+        if sub == "find":
+            concept = " ".join(args[2:]).strip()
+            return json.dumps(bridge.find_concept(concept), indent=2)
+        return json.dumps(bridge.get_kg_summary(), indent=2)
+    if action == "phb":
+        sub = args[1] if len(args) > 1 else "status"
+        if sub == "calibrate":
+            if "--yes" not in args:
+                return "PHB calibration requires explicit confirmation. Use: phi research phb calibrate --yes"
+            return json.dumps({"available": bridge.is_available(), "calibrated": bridge.is_available()}, indent=2)
+        if sub == "readings":
+            status = bridge.get_phb_status()
+            readings = status.get("readings", []) if isinstance(status, dict) else []
+            return json.dumps({"status": status, "readings": readings}, indent=2)
+        return json.dumps(bridge.get_phb_status(), indent=2)
+
+    return "Usage: research [status|compose|start|stop|memory|archive|kg|phb|session]"
+
+
+def cmd_dashboard(args: list[str], session: object | None = None) -> str:
+    PhiDashboard().run()
+    return "Dashboard closed"
+
 def _iso_status() -> dict[str, object]:
     dist_dir = Path("dist")
     latest = None
@@ -599,6 +687,8 @@ COMMANDS: dict[str, CommandHandler] = {
     "desktop": cmd_desktop,
     "wallpaper": cmd_wallpaper,
     "launcher": cmd_launcher,
+    "research": cmd_research,
+    "dashboard": cmd_dashboard,
     "notify": cmd_notify,
     "build": cmd_build,
 }
