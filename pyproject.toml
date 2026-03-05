@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "phios"
+version = "0.1.0"
+description = "PhiOS sovereign shell"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = []
+
+[project.scripts]
+phi = "phios.shell.phi_session:main"
+
+[tool.setuptools]
+packages = ["phios", "phios.shell", "phios.core", "phios.display"]
