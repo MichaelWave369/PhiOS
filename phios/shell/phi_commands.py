@@ -20,6 +20,8 @@ from phios.core.lt_engine import compute_lt
 from phios.core.sovereignty import SovereignSnapshot, export_snapshot, verify_snapshot
 from phios.core.tbrc_bridge import TBRCBridge, tbrc_connected
 from phios.core.phi_sync import sync_both, sync_pull, sync_push, sync_status
+from phios.desktop.install import PhiDesktopInstaller
+from phios.desktop.wallpaper import SacredGeometryWallpaper
 from phios.display.panels import render_live_panel
 
 try:
@@ -161,6 +163,9 @@ def cmd_help(_: list[str], session: object | None = None) -> str:
             "  memory [status|search|recent]",
             "  archive [timeline|add|export]",
             "  kg [stats|search]",
+            "  sync [status|push|pull|both]",
+            "  desktop [status|install|config|reset]",
+            "  wallpaper [generate|set|watch]",
             "  exit                        Exit REPL",
         ]
     )
@@ -373,6 +378,44 @@ def cmd_sync(args: list[str], session: object | None = None) -> str:
     return json.dumps(report, indent=2)
 
 
+def cmd_desktop(args: list[str], session: object | None = None) -> str:
+    installer = PhiDesktopInstaller()
+    action = args[0] if args else "status"
+    if action == "status":
+        wayfire_ok = installer.wayfire_ini.exists()
+        waybar_ok = (installer.waybar_dir / "config.jsonc").exists() and (installer.waybar_dir / "style.css").exists()
+        return json.dumps({"wayfire": wayfire_ok, "waybar": waybar_ok, "installed": wayfire_ok and waybar_ok}, indent=2)
+    if action == "install":
+        confirm = len(args) > 1 and args[1] == "--yes"
+        report = installer.install(dry_run=not confirm)
+        if not confirm:
+            return "Dry run (default). Re-run with: phi desktop install --yes\n" + json.dumps(report, indent=2)
+        return json.dumps(report, indent=2)
+    if action == "config":
+        return f"Wayfire config path: {installer.wayfire_ini}"
+    if action == "reset":
+        installer.backup_existing_configs()
+        installer.apply_phios_config()
+        return "PhiOS desktop config reset complete"
+    return "Usage: desktop [status|install|config|reset]"
+
+
+def cmd_wallpaper(args: list[str], session: object | None = None) -> str:
+    engine = SacredGeometryWallpaper()
+    action = args[0] if args else "generate"
+    if action == "generate":
+        path = engine.generate()
+        return f"Wallpaper generated: {path}"
+    if action == "set":
+        path = args[1] if len(args) > 1 else "~/.phi/wallpaper.png"
+        ok = engine.set_as_wallpaper(path)
+        return "Wallpaper applied" if ok else "Wallpaper backend unavailable"
+    if action == "watch":
+        engine.regenerate_on_lt_change()
+        return "Wallpaper watch stopped"
+    return "Usage: wallpaper [generate|set|watch]"
+
+
 COMMANDS: dict[str, CommandHandler] = {
     "help": cmd_help,
     "version": cmd_version,
@@ -385,4 +428,6 @@ COMMANDS: dict[str, CommandHandler] = {
     "archive": cmd_archive,
     "kg": cmd_kg,
     "sync": cmd_sync,
+    "desktop": cmd_desktop,
+    "wallpaper": cmd_wallpaper,
 }

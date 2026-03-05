@@ -42,7 +42,7 @@ dev = [
 phi = "phios.shell.phi_session:main"
 
 [tool.setuptools]
-packages = ["phios", "phios.shell", "phios.core", "phios.display"]
+packages = ["phios", "phios.shell", "phios.core", "phios.display", "phios.desktop"]
 
 [tool.setuptools.dynamic]
 version = {attr = "phios.__version__"}
@@ -60,5 +60,9 @@ module = [
   "phios.shell.phi_commands",
   "phios.display.panels",
   "phios.shell.phi_router",
+  "phios.desktop.install",
+  "phios.desktop.wallpaper",
+  "phios.desktop.phi_tray",
+  "phios.desktop.wayfire_config",
 ]
 ignore_errors = true
