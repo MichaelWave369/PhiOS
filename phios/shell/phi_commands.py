@@ -28,6 +28,8 @@ from phios.desktop.notifications import PhiNotifier
 from phios.desktop.wallpaper import SacredGeometryWallpaper
 from phios.display.panels import render_live_panel
 from phios.shell.phi_dashboard import PhiDashboard
+from phios.network.discovery import PhiNodeAnnouncer, PhiNodeDiscovery
+from phios.network.exchange import PhiExchangeClient, PhiExchangeServer
 
 try:
     import psutil
@@ -37,6 +39,26 @@ except Exception:  # pragma: no cover
 
 CommandHandler = Callable[[list[str], object | None], str]
 NOTIFIER = PhiNotifier()
+NETWORK_ANNOUNCER = PhiNodeAnnouncer()
+NETWORK_DISCOVERY = PhiNodeDiscovery()
+EXCHANGE_SERVER = PhiExchangeServer()
+EXCHANGE_CLIENT = PhiExchangeClient(server=EXCHANGE_SERVER)
+
+
+def _network_mode_enabled() -> bool:
+    return bool(NETWORK_ANNOUNCER.active and NETWORK_DISCOVERY.active)
+
+
+def _network_peers_box(peers: list[dict[str, object]]) -> str:
+    if not peers:
+        return "NETWORK · offline (phi network announce to join)"
+    lines = ["+----------------------------------------------------+", "| NETWORK · peers                                    |", "+----------------------------------------------------+"]
+    for peer in peers[:9]:
+        row = f"| {str(peer.get('node_name','node'))[:12]:12} lt {float(peer.get('lt_score',0.0)):.2f} TBRC {'✓' if peer.get('tbrc', False) else '✗'} PHB {'✓' if peer.get('phb', False) else '✗'} |"
+        lines.append(row.ljust(54) + ("|" if not row.endswith("|") else ""))
+    lines.append("+----------------------------------------------------+")
+    return "\n".join(lines)
+
 
 
 def _boxed_tbrc_message(reason: str) -> str:
@@ -186,6 +208,8 @@ def cmd_help(_: list[str], session: object | None = None) -> str:
             "  launcher                    Open sovereign launcher",
             "  research [status|compose|start|stop|memory|archive|kg|phb|session]",
             "  dashboard                   Open the living dashboard",
+            "  network [status|peers|announce|stop]",
+            "  exchange [propose|pending|accept|reject|history]",
             "  build [iso|status|clean]",
             "  notify [test|status|history]",
             "  exit                        Exit REPL",
@@ -619,7 +643,7 @@ def cmd_research(args: list[str], session: object | None = None) -> str:
 
 
 def cmd_dashboard(args: list[str], session: object | None = None) -> str:
-    PhiDashboard().run()
+    PhiDashboard(announcer=NETWORK_ANNOUNCER, discovery=NETWORK_DISCOVERY).run()
     return "Dashboard closed"
 
 def _iso_status() -> dict[str, object]:
@@ -640,6 +664,84 @@ def _iso_status() -> dict[str, object]:
         "sha256": hashlib.sha256(data).hexdigest(),
     }
 
+
+
+
+def cmd_network(args: list[str], session: object | None = None) -> str:
+    action = args[0] if args else "status"
+
+    if action == "status":
+        data = {
+            "discovery_active": NETWORK_DISCOVERY.active,
+            "announcer_active": NETWORK_ANNOUNCER.active,
+            "peer_count": len(NETWORK_DISCOVERY.get_peers()),
+            "announced": NETWORK_ANNOUNCER.preview_payload(""),
+            "exchange": EXCHANGE_SERVER.status(),
+            "network_mode": _network_mode_enabled(),
+        }
+        return json.dumps(data, indent=2)
+
+    if action == "peers":
+        peers = NETWORK_DISCOVERY.get_peers()
+        return _network_peers_box(peers)
+
+    if action == "announce":
+        if "--yes" not in args:
+            preview = NETWORK_ANNOUNCER.preview_payload(args[1] if len(args) > 1 and not args[1].startswith("--") else "")
+            return "Announce preview:\n" + json.dumps(preview, indent=2) + "\nConfirmation required: phi network announce --yes [node_name]"
+        node_name = ""
+        for token in args[1:]:
+            if not token.startswith("--"):
+                node_name = token
+                break
+        ok = NETWORK_ANNOUNCER.announce(node_name=node_name, operator_confirmed=True)
+        NETWORK_DISCOVERY.start_listening()
+        EXCHANGE_SERVER.start()
+        return json.dumps({"announced": ok, "discovery": NETWORK_DISCOVERY.active, "exchange": EXCHANGE_SERVER.status()}, indent=2)
+
+    if action == "stop":
+        NETWORK_ANNOUNCER.stop()
+        NETWORK_DISCOVERY.stop_listening()
+        EXCHANGE_SERVER.stop()
+        return json.dumps({"stopped": True, "network_mode": _network_mode_enabled()}, indent=2)
+
+    return "Usage: network [status|peers|announce|stop]"
+
+
+def cmd_exchange(args: list[str], session: object | None = None) -> str:
+    action = args[0] if args else "pending"
+
+    if action == "propose":
+        if len(args) < 3:
+            return "Usage: exchange propose <peer_address> <snapshot_path> --yes"
+        peer_address = args[1]
+        snapshot_path = args[2]
+        confirmed = "--yes" in args
+        if not confirmed:
+            return "Refusing to propose without confirmation. Use: phi exchange propose <peer_address> <snapshot_path> --yes"
+        proposal = EXCHANGE_CLIENT.propose_exchange(peer_address, snapshot_path, operator_confirmed=True)
+        return json.dumps(proposal, indent=2)
+
+    if action == "pending":
+        return json.dumps(EXCHANGE_SERVER.get_pending_proposals(), indent=2)
+
+    if action == "accept":
+        if len(args) < 2:
+            return "Usage: exchange accept <proposal_id> --yes"
+        if "--yes" not in args:
+            return "Refusing to accept without confirmation. Use: phi exchange accept <proposal_id> --yes"
+        return json.dumps(EXCHANGE_SERVER.accept_proposal(args[1], operator_confirmed=True), indent=2)
+
+    if action == "reject":
+        if len(args) < 2:
+            return "Usage: exchange reject <proposal_id>"
+        EXCHANGE_SERVER.reject_proposal(args[1])
+        return "Proposal rejected"
+
+    if action == "history":
+        return json.dumps(EXCHANGE_CLIENT.log.get_history(limit=9), indent=2)
+
+    return "Usage: exchange [propose|pending|accept|reject|history]"
 
 def cmd_build(args: list[str], session: object | None = None) -> str:
     action = args[0] if args else "status"
@@ -689,6 +791,8 @@ COMMANDS: dict[str, CommandHandler] = {
     "launcher": cmd_launcher,
     "research": cmd_research,
     "dashboard": cmd_dashboard,
+    "network": cmd_network,
+    "exchange": cmd_exchange,
     "notify": cmd_notify,
     "build": cmd_build,
 }
