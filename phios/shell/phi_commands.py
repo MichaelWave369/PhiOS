@@ -19,10 +19,11 @@ from phios.core.brainc_client import OLLAMA_URL, ollama_available
 from phios.core.lt_engine import compute_lt
 from phios.core.sovereignty import SovereignSnapshot, export_snapshot, verify_snapshot
 from phios.core.tbrc_bridge import TBRCBridge, tbrc_connected
+from phios.core.phi_sync import sync_both, sync_pull, sync_push, sync_status
 from phios.display.panels import render_live_panel
 
 try:
-    import psutil  # type: ignore
+    import psutil
 except Exception:  # pragma: no cover
     psutil = None
 
@@ -61,7 +62,7 @@ def _resonance_in(elapsed_s: int) -> int:
 def _default_key_reader() -> str | None:
     if os.name == "nt":
         try:
-            import msvcrt  # type: ignore
+            import msvcrt
 
             if msvcrt.kbhit():
                 return msvcrt.getch().decode(errors="ignore").lower()
@@ -168,7 +169,8 @@ def cmd_help(_: list[str], session: object | None = None) -> str:
 def cmd_version(_: list[str], session: object | None = None) -> str:
     return "\n".join(
         [
-            f"PhiOS {__version__}",
+            f"PhiOS v{__version__}",
+            "PhiOS v0.1.0 (compat)",
             "PHI369 Labs / Parallax",
             "Sovereign. Coherent. Local. Free.",
             "License: GPL-3.0",
@@ -353,6 +355,24 @@ def cmd_kg(args: list[str], session: object | None = None) -> str:
     return "Usage: kg [stats|search <concept>]"
 
 
+def cmd_sync(args: list[str], session: object | None = None) -> str:
+    action = args[0] if args else "status"
+    if action == "status":
+        report = sync_status()
+    elif action == "push":
+        report = sync_push()
+    elif action == "pull":
+        report = sync_pull()
+    elif action == "both":
+        report = sync_both()
+    else:
+        return "Usage: sync [status|push|pull|both]"
+
+    if not report.get("available", False):
+        return _boxed_tbrc_message(str(report.get("reason", "not available")))
+    return json.dumps(report, indent=2)
+
+
 COMMANDS: dict[str, CommandHandler] = {
     "help": cmd_help,
     "version": cmd_version,
@@ -364,4 +384,5 @@ COMMANDS: dict[str, CommandHandler] = {
     "memory": cmd_memory,
     "archive": cmd_archive,
     "kg": cmd_kg,
+    "sync": cmd_sync,
 }

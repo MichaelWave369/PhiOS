@@ -5,9 +5,7 @@ from __future__ import annotations
 from phios.display.sparkline import render_bar, render_sparkline, trajectory_arrow
 
 
-def render_lines(lines: list[str]) -> str:
-    return "\n".join(lines)
-
+# reserved for v0.x
 
 def render_live_panel(payload: dict[str, object]) -> str:
     score = float(payload.get("lt", 0.0))

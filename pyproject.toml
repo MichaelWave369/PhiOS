@@ -4,14 +4,40 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "phios"
-version = "0.1.0"
+dynamic = ["version"]
 description = "PhiOS sovereign shell"
 readme = "README.md"
 requires-python = ">=3.11"
-dependencies = []
+dependencies = ["psutil>=5.9.0"]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.0.0",
+  "ruff>=0.6.0",
+  "mypy>=1.11.0",
+]
 
 [project.scripts]
 phi = "phios.shell.phi_session:main"
 
 [tool.setuptools]
 packages = ["phios", "phios.shell", "phios.core", "phios.display"]
+
+[tool.setuptools.dynamic]
+version = {attr = "phios.__version__"}
+
+[tool.ruff]
+line-length = 100
+
+[tool.mypy]
+python_version = "3.11"
+warn_unused_configs = true
+
+[[tool.mypy.overrides]]
+module = [
+  "phios.core.sovereignty",
+  "phios.shell.phi_commands",
+  "phios.display.panels",
+  "phios.shell.phi_router",
+]
+ignore_errors = true
