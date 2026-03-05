@@ -8,6 +8,7 @@ from dataclasses import dataclass, field
 
 from phios.shell.phi_prompt import build_prompt
 from phios.shell.phi_router import route_command
+from phios.shell.phi_onboard import PhiOnboard
 
 
 @dataclass
@@ -50,6 +51,14 @@ def run_repl(session: PhiSession | None = None) -> int:
 
 def main(argv: list[str] | None = None) -> int:
     session = PhiSession()
+    try:
+        onboard = PhiOnboard()
+        if onboard.is_first_run():
+            onboard.run()
+    except KeyboardInterrupt:
+        return 0
+    except Exception as exc:
+        print(f"Onboarding warning: {exc}")
     args = list(sys.argv[1:] if argv is None else argv)
     if not args:
         return run_repl(session)
