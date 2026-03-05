@@ -57,6 +57,7 @@ warn_unused_configs = true
 [[tool.mypy.overrides]]
 module = [
   "phios.core.sovereignty",
+  "phios.core.brainc_client",
   "phios.shell.phi_commands",
   "phios.display.panels",
   "phios.shell.phi_router",

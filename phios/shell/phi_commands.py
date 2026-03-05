@@ -15,12 +15,14 @@ from pathlib import Path
 from typing import Callable
 
 from phios import __version__
-from phios.core.brainc_client import OLLAMA_URL, ollama_available
+from phios.core.brainc_client import OLLAMA_URL, BrainCClient, ollama_available
 from phios.core.lt_engine import compute_lt
 from phios.core.sovereignty import SovereignSnapshot, export_snapshot, verify_snapshot
 from phios.core.tbrc_bridge import TBRCBridge, tbrc_connected
 from phios.core.phi_sync import sync_both, sync_pull, sync_push, sync_status
 from phios.desktop.install import PhiDesktopInstaller
+from phios.desktop.launcher import PhiLauncher
+from phios.desktop.notifications import PhiNotifier
 from phios.desktop.wallpaper import SacredGeometryWallpaper
 from phios.display.panels import render_live_panel
 
@@ -31,6 +33,7 @@ except Exception:  # pragma: no cover
 
 
 CommandHandler = Callable[[list[str], object | None], str]
+NOTIFIER = PhiNotifier()
 
 
 def _boxed_tbrc_message(reason: str) -> str:
@@ -92,6 +95,7 @@ def cmd_coherence_live(session: object, key_reader: Callable[[], str | None] | N
     start = time.monotonic()
     local_history = list(getattr(session, "coherence_history", []))
     i = 0
+    prev_score: float | None = None
 
     while True:
         i += 1
@@ -107,6 +111,15 @@ def cmd_coherence_live(session: object, key_reader: Callable[[], str | None] | N
         resonance_now = elapsed_s > 0 and elapsed_s % 369 == 0
         if resonance_now:
             setattr(session, "resonance_moments_hit", int(getattr(session, "resonance_moments_hit", 0)) + 1)
+            NOTIFIER.resonance_moment(score)
+
+        if prev_score is not None and prev_score - score > 0.1:
+            NOTIFIER.coherence_alert(score, prev_score - score)
+        prev_score = score
+
+        for marker_interval in (3, 6, 9):
+            if elapsed_s > 0 and elapsed_s % marker_interval == 0:
+                NOTIFIER.session_rhythm(marker_interval)
 
         payload = {
             "lt": score,
@@ -152,6 +165,7 @@ def cmd_help(_: list[str], session: object | None = None) -> str:
             "  help                        Show this help",
             "  version                     Show PhiOS version info",
             "  status                      Show local system status",
+            "  ask <question|--lt|--session|--next>",
             "  coherence                   Compute L(t) coherence",
             "  coherence live              Launch live coherence monitor",
             "  sovereign export [path]     Export sovereign snapshot",
@@ -166,6 +180,8 @@ def cmd_help(_: list[str], session: object | None = None) -> str:
             "  sync [status|push|pull|both]",
             "  desktop [status|install|config|reset]",
             "  wallpaper [generate|set|watch]",
+            "  launcher                    Open sovereign launcher",
+            "  notify [test|status|history]",
             "  exit                        Exit REPL",
         ]
     )
@@ -234,12 +250,55 @@ def cmd_coherence(args: list[str], session: object | None = None) -> str:
     )
 
 
+def _sovereign_config_path() -> Path:
+    root = Path(os.environ.get("PHIOS_CONFIG_HOME", str(Path.home())))
+    return root / ".phi" / "config.json"
+
+
+def _set_sovereign_mode(active: bool) -> None:
+    cfg_path = _sovereign_config_path()
+    cfg_path.parent.mkdir(parents=True, exist_ok=True)
+    data: dict[str, object] = {}
+    if cfg_path.exists():
+        try:
+            data = json.loads(cfg_path.read_text(encoding="utf-8"))
+            if not isinstance(data, dict):
+                data = {}
+        except (json.JSONDecodeError, OSError, ValueError):
+            data = {}
+    data["sovereign_mode"] = active
+    cfg_path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+
+
+def _get_sovereign_mode() -> bool:
+    cfg_path = _sovereign_config_path()
+    if not cfg_path.exists():
+        return True
+    try:
+        data = json.loads(cfg_path.read_text(encoding="utf-8"))
+        if isinstance(data, dict):
+            return bool(data.get("sovereign_mode", True))
+    except (json.JSONDecodeError, OSError, ValueError):
+        return True
+    return True
+
+
 def cmd_sovereign(args: list[str], session: object | None = None) -> str:
     if len(args) < 1:
-        return "Usage: sovereign <export|verify|compare|annotate> ..."
+        return "Usage: sovereign <on|off|toggle|export|verify|compare|annotate> ..."
 
     action = args[0]
     snapper = SovereignSnapshot()
+
+    if action in {"on", "off", "toggle"}:
+        current = _get_sovereign_mode()
+        if action == "toggle":
+            target = not current
+        else:
+            target = action == "on"
+        _set_sovereign_mode(target)
+        NOTIFIER.sovereignty_changed(target, force=True)
+        return f"Sovereign mode: {'ON' if target else 'OFF'}"
 
     if action == "export":
         if session is None:
@@ -292,7 +351,7 @@ def cmd_sovereign(args: list[str], session: object | None = None) -> str:
             ok, reason = verify_snapshot(args[1])
             return f"{'PASS' if ok else 'FAIL'}: {reason}"
 
-    return "Usage: sovereign <export|verify|compare|annotate> ..."
+    return "Usage: sovereign <on|off|toggle|export|verify|compare|annotate> ..."
 
 
 def cmd_brainc(args: list[str], session: object | None = None) -> str:
@@ -416,10 +475,67 @@ def cmd_wallpaper(args: list[str], session: object | None = None) -> str:
     return "Usage: wallpaper [generate|set|watch]"
 
 
+def _build_ask_context(session: object | None = None) -> dict[str, object]:
+    lt = compute_lt()
+    return {
+        "lt_score": float(lt.get("lt", 0.5)),
+        "session_age": int(getattr(session, "elapsed_seconds", lambda: 0)()),
+        "sovereign_mode": _get_sovereign_mode(),
+        "tbrc_available": TBRCBridge().is_available(),
+        "recent_commands": list(getattr(session, "recent_commands", []))[-5:] if session is not None else [],
+    }
+
+
+def cmd_ask(args: list[str], session: object | None = None) -> str:
+    client = BrainCClient()
+    ctx = _build_ask_context(session)
+    if not args:
+        return "Usage: ask <question|--lt|--session|--next>"
+
+    if args[0] == "--lt":
+        return client.ask_about_lt(compute_lt())
+    if args[0] == "--session":
+        return client.ask_about_session(ctx)
+    if args[0] == "--next":
+        suggestion = client.suggest_next_command(list(ctx.get("recent_commands", [])), float(ctx.get("lt_score", 0.5)))
+        return suggestion
+
+    question = " ".join(args).strip()
+    response = client.ask(question, stream=True, context=ctx)
+    NOTIFIER.notify("brainc_response", "BrainC response complete", f"Model: {response.model}")
+    return response.answer
+
+
+def cmd_launcher(args: list[str], session: object | None = None) -> str:
+    PhiLauncher().launch()
+    return "Launcher completed"
+
+
+def cmd_notify(args: list[str], session: object | None = None) -> str:
+    action = args[0] if args else "status"
+    if action == "status":
+        return json.dumps(NOTIFIER.status(), indent=2)
+    if action == "history":
+        lines = NOTIFIER.history_lines()
+        return "\n".join(lines) if lines else "No notifications yet."
+    if action == "test":
+        lt_score = float(compute_lt().get("lt", 0.5))
+        NOTIFIER.coherence_alert(lt_score, 0.2, force=True)
+        NOTIFIER.resonance_moment(lt_score, force=True)
+        NOTIFIER.sovereignty_changed(True, force=True)
+        NOTIFIER.sovereignty_changed(False, force=True)
+        NOTIFIER.session_rhythm(3, force=True)
+        NOTIFIER.session_rhythm(6, force=True)
+        NOTIFIER.session_rhythm(9, force=True)
+        return "Notification test sequence emitted."
+    return "Usage: notify [test|status|history]"
+
+
 COMMANDS: dict[str, CommandHandler] = {
     "help": cmd_help,
     "version": cmd_version,
     "status": cmd_status,
+    "ask": cmd_ask,
     "coherence": cmd_coherence,
     "sovereign": cmd_sovereign,
     "brainc": cmd_brainc,
@@ -430,4 +546,6 @@ COMMANDS: dict[str, CommandHandler] = {
     "sync": cmd_sync,
     "desktop": cmd_desktop,
     "wallpaper": cmd_wallpaper,
+    "launcher": cmd_launcher,
+    "notify": cmd_notify,
 }

@@ -18,6 +18,7 @@ class PhiSession:
     resonance_moments_hit: int = 0
     coherence_history: list[float] = field(default_factory=list)
     trajectory: str = "stable"
+    recent_commands: list[str] = field(default_factory=list)
 
     def elapsed_seconds(self) -> int:
         return int(time.monotonic() - self.started_at)
@@ -40,6 +41,8 @@ def run_repl(session: PhiSession | None = None) -> int:
             continue
 
         current.commands_run += 1
+        current.recent_commands.append(raw)
+        current.recent_commands = current.recent_commands[-5:]
         output, code = route_command(raw.split(), session=current)
         if output == "exit":
             return 0
@@ -64,6 +67,8 @@ def main(argv: list[str] | None = None) -> int:
         return run_repl(session)
     try:
         session.commands_run += 1
+        session.recent_commands.append(" ".join(args))
+        session.recent_commands = session.recent_commands[-5:]
         output, code = route_command(args, session=session)
     except KeyboardInterrupt:
         return 0

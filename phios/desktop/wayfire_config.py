@@ -66,7 +66,7 @@ workspace_9 = 9  # 9 anchor
 
 [keybindings]
 super_return = phi
-super_space = phi status
+super_space = phi launcher
 super_l = phi coherence live
 super_s = phi sovereign export ./phi_snapshot_toggle.json
 super_shift_q = close
