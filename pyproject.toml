@@ -1,0 +1,69 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "phios"
+dynamic = ["version"]
+description = "PhiOS sovereign shell for local-first coherent computing"
+readme = "README.md"
+requires-python = ">=3.11"
+license = {file = "LICENSE"}
+keywords = ["phios", "sovereign", "local-first", "shell", "ai"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Environment :: Console",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Topic :: Software Development :: Libraries",
+  "Topic :: System :: Shells",
+]
+dependencies = ["psutil>=5.9.0"]
+
+[project.urls]
+Homepage = "https://github.com/MichaelWave369/PhiOS"
+Repository = "https://github.com/MichaelWave369/PhiOS"
+Manifesto = "https://enterthefield.org/phios"
+
+[project.optional-dependencies]
+dev = [
+  "build>=1.2.2",
+  "twine>=5.1.1",
+  "requests>=2.32.0",
+  "pytest>=8.0.0",
+  "ruff>=0.6.0",
+  "mypy>=1.11.0",
+]
+
+[project.scripts]
+phi = "phios.shell.phi_session:main"
+
+[tool.setuptools]
+packages = ["phios", "phios.shell", "phios.core", "phios.display", "phios.desktop"]
+
+[tool.setuptools.dynamic]
+version = {attr = "phios.__version__"}
+
+[tool.ruff]
+line-length = 100
+
+[tool.mypy]
+python_version = "3.11"
+warn_unused_configs = true
+
+[[tool.mypy.overrides]]
+module = [
+  "phios.core.sovereignty",
+  "phios.core.brainc_client",
+  "phios.shell.phi_commands",
+  "phios.display.panels",
+  "phios.shell.phi_router",
+  "phios.desktop.install",
+  "phios.desktop.wallpaper",
+  "phios.desktop.phi_tray",
+  "phios.desktop.wayfire_config",
+]
+ignore_errors = true
