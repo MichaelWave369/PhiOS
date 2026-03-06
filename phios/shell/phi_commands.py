@@ -22,6 +22,9 @@ from phios.core.lt_engine import compute_lt
 from phios.core.sovereignty import SovereignSnapshot, export_snapshot, verify_snapshot
 from phios.core.tbrc_bridge import TBRCBridge, tbrc_connected
 from phios.core.phi_sync import sync_both, sync_pull, sync_push, sync_status
+from phios.core.living_spec import PhiOSLivingSpec
+from phios.core.founding_document import FOUNDING_DOCUMENT, ParallaxFoundingDocument
+from phios.core.launch_artifacts import LaunchArtifactGenerator
 from phios.desktop.install import PhiDesktopInstaller
 from phios.desktop.launcher import PhiLauncher
 from phios.desktop.notifications import PhiNotifier
@@ -43,6 +46,9 @@ NETWORK_ANNOUNCER = PhiNodeAnnouncer()
 NETWORK_DISCOVERY = PhiNodeDiscovery()
 EXCHANGE_SERVER = PhiExchangeServer()
 EXCHANGE_CLIENT = PhiExchangeClient(server=EXCHANGE_SERVER)
+LIVING_SPEC = PhiOSLivingSpec()
+FOUNDING = ParallaxFoundingDocument()
+LAUNCH_ARTIFACTS = LaunchArtifactGenerator()
 
 
 def _network_mode_enabled() -> bool:
@@ -210,6 +216,9 @@ def cmd_help(_: list[str], session: object | None = None) -> str:
             "  dashboard                   Open the living dashboard",
             "  network [status|peers|announce|stop]",
             "  exchange [propose|pending|accept|reject|history]",
+            "  spec [generate|view|verify]",
+            "  founding [view|export|verify]",
+            "  launch [artifacts|announce|distrowatch|investor]",
             "  build [iso|status|clean]",
             "  notify [test|status|history]",
             "  exit                        Exit REPL",
@@ -743,6 +752,66 @@ def cmd_exchange(args: list[str], session: object | None = None) -> str:
 
     return "Usage: exchange [propose|pending|accept|reject|history]"
 
+
+
+def cmd_spec(args: list[str], session: object | None = None) -> str:
+    action = args[0] if args else "view"
+    if action == "generate":
+        force = "--force" in args
+        confirmed = "--yes" in args
+        try:
+            spec_path = LIVING_SPEC.generate(force=force, operator_confirmed=confirmed)
+            content = Path(spec_path).read_text(encoding="utf-8")
+            seal = LIVING_SPEC.generate_seal(content)
+            LIVING_SPEC.store_in_archive(spec_path, seal, operator_confirmed=confirmed)
+            return f"✓ Spec generated · Seal: {seal}"
+        except Exception as exc:
+            return f"FAIL: {exc}"
+    if action == "view":
+        path = Path("docs/PHIOS_LIVING_SPEC.md")
+        if not path.exists():
+            return "Spec not generated yet."
+        return path.read_text(encoding="utf-8")
+    if action == "verify":
+        ok, message = LIVING_SPEC.verify()
+        return message if ok else message
+    return "Usage: spec [generate|view|verify]"
+
+
+def cmd_founding(args: list[str], session: object | None = None) -> str:
+    action = args[0] if args else "view"
+    if action == "view":
+        return FOUNDING_DOCUMENT
+    if action == "export":
+        if "--yes" not in args:
+            return "Refusing export without confirmation. Use: phi founding export --yes"
+        md = FOUNDING.export_markdown()
+        _ = FOUNDING.export_html()
+        digest = FOUNDING.hash_document(Path(md).read_text(encoding="utf-8"))
+        FOUNDING.store_in_archive(md, digest, operator_confirmed=True)
+        return f"Founding document exported · Hash: {digest}"
+    if action == "verify":
+        ok, message = FOUNDING.verify()
+        return message
+    return "Usage: founding [view|export|verify]"
+
+
+def cmd_launch(args: list[str], session: object | None = None) -> str:
+    action = args[0] if args else "artifacts"
+    if action == "artifacts":
+        files = LAUNCH_ARTIFACTS.generate_all()
+        return json.dumps({"written": files}, indent=2)
+    if action == "announce":
+        return json.dumps(LAUNCH_ARTIFACTS.generate_announcement_kit(), indent=2)
+    if action == "distrowatch":
+        return LAUNCH_ARTIFACTS.generate_distrowatch_submission()
+    if action == "investor":
+        path = Path("docs/launch/investor_summary.md")
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(LAUNCH_ARTIFACTS.generate_investor_summary(), encoding="utf-8")
+        return str(path)
+    return "Usage: launch [artifacts|announce|distrowatch|investor]"
+
 def cmd_build(args: list[str], session: object | None = None) -> str:
     action = args[0] if args else "status"
     if action == "status":
@@ -793,6 +862,9 @@ COMMANDS: dict[str, CommandHandler] = {
     "dashboard": cmd_dashboard,
     "network": cmd_network,
     "exchange": cmd_exchange,
+    "spec": cmd_spec,
+    "founding": cmd_founding,
+    "launch": cmd_launch,
     "notify": cmd_notify,
     "build": cmd_build,
 }
