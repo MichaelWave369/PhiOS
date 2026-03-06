@@ -59,6 +59,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+      - run: python -m pip install --upgrade pip
+      - run: pip install -e .
       - id: version
         run: |
           python - <<'PY'
@@ -66,7 +68,7 @@ jobs:
           print(f"version={__version__}")
           PY >> "$GITHUB_OUTPUT"
       - id: notes
-        run: python scripts/generate_release_notes.py >> "$GITHUB_OUTPUT"
+        run: python scripts/generate_release_notes.py
 
   github-release:
     runs-on: ubuntu-latest

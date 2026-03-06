@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import os
 
 from phios import __version__
 
@@ -34,9 +35,14 @@ def generate_release_notes() -> str:
 
 def main() -> int:
     notes = generate_release_notes()
-    print("release_notes<<EOF")
-    print(notes)
-    print("EOF")
+    output_file = os.environ.get("GITHUB_OUTPUT")
+    if output_file:
+        with Path(output_file).open("a", encoding="utf-8") as handle:
+            handle.write("release_notes<<EOF\n")
+            handle.write(notes + "\n")
+            handle.write("EOF\n")
+    else:
+        print(notes)
     return 0
 
 
