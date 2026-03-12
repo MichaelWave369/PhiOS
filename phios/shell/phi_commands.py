@@ -18,6 +18,13 @@ from typing import Callable
 
 from phios import __version__
 from phios.core.brainc_client import OLLAMA_URL, BrainCClient, ollama_available
+from phios.adapters.phik import PhiKernelCLIAdapter
+from phios.core.phik_service import (
+    build_ask_report,
+    build_coherence_report,
+    build_status_report,
+    export_phase1_bundle,
+)
 from phios.core.lt_engine import compute_lt
 from phios.core.sovereignty import SovereignSnapshot, export_snapshot, verify_snapshot
 from phios.core.tbrc_bridge import TBRCBridge, tbrc_connected
@@ -195,9 +202,9 @@ def cmd_help(_: list[str], session: object | None = None) -> str:
             "Commands:",
             "  help                        Show this help",
             "  version                     Show PhiOS version info",
-            "  status                      Show local system status",
-            "  ask <question|--lt|--session|--next>",
-            "  coherence                   Compute L(t) coherence",
+            "  status [--json]               Show PhiKernel-backed operator status",
+            "  ask <prompt> [--json]         Ask PhiKernel coach",
+            "  coherence [live|--json]       Show PhiKernel coherence field",
             "  coherence live              Launch live coherence monitor",
             "  sovereign export [path]     Export sovereign snapshot",
             "  sovereign verify <path>     Verify sovereign snapshot",
@@ -253,18 +260,22 @@ def _format_uptime() -> str:
         return "unknown"
 
 
-def cmd_status(_: list[str], session: object | None = None) -> str:
-    ai_status = "yes" if ollama_available() else "no"
-    t_word = "Tele" + "metry"
+def cmd_status(args: list[str], session: object | None = None) -> str:
+    if "--help" in args or "-h" in args:
+        return "Usage: status [--json]"
+
+    report = build_status_report(PhiKernelCLIAdapter())
+    if "--json" in args:
+        return json.dumps(report, indent=2)
+
     return "\n".join(
         [
-            f"OS: {platform.platform()}",
-            f"Python: {platform.python_version()}",
-            f"CPU count: {os.cpu_count()}",
-            f"Memory total: {_format_memory()}",
-            f"Uptime: {_format_uptime()}",
-            f"Local AI ({OLLAMA_URL}): {ai_status}",
-            f"{t_word}: OFF (enforced)",
+            "PHI369 Labs / Parallax · PhiOS Operator Status",
+            f"Anchor verification: {report.get('anchor_verification_state', 'unknown')}",
+            f"Heart state: {report.get('heart_state', 'unknown')}",
+            f"Field action / drift band: {report.get('field_action', 'unknown')} / {report.get('field_drift_band', 'unknown')}",
+            f"Capsules tracked: {report.get('capsule_count', 0)}",
+            "Source of truth: PhiKernel",
         ]
     )
 
@@ -274,18 +285,25 @@ def cmd_coherence(args: list[str], session: object | None = None) -> str:
         if session is None:
             return "Live mode requires session context"
         return cmd_coherence_live(session)
+    if "--help" in args or "-h" in args:
+        return "Usage: coherence [live|--json]"
 
-    data = compute_lt()
-    c = data["components"]
-    if session is not None:
-        history = list(getattr(session, "coherence_history", []))
-        history.append(float(data["lt"]))
-        setattr(session, "coherence_history", history[-9:])
-    return (
-        f"L(t): {data['lt']:.6f}\n"
-        f"A_stability: {c['A_stability']:.6f}\n"
-        f"G_load: {c['G_load']:.6f}\n"
-        f"C_variance: {c['C_variance']:.6f}"
+    report = build_coherence_report(PhiKernelCLIAdapter())
+    if "--json" in args:
+        return json.dumps(report, indent=2)
+
+    return "\n".join(
+        [
+            "PHI369 Labs / Parallax · Coherence Report",
+            f"C_current: {report.get('C_current')}",
+            f"C_star: {report.get('C_star')}",
+            f"distance_to_C_star: {report.get('distance_to_C_star')}",
+            f"phi_flow: {report.get('phi_flow')}",
+            f"lambda_node: {report.get('lambda_node')}",
+            f"sigma_feedback: {report.get('sigma_feedback')}",
+            f"fragmentation_score: {report.get('fragmentation_score')}",
+            f"recommended_action: {report.get('recommended_action')}",
+        ]
     )
 
 
@@ -340,23 +358,12 @@ def cmd_sovereign(args: list[str], session: object | None = None) -> str:
         return f"Sovereign mode: {'ON' if target else 'OFF'}"
 
     if action == "export":
-        if session is None:
-            session_data = {"history": [], "duration_s": 0, "commands_run": 0, "resonance_moments_hit": 0, "trajectory": "stable"}
-        else:
-            session_data = {
-                "history": list(getattr(session, "coherence_history", [])),
-                "duration_s": int(getattr(session, "elapsed_seconds", lambda: 0)()),
-                "commands_run": int(getattr(session, "commands_run", 0)),
-                "resonance_moments_hit": int(getattr(session, "resonance_moments_hit", 0)),
-                "trajectory": str(getattr(session, "trajectory", "stable")),
-            }
-        lt = compute_lt()
-        stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        out_path = args[1] if len(args) > 1 else f"./phi_snapshot_{stamp}.json"
-        data = snapper.capture(lt, session_data)
-        Path(out_path).write_text(json.dumps(data, indent=2), encoding="utf-8")
-        short_hash = data.get("integrity", {}).get("content_hash", "")[:6]
-        return f"✓ Snapshot captured · L(t): {float(lt.get('lt', 0.0)):.3f} · Hash: {short_hash}..."
+        if len(args) > 1 and args[1] in {"--help", "-h"}:
+            return "Usage: sovereign export <path.json>"
+        if len(args) < 2:
+            return "Usage: sovereign export <path.json>"
+        out_path = export_phase1_bundle(PhiKernelCLIAdapter(), args[1])
+        return f"✓ Phase 1 export bundle written: {out_path}"
 
     if action == "verify":
         if len(args) < 2:
@@ -529,7 +536,9 @@ def cmd_ask(args: list[str], session: object | None = None) -> str:
     client = BrainCClient()
     ctx = _build_ask_context(session)
     if not args:
-        return "Usage: ask <question|--lt|--session|--next>"
+        return "Usage: ask <prompt> [--json]"
+    if "--help" in args or "-h" in args:
+        return "Usage: ask <prompt> [--json]"
 
     if args[0] == "--lt":
         return client.ask_about_lt(compute_lt())
@@ -539,10 +548,33 @@ def cmd_ask(args: list[str], session: object | None = None) -> str:
         suggestion = client.suggest_next_command(list(ctx.get("recent_commands", [])), float(ctx.get("lt_score", 0.5)))
         return suggestion
 
-    question = " ".join(args).strip()
-    response = client.ask(question, stream=True, context=ctx)
-    NOTIFIER.notify("brainc_response", "BrainC response complete", f"Model: {response.model}")
-    return response.answer
+    json_mode = "--json" in args
+    prompt_parts = [a for a in args if a != "--json"]
+    question = " ".join(prompt_parts).strip()
+    report = build_ask_report(PhiKernelCLIAdapter(), question)
+
+    if json_mode:
+        return json.dumps(report, indent=2)
+
+    next_actions = report.get("next_actions") or []
+    if not isinstance(next_actions, list):
+        next_actions = [str(next_actions)]
+    actions_lines = "\n".join([f"  - {item}" for item in next_actions]) if next_actions else "  - (none)"
+
+    return "\n".join(
+        [
+            "PHI369 Labs / Parallax · Ask",
+            f"coach: {report.get('coach')}",
+            f"field_action / band: {report.get('field_action')} / {report.get('field_band')}",
+            f"safety_posture: {report.get('safety_posture')}",
+            f"route_reason: {report.get('route_reason')}",
+            "",
+            str(report.get("body", "")),
+            "",
+            "next_actions:",
+            actions_lines,
+        ]
+    )
 
 
 def cmd_launcher(args: list[str], session: object | None = None) -> str:
