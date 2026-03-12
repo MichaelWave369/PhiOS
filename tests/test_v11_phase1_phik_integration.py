@@ -348,3 +348,74 @@ def test_mind_missing_phik_fails_cleanly(monkeypatch):
     out, code = route_command(["mind"])
     assert code == 1
     assert "phik" in out.lower()
+
+
+def test_session_start_returns_valid_startup_report(monkeypatch):
+    monkeypatch.setattr(
+        "phios.shell.phi_commands.build_session_start_report",
+        lambda *_: {
+            "anchor_readiness": "verified",
+            "heart_presence": "running",
+            "field_action": "maintain",
+            "observatory_mode": "observatory-symbolic",
+            "mind_mode": "psi_mind_observatory",
+            "next_recommended_step": "Run: phi session checkin",
+        },
+    )
+    out, code = route_command(["session", "start", "--json"])
+    assert code == 0
+    data = json.loads(out)
+    assert data["anchor_readiness"] == "verified"
+
+
+def test_session_checkin_returns_integrated_report(monkeypatch):
+    monkeypatch.setattr(
+        "phios.shell.phi_commands.build_session_checkin_report",
+        lambda *_: {
+            "session_state": "steady",
+            "field_state": {"action": "maintain"},
+            "observatory_state": {"zhemawit_mode": "observatory-symbolic"},
+            "mind_state": {"mind_mode": "psi_mind_observatory"},
+            "recommended_action": "maintain",
+            "recommended_prompt": "What one grounded next step should I take now?",
+            "next_step": "Run: phi ask",
+        },
+    )
+    out, code = route_command(["session", "checkin", "--json"])
+    assert code == 0
+    data = json.loads(out)
+    assert data["session_state"] == "steady"
+
+
+def test_session_export_writes_valid_json(monkeypatch, tmp_path):
+    output = tmp_path / "session.json"
+
+    def fake_export(_, path: str):
+        payload = {
+            "metadata": {"export_version": "1.0", "source": "PhiOS Session Layer"},
+            "status": {},
+            "coherence": {},
+            "hemavit_observatory_frame": {},
+            "psi_mind_observatory_frame": {},
+            "session_summary": {"session_state": "steady"},
+        }
+        out = tmp_path / path.split("/")[-1]
+        out.write_text(json.dumps(payload), encoding="utf-8")
+        return out
+
+    monkeypatch.setattr("phios.shell.phi_commands.export_session_bundle", fake_export)
+    out, code = route_command(["session", "export", str(output)])
+    assert code == 0
+    assert "Session bundle written" in out
+    data = json.loads(output.read_text(encoding="utf-8"))
+    assert data["metadata"]["source"] == "PhiOS Session Layer"
+
+
+def test_session_missing_phik_fails_cleanly(monkeypatch):
+    monkeypatch.setattr(
+        "phios.shell.phi_commands.build_session_start_report",
+        lambda *_: (_ for _ in ()).throw(RuntimeError("PhiKernel CLI `phik` was not found")),
+    )
+    out, code = route_command(["session", "start"])
+    assert code == 1
+    assert "phik" in out.lower()

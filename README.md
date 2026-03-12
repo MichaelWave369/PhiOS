@@ -82,6 +82,9 @@ phi ask "How should I begin?"
 - `phi mind [--json]`
 - `phi mind map [--json]`
 - `phi mind export <path.json>`
+- `phi session start [--json]`
+- `phi session checkin [--json]`
+- `phi session export <path.json>`
 - `phi status [--json]`
 - `phi coherence [--json]`
 - `phi coherence live`
@@ -121,6 +124,18 @@ It does **not** replace PhiKernel's coherence engine or runtime source-of-truth.
 phi mind
 phi mind map
 phi mind export ./phi_mind_snapshot.json
+```
+
+
+## Session Layer
+
+PhiOS Session Layer is a composition surface across runtime + observatory + mind views.
+It unifies startup and daily check-in workflows while keeping PhiKernel as source-of-truth.
+
+```bash
+phi session start
+phi session checkin
+phi session export ./phi_session_snapshot.json
 ```
 
 ## Security posture

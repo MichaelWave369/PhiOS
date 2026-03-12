@@ -37,6 +37,11 @@ from phios.core.psi_mind_observatory import (
     export_psi_mind_bundle,
     psi_mind_mapping_table,
 )
+from phios.core.session_layer import (
+    build_session_checkin_report,
+    build_session_start_report,
+    export_session_bundle,
+)
 from phios.core.lt_engine import compute_lt
 from phios.core.sovereignty import SovereignSnapshot, export_snapshot, verify_snapshot
 from phios.core.tbrc_bridge import TBRCBridge, tbrc_connected
@@ -223,6 +228,9 @@ def cmd_help(_: list[str], session: object | None = None) -> str:
             "  mind [--json]               Show Ψ_mind observatory frame",
             "  mind map [--json]           Show Ψ_mind symbolic mapping table",
             "  mind export <path>          Export Ψ_mind snapshot",
+            "  session start [--json]      Show startup session readiness",
+            "  session checkin [--json]    Show integrated daily check-in",
+            "  session export <path>       Export session bundle",
             "  status [--json]               Show PhiKernel-backed operator status",
             "  ask <prompt> [--json]         Ask PhiKernel coach",
             "  coherence [live|--json]       Show PhiKernel coherence field",
@@ -467,6 +475,58 @@ def cmd_mind(args: list[str], session: object | None = None) -> str:
             f"mind_mode: {frame.get('mind_mode', 'unknown')}",
         ]
     )
+
+
+def cmd_session(args: list[str], session: object | None = None) -> str:
+    if not args or args[0] in {"--help", "-h"}:
+        return "Usage: session <start|checkin|export> ..."
+
+    action = args[0]
+    tail = args[1:]
+
+    if action == "start":
+        if "--help" in tail or "-h" in tail:
+            return "Usage: session start [--json]"
+        report = build_session_start_report(PhiKernelCLIAdapter())
+        if "--json" in tail:
+            return json.dumps(report, indent=2)
+        return "\n".join(
+            [
+                "PHI369 Labs / Parallax · Session Start",
+                f"anchor_readiness: {report.get('anchor_readiness', 'unknown')}",
+                f"heart_presence: {report.get('heart_presence', 'unknown')}",
+                f"field_action: {report.get('field_action', 'unknown')}",
+                f"observatory_mode: {report.get('observatory_mode', 'unknown')}",
+                f"mind_mode: {report.get('mind_mode', 'unknown')}",
+                f"next_recommended_step: {report.get('next_recommended_step', '')}",
+            ]
+        )
+
+    if action == "checkin":
+        if "--help" in tail or "-h" in tail:
+            return "Usage: session checkin [--json]"
+        report = build_session_checkin_report(PhiKernelCLIAdapter())
+        if "--json" in tail:
+            return json.dumps(report, indent=2)
+        return "\n".join(
+            [
+                "PHI369 Labs / Parallax · Session Check-in",
+                f"session_state: {report.get('session_state', 'unknown')}",
+                f"recommended_action: {report.get('recommended_action', 'unknown')}",
+                f"recommended_prompt: {report.get('recommended_prompt', '')}",
+                f"next_step: {report.get('next_step', '')}",
+            ]
+        )
+
+    if action == "export":
+        if len(tail) > 0 and tail[0] in {"--help", "-h"}:
+            return "Usage: session export <path.json>"
+        if not tail:
+            return "Usage: session export <path.json>"
+        out_path = export_session_bundle(PhiKernelCLIAdapter(), tail[0])
+        return f"✓ Session bundle written: {out_path}"
+
+    return "Usage: session <start|checkin|export> ..."
 
 def cmd_version(_: list[str], session: object | None = None) -> str:
     return "\n".join(
@@ -1118,6 +1178,7 @@ COMMANDS: dict[str, CommandHandler] = {
     "observatory": cmd_observatory,
     "z": cmd_z,
     "mind": cmd_mind,
+    "session": cmd_session,
     "status": cmd_status,
     "ask": cmd_ask,
     "coherence": cmd_coherence,
