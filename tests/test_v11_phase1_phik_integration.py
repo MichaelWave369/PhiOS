@@ -277,3 +277,74 @@ def test_observatory_missing_phik_fails_cleanly(monkeypatch):
     out, code = route_command(["observatory"])
     assert code == 1
     assert "phik" in out.lower()
+
+
+def test_mind_wraps_phik_backed_data(monkeypatch):
+    monkeypatch.setattr(
+        "phios.shell.phi_commands.build_psi_mind_report",
+        lambda *_: {
+            "mind_observatory_frame": {
+                "anchor_state": "verified",
+                "current_field_action": "stabilize",
+                "drift_band": "green",
+                "capsule_continuity_count": 2,
+                "psi_mind_state": "coherent",
+                "observer_coupling": "aligned",
+                "entropy_load": "light",
+                "information_density": "rich",
+                "kernel_resonance": "strong",
+                "overlap_strength": "emerging",
+                "collapse_risk": "managed",
+                "recognition_readiness": "high",
+                "mind_mode": "psi_mind_observatory",
+            }
+        },
+    )
+    out, code = route_command(["mind"])
+    assert code == 0
+    assert "Ψ_mind Observatory" in out
+    assert "psi_mind_state: coherent" in out
+
+
+def test_mind_map_returns_expected_mapping_table(monkeypatch):
+    monkeypatch.setattr(
+        "phios.shell.phi_commands.psi_mind_mapping_table",
+        lambda: {"Ψ_mind": "state", "κC": "coherence contribution"},
+    )
+    out, code = route_command(["mind", "map", "--json"])
+    assert code == 0
+    data = json.loads(out)
+    assert "Ψ_mind" in data["symbolic_mapping"]
+
+
+def test_mind_export_writes_valid_json(monkeypatch, tmp_path):
+    output = tmp_path / "mind.json"
+
+    def fake_export(_, path: str):
+        payload = {
+            "metadata": {"export_version": "1.0", "source": "PhiOS PsiMind Observatory"},
+            "status": {},
+            "field": {},
+            "mind_observatory_frame": {"mind_mode": "psi_mind_observatory"},
+            "symbolic_mapping": {"Ψ_mind": "state"},
+        }
+        out = tmp_path / path.split("/")[-1]
+        out.write_text(json.dumps(payload), encoding="utf-8")
+        return out
+
+    monkeypatch.setattr("phios.shell.phi_commands.export_psi_mind_bundle", fake_export)
+    out, code = route_command(["mind", "export", str(output)])
+    assert code == 0
+    assert "Ψ_mind observatory bundle" in out
+    data = json.loads(output.read_text(encoding="utf-8"))
+    assert data["metadata"]["source"] == "PhiOS PsiMind Observatory"
+
+
+def test_mind_missing_phik_fails_cleanly(monkeypatch):
+    monkeypatch.setattr(
+        "phios.shell.phi_commands.build_psi_mind_report",
+        lambda *_: (_ for _ in ()).throw(RuntimeError("PhiKernel CLI `phik` was not found")),
+    )
+    out, code = route_command(["mind"])
+    assert code == 1
+    assert "phik" in out.lower()

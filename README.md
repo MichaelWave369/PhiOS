@@ -79,6 +79,9 @@ phi ask "How should I begin?"
 - `phi observatory [--json]`
 - `phi observatory export <path.json>`
 - `phi z map [--json]`
+- `phi mind [--json]`
+- `phi mind map [--json]`
+- `phi mind export <path.json>`
 - `phi status [--json]`
 - `phi coherence [--json]`
 - `phi coherence live`
@@ -105,6 +108,19 @@ It does **not** replace PhiKernel's coherence engine or runtime source-of-truth.
 phi observatory
 phi z map
 phi observatory export ./phi_observatory_snapshot.json
+```
+
+
+## Ψ_mind Observatory
+
+PhiOS can interpret PhiKernel runtime state through a `Ψ_mind` observatory lens.
+This layer is symbolic interpretation and operator workflow composition.
+It does **not** replace PhiKernel's coherence engine or runtime source-of-truth.
+
+```bash
+phi mind
+phi mind map
+phi mind export ./phi_mind_snapshot.json
 ```
 
 ## Security posture

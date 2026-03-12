@@ -32,6 +32,11 @@ from phios.core.hemavit_observatory import (
     export_observatory_bundle,
     zhemawit_mapping_table,
 )
+from phios.core.psi_mind_observatory import (
+    build_psi_mind_report,
+    export_psi_mind_bundle,
+    psi_mind_mapping_table,
+)
 from phios.core.lt_engine import compute_lt
 from phios.core.sovereignty import SovereignSnapshot, export_snapshot, verify_snapshot
 from phios.core.tbrc_bridge import TBRCBridge, tbrc_connected
@@ -215,6 +220,9 @@ def cmd_help(_: list[str], session: object | None = None) -> str:
             "  observatory [--json]        Show Hemavit/TIEKAT observatory frame",
             "  observatory export <path>   Export observatory snapshot",
             "  z map [--json]              Show Z_Hemawit symbolic mapping table",
+            "  mind [--json]               Show Ψ_mind observatory frame",
+            "  mind map [--json]           Show Ψ_mind symbolic mapping table",
+            "  mind export <path>          Export Ψ_mind snapshot",
             "  status [--json]               Show PhiKernel-backed operator status",
             "  ask <prompt> [--json]         Ask PhiKernel coach",
             "  coherence [live|--json]       Show PhiKernel coherence field",
@@ -406,6 +414,59 @@ def cmd_z(args: list[str], session: object | None = None) -> str:
     for k, v in mapping.items():
         lines.append(f"{k} -> {v}")
     return "\n".join(lines)
+
+
+def cmd_mind(args: list[str], session: object | None = None) -> str:
+    if args and args[0] in {"--help", "-h"}:
+        return "Usage: mind [--json] | mind map [--json] | mind export <path.json>"
+
+    if args and args[0] == "map":
+        tail = args[1:]
+        if "--help" in tail or "-h" in tail:
+            return "Usage: mind map [--json]"
+        mapping = psi_mind_mapping_table()
+        if "--json" in tail:
+            return json.dumps({"symbolic_mapping": mapping}, indent=2)
+        lines = [
+            "PHI369 Labs / Parallax · Ψ_mind Symbolic Map",
+            "Symbolic documentation/runtime introspection (not a simulator).",
+        ]
+        for k, v in mapping.items():
+            lines.append(f"{k} -> {v}")
+        return "\n".join(lines)
+
+    if args and args[0] == "export":
+        if len(args) > 1 and args[1] in {"--help", "-h"}:
+            return "Usage: mind export <path.json>"
+        if len(args) < 2:
+            return "Usage: mind export <path.json>"
+        out_path = export_psi_mind_bundle(PhiKernelCLIAdapter(), args[1])
+        return f"✓ Ψ_mind observatory bundle written: {out_path}"
+
+    report = build_psi_mind_report(PhiKernelCLIAdapter())
+    if "--json" in args:
+        return json.dumps(report, indent=2)
+
+    frame = report.get("mind_observatory_frame", {}) if isinstance(report.get("mind_observatory_frame"), dict) else {}
+    return "\n".join(
+        [
+            "PHI369 Labs / Parallax · Ψ_mind Observatory",
+            "Boundary: PhiKernel is source-of-truth; PhiOS provides symbolic interpretation.",
+            f"anchor_state: {frame.get('anchor_state', 'unknown')}",
+            f"current_field_action: {frame.get('current_field_action', 'unknown')}",
+            f"drift_band: {frame.get('drift_band', 'unknown')}",
+            f"capsule_continuity_count: {frame.get('capsule_continuity_count', 0)}",
+            f"psi_mind_state: {frame.get('psi_mind_state', 'unknown')}",
+            f"observer_coupling: {frame.get('observer_coupling', 'unknown')}",
+            f"entropy_load: {frame.get('entropy_load', 'unknown')}",
+            f"information_density: {frame.get('information_density', 'unknown')}",
+            f"kernel_resonance: {frame.get('kernel_resonance', 'unknown')}",
+            f"overlap_strength: {frame.get('overlap_strength', 'unknown')}",
+            f"collapse_risk: {frame.get('collapse_risk', 'unknown')}",
+            f"recognition_readiness: {frame.get('recognition_readiness', 'unknown')}",
+            f"mind_mode: {frame.get('mind_mode', 'unknown')}",
+        ]
+    )
 
 def cmd_version(_: list[str], session: object | None = None) -> str:
     return "\n".join(
@@ -1056,6 +1117,7 @@ COMMANDS: dict[str, CommandHandler] = {
     "pulse": cmd_pulse,
     "observatory": cmd_observatory,
     "z": cmd_z,
+    "mind": cmd_mind,
     "status": cmd_status,
     "ask": cmd_ask,
     "coherence": cmd_coherence,
