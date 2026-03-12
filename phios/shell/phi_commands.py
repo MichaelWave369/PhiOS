@@ -27,6 +27,11 @@ from phios.core.phik_service import (
     run_init,
     run_pulse_once,
 )
+from phios.core.hemavit_observatory import (
+    build_observatory_report,
+    export_observatory_bundle,
+    zhemawit_mapping_table,
+)
 from phios.core.lt_engine import compute_lt
 from phios.core.sovereignty import SovereignSnapshot, export_snapshot, verify_snapshot
 from phios.core.tbrc_bridge import TBRCBridge, tbrc_connected
@@ -207,6 +212,9 @@ def cmd_help(_: list[str], session: object | None = None) -> str:
             "  doctor [--json]             Check PhiKernel readiness",
             "  init --passphrase ...       Initialize PhiKernel through PhiOS",
             "  pulse once [--json]         Run single PhiKernel pulse",
+            "  observatory [--json]        Show Hemavit/TIEKAT observatory frame",
+            "  observatory export <path>   Export observatory snapshot",
+            "  z map [--json]              Show Z_Hemawit symbolic mapping table",
             "  status [--json]               Show PhiKernel-backed operator status",
             "  ask <prompt> [--json]         Ask PhiKernel coach",
             "  coherence [live|--json]       Show PhiKernel coherence field",
@@ -338,6 +346,66 @@ def cmd_pulse(args: list[str], session: object | None = None) -> str:
             f"route_reason: {result.get('route_reason', 'n/a')}",
         ]
     )
+
+
+def cmd_observatory(args: list[str], session: object | None = None) -> str:
+    if args and args[0] in {"--help", "-h"}:
+        return "Usage: observatory [--json] | observatory export <path.json>"
+
+    if args and args[0] == "export":
+        if len(args) > 1 and args[1] in {"--help", "-h"}:
+            return "Usage: observatory export <path.json>"
+        if len(args) < 2:
+            return "Usage: observatory export <path.json>"
+        out_path = export_observatory_bundle(PhiKernelCLIAdapter(), args[1])
+        return f"✓ Hemavit observatory bundle written: {out_path}"
+
+    report = build_observatory_report(PhiKernelCLIAdapter())
+    if "--json" in args:
+        return json.dumps(report, indent=2)
+
+    frame = report.get("observatory_frame", {}) if isinstance(report.get("observatory_frame"), dict) else {}
+    return "\n".join(
+        [
+            "PHI369 Labs / Parallax · Hemavit Observatory",
+            "Boundary: PhiKernel is source-of-truth; PhiOS provides symbolic interpretation.",
+            f"anchor_state: {frame.get('anchor_state', 'unknown')}",
+            f"current_field_action: {frame.get('current_field_action', 'unknown')}",
+            f"drift_band: {frame.get('drift_band', 'unknown')}",
+            f"capsule_continuity_count: {frame.get('capsule_continuity_count', 0)}",
+            f"C_landscape_state: {frame.get('C_landscape_state', 'unknown')}",
+            f"observer_stability: {frame.get('observer_stability', 'unknown')}",
+            f"entropy_gradient_state: {frame.get('entropy_gradient_state', 'unknown')}",
+            f"information_gradient_state: {frame.get('information_gradient_state', 'unknown')}",
+            f"collapse_risk: {frame.get('collapse_risk', 'unknown')}",
+            f"recognition_readiness: {frame.get('recognition_readiness', 'unknown')}",
+            f"zhemawit_mode: {frame.get('zhemawit_mode', 'unknown')}",
+        ]
+    )
+
+
+def cmd_z(args: list[str], session: object | None = None) -> str:
+    if not args or args[0] in {"--help", "-h"}:
+        return "Usage: z map [--json]"
+
+    action = args[0]
+    tail = args[1:]
+    if action != "map":
+        return "Usage: z map [--json]"
+    if "--help" in tail or "-h" in tail:
+        return "Usage: z map [--json]"
+
+    mapping = zhemawit_mapping_table()
+    if "--json" in tail:
+        return json.dumps({"symbolic_mapping": mapping}, indent=2)
+
+    lines = [
+        "PHI369 Labs / Parallax · Z_Hemawit Symbolic Map",
+        "Symbolic documentation and runtime introspection (not a physics simulator).",
+    ]
+    for k, v in mapping.items():
+        lines.append(f"{k} -> {v}")
+    return "\n".join(lines)
 
 def cmd_version(_: list[str], session: object | None = None) -> str:
     return "\n".join(
@@ -986,6 +1054,8 @@ COMMANDS: dict[str, CommandHandler] = {
     "doctor": cmd_doctor,
     "init": cmd_init,
     "pulse": cmd_pulse,
+    "observatory": cmd_observatory,
+    "z": cmd_z,
     "status": cmd_status,
     "ask": cmd_ask,
     "coherence": cmd_coherence,

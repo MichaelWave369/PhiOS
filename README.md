@@ -76,6 +76,9 @@ phi ask "How should I begin?"
 - `phi doctor [--json]`
 - `phi init --passphrase <value> --sovereign-name <name> --user-label <label> [--resonant-label <label>] [--json]`
 - `phi pulse once [--checkpoint <path>] [--passphrase <value>] [--json]`
+- `phi observatory [--json]`
+- `phi observatory export <path.json>`
+- `phi z map [--json]`
 - `phi status [--json]`
 - `phi coherence [--json]`
 - `phi coherence live`
@@ -90,6 +93,19 @@ phi ask "How should I begin?"
 - `phi archive [timeline|add|export]`
 - `phi kg [stats|search <concept>]`
 - `phi sync [status|push|pull|both]`
+
+
+## Hemavit Observatory
+
+PhiOS can interpret PhiKernel runtime state through a Hemavit / TIEKAT observatory lens.
+This layer is symbolic interpretation and operator workflow composition.
+It does **not** replace PhiKernel's coherence engine or runtime source-of-truth.
+
+```bash
+phi observatory
+phi z map
+phi observatory export ./phi_observatory_snapshot.json
+```
 
 ## Security posture
 

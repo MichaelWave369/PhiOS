@@ -207,3 +207,73 @@ def test_json_output_contracts_for_new_commands(monkeypatch):
     assert json.loads(doc_out)["status"] == "ready"
     assert json.loads(init_out)["ok"] is True
     assert json.loads(pulse_out)["ok"] is True
+
+
+def test_observatory_wraps_phik_backed_data(monkeypatch):
+    monkeypatch.setattr(
+        "phios.shell.phi_commands.build_observatory_report",
+        lambda *_: {
+            "observatory_frame": {
+                "anchor_state": "verified",
+                "current_field_action": "stabilize",
+                "drift_band": "green",
+                "capsule_continuity_count": 3,
+                "C_landscape_state": "convergent",
+                "observer_stability": "steady",
+                "entropy_gradient_state": "contained",
+                "information_gradient_state": "rich",
+                "collapse_risk": "managed",
+                "recognition_readiness": "high",
+                "zhemawit_mode": "observatory-symbolic",
+            },
+            "symbolic_mapping": {"Z_Hemawit": "frame"},
+        },
+    )
+    out, code = route_command(["observatory"])
+    assert code == 0
+    assert "Hemavit Observatory" in out
+    assert "anchor_state: verified" in out
+
+
+def test_z_map_returns_expected_mapping_table(monkeypatch):
+    monkeypatch.setattr(
+        "phios.shell.phi_commands.zhemawit_mapping_table",
+        lambda: {"C_landscape": "coherence frame space", "Z_Hemawit": "total frame"},
+    )
+    out, code = route_command(["z", "map", "--json"])
+    assert code == 0
+    data = json.loads(out)
+    assert "C_landscape" in data["symbolic_mapping"]
+
+
+def test_observatory_export_writes_valid_json(monkeypatch, tmp_path):
+    output = tmp_path / "obs.json"
+
+    def fake_export(_, path: str):
+        payload = {
+            "metadata": {"export_version": "1.0", "source": "PhiOS Hemavit Observatory"},
+            "status": {},
+            "field": {},
+            "observatory_frame": {"zhemawit_mode": "observatory-symbolic"},
+            "symbolic_mapping": {"Z_Hemawit": "frame"},
+        }
+        out = tmp_path / path.split("/")[-1]
+        out.write_text(json.dumps(payload), encoding="utf-8")
+        return out
+
+    monkeypatch.setattr("phios.shell.phi_commands.export_observatory_bundle", fake_export)
+    out, code = route_command(["observatory", "export", str(output)])
+    assert code == 0
+    assert "observatory bundle" in out
+    data = json.loads(output.read_text(encoding="utf-8"))
+    assert data["metadata"]["source"] == "PhiOS Hemavit Observatory"
+
+
+def test_observatory_missing_phik_fails_cleanly(monkeypatch):
+    monkeypatch.setattr(
+        "phios.shell.phi_commands.build_observatory_report",
+        lambda *_: (_ for _ in ()).throw(RuntimeError("PhiKernel CLI `phik` was not found")),
+    )
+    out, code = route_command(["observatory"])
+    assert code == 1
+    assert "phik" in out.lower()
