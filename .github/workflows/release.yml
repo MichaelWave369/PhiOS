@@ -62,11 +62,9 @@ jobs:
       - run: python -m pip install --upgrade pip
       - run: pip install -e .
       - id: version
+        shell: bash
         run: |
-          python - <<'PY'
-          from phios import __version__
-          print(f"version={__version__}")
-          PY >> "$GITHUB_OUTPUT"
+          echo "version=$(python -c 'from phios import __version__; print(__version__)')" >> "$GITHUB_OUTPUT"
       - id: notes
         run: python scripts/generate_release_notes.py
 
