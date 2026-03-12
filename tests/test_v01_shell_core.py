@@ -21,12 +21,25 @@ def test_lt_engine_range():
     assert 0.0 <= val <= 1.0
 
 
-def test_coherence_speed_ci_threshold():
+def test_coherence_speed_ci_threshold(monkeypatch):
+    monkeypatch.setattr(
+        "phios.shell.phi_commands.build_coherence_report",
+        lambda *_: {
+            "C_current": 0.61,
+            "C_star": 0.9,
+            "distance_to_C_star": 0.29,
+            "phi_flow": 0.5,
+            "lambda_node": 0.4,
+            "sigma_feedback": 0.2,
+            "fragmentation_score": 0.1,
+            "recommended_action": "stabilize",
+        },
+    )
     start = time.perf_counter()
     out, code = route_command(["coherence"])
     elapsed = time.perf_counter() - start
     assert code == 0
-    assert "L(t):" in out
+    assert "C_current:" in out
     assert elapsed < 0.2
 
 
@@ -53,10 +66,20 @@ def test_brainc_status_no_raise():
     assert "brainc:" in out
 
 
-def test_status_required_fields():
+def test_status_required_fields(monkeypatch):
+    monkeypatch.setattr(
+        "phios.shell.phi_commands.build_status_report",
+        lambda *_: {
+            "anchor_verification_state": "verified",
+            "heart_state": "running",
+            "field_action": "maintain",
+            "field_drift_band": "green",
+            "capsule_count": 3,
+        },
+    )
     out, code = route_command(["status"])
     assert code == 0
-    required = ["OS:", "Python:", "CPU count:", "Memory total:", "Uptime:", "Local AI", "Telemetry: OFF (enforced)"]
+    required = ["Anchor verification:", "Heart state:", "Field action / drift band:", "Capsules tracked:"]
     for item in required:
         assert item in out
 

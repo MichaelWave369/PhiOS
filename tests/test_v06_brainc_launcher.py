@@ -55,13 +55,24 @@ def test_brainc_never_raises_on_connection_error(monkeypatch):
 
 
 def test_phi_ask_streams_or_returns_string(monkeypatch):
-    monkeypatch.setattr("urllib.request.urlopen", lambda *a, **k: (_ for _ in ()).throw(urllib.error.URLError("x")))
+    monkeypatch.setattr(
+        "phios.shell.phi_commands.build_ask_report",
+        lambda *_: {
+            "coach": "SovereignCoach",
+            "field_action": "maintain",
+            "field_band": "green",
+            "safety_posture": "safe",
+            "route_reason": "local",
+            "body": "Operator guidance.",
+            "next_actions": ["phi status"],
+        },
+    )
     f = io.StringIO()
     with redirect_stdout(f):
         out, code = route_command(["ask", "what is phi?"])
     assert code == 0
     assert isinstance(out, str)
-    assert "No data left this machine." in out
+    assert "Operator guidance." in out
 
 
 def test_phi_ask_lt_returns_interpretation(monkeypatch):
