@@ -58,10 +58,24 @@ phi ask "How should I begin?"
 phi sovereign export ./phi_snapshot.json
 ```
 
+## First Day with PhiOS
+
+```bash
+phi doctor
+phi init --passphrase "change-me" --sovereign-name "Tal-Aren-Vox" --user-label "Ori"
+phi pulse once
+phi status
+phi coherence
+phi ask "How should I begin?"
+```
+
 ## Command reference (v0.3)
 
 - `phi help`
 - `phi version`
+- `phi doctor [--json]`
+- `phi init --passphrase <value> --sovereign-name <name> --user-label <label> [--resonant-label <label>] [--json]`
+- `phi pulse once [--checkpoint <path>] [--passphrase <value>] [--json]`
 - `phi status [--json]`
 - `phi coherence [--json]`
 - `phi coherence live`

@@ -25,8 +25,11 @@ class PhiKernelUnavailableError(PhiKernelAdapterError):
 class PhiKernelCLIAdapter:
     executable: str = "phik"
 
+    def is_available(self) -> bool:
+        return shutil.which(self.executable) is not None
+
     def _run_json(self, args: Sequence[str]) -> dict[str, object]:
-        if shutil.which(self.executable) is None:
+        if not self.is_available():
             raise PhiKernelUnavailableError(
                 "PhiKernel CLI `phik` was not found. Install and initialize PhiKernel first."
             )
@@ -83,5 +86,31 @@ class PhiKernelCLIAdapter:
     def ask(self, prompt: str) -> dict[str, object]:
         return self._run_json(["ask", prompt])
 
-    def pulse_once(self) -> dict[str, object]:
-        return self._run_json(["pulse", "once"])
+    def pulse_once(self, checkpoint: str | None = None, passphrase: str | None = None) -> dict[str, object]:
+        args: list[str] = ["pulse", "once"]
+        if checkpoint:
+            args.extend(["--checkpoint", checkpoint])
+        if passphrase:
+            args.extend(["--passphrase", passphrase])
+        return self._run_json(args)
+
+    def init(
+        self,
+        *,
+        passphrase: str,
+        sovereign_name: str,
+        user_label: str,
+        resonant_label: str | None = None,
+    ) -> dict[str, object]:
+        args = [
+            "init",
+            "--passphrase",
+            passphrase,
+            "--sovereign-name",
+            sovereign_name,
+            "--user-label",
+            user_label,
+        ]
+        if resonant_label:
+            args.extend(["--resonant-label", resonant_label])
+        return self._run_json(args)

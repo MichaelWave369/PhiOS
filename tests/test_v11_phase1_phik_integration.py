@@ -104,3 +104,106 @@ def test_adapter_never_uses_shell_true(monkeypatch):
     monkeypatch.setattr("subprocess.run", fake_run)
     data = PhiKernelCLIAdapter().status()
     assert data == {}
+
+
+def test_doctor_when_phik_missing(monkeypatch):
+    monkeypatch.setattr("phios.shell.phi_commands.build_doctor_report", lambda *_: {"status": "missing_phik", "checks": {"phik_callable": False, "anchor_exists": False, "heart_status_exists": False, "coherence_frame_exists": False, "capsule_entries": 0}, "message": "missing"})
+    out, code = route_command(["doctor", "--json"])
+    assert code == 0
+    data = json.loads(out)
+    assert data["status"] == "missing_phik"
+
+
+def test_doctor_when_anchor_missing(monkeypatch):
+    monkeypatch.setattr("phios.shell.phi_commands.build_doctor_report", lambda *_: {"status": "needs_init", "checks": {"phik_callable": True, "anchor_exists": False, "heart_status_exists": False, "coherence_frame_exists": False, "capsule_entries": 0}, "message": "init required"})
+    out, code = route_command(["doctor"])
+    assert code == 0
+    assert "status: needs_init" in out
+
+
+def test_init_successful_wrapping_behavior(monkeypatch):
+    monkeypatch.setattr(
+        "phios.shell.phi_commands.run_init",
+        lambda *_args, **_kwargs: {"ok": True, "anchor": "created"},
+    )
+    out, code = route_command(
+        [
+            "init",
+            "--passphrase",
+            "change-me",
+            "--sovereign-name",
+            "Tal-Aren-Vox",
+            "--user-label",
+            "Ori",
+        ]
+    )
+    assert code == 0
+    assert "Initialization Complete" in out
+
+
+def test_init_existing_anchor_failure_passthrough(monkeypatch):
+    monkeypatch.setattr(
+        "phios.shell.phi_commands.run_init",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("anchor already initialized")),
+    )
+    out, code = route_command(
+        [
+            "init",
+            "--passphrase",
+            "change-me",
+            "--sovereign-name",
+            "Tal-Aren-Vox",
+            "--user-label",
+            "Ori",
+        ]
+    )
+    assert code == 1
+    assert "anchor already initialized" in out
+
+
+def test_pulse_once_successful_wrapping_behavior(monkeypatch):
+    monkeypatch.setattr(
+        "phios.shell.phi_commands.run_pulse_once",
+        lambda *_args, **_kwargs: {"field_action": "stabilize", "field_band": "green", "route_reason": "safe"},
+    )
+    out, code = route_command(["pulse", "once"])
+    assert code == 0
+    assert "Pulse Once" in out
+
+
+def test_pulse_once_checkpoint_path(monkeypatch):
+    captured = {}
+
+    def fake_pulse(*_args, **kwargs):
+        captured.update(kwargs)
+        return {"field_action": "stabilize", "field_band": "green", "route_reason": "safe"}
+
+    monkeypatch.setattr("phios.shell.phi_commands.run_pulse_once", fake_pulse)
+    out, code = route_command(["pulse", "once", "--checkpoint", "./cp.json", "--passphrase", "change-me"])
+    assert code == 0
+    assert captured["checkpoint"] == "./cp.json"
+    assert captured["passphrase"] == "change-me"
+
+
+def test_json_output_contracts_for_new_commands(monkeypatch):
+    monkeypatch.setattr("phios.shell.phi_commands.build_doctor_report", lambda *_: {"status": "ready"})
+    monkeypatch.setattr("phios.shell.phi_commands.run_init", lambda *_args, **_kwargs: {"ok": True})
+    monkeypatch.setattr("phios.shell.phi_commands.run_pulse_once", lambda *_args, **_kwargs: {"ok": True})
+
+    doc_out, doc_code = route_command(["doctor", "--json"])
+    init_out, init_code = route_command([
+        "init",
+        "--passphrase",
+        "change-me",
+        "--sovereign-name",
+        "Tal-Aren-Vox",
+        "--user-label",
+        "Ori",
+        "--json",
+    ])
+    pulse_out, pulse_code = route_command(["pulse", "once", "--json"])
+
+    assert doc_code == 0 and init_code == 0 and pulse_code == 0
+    assert json.loads(doc_out)["status"] == "ready"
+    assert json.loads(init_out)["ok"] is True
+    assert json.loads(pulse_out)["ok"] is True

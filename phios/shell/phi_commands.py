@@ -22,8 +22,11 @@ from phios.adapters.phik import PhiKernelCLIAdapter
 from phios.core.phik_service import (
     build_ask_report,
     build_coherence_report,
+    build_doctor_report,
     build_status_report,
     export_phase1_bundle,
+    run_init,
+    run_pulse_once,
 )
 from phios.core.lt_engine import compute_lt
 from phios.core.sovereignty import SovereignSnapshot, export_snapshot, verify_snapshot
@@ -202,6 +205,9 @@ def cmd_help(_: list[str], session: object | None = None) -> str:
             "Commands:",
             "  help                        Show this help",
             "  version                     Show PhiOS version info",
+            "  doctor [--json]             Check PhiKernel readiness",
+            "  init --passphrase ...       Initialize PhiKernel through PhiOS",
+            "  pulse once [--json]         Run single PhiKernel pulse",
             "  status [--json]               Show PhiKernel-backed operator status",
             "  ask <prompt> [--json]         Ask PhiKernel coach",
             "  coherence [live|--json]       Show PhiKernel coherence field",
@@ -232,6 +238,107 @@ def cmd_help(_: list[str], session: object | None = None) -> str:
         ]
     )
 
+
+
+def _extract_flag_value(args: list[str], flag: str) -> str | None:
+    if flag not in args:
+        return None
+    idx = args.index(flag)
+    if idx + 1 >= len(args):
+        raise ValueError(f"Missing value for {flag}")
+    return args[idx + 1]
+
+
+def cmd_doctor(args: list[str], session: object | None = None) -> str:
+    if "--help" in args or "-h" in args:
+        return "Usage: doctor [--json]"
+
+    report = build_doctor_report(PhiKernelCLIAdapter())
+    if "--json" in args:
+        return json.dumps(report, indent=2)
+
+    checks = report.get("checks", {}) if isinstance(report.get("checks"), dict) else {}
+    return "\n".join(
+        [
+            "PHI369 Labs / Parallax · PhiKernel Readiness",
+            f"status: {report.get('status', 'unknown')}",
+            f"phik callable: {'yes' if checks.get('phik_callable') else 'no'}",
+            f"anchor exists: {'yes' if checks.get('anchor_exists') else 'no'}",
+            f"heart status: {'yes' if checks.get('heart_status_exists') else 'no'}",
+            f"coherence frame: {'yes' if checks.get('coherence_frame_exists') else 'no'}",
+            f"capsule entries: {checks.get('capsule_entries', 0)}",
+            f"message: {report.get('message', '')}",
+        ]
+    )
+
+
+def cmd_init(args: list[str], session: object | None = None) -> str:
+    if "--help" in args or "-h" in args:
+        return (
+            "Usage: init --passphrase <value> --sovereign-name <name> --user-label <label> "
+            "[--resonant-label <label>] [--json]"
+        )
+
+    passphrase = _extract_flag_value(args, "--passphrase")
+    sovereign_name = _extract_flag_value(args, "--sovereign-name")
+    user_label = _extract_flag_value(args, "--user-label")
+    resonant_label = _extract_flag_value(args, "--resonant-label")
+
+    if not passphrase or not sovereign_name or not user_label:
+        return (
+            "Usage: init --passphrase <value> --sovereign-name <name> --user-label <label> "
+            "[--resonant-label <label>] [--json]"
+        )
+
+    result = run_init(
+        PhiKernelCLIAdapter(),
+        passphrase=passphrase,
+        sovereign_name=sovereign_name,
+        user_label=user_label,
+        resonant_label=resonant_label,
+    )
+
+    if "--json" in args:
+        return json.dumps(result, indent=2)
+
+    return "\n".join(
+        [
+            "PHI369 Labs / Parallax · Initialization Complete",
+            f"sovereign_name: {sovereign_name}",
+            f"user_label: {user_label}",
+            "PhiKernel remains the runtime source of truth.",
+        ]
+    )
+
+
+def cmd_pulse(args: list[str], session: object | None = None) -> str:
+    if not args or args[0] in {"--help", "-h"}:
+        return "Usage: pulse once [--checkpoint <path>] [--passphrase <value>] [--json]"
+
+    action = args[0]
+    tail = args[1:]
+    if action != "once":
+        return "Usage: pulse once [--checkpoint <path>] [--passphrase <value>] [--json]"
+    if "--help" in tail or "-h" in tail:
+        return "Usage: pulse once [--checkpoint <path>] [--passphrase <value>] [--json]"
+
+    checkpoint = _extract_flag_value(tail, "--checkpoint")
+    passphrase = _extract_flag_value(tail, "--passphrase")
+    if checkpoint and not passphrase:
+        raise ValueError("--passphrase is required when --checkpoint is used")
+
+    result = run_pulse_once(PhiKernelCLIAdapter(), checkpoint=checkpoint, passphrase=passphrase)
+    if "--json" in tail:
+        return json.dumps(result, indent=2)
+
+    return "\n".join(
+        [
+            "PHI369 Labs / Parallax · Pulse Once",
+            f"field_action: {result.get('field_action', result.get('recommended_action', 'unknown'))}",
+            f"field_band: {result.get('field_band', result.get('drift_band', 'unknown'))}",
+            f"route_reason: {result.get('route_reason', 'n/a')}",
+        ]
+    )
 
 def cmd_version(_: list[str], session: object | None = None) -> str:
     return "\n".join(
@@ -877,6 +984,9 @@ def cmd_build(args: list[str], session: object | None = None) -> str:
 COMMANDS: dict[str, CommandHandler] = {
     "help": cmd_help,
     "version": cmd_version,
+    "doctor": cmd_doctor,
+    "init": cmd_init,
+    "pulse": cmd_pulse,
     "status": cmd_status,
     "ask": cmd_ask,
     "coherence": cmd_coherence,
