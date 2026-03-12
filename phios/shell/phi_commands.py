@@ -5,7 +5,6 @@ from __future__ import annotations
 import hashlib
 import json
 import os
-import platform
 import select
 import subprocess
 import sys
@@ -17,7 +16,7 @@ from pathlib import Path
 from typing import Callable
 
 from phios import __version__
-from phios.core.brainc_client import OLLAMA_URL, BrainCClient, ollama_available
+from phios.core.brainc_client import BrainCClient, ollama_available
 from phios.adapters.phik import PhiKernelCLIAdapter
 from phios.core.phik_service import (
     build_ask_report,
