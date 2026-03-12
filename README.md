@@ -132,6 +132,13 @@ phi mind export ./phi_mind_snapshot.json
 PhiOS Session Layer is a composition surface across runtime + observatory + mind views.
 It unifies startup and daily check-in workflows while keeping PhiKernel as source-of-truth.
 
+It uses symbolic interpretation terms for operator check-ins, including:
+- `observer_state`
+- `self_alignment`
+- `information_density` (`G_info(I)`)
+- `entropy_load` (`η S_ent`)
+- `emergence_pressure` (`T_emerge`)
+
 ```bash
 phi session start
 phi session checkin

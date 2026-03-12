@@ -354,18 +354,22 @@ def test_session_start_returns_valid_startup_report(monkeypatch):
     monkeypatch.setattr(
         "phios.shell.phi_commands.build_session_start_report",
         lambda *_: {
-            "anchor_readiness": "verified",
-            "heart_presence": "running",
+            "session_state": "steady",
+            "anchor_ready": "verified",
+            "heart_ready": "running",
             "field_action": "maintain",
+            "drift_band": "green",
             "observatory_mode": "observatory-symbolic",
             "mind_mode": "psi_mind_observatory",
-            "next_recommended_step": "Run: phi session checkin",
+            "observer_state": "grounded",
+            "self_alignment": "aligned",
+            "next_step": "Run: phi session checkin",
         },
     )
     out, code = route_command(["session", "start", "--json"])
     assert code == 0
     data = json.loads(out)
-    assert data["anchor_readiness"] == "verified"
+    assert data["anchor_ready"] == "verified"
 
 
 def test_session_checkin_returns_integrated_report(monkeypatch):
@@ -376,9 +380,17 @@ def test_session_checkin_returns_integrated_report(monkeypatch):
             "field_state": {"action": "maintain"},
             "observatory_state": {"zhemawit_mode": "observatory-symbolic"},
             "mind_state": {"mind_mode": "psi_mind_observatory"},
+            "observer_state": "grounded",
+            "self_alignment": "aligned",
+            "information_density": "rich",
+            "entropy_load": "light",
+            "emergence_pressure": "steady",
+            "collapse_risk": "managed",
+            "recognition_readiness": "high",
             "recommended_action": "maintain",
             "recommended_prompt": "What one grounded next step should I take now?",
             "next_step": "Run: phi ask",
+            "zhemawit_mode": "observatory-symbolic",
         },
     )
     out, code = route_command(["session", "checkin", "--json"])
@@ -398,6 +410,7 @@ def test_session_export_writes_valid_json(monkeypatch, tmp_path):
             "hemavit_observatory_frame": {},
             "psi_mind_observatory_frame": {},
             "session_summary": {"session_state": "steady"},
+            "symbolic_session_fields": {"observer_state": "grounded"},
         }
         out = tmp_path / path.split("/")[-1]
         out.write_text(json.dumps(payload), encoding="utf-8")

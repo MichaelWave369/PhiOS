@@ -493,12 +493,16 @@ def cmd_session(args: list[str], session: object | None = None) -> str:
         return "\n".join(
             [
                 "PHI369 Labs / Parallax · Session Start",
-                f"anchor_readiness: {report.get('anchor_readiness', 'unknown')}",
-                f"heart_presence: {report.get('heart_presence', 'unknown')}",
+                f"session_state: {report.get('session_state', 'unknown')}",
+                f"anchor_ready: {report.get('anchor_ready', report.get('anchor_readiness', 'unknown'))}",
+                f"heart_ready: {report.get('heart_ready', report.get('heart_presence', 'unknown'))}",
                 f"field_action: {report.get('field_action', 'unknown')}",
+                f"drift_band: {report.get('drift_band', 'unknown')}",
                 f"observatory_mode: {report.get('observatory_mode', 'unknown')}",
                 f"mind_mode: {report.get('mind_mode', 'unknown')}",
-                f"next_recommended_step: {report.get('next_recommended_step', '')}",
+                f"observer_state: {report.get('observer_state', 'unknown')}",
+                f"self_alignment: {report.get('self_alignment', 'unknown')}",
+                f"next_step: {report.get('next_step', report.get('next_recommended_step', ''))}",
             ]
         )
 
@@ -512,6 +516,14 @@ def cmd_session(args: list[str], session: object | None = None) -> str:
             [
                 "PHI369 Labs / Parallax · Session Check-in",
                 f"session_state: {report.get('session_state', 'unknown')}",
+                f"observer_state: {report.get('observer_state', 'unknown')}",
+                f"self_alignment: {report.get('self_alignment', 'unknown')}",
+                f"information_density: {report.get('information_density', 'unknown')}",
+                f"entropy_load: {report.get('entropy_load', 'unknown')}",
+                f"emergence_pressure: {report.get('emergence_pressure', 'unknown')}",
+                f"collapse_risk: {report.get('collapse_risk', 'unknown')}",
+                f"recognition_readiness: {report.get('recognition_readiness', 'unknown')}",
+                f"zhemawit_mode: {report.get('zhemawit_mode', 'unknown')}",
                 f"recommended_action: {report.get('recommended_action', 'unknown')}",
                 f"recommended_prompt: {report.get('recommended_prompt', '')}",
                 f"next_step: {report.get('next_step', '')}",
