@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any
 
 from phios.adapters.phik import (
     PhiKernelAdapterError,
@@ -13,11 +14,49 @@ from phios.adapters.phik import (
 )
 
 
+def _as_int(value: object, default: int = 0) -> int:
+    if isinstance(value, bool):
+        return int(value)
+    if isinstance(value, int):
+        return value
+    if isinstance(value, float):
+        return int(value)
+    if isinstance(value, str):
+        try:
+            return int(value)
+        except ValueError:
+            return default
+    return default
+
+
 def _capsule_count(capsules: dict[str, object]) -> int:
     capsule_items = capsules.get("capsules", [])
     if isinstance(capsule_items, list):
         return len(capsule_items)
-    return int(capsules.get("count", 0) or 0)
+    count_val = capsules.get("count", 0) or 0
+    return _as_int(count_val, default=0)
+
+
+def _anchor_verification_state(status: dict[str, object]) -> object:
+    direct = status.get("anchor_verification_state")
+    if direct is not None:
+        return direct
+    anchor_obj = status.get("anchor")
+    if isinstance(anchor_obj, dict):
+        anchor_dict: dict[str, object] = anchor_obj
+        return anchor_dict.get("verification_state", "unknown")
+    return "unknown"
+
+
+def _heart_state(status: dict[str, object]) -> object:
+    direct = status.get("heart_state")
+    if direct is not None:
+        return direct
+    heart_obj = status.get("heart")
+    if isinstance(heart_obj, dict):
+        heart_dict: dict[str, object] = heart_obj
+        return heart_dict.get("state", "unknown")
+    return "unknown"
 
 
 def build_status_report(adapter: PhiKernelCLIAdapter) -> dict[str, object]:
@@ -26,13 +65,8 @@ def build_status_report(adapter: PhiKernelCLIAdapter) -> dict[str, object]:
     capsules = adapter.capsule_list()
 
     return {
-        "anchor_verification_state": status.get(
-            "anchor_verification_state",
-            status.get("anchor", {}).get("verification_state") if isinstance(status.get("anchor"), dict) else "unknown",
-        ),
-        "heart_state": status.get(
-            "heart_state", status.get("heart", {}).get("state") if isinstance(status.get("heart"), dict) else "unknown"
-        ),
+        "anchor_verification_state": _anchor_verification_state(status),
+        "heart_state": _heart_state(status),
         "field_action": field.get("recommended_action", field.get("field_action", "unknown")),
         "field_drift_band": field.get("field_band", field.get("drift_band", "unknown")),
         "capsule_count": _capsule_count(capsules),
@@ -84,7 +118,8 @@ def _anchor_exists(anchor: dict[str, object]) -> bool:
 def _heart_exists(status: dict[str, object]) -> bool:
     heart = status.get("heart")
     if isinstance(heart, dict):
-        if any(k in heart for k in ("status", "state", "running", "present")):
+        heart_dict: dict[str, object] = heart
+        if any(k in heart_dict for k in ("status", "state", "running", "present")):
             return True
     heart_state = status.get("heart_state")
     return bool(heart_state and str(heart_state).lower() not in {"missing", "none", "null"})
@@ -208,7 +243,7 @@ def export_phase1_bundle(adapter: PhiKernelCLIAdapter, path_str: str) -> Path:
     target = _validate_export_path(path_str)
     target.parent.mkdir(parents=True, exist_ok=True)
 
-    payload = {
+    payload: dict[str, Any] = {
         "metadata": {
             "export_version": "1.0",
             "exported_at": datetime.now(timezone.utc).isoformat(),

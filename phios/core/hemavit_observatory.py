@@ -11,15 +11,32 @@ from __future__ import annotations
 import json
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any
 
 from phios.adapters.phik import PhiKernelCLIAdapter
+
+
+def _as_int(value: object, default: int = 0) -> int:
+    if isinstance(value, bool):
+        return int(value)
+    if isinstance(value, int):
+        return value
+    if isinstance(value, float):
+        return int(value)
+    if isinstance(value, str):
+        try:
+            return int(value)
+        except ValueError:
+            return default
+    return default
 
 
 def _capsule_count(capsules: dict[str, object]) -> int:
     items = capsules.get("capsules", [])
     if isinstance(items, list):
         return len(items)
-    return int(capsules.get("count", 0) or 0)
+    count_val = capsules.get("count", 0) or 0
+    return _as_int(count_val, default=0)
 
 
 def _anchor_state(anchor: dict[str, object]) -> str:
@@ -29,10 +46,14 @@ def _anchor_state(anchor: dict[str, object]) -> str:
 
 
 def _number(value: object, default: float = 0.0) -> float:
-    try:
+    if isinstance(value, (int, float)):
         return float(value)
-    except (TypeError, ValueError):
-        return default
+    if isinstance(value, str):
+        try:
+            return float(value)
+        except ValueError:
+            return default
+    return default
 
 
 def zhemawit_mapping_table() -> dict[str, str]:
@@ -54,6 +75,7 @@ def build_observatory_frame(
     anchor: dict[str, object],
     capsules: dict[str, object],
 ) -> dict[str, object]:
+    _ = status
     capsule_count = _capsule_count(capsules)
     fragmentation = _number(field.get("fragmentation_score"), 0.0)
     distance = _number(field.get("distance_to_C_star"), 0.0)
@@ -110,7 +132,7 @@ def export_observatory_bundle(adapter: PhiKernelCLIAdapter, path_str: str) -> Pa
     target = _validate_export_path(path_str)
     target.parent.mkdir(parents=True, exist_ok=True)
     report = build_observatory_report(adapter)
-    payload = {
+    payload: dict[str, Any] = {
         "metadata": {
             "export_version": "1.0",
             "exported_at": datetime.now(timezone.utc).isoformat(),
