@@ -5,7 +5,6 @@ from __future__ import annotations
 import hashlib
 import json
 import os
-import platform
 import select
 import subprocess
 import sys
@@ -17,7 +16,32 @@ from pathlib import Path
 from typing import Callable
 
 from phios import __version__
-from phios.core.brainc_client import OLLAMA_URL, BrainCClient, ollama_available
+from phios.core.brainc_client import BrainCClient, ollama_available
+from phios.adapters.phik import PhiKernelCLIAdapter
+from phios.core.phik_service import (
+    build_ask_report,
+    build_coherence_report,
+    build_doctor_report,
+    build_status_report,
+    export_phase1_bundle,
+    run_init,
+    run_pulse_once,
+)
+from phios.core.hemavit_observatory import (
+    build_observatory_report,
+    export_observatory_bundle,
+    zhemawit_mapping_table,
+)
+from phios.core.psi_mind_observatory import (
+    build_psi_mind_report,
+    export_psi_mind_bundle,
+    psi_mind_mapping_table,
+)
+from phios.core.session_layer import (
+    build_session_checkin_report,
+    build_session_start_report,
+    export_session_bundle,
+)
 from phios.core.lt_engine import compute_lt
 from phios.core.sovereignty import SovereignSnapshot, export_snapshot, verify_snapshot
 from phios.core.tbrc_bridge import TBRCBridge, tbrc_connected
@@ -195,9 +219,21 @@ def cmd_help(_: list[str], session: object | None = None) -> str:
             "Commands:",
             "  help                        Show this help",
             "  version                     Show PhiOS version info",
-            "  status                      Show local system status",
-            "  ask <question|--lt|--session|--next>",
-            "  coherence                   Compute L(t) coherence",
+            "  doctor [--json]             Check PhiKernel readiness",
+            "  init --passphrase ...       Initialize PhiKernel through PhiOS",
+            "  pulse once [--json]         Run single PhiKernel pulse",
+            "  observatory [--json]        Show Hemavit/TIEKAT observatory frame",
+            "  observatory export <path>   Export observatory snapshot",
+            "  z map [--json]              Show Z_Hemawit symbolic mapping table",
+            "  mind [--json]               Show Ψ_mind observatory frame",
+            "  mind map [--json]           Show Ψ_mind symbolic mapping table",
+            "  mind export <path>          Export Ψ_mind snapshot",
+            "  session start [--json]      Show startup session readiness",
+            "  session checkin [--json]    Show integrated daily check-in",
+            "  session export <path>       Export session bundle",
+            "  status [--json]               Show PhiKernel-backed operator status",
+            "  ask <prompt> [--json]         Ask PhiKernel coach",
+            "  coherence [live|--json]       Show PhiKernel coherence field",
             "  coherence live              Launch live coherence monitor",
             "  sovereign export [path]     Export sovereign snapshot",
             "  sovereign verify <path>     Verify sovereign snapshot",
@@ -226,6 +262,284 @@ def cmd_help(_: list[str], session: object | None = None) -> str:
     )
 
 
+
+def _extract_flag_value(args: list[str], flag: str) -> str | None:
+    if flag not in args:
+        return None
+    idx = args.index(flag)
+    if idx + 1 >= len(args):
+        raise ValueError(f"Missing value for {flag}")
+    return args[idx + 1]
+
+
+def cmd_doctor(args: list[str], session: object | None = None) -> str:
+    if "--help" in args or "-h" in args:
+        return "Usage: doctor [--json]"
+
+    report = build_doctor_report(PhiKernelCLIAdapter())
+    if "--json" in args:
+        return json.dumps(report, indent=2)
+
+    checks = report.get("checks", {}) if isinstance(report.get("checks"), dict) else {}
+    return "\n".join(
+        [
+            "PHI369 Labs / Parallax · PhiKernel Readiness",
+            f"status: {report.get('status', 'unknown')}",
+            f"phik callable: {'yes' if checks.get('phik_callable') else 'no'}",
+            f"anchor exists: {'yes' if checks.get('anchor_exists') else 'no'}",
+            f"heart status: {'yes' if checks.get('heart_status_exists') else 'no'}",
+            f"coherence frame: {'yes' if checks.get('coherence_frame_exists') else 'no'}",
+            f"capsule entries: {checks.get('capsule_entries', 0)}",
+            f"message: {report.get('message', '')}",
+        ]
+    )
+
+
+def cmd_init(args: list[str], session: object | None = None) -> str:
+    if "--help" in args or "-h" in args:
+        return (
+            "Usage: init --passphrase <value> --sovereign-name <name> --user-label <label> "
+            "[--resonant-label <label>] [--json]"
+        )
+
+    passphrase = _extract_flag_value(args, "--passphrase")
+    sovereign_name = _extract_flag_value(args, "--sovereign-name")
+    user_label = _extract_flag_value(args, "--user-label")
+    resonant_label = _extract_flag_value(args, "--resonant-label")
+
+    if not passphrase or not sovereign_name or not user_label:
+        return (
+            "Usage: init --passphrase <value> --sovereign-name <name> --user-label <label> "
+            "[--resonant-label <label>] [--json]"
+        )
+
+    result = run_init(
+        PhiKernelCLIAdapter(),
+        passphrase=passphrase,
+        sovereign_name=sovereign_name,
+        user_label=user_label,
+        resonant_label=resonant_label,
+    )
+
+    if "--json" in args:
+        return json.dumps(result, indent=2)
+
+    return "\n".join(
+        [
+            "PHI369 Labs / Parallax · Initialization Complete",
+            f"sovereign_name: {sovereign_name}",
+            f"user_label: {user_label}",
+            "PhiKernel remains the runtime source of truth.",
+        ]
+    )
+
+
+def cmd_pulse(args: list[str], session: object | None = None) -> str:
+    if not args or args[0] in {"--help", "-h"}:
+        return "Usage: pulse once [--checkpoint <path>] [--passphrase <value>] [--json]"
+
+    action = args[0]
+    tail = args[1:]
+    if action != "once":
+        return "Usage: pulse once [--checkpoint <path>] [--passphrase <value>] [--json]"
+    if "--help" in tail or "-h" in tail:
+        return "Usage: pulse once [--checkpoint <path>] [--passphrase <value>] [--json]"
+
+    checkpoint = _extract_flag_value(tail, "--checkpoint")
+    passphrase = _extract_flag_value(tail, "--passphrase")
+    if checkpoint and not passphrase:
+        raise ValueError("--passphrase is required when --checkpoint is used")
+
+    result = run_pulse_once(PhiKernelCLIAdapter(), checkpoint=checkpoint, passphrase=passphrase)
+    if "--json" in tail:
+        return json.dumps(result, indent=2)
+
+    return "\n".join(
+        [
+            "PHI369 Labs / Parallax · Pulse Once",
+            f"field_action: {result.get('field_action', result.get('recommended_action', 'unknown'))}",
+            f"field_band: {result.get('field_band', result.get('drift_band', 'unknown'))}",
+            f"route_reason: {result.get('route_reason', 'n/a')}",
+        ]
+    )
+
+
+def cmd_observatory(args: list[str], session: object | None = None) -> str:
+    if args and args[0] in {"--help", "-h"}:
+        return "Usage: observatory [--json] | observatory export <path.json>"
+
+    if args and args[0] == "export":
+        if len(args) > 1 and args[1] in {"--help", "-h"}:
+            return "Usage: observatory export <path.json>"
+        if len(args) < 2:
+            return "Usage: observatory export <path.json>"
+        out_path = export_observatory_bundle(PhiKernelCLIAdapter(), args[1])
+        return f"✓ Hemavit observatory bundle written: {out_path}"
+
+    report = build_observatory_report(PhiKernelCLIAdapter())
+    if "--json" in args:
+        return json.dumps(report, indent=2)
+
+    frame = report.get("observatory_frame", {}) if isinstance(report.get("observatory_frame"), dict) else {}
+    return "\n".join(
+        [
+            "PHI369 Labs / Parallax · Hemavit Observatory",
+            "Boundary: PhiKernel is source-of-truth; PhiOS provides symbolic interpretation.",
+            f"anchor_state: {frame.get('anchor_state', 'unknown')}",
+            f"current_field_action: {frame.get('current_field_action', 'unknown')}",
+            f"drift_band: {frame.get('drift_band', 'unknown')}",
+            f"capsule_continuity_count: {frame.get('capsule_continuity_count', 0)}",
+            f"C_landscape_state: {frame.get('C_landscape_state', 'unknown')}",
+            f"observer_stability: {frame.get('observer_stability', 'unknown')}",
+            f"entropy_gradient_state: {frame.get('entropy_gradient_state', 'unknown')}",
+            f"information_gradient_state: {frame.get('information_gradient_state', 'unknown')}",
+            f"collapse_risk: {frame.get('collapse_risk', 'unknown')}",
+            f"recognition_readiness: {frame.get('recognition_readiness', 'unknown')}",
+            f"zhemawit_mode: {frame.get('zhemawit_mode', 'unknown')}",
+        ]
+    )
+
+
+def cmd_z(args: list[str], session: object | None = None) -> str:
+    if not args or args[0] in {"--help", "-h"}:
+        return "Usage: z map [--json]"
+
+    action = args[0]
+    tail = args[1:]
+    if action != "map":
+        return "Usage: z map [--json]"
+    if "--help" in tail or "-h" in tail:
+        return "Usage: z map [--json]"
+
+    mapping = zhemawit_mapping_table()
+    if "--json" in tail:
+        return json.dumps({"symbolic_mapping": mapping}, indent=2)
+
+    lines = [
+        "PHI369 Labs / Parallax · Z_Hemawit Symbolic Map",
+        "Symbolic documentation and runtime introspection (not a physics simulator).",
+    ]
+    for k, v in mapping.items():
+        lines.append(f"{k} -> {v}")
+    return "\n".join(lines)
+
+
+def cmd_mind(args: list[str], session: object | None = None) -> str:
+    if args and args[0] in {"--help", "-h"}:
+        return "Usage: mind [--json] | mind map [--json] | mind export <path.json>"
+
+    if args and args[0] == "map":
+        tail = args[1:]
+        if "--help" in tail or "-h" in tail:
+            return "Usage: mind map [--json]"
+        mapping = psi_mind_mapping_table()
+        if "--json" in tail:
+            return json.dumps({"symbolic_mapping": mapping}, indent=2)
+        lines = [
+            "PHI369 Labs / Parallax · Ψ_mind Symbolic Map",
+            "Symbolic documentation/runtime introspection (not a simulator).",
+        ]
+        for k, v in mapping.items():
+            lines.append(f"{k} -> {v}")
+        return "\n".join(lines)
+
+    if args and args[0] == "export":
+        if len(args) > 1 and args[1] in {"--help", "-h"}:
+            return "Usage: mind export <path.json>"
+        if len(args) < 2:
+            return "Usage: mind export <path.json>"
+        out_path = export_psi_mind_bundle(PhiKernelCLIAdapter(), args[1])
+        return f"✓ Ψ_mind observatory bundle written: {out_path}"
+
+    report = build_psi_mind_report(PhiKernelCLIAdapter())
+    if "--json" in args:
+        return json.dumps(report, indent=2)
+
+    frame = report.get("mind_observatory_frame", {}) if isinstance(report.get("mind_observatory_frame"), dict) else {}
+    return "\n".join(
+        [
+            "PHI369 Labs / Parallax · Ψ_mind Observatory",
+            "Boundary: PhiKernel is source-of-truth; PhiOS provides symbolic interpretation.",
+            f"anchor_state: {frame.get('anchor_state', 'unknown')}",
+            f"current_field_action: {frame.get('current_field_action', 'unknown')}",
+            f"drift_band: {frame.get('drift_band', 'unknown')}",
+            f"capsule_continuity_count: {frame.get('capsule_continuity_count', 0)}",
+            f"psi_mind_state: {frame.get('psi_mind_state', 'unknown')}",
+            f"observer_coupling: {frame.get('observer_coupling', 'unknown')}",
+            f"entropy_load: {frame.get('entropy_load', 'unknown')}",
+            f"information_density: {frame.get('information_density', 'unknown')}",
+            f"kernel_resonance: {frame.get('kernel_resonance', 'unknown')}",
+            f"overlap_strength: {frame.get('overlap_strength', 'unknown')}",
+            f"collapse_risk: {frame.get('collapse_risk', 'unknown')}",
+            f"recognition_readiness: {frame.get('recognition_readiness', 'unknown')}",
+            f"mind_mode: {frame.get('mind_mode', 'unknown')}",
+        ]
+    )
+
+
+def cmd_session(args: list[str], session: object | None = None) -> str:
+    if not args or args[0] in {"--help", "-h"}:
+        return "Usage: session <start|checkin|export> ..."
+
+    action = args[0]
+    tail = args[1:]
+
+    if action == "start":
+        if "--help" in tail or "-h" in tail:
+            return "Usage: session start [--json]"
+        report = build_session_start_report(PhiKernelCLIAdapter())
+        if "--json" in tail:
+            return json.dumps(report, indent=2)
+        return "\n".join(
+            [
+                "PHI369 Labs / Parallax · Session Start",
+                f"session_state: {report.get('session_state', 'unknown')}",
+                f"anchor_ready: {report.get('anchor_ready', report.get('anchor_readiness', 'unknown'))}",
+                f"heart_ready: {report.get('heart_ready', report.get('heart_presence', 'unknown'))}",
+                f"field_action: {report.get('field_action', 'unknown')}",
+                f"drift_band: {report.get('drift_band', 'unknown')}",
+                f"observatory_mode: {report.get('observatory_mode', 'unknown')}",
+                f"mind_mode: {report.get('mind_mode', 'unknown')}",
+                f"observer_state: {report.get('observer_state', 'unknown')}",
+                f"self_alignment: {report.get('self_alignment', 'unknown')}",
+                f"next_step: {report.get('next_step', report.get('next_recommended_step', ''))}",
+            ]
+        )
+
+    if action == "checkin":
+        if "--help" in tail or "-h" in tail:
+            return "Usage: session checkin [--json]"
+        report = build_session_checkin_report(PhiKernelCLIAdapter())
+        if "--json" in tail:
+            return json.dumps(report, indent=2)
+        return "\n".join(
+            [
+                "PHI369 Labs / Parallax · Session Check-in",
+                f"session_state: {report.get('session_state', 'unknown')}",
+                f"observer_state: {report.get('observer_state', 'unknown')}",
+                f"self_alignment: {report.get('self_alignment', 'unknown')}",
+                f"information_density: {report.get('information_density', 'unknown')}",
+                f"entropy_load: {report.get('entropy_load', 'unknown')}",
+                f"emergence_pressure: {report.get('emergence_pressure', 'unknown')}",
+                f"collapse_risk: {report.get('collapse_risk', 'unknown')}",
+                f"recognition_readiness: {report.get('recognition_readiness', 'unknown')}",
+                f"zhemawit_mode: {report.get('zhemawit_mode', 'unknown')}",
+                f"recommended_action: {report.get('recommended_action', 'unknown')}",
+                f"recommended_prompt: {report.get('recommended_prompt', '')}",
+                f"next_step: {report.get('next_step', '')}",
+            ]
+        )
+
+    if action == "export":
+        if len(tail) > 0 and tail[0] in {"--help", "-h"}:
+            return "Usage: session export <path.json>"
+        if not tail:
+            return "Usage: session export <path.json>"
+        out_path = export_session_bundle(PhiKernelCLIAdapter(), tail[0])
+        return f"✓ Session bundle written: {out_path}"
+
+    return "Usage: session <start|checkin|export> ..."
+
 def cmd_version(_: list[str], session: object | None = None) -> str:
     return "\n".join(
         [
@@ -253,18 +567,22 @@ def _format_uptime() -> str:
         return "unknown"
 
 
-def cmd_status(_: list[str], session: object | None = None) -> str:
-    ai_status = "yes" if ollama_available() else "no"
-    t_word = "Tele" + "metry"
+def cmd_status(args: list[str], session: object | None = None) -> str:
+    if "--help" in args or "-h" in args:
+        return "Usage: status [--json]"
+
+    report = build_status_report(PhiKernelCLIAdapter())
+    if "--json" in args:
+        return json.dumps(report, indent=2)
+
     return "\n".join(
         [
-            f"OS: {platform.platform()}",
-            f"Python: {platform.python_version()}",
-            f"CPU count: {os.cpu_count()}",
-            f"Memory total: {_format_memory()}",
-            f"Uptime: {_format_uptime()}",
-            f"Local AI ({OLLAMA_URL}): {ai_status}",
-            f"{t_word}: OFF (enforced)",
+            "PHI369 Labs / Parallax · PhiOS Operator Status",
+            f"Anchor verification: {report.get('anchor_verification_state', 'unknown')}",
+            f"Heart state: {report.get('heart_state', 'unknown')}",
+            f"Field action / drift band: {report.get('field_action', 'unknown')} / {report.get('field_drift_band', 'unknown')}",
+            f"Capsules tracked: {report.get('capsule_count', 0)}",
+            "Source of truth: PhiKernel",
         ]
     )
 
@@ -274,18 +592,25 @@ def cmd_coherence(args: list[str], session: object | None = None) -> str:
         if session is None:
             return "Live mode requires session context"
         return cmd_coherence_live(session)
+    if "--help" in args or "-h" in args:
+        return "Usage: coherence [live|--json]"
 
-    data = compute_lt()
-    c = data["components"]
-    if session is not None:
-        history = list(getattr(session, "coherence_history", []))
-        history.append(float(data["lt"]))
-        setattr(session, "coherence_history", history[-9:])
-    return (
-        f"L(t): {data['lt']:.6f}\n"
-        f"A_stability: {c['A_stability']:.6f}\n"
-        f"G_load: {c['G_load']:.6f}\n"
-        f"C_variance: {c['C_variance']:.6f}"
+    report = build_coherence_report(PhiKernelCLIAdapter())
+    if "--json" in args:
+        return json.dumps(report, indent=2)
+
+    return "\n".join(
+        [
+            "PHI369 Labs / Parallax · Coherence Report",
+            f"C_current: {report.get('C_current')}",
+            f"C_star: {report.get('C_star')}",
+            f"distance_to_C_star: {report.get('distance_to_C_star')}",
+            f"phi_flow: {report.get('phi_flow')}",
+            f"lambda_node: {report.get('lambda_node')}",
+            f"sigma_feedback: {report.get('sigma_feedback')}",
+            f"fragmentation_score: {report.get('fragmentation_score')}",
+            f"recommended_action: {report.get('recommended_action')}",
+        ]
     )
 
 
@@ -340,23 +665,12 @@ def cmd_sovereign(args: list[str], session: object | None = None) -> str:
         return f"Sovereign mode: {'ON' if target else 'OFF'}"
 
     if action == "export":
-        if session is None:
-            session_data = {"history": [], "duration_s": 0, "commands_run": 0, "resonance_moments_hit": 0, "trajectory": "stable"}
-        else:
-            session_data = {
-                "history": list(getattr(session, "coherence_history", [])),
-                "duration_s": int(getattr(session, "elapsed_seconds", lambda: 0)()),
-                "commands_run": int(getattr(session, "commands_run", 0)),
-                "resonance_moments_hit": int(getattr(session, "resonance_moments_hit", 0)),
-                "trajectory": str(getattr(session, "trajectory", "stable")),
-            }
-        lt = compute_lt()
-        stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        out_path = args[1] if len(args) > 1 else f"./phi_snapshot_{stamp}.json"
-        data = snapper.capture(lt, session_data)
-        Path(out_path).write_text(json.dumps(data, indent=2), encoding="utf-8")
-        short_hash = data.get("integrity", {}).get("content_hash", "")[:6]
-        return f"✓ Snapshot captured · L(t): {float(lt.get('lt', 0.0)):.3f} · Hash: {short_hash}..."
+        if len(args) > 1 and args[1] in {"--help", "-h"}:
+            return "Usage: sovereign export <path.json>"
+        if len(args) < 2:
+            return "Usage: sovereign export <path.json>"
+        out_path = export_phase1_bundle(PhiKernelCLIAdapter(), args[1])
+        return f"✓ Phase 1 export bundle written: {out_path}"
 
     if action == "verify":
         if len(args) < 2:
@@ -529,7 +843,9 @@ def cmd_ask(args: list[str], session: object | None = None) -> str:
     client = BrainCClient()
     ctx = _build_ask_context(session)
     if not args:
-        return "Usage: ask <question|--lt|--session|--next>"
+        return "Usage: ask <prompt> [--json]"
+    if "--help" in args or "-h" in args:
+        return "Usage: ask <prompt> [--json]"
 
     if args[0] == "--lt":
         return client.ask_about_lt(compute_lt())
@@ -539,10 +855,33 @@ def cmd_ask(args: list[str], session: object | None = None) -> str:
         suggestion = client.suggest_next_command(list(ctx.get("recent_commands", [])), float(ctx.get("lt_score", 0.5)))
         return suggestion
 
-    question = " ".join(args).strip()
-    response = client.ask(question, stream=True, context=ctx)
-    NOTIFIER.notify("brainc_response", "BrainC response complete", f"Model: {response.model}")
-    return response.answer
+    json_mode = "--json" in args
+    prompt_parts = [a for a in args if a != "--json"]
+    question = " ".join(prompt_parts).strip()
+    report = build_ask_report(PhiKernelCLIAdapter(), question)
+
+    if json_mode:
+        return json.dumps(report, indent=2)
+
+    next_actions = report.get("next_actions") or []
+    if not isinstance(next_actions, list):
+        next_actions = [str(next_actions)]
+    actions_lines = "\n".join([f"  - {item}" for item in next_actions]) if next_actions else "  - (none)"
+
+    return "\n".join(
+        [
+            "PHI369 Labs / Parallax · Ask",
+            f"coach: {report.get('coach')}",
+            f"field_action / band: {report.get('field_action')} / {report.get('field_band')}",
+            f"safety_posture: {report.get('safety_posture')}",
+            f"route_reason: {report.get('route_reason')}",
+            "",
+            str(report.get("body", "")),
+            "",
+            "next_actions:",
+            actions_lines,
+        ]
+    )
 
 
 def cmd_launcher(args: list[str], session: object | None = None) -> str:
@@ -845,6 +1184,13 @@ def cmd_build(args: list[str], session: object | None = None) -> str:
 COMMANDS: dict[str, CommandHandler] = {
     "help": cmd_help,
     "version": cmd_version,
+    "doctor": cmd_doctor,
+    "init": cmd_init,
+    "pulse": cmd_pulse,
+    "observatory": cmd_observatory,
+    "z": cmd_z,
+    "mind": cmd_mind,
+    "session": cmd_session,
     "status": cmd_status,
     "ask": cmd_ask,
     "coherence": cmd_coherence,

@@ -15,6 +15,9 @@ def route_command(argv: Sequence[str], session: object | None = None) -> tuple[s
     if not argv:
         return "", 0
 
+    if argv[0] in ("--help", "-h"):
+        return COMMANDS["help"]([], session=session), 0
+
     cmd = argv[0]
     args = list(argv[1:])
     if cmd in ("exit", "quit"):
