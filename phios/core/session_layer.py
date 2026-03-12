@@ -18,6 +18,7 @@ from phios.adapters.phik import PhiKernelCLIAdapter
 from phios.core.hemavit_observatory import build_observatory_report
 from phios.core.phik_service import build_coherence_report, build_status_report
 from phios.core.psi_mind_observatory import build_psi_mind_report
+from phios.core.bioeffector_layer import summarize_bioeffectors
 
 
 def _validate_export_path(path_str: str) -> Path:
@@ -128,6 +129,7 @@ def build_session_checkin_report(adapter: PhiKernelCLIAdapter) -> dict[str, obje
     emergence_pressure = _emergence_pressure(status.get("field_action"), collapse_risk)
     zhemawit_mode = observatory_state.get("zhemawit_mode", "observatory-symbolic")
 
+    bio_summary = summarize_bioeffectors()
     session_state = "watchful" if collapse_risk == "elevated" else "steady"
     recommended_action = status.get("field_action", "maintain")
     recommended_prompt = "What one grounded next step should I take now?"
@@ -149,6 +151,9 @@ def build_session_checkin_report(adapter: PhiKernelCLIAdapter) -> dict[str, obje
         "recommended_prompt": recommended_prompt,
         "next_step": next_step,
         "zhemawit_mode": zhemawit_mode,
+        "bioeffector_state": bio_summary.get("bioeffector_mode", "tracking-observatory"),
+        "support_vector": bio_summary.get("support_vector", "baseline"),
+        "session_correlation_readiness": bio_summary.get("session_correlation_readiness", "forming"),
         "status": status,
         "coherence": coherence,
         "observatory": observatory,
@@ -196,6 +201,9 @@ def export_session_bundle(adapter: PhiKernelCLIAdapter, path_str: str) -> Path:
             "O_observer": session_summary.get("observer_state"),
             "U_self": session_summary.get("self_alignment"),
             "Z_Hemawit": session_summary.get("zhemawit_mode"),
+            "bioeffector_state": session_summary.get("bioeffector_state"),
+            "support_vector": session_summary.get("support_vector"),
+            "session_correlation_readiness": session_summary.get("session_correlation_readiness"),
         },
     }
     target.write_text(json.dumps(payload, indent=2), encoding="utf-8")

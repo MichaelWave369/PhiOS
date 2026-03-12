@@ -85,6 +85,10 @@ phi ask "How should I begin?"
 - `phi session start [--json]`
 - `phi session checkin [--json]`
 - `phi session export <path.json>`
+- `phi bio list [--json]`
+- `phi bio add --name <name> --compound <compound> --source <source> [--dose <dose>] [--unit <unit>] [--timing <timing>] [--notes <notes>] [--json]`
+- `phi bio show [--json]`
+- `phi bio export <path.json>`
 - `phi status [--json]`
 - `phi coherence [--json]`
 - `phi coherence live`
@@ -143,6 +147,20 @@ It uses symbolic interpretation terms for operator check-ins, including:
 phi session start
 phi session checkin
 phi session export ./phi_session_snapshot.json
+```
+
+
+## Bioeffector Layer
+
+PhiOS can track compounds / extracts / herbal supports as part of operator workflow.
+This is a local workflow and observatory layer for session correlation, not substrate truth.
+It does **not** replace PhiKernel runtime truth and does **not** constitute medical advice.
+
+```bash
+phi bio add --name "Lion's Mane" --compound "Erinacine A" --source "mycelium" --dose 500 --unit mg --timing morning
+phi bio list
+phi bio show
+phi bio export ./phi_bio_snapshot.json
 ```
 
 ## Security posture

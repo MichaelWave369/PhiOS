@@ -432,3 +432,127 @@ def test_session_missing_phik_fails_cleanly(monkeypatch):
     out, code = route_command(["session", "start"])
     assert code == 1
     assert "phik" in out.lower()
+
+
+
+def test_bio_add_writes_valid_entry(monkeypatch, tmp_path):
+    monkeypatch.setenv("PHIOS_CONFIG_HOME", str(tmp_path))
+    out, code = route_command([
+        "bio",
+        "add",
+        "--name",
+        "Lion's Mane",
+        "--compound",
+        "Erinacine A",
+        "--source",
+        "mycelium",
+        "--dose",
+        "500",
+        "--unit",
+        "mg",
+        "--timing",
+        "morning",
+        "--json",
+    ])
+    assert code == 0
+    data = json.loads(out)
+    assert data["entry"]["name"] == "Lion's Mane"
+
+
+def test_bio_list_returns_stored_entries(monkeypatch, tmp_path):
+    monkeypatch.setenv("PHIOS_CONFIG_HOME", str(tmp_path))
+    _ = route_command([
+        "bio",
+        "add",
+        "--name",
+        "Custom Stack",
+        "--compound",
+        "Beta-glucan",
+        "--source",
+        "extract",
+    ])
+    out, code = route_command(["bio", "list", "--json"])
+    assert code == 0
+    data = json.loads(out)
+    assert len(data["entries"]) >= 1
+
+
+def test_bio_show_returns_valid_summary_structure(monkeypatch, tmp_path):
+    monkeypatch.setenv("PHIOS_CONFIG_HOME", str(tmp_path))
+    _ = route_command([
+        "bio",
+        "add",
+        "--name",
+        "Entry A",
+        "--compound",
+        "Hericenone",
+        "--source",
+        "fruiting body",
+        "--timing",
+        "morning",
+    ])
+    out, code = route_command(["bio", "show", "--json"])
+    assert code == 0
+    data = json.loads(out)
+    for key in [
+        "bioeffector_count",
+        "recent_entries",
+        "dominant_source_type",
+        "timing_state",
+        "bioeffector_mode",
+        "support_vector",
+        "tracking_confidence",
+        "session_correlation_readiness",
+    ]:
+        assert key in data
+
+
+def test_bio_export_writes_valid_json(monkeypatch, tmp_path):
+    monkeypatch.setenv("PHIOS_CONFIG_HOME", str(tmp_path))
+    _ = route_command([
+        "bio",
+        "add",
+        "--name",
+        "Entry B",
+        "--compound",
+        "Erinacine-rich mycelium",
+        "--source",
+        "mycelium",
+    ])
+    output = tmp_path / "bio_snapshot.json"
+    out, code = route_command(["bio", "export", str(output)])
+    assert code == 0
+    assert "Bioeffector bundle written" in out
+    data = json.loads(output.read_text(encoding="utf-8"))
+    assert data["metadata"]["source"] == "PhiOS Bioeffector Layer"
+
+
+def test_session_layer_still_passes_without_bio_entries(monkeypatch, tmp_path):
+    monkeypatch.setenv("PHIOS_CONFIG_HOME", str(tmp_path))
+    monkeypatch.setattr(
+        "phios.shell.phi_commands.build_session_checkin_report",
+        lambda *_: {
+            "session_state": "steady",
+            "field_state": {"action": "maintain"},
+            "observatory_state": {},
+            "mind_state": {},
+            "observer_state": "grounded",
+            "self_alignment": "aligned",
+            "information_density": "forming",
+            "entropy_load": "light",
+            "emergence_pressure": "steady",
+            "collapse_risk": "managed",
+            "recognition_readiness": "forming",
+            "recommended_action": "maintain",
+            "recommended_prompt": "next",
+            "next_step": "Run",
+            "zhemawit_mode": "observatory-symbolic",
+            "bioeffector_state": "tracking-observatory",
+            "support_vector": "baseline",
+            "session_correlation_readiness": "forming",
+        },
+    )
+    out, code = route_command(["session", "checkin", "--json"])
+    assert code == 0
+    data = json.loads(out)
+    assert data["session_state"] == "steady"

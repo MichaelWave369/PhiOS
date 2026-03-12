@@ -42,6 +42,12 @@ from phios.core.session_layer import (
     build_session_start_report,
     export_session_bundle,
 )
+from phios.core.bioeffector_layer import (
+    add_bioeffector_entry,
+    export_bioeffector_bundle,
+    list_bioeffectors,
+    summarize_bioeffectors,
+)
 from phios.core.lt_engine import compute_lt
 from phios.core.sovereignty import SovereignSnapshot, export_snapshot, verify_snapshot
 from phios.core.tbrc_bridge import TBRCBridge, tbrc_connected
@@ -231,6 +237,10 @@ def cmd_help(_: list[str], session: object | None = None) -> str:
             "  session start [--json]      Show startup session readiness",
             "  session checkin [--json]    Show integrated daily check-in",
             "  session export <path>       Export session bundle",
+            "  bio list [--json]            List tracked bioeffector entries",
+            "  bio add ... [--json]         Add a bioeffector tracking entry",
+            "  bio show [--json]            Show bioeffector summary",
+            "  bio export <path>            Export bioeffector layer",
             "  status [--json]               Show PhiKernel-backed operator status",
             "  ask <prompt> [--json]         Ask PhiKernel coach",
             "  coherence [live|--json]       Show PhiKernel coherence field",
@@ -539,6 +549,90 @@ def cmd_session(args: list[str], session: object | None = None) -> str:
         return f"✓ Session bundle written: {out_path}"
 
     return "Usage: session <start|checkin|export> ..."
+
+
+def cmd_bio(args: list[str], session: object | None = None) -> str:
+    if not args or args[0] in {"--help", "-h"}:
+        return "Usage: bio <list|add|show|export> ..."
+
+    action = args[0]
+    tail = args[1:]
+
+    if action == "list":
+        if "--help" in tail or "-h" in tail:
+            return "Usage: bio list [--json]"
+        rows = list_bioeffectors()
+        if "--json" in tail:
+            return json.dumps({"entries": rows}, indent=2)
+        if not rows:
+            return "No bioeffector entries tracked yet."
+        lines = ["PHI369 Labs / Parallax · Bioeffectors"]
+        for row in rows[-9:]:
+            lines.append(f"- {row.get('name', 'unknown')} · {row.get('compound', 'n/a')} · {row.get('source', 'n/a')}")
+        return "\n".join(lines)
+
+    if action == "add":
+        if "--help" in tail or "-h" in tail:
+            return (
+                "Usage: bio add --name <name> --compound <compound> --source <source> "
+                "[--dose <dose>] [--unit <unit>] [--timing <timing>] [--notes <notes>] [--json]"
+            )
+
+        name = _extract_flag_value(tail, "--name")
+        compound = _extract_flag_value(tail, "--compound")
+        source = _extract_flag_value(tail, "--source")
+        dose = _extract_flag_value(tail, "--dose")
+        unit = _extract_flag_value(tail, "--unit")
+        timing = _extract_flag_value(tail, "--timing")
+        notes = _extract_flag_value(tail, "--notes")
+
+        if not name or not compound or not source:
+            return (
+                "Usage: bio add --name <name> --compound <compound> --source <source> "
+                "[--dose <dose>] [--unit <unit>] [--timing <timing>] [--notes <notes>] [--json]"
+            )
+
+        entry = add_bioeffector_entry(
+            name=name,
+            compound=compound,
+            source=source,
+            dose=dose,
+            unit=unit,
+            timing=timing,
+            notes=notes,
+        )
+        if "--json" in tail:
+            return json.dumps({"entry": entry}, indent=2)
+        return f"Bioeffector entry added: {entry.get('name')} ({entry.get('compound')})"
+
+    if action == "show":
+        if "--help" in tail or "-h" in tail:
+            return "Usage: bio show [--json]"
+        summary = summarize_bioeffectors()
+        if "--json" in tail:
+            return json.dumps(summary, indent=2)
+        return "\n".join(
+            [
+                "PHI369 Labs / Parallax · Bioeffector Summary",
+                f"bioeffector_count: {summary.get('bioeffector_count', 0)}",
+                f"dominant_source_type: {summary.get('dominant_source_type', 'none')}",
+                f"timing_state: {summary.get('timing_state', 'unspecified')}",
+                f"bioeffector_mode: {summary.get('bioeffector_mode', 'tracking-observatory')}",
+                f"support_vector: {summary.get('support_vector', 'baseline')}",
+                f"tracking_confidence: {summary.get('tracking_confidence', 'low')}",
+                f"session_correlation_readiness: {summary.get('session_correlation_readiness', 'forming')}",
+            ]
+        )
+
+    if action == "export":
+        if len(tail) > 0 and tail[0] in {"--help", "-h"}:
+            return "Usage: bio export <path.json>"
+        if not tail:
+            return "Usage: bio export <path.json>"
+        out = export_bioeffector_bundle(tail[0])
+        return f"✓ Bioeffector bundle written: {out}"
+
+    return "Usage: bio <list|add|show|export> ..."
 
 def cmd_version(_: list[str], session: object | None = None) -> str:
     return "\n".join(
@@ -1191,6 +1285,7 @@ COMMANDS: dict[str, CommandHandler] = {
     "z": cmd_z,
     "mind": cmd_mind,
     "session": cmd_session,
+    "bio": cmd_bio,
     "status": cmd_status,
     "ask": cmd_ask,
     "coherence": cmd_coherence,
