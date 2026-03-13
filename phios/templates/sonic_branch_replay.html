@@ -1,0 +1,11 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"/><title>PhiOS Branch Replay</title>
+<style>body{font-family:system-ui;background:#0c1224;color:#edf1ff;padding:1rem}.card{border:1px solid #334;background:#131d38;border-radius:10px;padding:.8rem;margin:.6rem 0}pre{white-space:pre-wrap;word-break:break-word;font-size:.85rem}</style>
+</head><body><h1>Branch Replay (Experimental)</h1><div id="app"></div>
+<script>
+const model=__PHIOS_BRANCH_REPLAY_MODEL_JSON__;
+const app=document.getElementById('app');
+app.innerHTML=`<div class="card"><h2>Framing</h2><pre>${JSON.stringify(model.framing,null,2)}</pre></div>
+<div class="card"><h3>Pathway</h3><pre>${JSON.stringify({name:model.pathway_name,steps:model.step_count,branches:model.branch_count},null,2)}</pre></div>
+<div class="card"><h3>Steps with branches</h3><pre>${JSON.stringify(model.steps,null,2)}</pre></div>`;
+</script></body></html>
