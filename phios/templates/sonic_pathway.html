@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>PhiOS Field Journey</title>
+    <style>
+      body { margin:0; background:#070b12; color:#dce8ff; font-family:Inter,system-ui,sans-serif; }
+      .wrap { padding:16px; }
+      .meta { font-size:12px; opacity:.9; margin:4px 0; }
+      .grid { display:grid; gap:10px; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); }
+      .card { border:1px solid rgba(201,168,76,.35); border-radius:10px; padding:10px; background:rgba(12,14,22,.72); }
+      .title { font-size:13px; font-weight:700; margin-bottom:4px; }
+      .line { font-size:12px; margin:2px 0; }
+    </style>
+  </head>
+  <body>
+    <div class="wrap" id="app"></div>
+    <script>
+      const model = __PHIOS_PATHWAY_MODEL_JSON__;
+      const steps = model.steps || [];
+      function safe(v){ return (v ?? '').toString(); }
+      function card(s){
+        return `<div class="card"><div class="title">#${safe(s.index)} · ${safe(s.title || s.step_type)}</div>
+          <div class="line">type: ${safe(s.step_type)}</div>
+          <div class="line">note: ${safe(s.note)}</div>
+          <div class="line">tags: ${safe((s.tags||[]).join(','))}</div>
+          <div class="line">json: <a href="${safe(s.json)}">${safe(s.json)}</a></div></div>`;
+      }
+      document.getElementById('app').innerHTML = `
+        <h2>Φ Field Journey · ${safe(model.title || model.pathway_name)}</h2>
+        <div class="meta">steps: ${safe(model.step_count)} · tags: ${safe((model.tags||[]).join(','))}</div>
+        <div class="meta">summary: ${safe(model.summary)}</div>
+        <div class="meta">bio: theoretical C*=${safe(model.bio_context?.c_star_theoretical)} · experimental target=${safe(model.bio_context?.bio_target)} · status=${safe(model.bio_context?.bio_status)} · Hunter C=${safe(model.bio_context?.hunter_c_status)}</div>
+        <div class="meta">provenance: ${safe(model.bio_context?.model_provenance)}</div>
+        <div class="grid">${steps.map(card).join('')}</div>
+      `;
+    </script>
+  </body>
+</html>
