@@ -375,3 +375,27 @@ Optional benchmark summary:
 ### Backward compatibility
 
 Recommendation metadata is additive (strategy/score-type fields), and older artifacts without these fields continue to load safely.
+
+
+## Phase 14.1: Experimental Golden Atlas Navigation
+
+This phase adds `phios.ml.golden_atlas` as an optional local navigation layer over lattice/state-space metadata.
+
+Key points:
+- Atlas route costs use monotone increasing travel cost (distance-based), not `(phi/2)^distance` as direct Dijkstra cost.
+- Golden decay/coupling remains a similarity annotation, separate from traversal cost.
+- Targets supported include:
+  - theoretical attractor region around `C_STAR_THEORETICAL`
+  - experimental bio band `[BIO_VACUUM_BAND_LOW, BIO_VACUUM_BAND_HIGH]`
+  - explicit node targets
+- Scientific framing remains explicit: theoretical C* vs experimental bio target and unconfirmed Hunter's C.
+
+CLI additions:
+- `phi view --atlas`
+- `phi view --atlas --atlas-target theoretical|bio_band|node`
+- `phi view --atlas --atlas-node <idx>`
+- `phi view --atlas --atlas-start-ref <session_ref>`
+- `phi view --atlas --atlas-max-l1-radius <int>`
+- `phi view --atlas --atlas-heat-mode target_proximity|path_density|connectivity|bio_band_proximity`
+
+Golden Atlas is experimental and optional local guidance only; it does not alter core PhiKernel truth logic.

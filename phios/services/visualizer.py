@@ -31,6 +31,15 @@ from phios.core.constants import (
 from phios.ml.golden_kernels import golden_angular_rbf, golden_rbf
 from phios.ml.golden_lattice import adaptive_golden_affinity, golden_lattice_kernel_l1
 from phios.ml.benchmark_recommendations import benchmark_recommendation_strategies
+from phios.ml.golden_atlas import (
+    build_golden_atlas_graph,
+    build_golden_atlas_summary,
+    build_lattice_4d_nodes,
+    compute_atlas_heat,
+    find_path_to_bio_band,
+    find_path_to_target,
+    nearest_lattice_node,
+)
 
 VALID_PRESETS = {"stable", "ritual", "diagnostic", "bloom"}
 VALID_LENSES = {"stable", "ritual", "diagnostic", "bloom"}
@@ -1119,6 +1128,116 @@ def resolve_visual_bloom_narrative_entry(
         return {'entry_type': 'compare', 'left_ref': left_ref, 'right_ref': right_ref}
     raise VisualizerError(f"Unsupported narrative entry type: {kind}")
 
+
+
+
+def build_visual_bloom_atlas_model(
+    *,
+    atlas_target: str = "theoretical",
+    atlas_node: int | None = None,
+    atlas_start_ref: str | None = None,
+    atlas_max_l1_radius: int = 1,
+    atlas_heat_mode: str = "target_proximity",
+    journal_dir: Path | None = None,
+) -> dict[str, object]:
+    nodes = [list(n) for n in build_lattice_4d_nodes()]
+    graph = build_golden_atlas_graph(nodes, max_l1_radius=max(1, atlas_max_l1_radius), max_neighbors=16)
+
+    start_idx = 0
+    if atlas_start_ref:
+        state = load_visual_bloom_state(atlas_start_ref, journal_dir=journal_dir)
+        point = [
+            _to_float(state.get("coherenceC"), C_STAR_THEORETICAL),
+            _to_float(state.get("frequency"), 7.83) / 40.0,
+            _to_float(state.get("particleCount"), 1500.0) / 2500.0,
+            _to_float(state.get("noiseScale"), 0.005) / 0.02,
+        ]
+        start_idx = nearest_lattice_node(nodes, point)
+
+    target_mode = _sanitize_collection(atlas_target) or "theoretical"
+    target_point: list[float] = [C_STAR_THEORETICAL] * 4
+    if target_mode == "node":
+        if atlas_node is None:
+            raise VisualizerError("--atlas-target node requires --atlas-node <idx>")
+        path = find_path_to_target(nodes, graph, start_idx=start_idx, target_idx=atlas_node, target_point=nodes[atlas_node])
+        target_idx = atlas_node
+        target_point = [float(v) for v in nodes[atlas_node]]
+    elif target_mode == "bio_band":
+        path = find_path_to_bio_band(nodes, graph, start_idx=start_idx)
+        end_obj = path.get("end_idx")
+        target_idx = int(end_obj) if isinstance(end_obj, int) else -1
+        target_point = [BIO_VACUUM_TARGET] * 4
+    else:
+        target_idx = nearest_lattice_node(nodes, target_point)
+        path = find_path_to_target(nodes, graph, start_idx=start_idx, target_idx=target_idx, target_point=target_point)
+        target_mode = "theoretical"
+
+    heat = compute_atlas_heat(nodes, graph, target_point=target_point, mode=atlas_heat_mode)
+    summary = build_golden_atlas_summary(nodes=nodes, graph=graph, path_result=path, heat=heat, target_mode=target_mode)
+
+    raw_path = path.get("path")
+    path_ids = raw_path if isinstance(raw_path, list) else []
+    route = [nodes[i] for i in path_ids if isinstance(i, int) and 0 <= i < len(nodes)]
+    return {
+        "generated_at": _iso_now(),
+        "experimental": True,
+        "target_mode": target_mode,
+        "start_idx": start_idx,
+        "target_idx": target_idx,
+        "path": path,
+        "route_nodes": route,
+        "route_length": len(route),
+        "route_cost": _to_float(path.get("cost"), 0.0),
+        "heat_mode": atlas_heat_mode,
+        "heat_summary": {
+            "min": min(heat) if heat else 0.0,
+            "max": max(heat) if heat else 0.0,
+            "avg": (sum(heat) / len(heat)) if heat else 0.0,
+        },
+        "summary": summary,
+        "constants": {
+            "c_star_theoretical": C_STAR_THEORETICAL,
+            "bio_target": BIO_VACUUM_TARGET,
+            "bio_band_low": BIO_VACUUM_BAND_LOW,
+            "bio_band_high": BIO_VACUUM_BAND_HIGH,
+            "bio_status": BIO_VACUUM_STATUS,
+            "hunter_c_status": HUNTER_C_STATUS,
+        },
+    }
+
+
+def render_visual_bloom_atlas_map_html(model: dict[str, object]) -> str:
+    try:
+        template = resources.files("phios.templates").joinpath("sonic_atlas_map.html").read_text(encoding="utf-8")
+    except Exception as exc:
+        raise VisualizerError(f"Unable to load atlas map template: {exc}") from exc
+    return template.replace("__PHIOS_ATLAS_MAP_MODEL_JSON__", json.dumps(model, separators=(",", ":")))
+
+
+def launch_visual_bloom_atlas(
+    *,
+    output_path: Path | None = None,
+    open_browser: bool = True,
+    atlas_target: str = "theoretical",
+    atlas_start_ref: str | None = None,
+    atlas_node: int | None = None,
+    atlas_max_l1_radius: int = 1,
+    atlas_heat_mode: str = "target_proximity",
+    journal_dir: Path | None = None,
+) -> Path:
+    model = build_visual_bloom_atlas_model(
+        atlas_target=atlas_target,
+        atlas_node=atlas_node,
+        atlas_start_ref=atlas_start_ref,
+        atlas_max_l1_radius=atlas_max_l1_radius,
+        atlas_heat_mode=atlas_heat_mode,
+        journal_dir=journal_dir,
+    )
+    html = render_visual_bloom_atlas_map_html(model)
+    target = output_path or Path("/tmp/phios_bloom_atlas.html")
+    written = write_bloom_file(html, target)
+    _open_browser(written, open_browser)
+    return written
 
 def render_visual_bloom_atlas_html(model: dict[str, object]) -> str:
     try:

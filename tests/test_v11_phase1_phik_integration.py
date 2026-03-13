@@ -879,3 +879,12 @@ def test_view_mode_phase14_recommend_strategy_and_benchmark(monkeypatch):
     out, code = route_command(["view", "--benchmark-recommendations", "--recommend-strategy", "golden_rbf,baseline_rbf"])
     assert code == 0
     assert "experimental_exploratory_benchmark" in out
+
+
+
+def test_view_mode_phase14_atlas_flags(monkeypatch, tmp_path):
+    apath = tmp_path / "atlas.html"
+    monkeypatch.setattr("phios.shell.phi_commands.launch_visual_bloom_atlas", lambda **_kwargs: apath)
+    out, code = route_command(["view", "--atlas", "--atlas-target", "bio_band", "--atlas-max-l1-radius", "2", "--atlas-heat-mode", "bio_band_proximity", "--output", str(apath)])
+    assert code == 0
+    assert "atlas generated" in out

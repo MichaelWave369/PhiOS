@@ -40,6 +40,8 @@ from phios.services.visualizer import (
     build_visual_bloom_dashboard_model,
     render_visual_bloom_dashboard_html,
     benchmark_visual_bloom_recommendations,
+    build_visual_bloom_atlas_model,
+    render_visual_bloom_atlas_map_html,
     create_visual_bloom_narrative,
     export_visual_bloom_atlas,
     list_visual_bloom_narratives,
@@ -766,3 +768,10 @@ def test_recommendation_strategies_and_benchmark(tmp_path):
     bench = benchmark_visual_bloom_recommendations(journal_dir=tmp_path, max_targets=2)
     assert bench["status"] == "experimental_exploratory_benchmark"
     assert "summary" in bench
+
+
+def test_atlas_model_and_render_marker(tmp_path):
+    model = build_visual_bloom_atlas_model(journal_dir=tmp_path, atlas_target="theoretical", atlas_heat_mode="target_proximity")
+    assert model["experimental"] is True
+    html = render_visual_bloom_atlas_map_html(model)
+    assert "__PHIOS_ATLAS_MAP_MODEL_JSON__" not in html
