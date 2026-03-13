@@ -1614,6 +1614,277 @@ def export_visual_bloom_constellation(
 
 
 
+
+
+def _storyboards_root(journal_dir: Path | None = None) -> Path:
+    return _journal_root(journal_dir) / "storyboards"
+
+
+def create_visual_bloom_storyboard(
+    *,
+    name: str,
+    journal_dir: Path | None = None,
+    title: str | None = None,
+    summary: str | None = None,
+    tags: str | list[str] | None = None,
+    filters: dict[str, object] | None = None,
+) -> Path:
+    safe = _sanitize_collection(name)
+    if not safe:
+        raise VisualizerError("Storyboard name is required")
+    root = _storyboards_root(journal_dir)
+    root.mkdir(parents=True, exist_ok=True)
+    path = root / f"{safe}.json"
+    if path.exists():
+        raise VisualizerError(f"Storyboard '{safe}' already exists")
+    doc = {
+        "storyboard_name": safe,
+        "created_at": _iso_now(),
+        "updated_at": _iso_now(),
+        "title": title or safe,
+        "summary": summary or "",
+        "tags": normalize_visual_bloom_tags(tags),
+        "filters": filters or {},
+        "sections": [],
+        "artifact_refs": [],
+        "generated_artifact_paths": {},
+        "framing": {
+            "c_star_theoretical": C_STAR_THEORETICAL,
+            "bio_target": BIO_VACUUM_TARGET,
+            "bio_band_low": BIO_VACUUM_BAND_LOW,
+            "bio_band_high": BIO_VACUUM_BAND_HIGH,
+            "bio_status": BIO_VACUUM_STATUS,
+            "hunter_c_status": HUNTER_C_STATUS,
+        },
+        "experimental": True,
+    }
+    path.write_text(json.dumps(doc, indent=2), encoding="utf-8")
+    return path
+
+
+def list_visual_bloom_storyboards(*, journal_dir: Path | None = None) -> list[dict[str, object]]:
+    root = _storyboards_root(journal_dir)
+    if not root.exists():
+        return []
+    out: list[dict[str, object]] = []
+    for pth in sorted(root.glob("*.json")):
+        try:
+            doc = json.loads(pth.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+        if not isinstance(doc, dict):
+            continue
+        sections = doc.get("sections")
+        out.append({
+            "storyboard_name": doc.get("storyboard_name", pth.stem),
+            "created_at": doc.get("created_at", ""),
+            "updated_at": doc.get("updated_at", ""),
+            "title": doc.get("title", ""),
+            "summary": doc.get("summary", ""),
+            "tags": doc.get("tags", []),
+            "section_count": len(sections) if isinstance(sections, list) else 0,
+        })
+    out.sort(key=lambda r: str(r.get("created_at", "")), reverse=True)
+    return out
+
+
+def load_visual_bloom_storyboard(name: str, *, journal_dir: Path | None = None) -> dict[str, object]:
+    safe = _sanitize_collection(name)
+    path = _storyboards_root(journal_dir) / f"{safe}.json"
+    if not path.exists():
+        raise VisualizerError(f"Storyboard not found: {name}")
+    try:
+        doc = json.loads(path.read_text(encoding="utf-8"))
+    except Exception as exc:
+        raise VisualizerError(f"Invalid storyboard JSON '{name}': {exc}") from exc
+    if not isinstance(doc, dict):
+        raise VisualizerError("Storyboard payload must be an object")
+    return doc
+
+
+def add_visual_bloom_storyboard_section(
+    *,
+    name: str,
+    section_type: str,
+    artifact_ref: str,
+    journal_dir: Path | None = None,
+    title: str | None = None,
+    summary: str | None = None,
+    notes: str | None = None,
+    tags: str | list[str] | None = None,
+    sector_family: str | None = None,
+) -> Path:
+    doc = load_visual_bloom_storyboard(name, journal_dir=journal_dir)
+    safe = _sanitize_collection(name)
+    path = _storyboards_root(journal_dir) / f"{safe}.json"
+    sections_obj = doc.get("sections")
+    sections = sections_obj if isinstance(sections_obj, list) else []
+    stype = _sanitize_collection(section_type)
+    if stype not in {"insight_pack", "branch_replay", "route_compare", "pathway", "atlas", "narrative", "constellation"}:
+        raise VisualizerError("Unsupported storyboard section type")
+
+    sec_summary = build_visual_bloom_sector_summary(metadata={"tags": normalize_visual_bloom_tags(tags)}, family=sector_family or "HG")
+    section = {
+        "section_id": f"s{len(sections):03d}",
+        "section_type": stype,
+        "title": title or stype,
+        "summary": summary or "",
+        "artifact_ref": artifact_ref,
+        "notes": notes or "",
+        "tags": normalize_visual_bloom_tags(tags),
+        "sector_overlay": sec_summary,
+        "diagnostics_ref": "",
+    }
+    sections.append(section)
+    doc["sections"] = sections
+    refs_obj = doc.get("artifact_refs")
+    refs = refs_obj if isinstance(refs_obj, list) else []
+    refs.append({"type": stype, "ref": artifact_ref})
+    doc["artifact_refs"] = refs
+    doc["updated_at"] = _iso_now()
+    path.write_text(json.dumps(doc, indent=2), encoding="utf-8")
+    return path
+
+
+def _storyboard_section_matches_filters(section: dict[str, object], filters: dict[str, object]) -> bool:
+    tags_req_obj = filters.get("tags")
+    tags_req = set(normalize_visual_bloom_tags(tags_req_obj if isinstance(tags_req_obj, (str, list)) else None)) if tags_req_obj else set()
+    type_obj = filters.get("type")
+    sector_obj = filters.get("sector")
+    stype = _sanitize_collection(type_obj) if isinstance(type_obj, str) else ""
+    sector = _sanitize_collection(sector_obj) if isinstance(sector_obj, str) else ""
+    sec_tags_obj = section.get("tags")
+    sec_tags = {str(t) for t in sec_tags_obj if str(t)} if isinstance(sec_tags_obj, list) else set()
+    if tags_req and not tags_req.issubset(sec_tags):
+        return False
+    if stype and _sanitize_collection(str(section.get("section_type", ""))) != stype:
+        return False
+    if sector:
+        so = section.get("sector_overlay")
+        sd = so if isinstance(so, dict) else {}
+        if _sanitize_collection(str(sd.get("dominant_sector", ""))) != sector:
+            return False
+    return True
+
+
+def build_visual_bloom_comparative_summary(*, sections: list[dict[str, object]]) -> dict[str, object]:
+    type_counts: dict[str, int] = {}
+    dominant_counts: dict[str, int] = {}
+    for sec in sections:
+        st = _sanitize_collection(str(sec.get("section_type", "")))
+        type_counts[st] = type_counts.get(st, 0) + 1
+        so = sec.get("sector_overlay")
+        sd = so if isinstance(so, dict) else {}
+        dom = _sanitize_collection(str(sd.get("dominant_sector", "")))
+        if dom:
+            dominant_counts[dom] = dominant_counts.get(dom, 0) + 1
+    return {
+        "section_count": len(sections),
+        "section_type_counts": type_counts,
+        "dominant_sector_counts": dominant_counts,
+        "interpretive_note": "Comparative summary is an experimental local observatory synthesis.",
+    }
+
+
+def build_visual_bloom_storyboard_model(
+    *,
+    name: str,
+    journal_dir: Path | None = None,
+    filter_tags: str | None = None,
+    filter_sector: str | None = None,
+    filter_type: str | None = None,
+) -> dict[str, object]:
+    doc = load_visual_bloom_storyboard(name, journal_dir=journal_dir)
+    sections_obj = doc.get("sections")
+    sections = [s for s in sections_obj if isinstance(s, dict)] if isinstance(sections_obj, list) else []
+    filters: dict[str, object] = {
+        "tags": filter_tags,
+        "sector": filter_sector,
+        "type": filter_type,
+    }
+    selected = [s for s in sections if _storyboard_section_matches_filters(s, filters)]
+    comparative = build_visual_bloom_comparative_summary(sections=selected)
+    return {
+        **doc,
+        "filters": filters,
+        "sections": selected,
+        "comparative_summary": comparative,
+        "generated_at": _iso_now(),
+        "experimental": True,
+    }
+
+
+def render_visual_bloom_storyboard_html(model: dict[str, object]) -> str:
+    try:
+        template = resources.files("phios.templates").joinpath("sonic_storyboard.html").read_text(encoding="utf-8")
+    except Exception as exc:
+        raise VisualizerError(f"Unable to load storyboard template: {exc}") from exc
+    return template.replace("__PHIOS_STORYBOARD_MODEL_JSON__", json.dumps(model, separators=(",", ":")))
+
+
+def export_visual_bloom_storyboard(
+    *,
+    name: str,
+    output_dir: Path,
+    journal_dir: Path | None = None,
+    title: str | None = None,
+    filter_tags: str | None = None,
+    filter_sector: str | None = None,
+    filter_type: str | None = None,
+    with_integrity: bool = False,
+) -> Path:
+    out = output_dir.expanduser()
+    out.mkdir(parents=True, exist_ok=True)
+    model = build_visual_bloom_storyboard_model(
+        name=name,
+        journal_dir=journal_dir,
+        filter_tags=filter_tags,
+        filter_sector=filter_sector,
+        filter_type=filter_type,
+    )
+    if title:
+        model["title"] = title
+    html = render_visual_bloom_storyboard_html(model)
+    write_bloom_file(html, out / "storyboard_index.html")
+    (out / "storyboard.json").write_text(json.dumps(model, indent=2), encoding="utf-8")
+
+    sec_dir = out / "sections"
+    sec_dir.mkdir(parents=True, exist_ok=True)
+    sections_obj = model.get("sections")
+    sections = sections_obj if isinstance(sections_obj, list) else []
+    for idx, sec in enumerate(sections):
+        if not isinstance(sec, dict):
+            continue
+        (sec_dir / f"section_{idx:03d}.json").write_text(json.dumps(sec, indent=2), encoding="utf-8")
+
+    (out / "comparative_summary.json").write_text(json.dumps(model.get("comparative_summary", {}), indent=2), encoding="utf-8")
+    preview = augment_visual_bloom_preview_metadata(source="storyboard")
+    (out / "preview_image_metadata.json").write_text(json.dumps(preview, indent=2), encoding="utf-8")
+
+    included = {
+        "index": "storyboard_index.html",
+        "storyboard": "storyboard.json",
+        "comparative_summary": "comparative_summary.json",
+        "preview": "preview_image_metadata.json",
+    }
+    hashes = compute_visual_bloom_bundle_hashes(out, included)
+    manifest = {
+        "manifest_version": "v1",
+        "storyboard_version": "v1",
+        "type": "visual_bloom_storyboard",
+        "storyboard_name": model.get("storyboard_name", name),
+        "generated_at": model.get("generated_at", _iso_now()),
+        "included_files": included,
+        "integrity_mode": "sha256" if with_integrity else "none",
+        "file_hashes_sha256": hashes if with_integrity else {},
+        "experimental": True,
+        "compatibility_version": "phase17+",
+        "compatibility_notes": "Additive schema; older artifacts remain supported with safe defaults.",
+    }
+    write_visual_bloom_bundle_manifest(manifest_path=out / "storyboard_manifest.json", payload=manifest)
+    return out
+
+
 def _pathways_root(journal_dir: Path | None = None) -> Path:
     return _journal_root(journal_dir) / "pathways"
 
@@ -2067,6 +2338,7 @@ def build_visual_bloom_dashboard_model(*, journal_dir: Path | None = None, searc
         "recommendations": recommendations,
         "diagnostics_snapshot": diagnostics_snapshot,
         "recent_route_compares": [],
+        "recent_storyboards": list_visual_bloom_storyboards(journal_dir=journal_dir)[:10],
         "sector_summary": sector_summary,
         "bio_banner": {
             "phi": PHI,
@@ -2177,6 +2449,7 @@ def export_visual_bloom_pathway(
         "recommendations": recommendations,
         "diagnostics_snapshot": diagnostics_snapshot,
         "recent_route_compares": [],
+        "recent_storyboards": list_visual_bloom_storyboards(journal_dir=journal_dir)[:10],
         "sector_summary": sector_summary,
         "bio_context": pathway.get("bio_context", attach_visual_bloom_bio_metadata({}).get("bio", {})),
     }
@@ -2243,6 +2516,7 @@ def build_visual_bloom_insight_pack_model(
         "recommendations": recommendations,
         "diagnostics_snapshot": diagnostics_snapshot,
         "recent_route_compares": [],
+        "recent_storyboards": list_visual_bloom_storyboards(journal_dir=journal_dir)[:10],
         "atlas_summary": atlas_summary,
         "bio_framing": {
             "c_star_theoretical": C_STAR_THEORETICAL,

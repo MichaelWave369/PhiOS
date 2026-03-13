@@ -52,6 +52,13 @@ from phios.services.visualizer import (
     render_visual_bloom_route_compare_html,
     export_visual_bloom_route_compare_bundle,
     build_visual_bloom_strategy_diagnostics,
+    create_visual_bloom_storyboard,
+    list_visual_bloom_storyboards,
+    load_visual_bloom_storyboard,
+    add_visual_bloom_storyboard_section,
+    build_visual_bloom_storyboard_model,
+    render_visual_bloom_storyboard_html,
+    export_visual_bloom_storyboard,
     create_visual_bloom_narrative,
     export_visual_bloom_atlas,
     list_visual_bloom_narratives,
@@ -854,3 +861,24 @@ def test_strategy_diagnostics_schema(tmp_path):
     diag = build_visual_bloom_strategy_diagnostics(target_ref=session_dir.name, journal_dir=tmp_path)
     assert diag["status"] == "experimental_strategy_diagnostics"
     assert "overlap" in diag
+
+
+
+def test_storyboard_crud_filters_and_export(tmp_path):
+    create_visual_bloom_storyboard(name="sb1", journal_dir=tmp_path, title="Storyboard", tags="focus,alpha")
+    add_visual_bloom_storyboard_section(name="sb1", section_type="insight_pack", artifact_ref="/tmp/pack", journal_dir=tmp_path, tags="focus", sector_family="HG")
+    add_visual_bloom_storyboard_section(name="sb1", section_type="route_compare", artifact_ref="/tmp/route", journal_dir=tmp_path, tags="beta", sector_family="HG")
+
+    listed = list_visual_bloom_storyboards(journal_dir=tmp_path)
+    assert listed and listed[0]["storyboard_name"] == "sb1"
+    loaded = load_visual_bloom_storyboard("sb1", journal_dir=tmp_path)
+    assert len(loaded["sections"]) == 2
+
+    model = build_visual_bloom_storyboard_model(name="sb1", journal_dir=tmp_path, filter_tags="focus", filter_type="insight_pack")
+    assert len(model["sections"]) == 1
+    html = render_visual_bloom_storyboard_html(model)
+    assert "__PHIOS_STORYBOARD_MODEL_JSON__" not in html
+
+    out = export_visual_bloom_storyboard(name="sb1", output_dir=tmp_path / "story", journal_dir=tmp_path, with_integrity=True)
+    assert (out / "storyboard_manifest.json").exists()
+    assert (out / "comparative_summary.json").exists()

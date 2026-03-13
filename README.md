@@ -484,3 +484,39 @@ Diagnostics remain local exploratory summaries (agreement/overlap behavior), not
 - Bio-band routes are experimental guidance structures.
 - Hunter’s C remains unconfirmed.
 - These overlays/comparisons are interpretive observatory layers and do not alter PhiKernel truth logic.
+
+
+## Phase 17: Portable Observatory Storyboards
+
+Phase 17 adds static storyboard bundles that combine insight packs, branch replay context, route compare outputs, thematic filters, and comparative summaries.
+
+### Storyboard workflows
+
+- `phi view --create-storyboard <name>`
+- `phi view --browse-storyboards`
+- `phi view --load-storyboard <name>`
+- `phi view --add-to-storyboard <name> --section-type <type> --artifact-ref <ref>`
+- `phi view --export-storyboard <name> <output-dir>`
+
+Filter flags:
+- `--storyboard-filter-tags <comma,separated>`
+- `--storyboard-filter-sector <sector>`
+- `--storyboard-filter-type <type>`
+
+### Storyboard export artifacts
+
+- `storyboard_manifest.json`
+- `storyboard_index.html`
+- `storyboard.json`
+- `sections/section_*.json`
+- `comparative_summary.json`
+- preview metadata and optional integrity hashes
+
+### Comparative report intent
+
+Storyboards and comparative summaries are deterministic local observatory curation layers:
+- they do not alter PhiKernel truth logic,
+- they do not validate physical laws,
+- theoretical attractor references are structural,
+- bio-band references are experimental guidance,
+- Hunter’s C remains unconfirmed.

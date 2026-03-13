@@ -922,3 +922,33 @@ def test_view_mode_phase16_branch_replay_route_compare_and_diagnostics(monkeypat
     out, code = route_command(["view", "--show-strategy-diagnostics", "s1"])
     assert code == 0
     assert "experimental_strategy_diagnostics" in out
+
+
+
+def test_view_mode_phase17_storyboard_flags(monkeypatch, tmp_path):
+    sp = tmp_path / "sb.json"
+    monkeypatch.setattr("phios.shell.phi_commands.create_visual_bloom_storyboard", lambda **_kwargs: sp)
+    out, code = route_command(["view", "--create-storyboard", "sb", "--storyboard-title", "S"])
+    assert code == 0
+    assert "storyboard created" in out
+
+    monkeypatch.setattr("phios.shell.phi_commands.list_visual_bloom_storyboards", lambda **_kwargs: [{"storyboard_name": "sb"}])
+    out, code = route_command(["view", "--browse-storyboards"])
+    assert code == 0
+    assert '"count": 1' in out
+
+    monkeypatch.setattr("phios.shell.phi_commands.load_visual_bloom_storyboard", lambda *_args, **_kwargs: {"storyboard_name": "sb", "sections": []})
+    out, code = route_command(["view", "--load-storyboard", "sb"])
+    assert code == 0
+    assert "storyboard_name" in out
+
+    monkeypatch.setattr("phios.shell.phi_commands.add_visual_bloom_storyboard_section", lambda **_kwargs: sp)
+    out, code = route_command(["view", "--add-to-storyboard", "sb", "--section-type", "insight_pack", "--artifact-ref", "/tmp/p"])
+    assert code == 0
+    assert "storyboard updated" in out
+
+    outdir = tmp_path / "story"
+    monkeypatch.setattr("phios.shell.phi_commands.export_visual_bloom_storyboard", lambda **_kwargs: outdir)
+    out, code = route_command(["view", "--export-storyboard", "sb", str(outdir), "--storyboard-filter-tags", "focus", "--storyboard-filter-sector", "geometry", "--storyboard-filter-type", "insight_pack"])
+    assert code == 0
+    assert "storyboard exported" in out
