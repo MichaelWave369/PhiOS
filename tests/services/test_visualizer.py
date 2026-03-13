@@ -135,6 +135,24 @@ from phios.services.visualizer import (
     build_visual_bloom_thematic_pathway_summary,
     render_visual_bloom_thematic_pathway_html,
     export_visual_bloom_thematic_pathway,
+    create_visual_bloom_curriculum,
+    list_visual_bloom_curricula,
+    load_visual_bloom_curriculum,
+    add_visual_bloom_curriculum_unit,
+    build_visual_bloom_curriculum_model,
+    build_visual_bloom_curriculum_summary,
+    render_visual_bloom_curriculum_html,
+    export_visual_bloom_curriculum,
+    create_visual_bloom_journey_ensemble,
+    list_visual_bloom_journey_ensembles,
+    load_visual_bloom_journey_ensemble,
+    build_visual_bloom_journey_ensemble,
+    filter_visual_bloom_journey_ensemble_entries,
+    group_visual_bloom_journey_ensemble_entries,
+    build_visual_bloom_journey_ensemble_model,
+    build_visual_bloom_journey_ensemble_summary,
+    render_visual_bloom_journey_ensemble_html,
+    export_visual_bloom_journey_ensemble,
     create_visual_bloom_narrative,
     export_visual_bloom_atlas,
     list_visual_bloom_narratives,
@@ -1282,3 +1300,74 @@ def test_phase23_dashboard_model_includes_study_halls_and_thematic_pathways(tmp_
     model = build_visual_bloom_dashboard_model(journal_dir=tmp_path)
     assert "recent_study_halls" in model
     assert "recent_thematic_pathways" in model
+
+
+def test_phase24_curriculum_crud_summary_and_export(tmp_path):
+    create_visual_bloom_curriculum(name="cu1", journal_dir=tmp_path, title="CU", tags="focus")
+    add_visual_bloom_curriculum_unit(
+        name="cu1",
+        unit_type="study_hall",
+        artifact_ref="/tmp/sh",
+        journal_dir=tmp_path,
+        tags="focus",
+        sector_family="HG",
+    )
+    add_visual_bloom_curriculum_unit(
+        name="cu1",
+        unit_type="thematic_pathway",
+        artifact_ref="/tmp/tp",
+        journal_dir=tmp_path,
+        tags="focus",
+        sector_family="HB",
+    )
+    listed = list_visual_bloom_curricula(journal_dir=tmp_path)
+    assert listed and listed[0]["curriculum_name"] == "cu1"
+    loaded = load_visual_bloom_curriculum("cu1", journal_dir=tmp_path)
+    assert len(loaded["units"]) == 2
+
+    model = build_visual_bloom_curriculum_model(name="cu1", journal_dir=tmp_path, filter_type="study_hall")
+    assert len(model["filtered_units"]) == 1
+    summary = build_visual_bloom_curriculum_summary(units=model["units"])
+    assert summary["unit_count"] == 2
+    html = render_visual_bloom_curriculum_html(model)
+    assert "__PHIOS_CURRICULUM_MODEL_JSON__" not in html
+
+    out = export_visual_bloom_curriculum(name="cu1", output_dir=tmp_path / "cu", journal_dir=tmp_path, with_integrity=True)
+    assert (out / "curriculum_manifest.json").exists()
+    assert (out / "curriculum_summary.json").exists()
+
+
+def test_phase24_journey_ensemble_build_summary_and_export(tmp_path):
+    create_visual_bloom_storyboard(name="sb4", journal_dir=tmp_path, title="SB", tags="focus")
+    create_visual_bloom_dossier(name="d4", journal_dir=tmp_path, title="D", tags="focus")
+    create_visual_bloom_field_library(name="fl4", journal_dir=tmp_path, title="FL", tags="focus")
+    create_visual_bloom_journey_ensemble(name="je1", journal_dir=tmp_path, title="JE", tags="focus")
+
+    listed = list_visual_bloom_journey_ensembles(journal_dir=tmp_path)
+    assert listed and listed[0]["journey_ensemble_name"] == "je1"
+    loaded = load_visual_bloom_journey_ensemble("je1", journal_dir=tmp_path)
+    assert "journeys" in loaded
+
+    built = build_visual_bloom_journey_ensemble(journal_dir=tmp_path)
+    journeys = built["journeys"]
+    filtered = filter_visual_bloom_journey_ensemble_entries(entries=journeys, filter_tags="focus")
+    grouped = group_visual_bloom_journey_ensemble_entries(entries=filtered, group_by="artifact_type")
+    assert isinstance(grouped, dict)
+    summary = build_visual_bloom_journey_ensemble_summary(journeys=filtered)
+    assert "journey_count" in summary
+
+    model = build_visual_bloom_journey_ensemble_model(name="je1", journal_dir=tmp_path, filter_tags="focus")
+    html = render_visual_bloom_journey_ensemble_html(model)
+    assert "__PHIOS_JOURNEY_ENSEMBLE_MODEL_JSON__" not in html
+
+    out = export_visual_bloom_journey_ensemble(name="je1", output_dir=tmp_path / "je", journal_dir=tmp_path, with_integrity=True)
+    assert (out / "journey_ensemble_manifest.json").exists()
+    assert (out / "journey_ensemble_summary.json").exists()
+
+
+def test_phase24_dashboard_model_includes_curricula_and_journey_ensembles(tmp_path):
+    create_visual_bloom_curriculum(name="cu1", journal_dir=tmp_path)
+    create_visual_bloom_journey_ensemble(name="je1", journal_dir=tmp_path)
+    model = build_visual_bloom_dashboard_model(journal_dir=tmp_path)
+    assert "recent_curricula" in model
+    assert "recent_journey_ensembles" in model

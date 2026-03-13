@@ -1164,3 +1164,54 @@ def test_view_mode_phase23_study_hall_and_thematic_pathway_flags(monkeypatch, tm
     out, code = route_command(["view", "--export-thematic-pathway", "tp1", str(tp_out)])
     assert code == 0
     assert "thematic pathway exported" in out
+
+
+def test_view_mode_phase24_curriculum_and_journey_ensemble_flags(monkeypatch, tmp_path):
+    cu = tmp_path / "cu.json"
+    monkeypatch.setattr("phios.shell.phi_commands.create_visual_bloom_curriculum", lambda **_kwargs: cu)
+    out, code = route_command(["view", "--create-curriculum", "cu1", "--curriculum-title", "Curriculum"])
+    assert code == 0
+    assert "curriculum created" in out
+
+    monkeypatch.setattr("phios.shell.phi_commands.list_visual_bloom_curricula", lambda **_kwargs: [{"curriculum_name": "cu1"}])
+    out, code = route_command(["view", "--browse-curricula"])
+    assert code == 0
+    assert '"count": 1' in out
+
+    monkeypatch.setattr("phios.shell.phi_commands.load_visual_bloom_curriculum", lambda *_args, **_kwargs: {"curriculum_name": "cu1", "units": []})
+    out, code = route_command(["view", "--load-curriculum", "cu1"])
+    assert code == 0
+    assert "curriculum_name" in out
+
+    monkeypatch.setattr("phios.shell.phi_commands.add_visual_bloom_curriculum_unit", lambda **_kwargs: cu)
+    out, code = route_command(["view", "--add-to-curriculum", "cu1", "--section-type", "study_hall", "--artifact-ref", "/tmp/sh"])
+    assert code == 0
+    assert "curriculum updated" in out
+
+    cu_out = tmp_path / "cu"
+    monkeypatch.setattr("phios.shell.phi_commands.export_visual_bloom_curriculum", lambda **_kwargs: cu_out)
+    out, code = route_command(["view", "--export-curriculum", "cu1", str(cu_out)])
+    assert code == 0
+    assert "curriculum exported" in out
+
+    je = tmp_path / "je.json"
+    monkeypatch.setattr("phios.shell.phi_commands.create_visual_bloom_journey_ensemble", lambda **_kwargs: je)
+    out, code = route_command(["view", "--create-journey-ensemble", "je1", "--journey-ensemble-tags", "focus"])
+    assert code == 0
+    assert "journey ensemble created" in out
+
+    monkeypatch.setattr("phios.shell.phi_commands.list_visual_bloom_journey_ensembles", lambda **_kwargs: [{"journey_ensemble_name": "je1"}])
+    out, code = route_command(["view", "--browse-journey-ensembles"])
+    assert code == 0
+    assert '"count": 1' in out
+
+    monkeypatch.setattr("phios.shell.phi_commands.build_visual_bloom_journey_ensemble_model", lambda **_kwargs: {"journey_ensemble_name": "je1", "journeys": []})
+    out, code = route_command(["view", "--load-journey-ensemble", "je1"])
+    assert code == 0
+    assert "journey_ensemble_name" in out
+
+    je_out = tmp_path / "je"
+    monkeypatch.setattr("phios.shell.phi_commands.export_visual_bloom_journey_ensemble", lambda **_kwargs: je_out)
+    out, code = route_command(["view", "--export-journey-ensemble", "je1", str(je_out)])
+    assert code == 0
+    assert "journey ensemble exported" in out

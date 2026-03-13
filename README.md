@@ -796,3 +796,60 @@ Phase 23 adds additive, static/local Study Halls and Thematic Pathways above rea
 ### Backward compatibility note
 
 Older reading rooms, collection maps, field libraries, dossiers, storyboards, route-compare bundles, longitudinal summaries, insight packs, pathways, atlas exports, sessions, compare sets, narratives, constellations, shelves, and catalogs continue loading with safe defaults when study-hall/thematic-pathway metadata is absent.
+
+## Phase 24: Observatory Curricula + Comparative Journey Ensembles
+
+Phase 24 adds additive, static/local Curricula and Comparative Journey Ensembles above study halls and thematic pathways to support reusable archive-wide learning tracks and deterministic comparative exploration.
+
+### Curriculum workflows
+
+- `phi view --create-curriculum <name>`
+- `phi view --browse-curricula`
+- `phi view --load-curriculum <name>`
+- `phi view --add-to-curriculum <name> --section-type <type> --artifact-ref <ref>`
+- `phi view --export-curriculum <name> <output-dir>`
+- `--curriculum-title <title>`
+- `--curriculum-summary <summary>`
+- `--curriculum-tags <comma,separated>`
+
+### Comparative journey ensemble workflows
+
+- `phi view --create-journey-ensemble <name>`
+- `phi view --browse-journey-ensembles`
+- `phi view --load-journey-ensemble <name>`
+- `phi view --export-journey-ensemble <name> <output-dir>`
+- `--journey-ensemble-tags <comma,separated>`
+- `--journey-ensemble-filter-tags <comma,separated>`
+- `--journey-ensemble-filter-sector <sector>`
+- `--journey-ensemble-filter-type <type>`
+- `--journey-ensemble-group-by <field>`
+
+### Curriculum export artifacts
+
+- `curriculum_manifest.json`
+- `curriculum_index.html`
+- `curriculum.json`
+- `units/unit_*.json`
+- `curriculum_summary.json`
+- optional sector/diagnostics/route-context summaries
+- preview metadata and optional integrity hashes
+
+### Journey ensemble export artifacts
+
+- `journey_ensemble_manifest.json`
+- `journey_ensemble_index.html`
+- `journey_ensemble.json`
+- `journey_ensemble_summary.json`
+- preview metadata and optional integrity hashes
+
+### Scientific framing reminder
+
+- Curricula, comparative journey ensembles, study halls, thematic pathways, reading rooms, collection maps, shelves, catalogs, and related curation artifacts are local observatory interpretation only.
+- `C_STAR_THEORETICAL = PHI / 2 = (1 + sqrt(5)) / 4` remains structural/theoretical framing.
+- `BIO_VACUUM_TARGET = 0.81055` and `[BIO_VACUUM_BAND_LOW, BIO_VACUUM_BAND_HIGH] = [0.807, 0.813]` remain experimental guidance.
+- `BIO_VACUUM_STATUS = "experimental"` and `HUNTER_C_STATUS = "unconfirmed"` remain explicit.
+- These layers do not alter PhiKernel truth logic.
+
+### Backward compatibility note
+
+Older study halls, thematic pathways, reading rooms, collection maps, field libraries, dossiers, storyboards, route-compare bundles, longitudinal summaries, insight packs, pathways, atlas exports, sessions, compare sets, narratives, constellations, shelves, and catalogs continue loading with safe defaults when curriculum/journey-ensemble metadata is absent.
