@@ -10,6 +10,7 @@ import json
 import shutil
 import subprocess
 import tempfile
+import time
 import webbrowser
 from pathlib import Path
 import importlib.resources as resources
@@ -107,7 +108,12 @@ def map_kernel_to_visual_params(field_data: dict[str, object], status_data: dict
     }
 
 
-def render_bloom_html(params: dict[str, object]) -> str:
+def poll_kernel_state() -> tuple[dict[str, object], dict[str, object]]:
+    """Fetch current PhiKernel field and status state."""
+    return run_phik_json(["field"]), run_phik_json(["status"])
+
+
+def render_bloom_html(params: dict[str, object], *, live_mode: bool = False, refresh_seconds: float = 2.0) -> str:
     """Render bloom HTML by injecting params into template placeholder."""
     try:
         template = resources.files("phios.templates").joinpath("sonic_emergence.html").read_text(encoding="utf-8")
@@ -117,7 +123,11 @@ def render_bloom_html(params: dict[str, object]) -> str:
     marker = "__PHIOS_PARAMS_JSON__"
     if marker not in template:
         raise VisualizerError("Template marker __PHIOS_PARAMS_JSON__ not found.")
-    return template.replace(marker, json.dumps(params, separators=(",", ":")))
+    html = template.replace(marker, json.dumps(params, separators=(",", ":")))
+    html = html.replace("__PHIOS_LIVE_ENABLED__", "true" if live_mode else "false")
+    html = html.replace("__PHIOS_REFRESH_MS__", str(int(max(refresh_seconds, 0.2) * 1000)))
+    html = html.replace("__PHIOS_REFRESH_SECONDS__", f"{max(refresh_seconds, 0.2):.2f}")
+    return html
 
 
 def write_bloom_file(html: str, output_path: Path) -> Path:
@@ -136,10 +146,9 @@ def write_bloom_file(html: str, output_path: Path) -> Path:
 
 def launch_bloom(output_path: Path | None = None, open_browser: bool = True) -> Path:
     """Generate a snapshot bloom from live kernel field_state and optionally open it."""
-    field_data = run_phik_json(["field"])
-    status_data = run_phik_json(["status"])
+    field_data, status_data = poll_kernel_state()
     params = map_kernel_to_visual_params(field_data, status_data)
-    html = render_bloom_html(params)
+    html = render_bloom_html(params, live_mode=False)
 
     target = output_path or Path("/tmp/phios_bloom.html")
     written = write_bloom_file(html, target)
@@ -150,3 +159,49 @@ def launch_bloom(output_path: Path | None = None, open_browser: bool = True) -> 
         except Exception as exc:  # pragma: no cover
             print(f"Warning: bloom written but browser launch failed: {exc}")
     return written
+
+
+def write_live_params_json(params: dict[str, object], output_path: Path) -> Path:
+    """Persist current mapped params for live-loop observability and debug."""
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(json.dumps(params, indent=2), encoding="utf-8")
+    return output_path
+
+
+def launch_live_bloom(
+    output_path: Path | None = None,
+    *,
+    refresh_seconds: float = 2.0,
+    duration: float | None = None,
+    open_browser: bool = True,
+) -> Path:
+    """Generate and periodically refresh a local bloom artifact until interrupted."""
+    interval = max(refresh_seconds, 0.2)
+    target = output_path or Path("/tmp/phios_bloom.html")
+    params_path = target.with_suffix(".params.json")
+    start = time.monotonic()
+    opened = False
+
+    try:
+        while True:
+            field_data, status_data = poll_kernel_state()
+            params = map_kernel_to_visual_params(field_data, status_data)
+            params["mode"] = "live"
+            params["refreshSeconds"] = round(interval, 2)
+
+            html = render_bloom_html(params, live_mode=True, refresh_seconds=interval)
+            written = write_bloom_file(html, target)
+            write_live_params_json(params, params_path)
+
+            if open_browser and not opened:
+                try:
+                    webbrowser.open(written.as_uri())
+                except Exception as exc:  # pragma: no cover
+                    print(f"Warning: bloom written but browser launch failed: {exc}")
+                opened = True
+
+            if duration is not None and (time.monotonic() - start) >= duration:
+                return written
+            time.sleep(interval)
+    except KeyboardInterrupt:
+        return target

@@ -48,7 +48,7 @@ from phios.core.bioeffector_layer import (
     list_bioeffectors,
     summarize_bioeffectors,
 )
-from phios.services.visualizer import VisualizerError, launch_bloom
+from phios.services.visualizer import VisualizerError, launch_bloom, launch_live_bloom
 from phios.core.lt_engine import compute_lt
 from phios.core.sovereignty import SovereignSnapshot, export_snapshot, verify_snapshot
 from phios.core.tbrc_bridge import TBRCBridge, tbrc_connected
@@ -242,7 +242,7 @@ def cmd_help(_: list[str], session: object | None = None) -> str:
             "  bio add ... [--json]         Add a bioeffector tracking entry",
             "  bio show [--json]            Show bioeffector summary",
             "  bio export <path>            Export bioeffector layer",
-            "  view --mode sonic            Render visual bloom snapshot",
+            "  view --mode sonic [--live] [--refresh-seconds <float>] [--duration <seconds>] [--output <path.html>]",
             "  status [--json]               Show PhiKernel-backed operator status",
             "  ask <prompt> [--json]         Ask PhiKernel coach",
             "  coherence [live|--json]       Show PhiKernel coherence field",
@@ -638,16 +638,43 @@ def cmd_bio(args: list[str], session: object | None = None) -> str:
 
 
 def cmd_view(args: list[str], session: object | None = None) -> str:
+    usage = "Usage: view --mode sonic [--live] [--refresh-seconds <float>] [--duration <seconds>] [--output <path.html>]"
     if "--help" in args or "-h" in args:
-        return "Usage: view --mode sonic [--output <path.html>]"
+        return usage
 
     mode = _extract_flag_value(args, "--mode")
     if mode != "sonic":
-        return "Usage: view --mode sonic [--output <path.html>]"
+        return usage
 
+    live = "--live" in args
     out = _extract_flag_value(args, "--output")
     output_path = Path(out).expanduser() if out else None
+
+    refresh_seconds = 2.0
+    raw_refresh = _extract_flag_value(args, "--refresh-seconds")
+    if raw_refresh is not None:
+        try:
+            refresh_seconds = max(float(raw_refresh), 0.2)
+        except ValueError:
+            return usage
+
+    duration: float | None = None
+    raw_duration = _extract_flag_value(args, "--duration")
+    if raw_duration is not None:
+        try:
+            duration = max(float(raw_duration), 0.0)
+        except ValueError:
+            return usage
+
     try:
+        if live:
+            generated = launch_live_bloom(
+                output_path=output_path,
+                refresh_seconds=refresh_seconds,
+                duration=duration,
+                open_browser=True,
+            )
+            return f"Live visual bloom running: {generated}"
         generated = launch_bloom(output_path=output_path, open_browser=True)
     except VisualizerError as exc:
         raise RuntimeError(f"Visualizer unavailable: {exc}") from exc

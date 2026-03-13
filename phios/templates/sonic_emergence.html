@@ -20,6 +20,9 @@
     <div id="hud"></div>
     <script>
       const params = __PHIOS_PARAMS_JSON__;
+      const liveMode = __PHIOS_LIVE_ENABLED__;
+      const refreshMs = __PHIOS_REFRESH_MS__;
+      const refreshSecondsLabel = "__PHIOS_REFRESH_SECONDS__";
 
       const particles = [];
       const GOLD = params.goldenInf || 1.618;
@@ -80,12 +83,17 @@
           `<div class="line"><strong>Φ PhiOS Visual Bloom · Sonic Emergence</strong></div>`,
           `<div class="line">seed: ${params.seed} · coherenceC: ${params.coherenceC} · frequency: ${params.frequency}</div>`,
           `<div class="line">particleCount: ${params.particleCount} · noiseScale: ${params.noiseScale} · driftBand: ${params.driftBand}</div>`,
+          `<div class="line">mode: ${liveMode ? "live" : "snapshot"} · refresh: ${refreshSecondsLabel}s</div>`,
           `<div class="line">source: ${params.sourceLabel}</div>`,
         ].join("");
       }
 
       function windowResized() {
         resizeCanvas(window.innerWidth, window.innerHeight);
+      }
+
+      if (liveMode) {
+        setTimeout(() => window.location.reload(), refreshMs);
       }
     </script>
   </body>

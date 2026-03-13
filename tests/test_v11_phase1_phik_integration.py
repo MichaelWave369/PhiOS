@@ -566,6 +566,32 @@ def test_view_mode_sonic_generates_snapshot(monkeypatch, tmp_path):
     assert "Visual bloom generated" in out
 
 
+
+
+def test_view_mode_sonic_live_generates_snapshot(monkeypatch, tmp_path):
+    target = tmp_path / "live_bloom.html"
+    monkeypatch.setattr("phios.shell.phi_commands.launch_live_bloom", lambda **_kwargs: target)
+    out, code = route_command([
+        "view",
+        "--mode",
+        "sonic",
+        "--live",
+        "--refresh-seconds",
+        "1.5",
+        "--duration",
+        "5",
+        "--output",
+        str(target),
+    ])
+    assert code == 0
+    assert "Live visual bloom running" in out
+
+
+def test_view_mode_live_invalid_refresh_rejected():
+    out, code = route_command(["view", "--mode", "sonic", "--live", "--refresh-seconds", "nope"])
+    assert code == 0
+    assert out.startswith("Usage: view")
+
 def test_view_mode_rejects_unknown_mode():
     out, code = route_command(["view", "--mode", "unknown"])
     assert code == 0

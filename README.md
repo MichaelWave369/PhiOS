@@ -90,6 +90,7 @@ phi ask "How should I begin?"
 - `phi bio show [--json]`
 - `phi bio export <path.json>`
 - `phi view --mode sonic`
+- `phi view --mode sonic --live --refresh-seconds 2 --duration 60`
 - `phi status [--json]`
 - `phi coherence [--json]`
 - `phi coherence live`
@@ -172,9 +173,14 @@ This is an operator-facing visual lens and composition layer, not a second runti
 
 ```bash
 phi view --mode sonic
+phi view --mode sonic --live
+phi view --mode sonic --live --refresh-seconds 1.5 --duration 120
 ```
 
-The adapter reads PhiKernel telemetry, maps it into visual parameters, renders a local HTML artifact,
+Snapshot mode generates a one-shot artifact from current PhiKernel state.
+Live mode rewrites the local artifact on an interval and the browser auto-refreshes to reflect new state.
+
+The adapter reads PhiKernel field_state, maps it into visual parameters, renders a local HTML artifact,
 and opens it in the default browser.
 
 ## Security posture

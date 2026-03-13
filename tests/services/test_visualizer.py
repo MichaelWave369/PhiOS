@@ -7,6 +7,7 @@ import pytest
 from phios.services.visualizer import (
     VisualizerError,
     launch_bloom,
+    launch_live_bloom,
     map_kernel_to_visual_params,
     render_bloom_html,
     run_phik_json,
@@ -111,3 +112,41 @@ def test_run_phik_json_never_uses_shell_true(monkeypatch):
 
     monkeypatch.setattr("subprocess.run", fake_run)
     assert run_phik_json(["status"]) == {}
+
+
+def test_render_bloom_html_live_mode_replaces_markers():
+    html = render_bloom_html({"seed": 3}, live_mode=True, refresh_seconds=1.5)
+    assert "__PHIOS_LIVE_ENABLED__" not in html
+    assert "__PHIOS_REFRESH_MS__" not in html
+    assert "__PHIOS_REFRESH_SECONDS__" not in html
+    assert "const liveMode = true;" in html
+
+
+def test_launch_live_bloom_updates_and_stops_at_duration(monkeypatch, tmp_path):
+    target = tmp_path / "live.html"
+    calls = {"n": 0}
+
+    def fake_poll():
+        calls["n"] += 1
+        return ({"C_current": 0.8 + calls["n"] * 0.01}, {"anchor_id": "a"})
+
+    monkeypatch.setattr("phios.services.visualizer.poll_kernel_state", fake_poll)
+    monkeypatch.setattr("time.sleep", lambda _x: None)
+    monkeypatch.setattr("webbrowser.open", lambda _u: True)
+
+    out = launch_live_bloom(output_path=target, refresh_seconds=0.01, duration=0.02, open_browser=False)
+    assert out.exists()
+    assert (tmp_path / "live.params.json").exists()
+    assert calls["n"] >= 1
+
+
+def test_launch_live_bloom_handles_ctrl_c(monkeypatch, tmp_path):
+    target = tmp_path / "stop.html"
+
+    def fake_poll():
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr("phios.services.visualizer.poll_kernel_state", fake_poll)
+    monkeypatch.setattr("webbrowser.open", lambda _u: True)
+    out = launch_live_bloom(output_path=target, refresh_seconds=2.0, open_browser=False)
+    assert out == target
