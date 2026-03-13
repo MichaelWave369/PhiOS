@@ -290,3 +290,43 @@ and opens it in the default browser.
 - PhiKernel adapter commands execute with `shell=False` and strict JSON parsing.
 - Sovereign export validates output path shape (`.json`, no `..` traversal segments).
 - No runtime tracking code and no mandatory cloud dependencies.
+
+
+## Phase 13: Branching Journeys, Recommendations, and Golden Kernels
+
+Phase 13 adds additive local curation surfaces while preserving existing snapshot/live/replay/compare/gallery/bundle/narrative/atlas/constellation/pathway flows.
+
+### Exact theoretical and experimental framing
+
+- `PHI = (1 + sqrt(5)) / 2`
+- `C_STAR_THEORETICAL = PHI / 2 = (1 + sqrt(5)) / 4`
+- Symbolic equivalence (documentational): `C_STAR_THEORETICAL = cos(36°) = sin(54°)`
+- `BIO_VACUUM_TARGET = 0.81055`
+- `BIO_VACUUM_BAND_LOW = 0.807`
+- `BIO_VACUUM_BAND_HIGH = 0.813`
+- `BIO_VACUUM_STATUS = "experimental"`
+- `HUNTER_C_STATUS = "unconfirmed"`
+- `BIO_MODEL_PROVENANCE = "proxy-calibrated, not empirically confirmed"`
+
+This repository treats the bio target and golden kernels as optional experimental operator tooling, not empirical proof and not runtime source-of-truth logic.
+
+### Experimental golden kernels
+
+`phios.ml.golden_kernels` includes:
+
+- `golden_rbf(...)`
+- `golden_angular_rbf(...)`
+- `golden_periodic(...)`
+- `golden_target_angle_score(...)`
+
+These are used only for local similarity/recommendation hints. They are not a claim of universal kernel optimality.
+
+### New CLI additions
+
+- `phi view --link-pathway-step <pathway> --from-step <id> --to-step <id> --branch-label <label>`
+- `phi view --recommend-for <ref>`
+- `phi view --dashboard [--output <path.html>] [--search <query>]`
+
+### Backward compatibility
+
+All new branching/recommendation/dashboard/golden-kernel data is additive. Older artifacts without tags, preview metadata, integrity metadata, bio metadata, or branching metadata continue to load with safe defaults.

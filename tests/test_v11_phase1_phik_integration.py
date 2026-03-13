@@ -844,3 +844,25 @@ def test_view_mode_pathway_crud_search_and_export(monkeypatch, tmp_path):
     out, code = route_command(["view", "--export-pathway", "journey", str(out_dir), "--with-integrity", "--tags", "focus"])
     assert code == 0
     assert "pathway exported" in out
+
+
+
+def test_view_mode_phase13_branching_dashboard_and_recommendations(monkeypatch, tmp_path):
+    ppath = tmp_path / "journey.json"
+    ppath.write_text("{}", encoding="utf-8")
+
+    monkeypatch.setattr("phios.shell.phi_commands.link_visual_bloom_pathway_steps", lambda **_kwargs: ppath)
+    out, code = route_command(["view", "--link-pathway-step", "journey", "--from-step", "p000", "--to-step", "p001", "--branch-label", "A"])
+    assert code == 0
+    assert "pathway linked" in out
+
+    monkeypatch.setattr("phios.shell.phi_commands.build_visual_bloom_recommendations", lambda **_kwargs: [{"id": "s2"}])
+    out, code = route_command(["view", "--recommend-for", "s1"])
+    assert code == 0
+    assert '"count": 1' in out
+
+    dpath = tmp_path / "dashboard.html"
+    monkeypatch.setattr("phios.shell.phi_commands.launch_visual_bloom_dashboard", lambda **_kwargs: dpath)
+    out, code = route_command(["view", "--dashboard", "--output", str(dpath)])
+    assert code == 0
+    assert "dashboard generated" in out

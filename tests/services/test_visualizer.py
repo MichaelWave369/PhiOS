@@ -35,6 +35,10 @@ from phios.services.visualizer import (
     create_visual_bloom_pathway,
     build_visual_bloom_bio_metadata,
     add_visual_bloom_pathway_entry,
+    link_visual_bloom_pathway_steps,
+    build_visual_bloom_recommendations,
+    build_visual_bloom_dashboard_model,
+    render_visual_bloom_dashboard_html,
     create_visual_bloom_narrative,
     export_visual_bloom_atlas,
     list_visual_bloom_narratives,
@@ -710,3 +714,39 @@ def test_search_visual_bloom_metadata_filters(tmp_path):
     assert rows
     only_pathways = search_visual_bloom_metadata(query="findme", journal_dir=tmp_path, search_type="pathway")
     assert only_pathways and all(r["type"] == "pathway" for r in only_pathways)
+
+
+
+def test_pathway_branch_linking_and_dashboard(tmp_path):
+    session_dir = create_visual_bloom_session(
+        mode="snapshot",
+        params={"seed": 1, "driftBand": "Watch", "coherenceC": 0.809, "goldenInf": 1.618, "frequency": 7.83, "particleCount": 1500, "noiseScale": 0.005},
+        refresh_seconds=None,
+        output_path=tmp_path / "s.html",
+        journal_dir=tmp_path,
+        label="seed",
+        tags="branch",
+    )
+    append_or_update_journal_state(session_dir=session_dir, params={"timestamp": 1, "stateTimestamp": "a", "seed": 1, "coherenceC": 0.809, "goldenInf": 1.618, "frequency": 7.83, "particleCount": 1500, "noiseScale": 0.005, "mode": "snapshot", "driftBand": "Watch"}, output_html=tmp_path / "s.html")
+    create_visual_bloom_pathway(name="journeyb", journal_dir=tmp_path)
+    add_visual_bloom_pathway_entry(name="journeyb", journal_dir=tmp_path, session_ref=f"{session_dir.name}:0")
+    add_visual_bloom_pathway_entry(name="journeyb", journal_dir=tmp_path, session_ref=f"{session_dir.name}:0")
+    out = link_visual_bloom_pathway_steps(name="journeyb", from_step="p000", to_step="p001", journal_dir=tmp_path, branch_label="A")
+    assert out.exists()
+    loaded = load_visual_bloom_pathway("journeyb", journal_dir=tmp_path)
+    assert loaded["branches"][0]["from_step"] == "p000"
+
+    model = build_visual_bloom_dashboard_model(journal_dir=tmp_path)
+    assert "bio_banner" in model
+    html = render_visual_bloom_dashboard_html(model)
+    assert "Visual Bloom Dashboard" in html
+
+
+def test_recommendations_are_experimental(tmp_path):
+    s1 = create_visual_bloom_session(mode="snapshot", params={"seed": 1, "driftBand": "Watch", "coherenceC": 0.80, "goldenInf": 1.618, "frequency": 7.0, "particleCount": 1000, "noiseScale": 0.004}, refresh_seconds=None, output_path=tmp_path / "1.html", journal_dir=tmp_path, label="one", tags="x")
+    s2 = create_visual_bloom_session(mode="snapshot", params={"seed": 2, "driftBand": "Stable", "coherenceC": 0.81, "goldenInf": 1.618, "frequency": 8.0, "particleCount": 1100, "noiseScale": 0.004}, refresh_seconds=None, output_path=tmp_path / "2.html", journal_dir=tmp_path, label="two", tags="x")
+    append_or_update_journal_state(session_dir=s1, params={"timestamp": 1, "stateTimestamp": "a", "seed": 1, "coherenceC": 0.80, "goldenInf": 1.618, "frequency": 7.0, "particleCount": 1000, "noiseScale": 0.004, "mode": "snapshot", "driftBand": "Watch"}, output_html=tmp_path / "1.html")
+    append_or_update_journal_state(session_dir=s2, params={"timestamp": 2, "stateTimestamp": "b", "seed": 2, "coherenceC": 0.81, "goldenInf": 1.618, "frequency": 8.0, "particleCount": 1100, "noiseScale": 0.004, "mode": "snapshot", "driftBand": "Stable"}, output_html=tmp_path / "2.html")
+    recs = build_visual_bloom_recommendations(target_ref=s1.name, journal_dir=tmp_path)
+    assert recs
+    assert recs[0]["recommendation_status"] == "experimental_local_similarity"

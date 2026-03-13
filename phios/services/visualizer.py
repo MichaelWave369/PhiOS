@@ -17,16 +17,21 @@ import webbrowser
 from pathlib import Path
 import importlib.resources as resources
 
+from phios.core.constants import (
+    BIO_MODEL_PROVENANCE,
+    BIO_VACUUM_BAND_HIGH,
+    BIO_VACUUM_BAND_LOW,
+    BIO_VACUUM_STATUS,
+    BIO_VACUUM_TARGET,
+    C_STAR_THEORETICAL,
+    C_STAR_THEORETICAL_TRIG_EQUIV,
+    HUNTER_C_STATUS,
+    PHI,
+)
+from phios.ml.golden_kernels import golden_angular_rbf, golden_rbf
+
 VALID_PRESETS = {"stable", "ritual", "diagnostic", "bloom"}
 VALID_LENSES = {"stable", "ritual", "diagnostic", "bloom"}
-
-C_STAR_THEORETICAL = 1.618033988749895 / 2.0
-BIO_VACUUM_TARGET = 0.81055
-BIO_VACUUM_BAND_LOW = 0.807
-BIO_VACUUM_BAND_HIGH = 0.813
-BIO_VACUUM_STATUS = "experimental"
-HUNTER_C_STATUS = "unconfirmed"
-BIO_MODEL_PROVENANCE = "proxy-calibrated, not empirically confirmed"
 
 
 class VisualizerError(RuntimeError):
@@ -195,7 +200,7 @@ def map_kernel_to_visual_params(field_data: dict[str, object], status_data: dict
     grace_norm = _clamp(grace / 100.0, 0.0, 1.0)
     noise_scale = _clamp(0.002 + (1.0 - coherence) * 0.008, 0.002, 0.01)
 
-    return {
+    payload = {
         "seed": _seed_from_identity(status_data),
         "coherenceC": round(coherence, 4),
         "goldenInf": 1.618,
@@ -206,6 +211,7 @@ def map_kernel_to_visual_params(field_data: dict[str, object], status_data: dict
         "grace": round(grace_norm, 4),
         "sourceLabel": "PhiOS Visual Bloom · PhiKernel field_state",
     }
+    return attach_visual_bloom_bio_metadata(payload)
 
 
 def apply_visual_preset(params: dict[str, object], preset_name: str | None) -> dict[str, object]:
@@ -1505,9 +1511,14 @@ def create_visual_bloom_pathway(
         "summary": summary or "",
         "tags": normalize_visual_bloom_tags(tags),
         "steps": [],
+        "branches": [],
         "artifact_paths": {},
+        "recommendations": [],
         "bio_context": {
+            "phi": PHI,
             "c_star_theoretical": C_STAR_THEORETICAL,
+            "c_star_theoretical_formula": "(1 + sqrt(5)) / 4",
+            "c_star_theoretical_trig_equiv": C_STAR_THEORETICAL_TRIG_EQUIV,
             "bio_target": BIO_VACUUM_TARGET,
             "bio_band_low": BIO_VACUUM_BAND_LOW,
             "bio_band_high": BIO_VACUUM_BAND_HIGH,
@@ -1556,6 +1567,7 @@ def list_visual_bloom_pathways(*, journal_dir: Path | None = None) -> list[dict[
             "summary": doc.get("summary", ""),
             "tags": doc.get("tags", []),
             "step_count": len(steps) if isinstance(steps, list) else 0,
+            "branch_count": len(doc.get("branches", [])) if isinstance(doc.get("branches"), list) else 0,
         })
     out.sort(key=lambda i: str(i.get("created_at", "")), reverse=True)
     return out
@@ -1607,9 +1619,45 @@ def add_visual_bloom_pathway_entry(
         "note": step_note or "",
         "tags": normalize_visual_bloom_tags(tags),
         "created_at": _iso_now(),
+        "recommended_related": [],
         **ref,
     })
     doc["steps"] = steps
+    doc["updated_at"] = _iso_now()
+    path.write_text(json.dumps(doc, indent=2), encoding="utf-8")
+    return path
+
+
+def link_visual_bloom_pathway_steps(
+    *,
+    name: str,
+    from_step: str,
+    to_step: str,
+    journal_dir: Path | None = None,
+    branch_label: str | None = None,
+    note: str | None = None,
+) -> Path:
+    doc = load_visual_bloom_pathway(name, journal_dir=journal_dir)
+    safe_name = _sanitize_collection(name)
+    path = _pathways_root(journal_dir) / f"{safe_name}.json"
+    steps = doc.get("steps")
+    if not isinstance(steps, list):
+        raise VisualizerError("Pathway has no steps")
+    ids = {str(s.get("step_id", "")) for s in steps if isinstance(s, dict)}
+    if from_step not in ids or to_step not in ids:
+        raise VisualizerError("Invalid pathway branch reference")
+    branches = doc.get("branches")
+    if not isinstance(branches, list):
+        branches = []
+    branches.append({
+        "branch_id": f"b{len(branches):03d}",
+        "from_step": from_step,
+        "to_step": to_step,
+        "label": branch_label or "",
+        "note": note or "",
+        "created_at": _iso_now(),
+    })
+    doc["branches"] = branches
     doc["updated_at"] = _iso_now()
     path.write_text(json.dumps(doc, indent=2), encoding="utf-8")
     return path
@@ -1641,6 +1689,62 @@ def resolve_visual_bloom_pathway_entry(step: dict[str, object], *, journal_dir: 
     raise VisualizerError(f"Unsupported pathway step type: {kind}")
 
 
+def extract_visual_bloom_feature_vector(row: dict[str, object]) -> list[float]:
+    """Extract lightweight local features for experimental similarity scoring."""
+    type_code = {
+        "session": 1.0,
+        "compare": 2.0,
+        "narrative": 3.0,
+        "atlas": 4.0,
+        "constellation": 5.0,
+        "pathway": 6.0,
+    }.get(str(row.get("type", "")), 0.0)
+    bio_obj = row.get("bio")
+    bio = bio_obj if isinstance(bio_obj, dict) else {}
+    tags_obj = row.get("tags")
+    tag_count = len(tags_obj) if isinstance(tags_obj, list) else 0
+    return [
+        type_code,
+        float(tag_count),
+        _to_float(row.get("score"), 0.0),
+        _to_float(bio.get("bio_score"), 0.0),
+        _to_float(bio.get("bio_distance_from_target"), 1.0),
+    ]
+
+
+def build_visual_bloom_recommendations(
+    *,
+    target_ref: str,
+    journal_dir: Path | None = None,
+    top_k: int = 5,
+) -> list[dict[str, object]]:
+    """Build experimental local similarity suggestions for archived metadata."""
+    rows = build_visual_bloom_search_index(journal_dir=journal_dir)
+    if not rows:
+        return []
+    target_idx = next((i for i, r in enumerate(rows) if str(r.get("id", "")) == target_ref), None)
+    if target_idx is None:
+        return []
+    feats = [extract_visual_bloom_feature_vector(r) for r in rows]
+    q = [feats[target_idx]]
+    ang = golden_angular_rbf(q, feats)[0]
+    rbf = golden_rbf(q, feats, length_scale=1.0)[0]
+    sim = [(0.6 * a) + (0.4 * b) for a, b in zip(ang, rbf)]
+    out: list[dict[str, object]] = []
+    for i, score in enumerate(sim):
+        if i == target_idx:
+            continue
+        out.append({
+            "id": rows[i].get("id", ""),
+            "type": rows[i].get("type", ""),
+            "title": rows[i].get("title", ""),
+            "similarity": float(score),
+            "recommendation_status": "experimental_local_similarity",
+        })
+    out.sort(key=lambda r: _to_float(r.get("similarity"), 0.0), reverse=True)
+    return out[: max(1, top_k)]
+
+
 def build_visual_bloom_search_index(*, journal_dir: Path | None = None) -> list[dict[str, object]]:
     rows: list[dict[str, object]] = []
     for s in list_visual_bloom_sessions(journal_dir=journal_dir):
@@ -1653,6 +1757,22 @@ def build_visual_bloom_search_index(*, journal_dir: Path | None = None) -> list[
         rows.append({"type": "constellation", "id": str(c.get("constellation_name", "")), "title": str(c.get("title", "")), "tags": c.get("tags", []), "bio": {}})
     for p in list_visual_bloom_pathways(journal_dir=journal_dir):
         rows.append({"type": "pathway", "id": str(p.get("pathway_name", "")), "title": str(p.get("title", "")), "tags": p.get("tags", []), "bio": {"bio_status": BIO_VACUUM_STATUS}})
+
+    atlas_root = _journal_root(journal_dir)
+    for manifest in atlas_root.rglob("atlas_manifest.json") if atlas_root.exists() else []:
+        try:
+            doc = json.loads(manifest.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+        if not isinstance(doc, dict):
+            continue
+        rows.append({
+            "type": "atlas",
+            "id": str(doc.get("narrative_name", manifest.parent.name)),
+            "title": str(doc.get("narrative_name", "")),
+            "tags": doc.get("tags", []),
+            "bio": {"bio_status": BIO_VACUUM_STATUS},
+        })
     return rows
 
 
@@ -1710,6 +1830,55 @@ def search_visual_bloom_metadata(
     return results
 
 
+def build_visual_bloom_dashboard_model(*, journal_dir: Path | None = None, search: str | None = None) -> dict[str, object]:
+    sessions = list_visual_bloom_sessions(journal_dir=journal_dir)[:12]
+    compares = list_visual_bloom_compare_sets(journal_dir=journal_dir)[:12]
+    pathways = list_visual_bloom_pathways(journal_dir=journal_dir)[:12]
+    constellations = list_visual_bloom_constellations(journal_dir=journal_dir)[:12]
+    rows = search_visual_bloom_metadata(query=search or "", journal_dir=journal_dir) if search else []
+    top_ref = str(sessions[0].get("session_id", "")) if sessions else ""
+    recommendations = build_visual_bloom_recommendations(target_ref=top_ref, journal_dir=journal_dir) if top_ref else []
+    return {
+        "generated_at": _iso_now(),
+        "search": search or "",
+        "sessions": sessions,
+        "compares": compares,
+        "pathways": pathways,
+        "constellations": constellations,
+        "results": rows,
+        "recommendations": recommendations,
+        "bio_banner": {
+            "phi": PHI,
+            "c_star_theoretical": C_STAR_THEORETICAL,
+            "c_star_theoretical_formula": "(1 + sqrt(5)) / 4",
+            "c_star_theoretical_trig_equiv": C_STAR_THEORETICAL_TRIG_EQUIV,
+            "bio_target": BIO_VACUUM_TARGET,
+            "bio_band_low": BIO_VACUUM_BAND_LOW,
+            "bio_band_high": BIO_VACUUM_BAND_HIGH,
+            "bio_status": BIO_VACUUM_STATUS,
+            "hunter_c_status": HUNTER_C_STATUS,
+            "model_provenance": BIO_MODEL_PROVENANCE,
+        },
+    }
+
+
+def render_visual_bloom_dashboard_html(model: dict[str, object]) -> str:
+    try:
+        template = resources.files("phios.templates").joinpath("sonic_dashboard.html").read_text(encoding="utf-8")
+    except Exception as exc:
+        raise VisualizerError(f"Unable to load dashboard template: {exc}") from exc
+    return template.replace("__PHIOS_DASHBOARD_MODEL_JSON__", json.dumps(model, separators=(",", ":")))
+
+
+def launch_visual_bloom_dashboard(*, output_path: Path | None = None, open_browser: bool = True, journal_dir: Path | None = None, search: str | None = None) -> Path:
+    model = build_visual_bloom_dashboard_model(journal_dir=journal_dir, search=search)
+    html = render_visual_bloom_dashboard_html(model)
+    target = output_path or Path("/tmp/phios_bloom_dashboard.html")
+    written = write_bloom_file(html, target)
+    _open_browser(written, open_browser)
+    return written
+
+
 def render_visual_bloom_pathway_html(model: dict[str, object]) -> str:
     try:
         template = resources.files("phios.templates").joinpath("sonic_pathway.html").read_text(encoding="utf-8")
@@ -1743,15 +1912,20 @@ def export_visual_bloom_pathway(
         step_json = steps_dir / f"step_{idx:03d}.json"
         payload = {"index": idx, "step": step, "resolved": resolved}
         step_json.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+        step_ref = str(step.get("session_ref", step.get("narrative_ref", step.get("constellation_ref", step.get("atlas_ref", "")))))
         rendered.append({
             "index": idx,
             "step_type": step.get("step_type", ""),
+            "step_id": step.get("step_id", ""),
             "title": step.get("title", ""),
             "note": step.get("note", ""),
             "tags": step.get("tags", []),
             "json": str(Path("steps") / step_json.name),
             "resolved": resolved,
+            "experimental_recommendations": build_visual_bloom_recommendations(target_ref=step_ref, journal_dir=journal_dir) if step_ref else [],
         })
+
+    recommendations = build_visual_bloom_recommendations(target_ref=str(pathway.get("pathway_name", name)), journal_dir=journal_dir)
 
     model = {
         "pathway_name": pathway.get("pathway_name", _sanitize_collection(name)),
@@ -1763,6 +1937,8 @@ def export_visual_bloom_pathway(
         "exported_at": _iso_now(),
         "step_count": len(rendered),
         "steps": rendered,
+        "branches": pathway.get("branches", []),
+        "recommendations": recommendations,
         "bio_context": pathway.get("bio_context", attach_visual_bloom_bio_metadata({}).get("bio", {})),
     }
     html = render_visual_bloom_pathway_html(model)

@@ -42,7 +42,7 @@ dev = [
 phi = "phios.shell.phi_session:main"
 
 [tool.setuptools]
-packages = ["phios", "phios.shell", "phios.core", "phios.display", "phios.desktop", "phios.adapters", "phios.services", "phios.templates"]
+packages = ["phios", "phios.shell", "phios.core", "phios.display", "phios.desktop", "phios.adapters", "phios.services", "phios.templates", "phios.ml"]
 
 [tool.setuptools.dynamic]
 version = {attr = "phios.__version__"}
