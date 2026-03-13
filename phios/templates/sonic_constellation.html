@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>PhiOS Constellation</title>
+    <style>
+      body { margin:0; background:#060a11; color:#dbe6ff; font-family:Inter,system-ui,sans-serif; }
+      .wrap { padding:16px; }
+      .meta { font-size:12px; opacity:.9; margin:4px 0; }
+      .controls { margin:10px 0; }
+      input { width:280px; background:#0f1726; border:1px solid rgba(201,168,76,.35); color:#dbe6ff; border-radius:6px; padding:6px; }
+      .grid { display:grid; gap:10px; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); }
+      .card { border:1px solid rgba(201,168,76,.35); border-radius:10px; padding:10px; background:rgba(12,14,22,.72); }
+      .title { font-size:13px; font-weight:700; margin-bottom:4px; }
+      .line { font-size:12px; margin:2px 0; }
+    </style>
+  </head>
+  <body>
+    <div class="wrap" id="app"></div>
+    <script>
+      const model = __PHIOS_CONSTELLATION_MODEL_JSON__;
+      const app = document.getElementById('app');
+      const items = model.entries || [];
+      const links = model.links || [];
+      function safe(v){ return (v ?? '').toString(); }
+      function hasTag(it,q){
+        if(!q) return true;
+        const tags = Array.isArray(it.tags) ? it.tags.map(safe) : [];
+        return tags.some(t => t.includes(q));
+      }
+      function card(it){
+        return `<div class="card"><div class="title">#${safe(it.index)} · ${safe(it.title || it.entry_type)}</div>
+          <div class="line">type: ${safe(it.entry_type)}</div>
+          <div class="line">note: ${safe(it.note)}</div>
+          <div class="line">tags: ${safe((it.tags||[]).join(','))}</div>
+          <div class="line">json: <a href="${safe(it.json)}">${safe(it.json)}</a></div></div>`;
+      }
+      function linkCard(l){
+        return `<div class="card"><div class="title">link · ${safe(l.link_type)}</div>
+          <div class="line">target: ${safe(l.target_ref)}</div>
+          <div class="line">label: ${safe(l.label)}</div>
+          <div class="line">status: ${safe(l.status)}</div></div>`;
+      }
+      function render(){
+        const q = safe(document.getElementById('tagq').value).trim().toLowerCase();
+        const filtered = items.filter(i => hasTag(i,q));
+        document.getElementById('count').textContent = `${filtered.length}/${items.length}`;
+        document.getElementById('entries').innerHTML = filtered.map(card).join('');
+        document.getElementById('links').innerHTML = links.map(linkCard).join('');
+      }
+      app.innerHTML = `
+        <h2>Φ Constellation · ${safe(model.title || model.constellation_name)}</h2>
+        <div class="meta">tags: ${safe((model.tags||[]).join(','))} · entries: <span id="count">${items.length}/${items.length}</span> · links: ${safe(model.link_count||0)}</div>
+        <div class="meta">summary: ${safe(model.summary)}</div>
+        <div class="controls"><input id="tagq" placeholder="filter by tag" /></div>
+        <h3>Entries</h3><div class="grid" id="entries"></div>
+        <h3>Links</h3><div class="grid" id="links"></div>
+      `;
+      document.getElementById('tagq').addEventListener('input', render);
+      render();
+    </script>
+  </body>
+</html>

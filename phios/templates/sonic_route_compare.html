@@ -1,0 +1,13 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"/><title>PhiOS Route Compare</title>
+<style>body{font-family:system-ui;background:#0b1221;color:#eaf0ff;padding:1rem}.card{border:1px solid #334;background:#121c34;border-radius:10px;padding:.8rem;margin:.6rem 0}pre{white-space:pre-wrap;word-break:break-word;font-size:.85rem}</style>
+</head><body><h1>Route Compare (Experimental)</h1><div id="app"></div>
+<script>
+const model=__PHIOS_ROUTE_COMPARE_MODEL_JSON__;
+const app=document.getElementById('app');
+app.innerHTML=`<div class="card"><h2>Framing</h2><pre>${JSON.stringify(model.framing,null,2)}</pre></div>
+<div class="card"><h3>Summary</h3><pre>${JSON.stringify({title:model.title,start_ref:model.start_ref,heat_mode:model.heat_mode},null,2)}</pre></div>
+<div class="card"><h3>Diff metrics</h3><pre>${JSON.stringify(model.route_diff_summary,null,2)}</pre></div>
+<div class="card"><h3>Sector overlays</h3><pre>${JSON.stringify(model.sector_overlay_summary,null,2)}</pre></div>
+<div class="card"><h3>Strategy diagnostics</h3><pre>${JSON.stringify(model.strategy_diagnostics,null,2)}</pre></div>`;
+</script></body></html>

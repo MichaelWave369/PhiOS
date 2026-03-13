@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>PhiOS Field Atlas</title>
+    <style>
+      body { margin: 0; background: #070a10; color: #dbe6ff; font-family: Inter, system-ui, sans-serif; }
+      .wrap { padding: 16px; }
+      .meta { font-size: 13px; opacity: .9; margin-bottom: 8px; }
+      .grid { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(280px,1fr)); }
+      .card { border: 1px solid rgba(201,168,76,0.35); border-radius: 10px; background: rgba(12,14,22,0.72); padding: 10px; }
+      .title { font-weight: 700; font-size: 14px; margin-bottom: 4px; }
+      .line { font-size: 12px; margin: 2px 0; opacity: .95; }
+      a { color: #a8c7ff; }
+    </style>
+  </head>
+  <body>
+    <div class="wrap" id="app"></div>
+    <script>
+      const model = __PHIOS_ATLAS_MODEL_JSON__;
+      const app = document.getElementById('app');
+      const entries = model.entries || [];
+      function safe(v){ return (v ?? '').toString(); }
+      function card(e){
+        return `<div class="card">
+          <div class="title">#${safe(e.index)} · ${safe(e.title || e.entry_type)}</div>
+          <div class="line">type: ${safe(e.entry_type)}</div>
+          <div class="line">note: ${safe(e.note)}</div>
+          <div class="line"><a href="${safe(e.html)}">Open artifact</a></div>
+          <div class="line"><a href="${safe(e.json)}">Entry metadata</a></div>
+        </div>`;
+      }
+      app.innerHTML = `
+        <h2>Φ Field Atlas · ${safe(model.title || model.narrative_name)}</h2>
+        <div class="meta">narrative: ${safe(model.narrative_name)} · entries: ${safe(model.entry_count)} · exported: ${safe(model.exported_at)}</div>
+        <div class="meta">summary: ${safe(model.summary)}</div>
+        <div class="grid">${entries.map(card).join('')}</div>
+      `;
+    </script>
+  </body>
+</html>
