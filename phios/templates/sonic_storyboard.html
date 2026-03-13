@@ -8,5 +8,6 @@ const app=document.getElementById('app');
 app.innerHTML=`<div class="card"><h2>Framing</h2><p class="muted">Theoretical C*=${model.framing.c_star_theoretical}; bio target=${model.framing.bio_target} (${model.framing.bio_status}); Hunter's C=${model.framing.hunter_c_status}. Storyboards are interpretive local curation layers.</p></div>
 <div class="card"><h3>Storyboard</h3><pre>${JSON.stringify({name:model.storyboard_name,title:model.title,summary:model.summary,tags:model.tags,filters:model.filters},null,2)}</pre></div>
 <div class="card"><h3>Comparative Summary</h3><pre>${JSON.stringify(model.comparative_summary,null,2)}</pre></div>
+<div class="card"><h3>Route Timeline</h3><pre>${JSON.stringify(model.route_timeline||{},null,2)}</pre></div>
 <div class="card"><h3>Sections</h3><pre>${JSON.stringify(model.sections,null,2)}</pre></div>`;
 </script></body></html>

@@ -59,6 +59,14 @@ from phios.services.visualizer import (
     build_visual_bloom_storyboard_model,
     render_visual_bloom_storyboard_html,
     export_visual_bloom_storyboard,
+    build_visual_bloom_route_timeline,
+    build_visual_bloom_atlas_gallery_model,
+    render_visual_bloom_atlas_gallery_html,
+    build_visual_bloom_sector_snapshot,
+    build_visual_bloom_longitudinal_summary,
+    filter_visual_bloom_longitudinal_series,
+    render_visual_bloom_longitudinal_html,
+    export_visual_bloom_longitudinal_summary,
     create_visual_bloom_narrative,
     export_visual_bloom_atlas,
     list_visual_bloom_narratives,
@@ -882,3 +890,46 @@ def test_storyboard_crud_filters_and_export(tmp_path):
     out = export_visual_bloom_storyboard(name="sb1", output_dir=tmp_path / "story", journal_dir=tmp_path, with_integrity=True)
     assert (out / "storyboard_manifest.json").exists()
     assert (out / "comparative_summary.json").exists()
+    assert (out / "route_timeline.json").exists()
+
+
+def test_phase18_atlas_gallery_and_longitudinal_exports(tmp_path):
+    session_dir = create_visual_bloom_session(
+        mode="snapshot",
+        params={"seed": 7, "driftBand": "Watch", "coherenceC": 0.81, "goldenInf": 1.618, "frequency": 7.83, "particleCount": 1100, "noiseScale": 0.006},
+        refresh_seconds=None,
+        output_path=tmp_path / "s1.html",
+        journal_dir=tmp_path,
+    )
+    append_or_update_journal_state(
+        session_dir=session_dir,
+        params={"timestamp": 2, "stateTimestamp": "b", "seed": 7, "coherenceC": 0.81, "goldenInf": 1.618, "frequency": 7.83, "particleCount": 1100, "noiseScale": 0.006, "mode": "snapshot", "driftBand": "Watch"},
+        output_html=tmp_path / "s1.html",
+    )
+    start_ref = f"{session_dir.name}:0"
+    export_visual_bloom_route_compare_bundle(start_ref=start_ref, output_dir=tmp_path / "route_cmp", journal_dir=tmp_path)
+
+    create_visual_bloom_storyboard(name="sb2", journal_dir=tmp_path, title="Storyboard 2", tags="focus")
+    add_visual_bloom_storyboard_section(name="sb2", section_type="route_compare", artifact_ref=str(tmp_path / "route_cmp"), journal_dir=tmp_path, tags="focus", sector_family="HG")
+    sb_model = build_visual_bloom_storyboard_model(name="sb2", journal_dir=tmp_path)
+    timeline = build_visual_bloom_route_timeline(model=sb_model)
+    assert timeline["entry_count"] >= 1
+
+    gallery = build_visual_bloom_atlas_gallery_model(journal_dir=tmp_path)
+    assert gallery["entry_count"] >= 1
+    gallery_html = render_visual_bloom_atlas_gallery_html(gallery)
+    assert "__PHIOS_ATLAS_GALLERY_MODEL_JSON__" not in gallery_html
+
+    sector_snapshot = build_visual_bloom_sector_snapshot(entries=gallery["entries"])
+    assert sector_snapshot["status"] == "experimental_sector_snapshot"
+
+    longitudinal = build_visual_bloom_longitudinal_summary(journal_dir=tmp_path)
+    assert longitudinal["longitudinal_version"] == "v1"
+    filtered = filter_visual_bloom_longitudinal_series(series=longitudinal["series"], filter_target="theoretical")
+    assert isinstance(filtered, list)
+    longitudinal_html = render_visual_bloom_longitudinal_html(longitudinal)
+    assert "__PHIOS_LONGITUDINAL_MODEL_JSON__" not in longitudinal_html
+
+    out = export_visual_bloom_longitudinal_summary(output_dir=tmp_path / "longitudinal", journal_dir=tmp_path, with_integrity=True)
+    assert (out / "longitudinal_manifest.json").exists()
+    assert (out / "longitudinal_summary.json").exists()

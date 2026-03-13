@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"/><title>PhiOS Longitudinal Summary</title>
+<style>body{font-family:system-ui;background:#0b1221;color:#eaf0ff;padding:1rem}.card{border:1px solid #334;background:#121c34;border-radius:10px;padding:.8rem;margin:.6rem 0}pre{white-space:pre-wrap;word-break:break-word;font-size:.85rem}.muted{color:#b6c0e0}</style>
+</head><body><h1>Longitudinal Observatory Summary (Experimental)</h1><div id="app"></div>
+<script>
+const model=__PHIOS_LONGITUDINAL_MODEL_JSON__;
+const app=document.getElementById('app');
+app.innerHTML=`<div class="card"><h2>Interpretive framing</h2><p class="muted">This longitudinal summary is deterministic local history synthesis and does not validate physical law or Hunter's C.</p></div>
+<div class="card"><h3>Filters</h3><pre>${JSON.stringify(model.filters,null,2)}</pre></div>
+<div class="card"><h3>Target Mode Counts</h3><pre>${JSON.stringify(model.target_mode_counts,null,2)}</pre></div>
+<div class="card"><h3>Sector Snapshot</h3><pre>${JSON.stringify(model.sector_snapshot,null,2)}</pre></div>
+<div class="card"><h3>Sector Comparison</h3><pre>${JSON.stringify(model.sector_comparison,null,2)}</pre></div>
+<div class="card"><h3>Series</h3><pre>${JSON.stringify(model.series,null,2)}</pre></div>`;
+</script></body></html>

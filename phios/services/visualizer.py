@@ -1804,11 +1804,13 @@ def build_visual_bloom_storyboard_model(
     }
     selected = [s for s in sections if _storyboard_section_matches_filters(s, filters)]
     comparative = build_visual_bloom_comparative_summary(sections=selected)
+    timeline = build_visual_bloom_route_timeline(model={**doc, "sections": selected})
     return {
         **doc,
         "filters": filters,
         "sections": selected,
         "comparative_summary": comparative,
+        "route_timeline": timeline,
         "generated_at": _iso_now(),
         "experimental": True,
     }
@@ -1848,6 +1850,9 @@ def export_visual_bloom_storyboard(
     write_bloom_file(html, out / "storyboard_index.html")
     (out / "storyboard.json").write_text(json.dumps(model, indent=2), encoding="utf-8")
 
+    timeline = build_visual_bloom_route_timeline(model=model)
+    (out / "route_timeline.json").write_text(json.dumps(timeline, indent=2), encoding="utf-8")
+
     sec_dir = out / "sections"
     sec_dir.mkdir(parents=True, exist_ok=True)
     sections_obj = model.get("sections")
@@ -1864,6 +1869,7 @@ def export_visual_bloom_storyboard(
     included = {
         "index": "storyboard_index.html",
         "storyboard": "storyboard.json",
+        "route_timeline": "route_timeline.json",
         "comparative_summary": "comparative_summary.json",
         "preview": "preview_image_metadata.json",
     }
@@ -1882,6 +1888,341 @@ def export_visual_bloom_storyboard(
         "compatibility_notes": "Additive schema; older artifacts remain supported with safe defaults.",
     }
     write_visual_bloom_bundle_manifest(manifest_path=out / "storyboard_manifest.json", payload=manifest)
+    return out
+
+
+def build_visual_bloom_route_timeline(*, model: dict[str, object]) -> dict[str, object]:
+    sections_obj = model.get("sections")
+    sections = [s for s in sections_obj if isinstance(s, dict)] if isinstance(sections_obj, list) else []
+    rows: list[dict[str, object]] = []
+    last_type = ""
+    for idx, sec in enumerate(sections):
+        stype = _sanitize_collection(str(sec.get("section_type", "")))
+        if stype not in {"route_compare", "atlas", "branch_replay", "pathway"}:
+            continue
+        so = sec.get("sector_overlay")
+        sd = so if isinstance(so, dict) else {}
+        rows.append({
+            "index": idx,
+            "section_id": sec.get("section_id", f"s{idx:03d}"),
+            "section_type": stype,
+            "title": sec.get("title", stype),
+            "artifact_ref": sec.get("artifact_ref", ""),
+            "transition": f"{last_type or 'start'}->{stype}",
+            "dominant_sector": sd.get("dominant_sector", ""),
+            "sector_family": sd.get("sector_family", ""),
+            "note": sec.get("notes", ""),
+        })
+        last_type = stype
+    return {
+        "timeline_version": "v1",
+        "storyboard_name": model.get("storyboard_name", ""),
+        "generated_at": _iso_now(),
+        "entries": rows,
+        "entry_count": len(rows),
+        "status": "experimental_storyboard_route_timeline",
+        "interpretive_note": "Timeline summarizes storyboard route/atlas sections as local interpretive context.",
+    }
+
+
+def _safe_load_json(path: Path) -> dict[str, object] | None:
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return None
+    return payload if isinstance(payload, dict) else None
+
+
+def _scan_manifest_files(*, journal_dir: Path | None, name: str) -> list[Path]:
+    root = _journal_root(journal_dir)
+    if not root.exists():
+        return []
+    return sorted(root.rglob(name))
+
+
+def build_visual_bloom_sector_snapshot(*, entries: list[dict[str, object]]) -> dict[str, object]:
+    def _norm(value: object) -> str:
+        text = str(value or "").strip().lower().replace(" ", "_")
+        return "".join(ch for ch in text if ch.isalnum() or ch in {"_", "-"})
+
+    family_counts: dict[str, int] = {}
+    dominant_counts: dict[str, int] = {}
+    for row in entries:
+        fam = _norm(row.get("sector_family", ""))
+        dom = _norm(row.get("dominant_sector", ""))
+        if fam:
+            family_counts[fam] = family_counts.get(fam, 0) + 1
+        if dom:
+            dominant_counts[dom] = dominant_counts.get(dom, 0) + 1
+    return {
+        "snapshot_version": "v1",
+        "entry_count": len(entries),
+        "sector_family_counts": family_counts,
+        "dominant_sector_counts": dominant_counts,
+        "status": "experimental_sector_snapshot",
+    }
+
+
+def build_visual_bloom_sector_comparison_summary(*, entries: list[dict[str, object]]) -> dict[str, object]:
+    snap = build_visual_bloom_sector_snapshot(entries=entries)
+    dominant = snap.get("dominant_sector_counts")
+    dom_rows = dominant.items() if isinstance(dominant, dict) else []
+    top = sorted(dom_rows, key=lambda item: item[1], reverse=True)[:3]
+    return {
+        "comparison_version": "v1",
+        "top_dominant_sectors": [{"sector": k, "count": v} for k, v in top],
+        "status": "experimental_sector_comparison",
+        "interpretive_note": "Sector comparisons are heuristic observatory overlays; they are not physical validation.",
+    }
+
+
+def build_visual_bloom_atlas_gallery_model(
+    *,
+    journal_dir: Path | None = None,
+    filter_tags: str | None = None,
+    filter_sector: str | None = None,
+    filter_target: str | None = None,
+    filter_heat_mode: str | None = None,
+) -> dict[str, object]:
+    manifests = _scan_manifest_files(journal_dir=journal_dir, name="route_compare_manifest.json")
+    target = _sanitize_collection(filter_target) if filter_target else ""
+    if target and target not in {"theoretical", "bio_band", "node"}:
+        raise VisualizerError("Invalid atlas target filter. Use theoretical|bio_band|node")
+    heat = _sanitize_collection(filter_heat_mode) if filter_heat_mode else ""
+    sector = _sanitize_collection(filter_sector) if filter_sector else ""
+    tags_req = set(normalize_visual_bloom_tags(filter_tags)) if filter_tags else set()
+
+    entries: list[dict[str, object]] = []
+    for manifest_path in manifests:
+        manifest = _safe_load_json(manifest_path)
+        if not manifest:
+            continue
+        root = manifest_path.parent
+        diff = _safe_load_json(root / "route_diff_summary.json") or {}
+        theo = _safe_load_json(root / "theoretical_route.json") or {}
+        start_ref = str(manifest.get("start_ref", ""))
+        tags = normalize_visual_bloom_tags(str(manifest.get("tags", "")) if isinstance(manifest.get("tags"), str) else None)
+        mode = _sanitize_collection(str(manifest.get("heat_mode", "")))
+        route_len = int(_to_float(diff.get("theoretical_path_length"), 0.0))
+        row = {
+            "title": str(manifest.get("title", f"route-compare:{start_ref}")),
+            "created_at": str(manifest.get("generated_at", "")),
+            "target_mode": "theoretical_vs_bio_band",
+            "heat_mode": mode,
+            "route_length": route_len,
+            "route_cost": _to_float(theo.get("total_cost"), 0.0),
+            "dominant_sector": str(diff.get("dominant_sector_theoretical", "")),
+            "sector_family": "hg",
+            "related_storyboards": [],
+            "path": str(root),
+            "tags": tags,
+            "source": "route_compare",
+            "start_ref": start_ref,
+        }
+        if tags_req and not tags_req.issubset(set(tags)):
+            continue
+        if heat and mode != heat:
+            continue
+        if sector and _sanitize_collection(str(row.get("dominant_sector", ""))) != sector:
+            continue
+        if target and target not in {"theoretical", "bio_band"}:
+            continue
+        entries.append(row)
+
+    storyboards = list_visual_bloom_storyboards(journal_dir=journal_dir)
+    for sb in storyboards:
+        sname = str(sb.get("storyboard_name", ""))
+        if not sname:
+            continue
+        try:
+            model = build_visual_bloom_storyboard_model(name=sname, journal_dir=journal_dir)
+        except VisualizerError:
+            continue
+        timeline = build_visual_bloom_route_timeline(model=model)
+        t_entries_obj = timeline.get("entries")
+        t_entries = [e for e in t_entries_obj if isinstance(e, dict)] if isinstance(t_entries_obj, list) else []
+        related = [str(e.get("artifact_ref", "")) for e in t_entries]
+        if not related:
+            continue
+        sb_tags_obj = sb.get("tags")
+        entries.append({
+            "title": str(sb.get("title", sname)),
+            "created_at": str(sb.get("created_at", "")),
+            "target_mode": "storyboard_timeline",
+            "heat_mode": "",
+            "route_length": int(_to_float(timeline.get("entry_count"), 0.0)),
+            "route_cost": 0.0,
+            "dominant_sector": "",
+            "sector_family": "",
+            "related_storyboards": [sname],
+            "path": str(_storyboards_root(journal_dir) / f"{_sanitize_collection(sname)}.json"),
+            "tags": normalize_visual_bloom_tags(sb_tags_obj if isinstance(sb_tags_obj, (str, list)) else None),
+            "source": "storyboard",
+            "start_ref": "",
+        })
+
+    entries.sort(key=lambda r: str(r.get("created_at", "")), reverse=True)
+    return {
+        "gallery_version": "v1",
+        "generated_at": _iso_now(),
+        "filters": {
+            "tags": filter_tags or "",
+            "sector": filter_sector or "",
+            "target": filter_target or "",
+            "heat_mode": filter_heat_mode or "",
+        },
+        "entries": entries,
+        "entry_count": len(entries),
+        "sector_snapshot": build_visual_bloom_sector_snapshot(entries=entries),
+        "framing": {
+            "c_star_theoretical": C_STAR_THEORETICAL,
+            "bio_target": BIO_VACUUM_TARGET,
+            "bio_band_low": BIO_VACUUM_BAND_LOW,
+            "bio_band_high": BIO_VACUUM_BAND_HIGH,
+            "bio_status": BIO_VACUUM_STATUS,
+            "hunter_c_status": HUNTER_C_STATUS,
+        },
+        "experimental": True,
+    }
+
+
+def render_visual_bloom_atlas_gallery_html(model: dict[str, object]) -> str:
+    try:
+        template = resources.files("phios.templates").joinpath("sonic_atlas_gallery.html").read_text(encoding="utf-8")
+    except Exception as exc:
+        raise VisualizerError(f"Unable to load atlas-gallery template: {exc}") from exc
+    return template.replace("__PHIOS_ATLAS_GALLERY_MODEL_JSON__", json.dumps(model, separators=(",", ":")))
+
+
+def filter_visual_bloom_longitudinal_series(
+    *,
+    series: list[dict[str, object]],
+    filter_tags: str | None = None,
+    filter_sector: str | None = None,
+    filter_target: str | None = None,
+) -> list[dict[str, object]]:
+    tags_req = set(normalize_visual_bloom_tags(filter_tags)) if filter_tags else set()
+    sector = _sanitize_collection(filter_sector) if filter_sector else ""
+    target = _sanitize_collection(filter_target) if filter_target else ""
+    if target and target not in {"theoretical", "bio_band", "node"}:
+        raise VisualizerError("Invalid longitudinal target filter. Use theoretical|bio_band|node")
+    out: list[dict[str, object]] = []
+    for row in series:
+        tags_obj = row.get("tags")
+        tags = normalize_visual_bloom_tags(tags_obj if isinstance(tags_obj, (str, list)) else None)
+        dom = str(row.get("dominant_sector", "")).strip().lower().replace(" ", "_")
+        tgt = str(row.get("target_mode", "")).strip().lower().replace(" ", "_")
+        if tags_req and not tags_req.issubset(set(tags)):
+            continue
+        if sector and dom != sector:
+            continue
+        if target and target not in tgt:
+            continue
+        out.append(row)
+    return out
+
+
+def build_visual_bloom_longitudinal_summary(
+    *,
+    journal_dir: Path | None = None,
+    filter_tags: str | None = None,
+    filter_sector: str | None = None,
+    filter_target: str | None = None,
+) -> dict[str, object]:
+    gallery = build_visual_bloom_atlas_gallery_model(journal_dir=journal_dir)
+    entries_obj = gallery.get("entries")
+    entries = [e for e in entries_obj if isinstance(e, dict)] if isinstance(entries_obj, list) else []
+    filtered = filter_visual_bloom_longitudinal_series(
+        series=entries,
+        filter_tags=filter_tags,
+        filter_sector=filter_sector,
+        filter_target=filter_target,
+    )
+    target_counts: dict[str, int] = {}
+    for row in filtered:
+        tgt = str(row.get("target_mode", "unknown")).strip().lower().replace(" ", "_") or "unknown"
+        target_counts[tgt] = target_counts.get(tgt, 0) + 1
+    return {
+        "longitudinal_version": "v1",
+        "generated_at": _iso_now(),
+        "filters": {
+            "tags": filter_tags or "",
+            "sector": filter_sector or "",
+            "target": filter_target or "",
+        },
+        "series": filtered,
+        "series_count": len(filtered),
+        "target_mode_counts": target_counts,
+        "sector_snapshot": build_visual_bloom_sector_snapshot(entries=filtered),
+        "sector_comparison": build_visual_bloom_sector_comparison_summary(entries=filtered),
+        "interpretive_note": "Longitudinal summaries are deterministic local history views, not predictive or truth-bearing science.",
+        "experimental": True,
+    }
+
+
+def render_visual_bloom_longitudinal_html(model: dict[str, object]) -> str:
+    try:
+        template = resources.files("phios.templates").joinpath("sonic_longitudinal.html").read_text(encoding="utf-8")
+    except Exception as exc:
+        raise VisualizerError(f"Unable to load longitudinal template: {exc}") from exc
+    return template.replace("__PHIOS_LONGITUDINAL_MODEL_JSON__", json.dumps(model, separators=(",", ":")))
+
+
+def export_visual_bloom_longitudinal_summary(
+    *,
+    output_dir: Path,
+    journal_dir: Path | None = None,
+    title: str | None = None,
+    filter_tags: str | None = None,
+    filter_sector: str | None = None,
+    filter_target: str | None = None,
+    with_integrity: bool = False,
+) -> Path:
+    out = output_dir.expanduser()
+    out.mkdir(parents=True, exist_ok=True)
+    summary = build_visual_bloom_longitudinal_summary(
+        journal_dir=journal_dir,
+        filter_tags=filter_tags,
+        filter_sector=filter_sector,
+        filter_target=filter_target,
+    )
+    if title:
+        summary["title"] = title
+    html = render_visual_bloom_longitudinal_html(summary)
+    write_bloom_file(html, out / "longitudinal_index.html")
+    (out / "longitudinal_summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
+    (out / "sector_snapshot.json").write_text(json.dumps(summary.get("sector_snapshot", {}), indent=2), encoding="utf-8")
+    gallery = build_visual_bloom_atlas_gallery_model(
+        journal_dir=journal_dir,
+        filter_tags=filter_tags,
+        filter_sector=filter_sector,
+        filter_target=filter_target,
+    )
+    (out / "atlas_gallery_summary.json").write_text(json.dumps(gallery, indent=2), encoding="utf-8")
+    preview = augment_visual_bloom_preview_metadata(source="longitudinal")
+    (out / "preview_image_metadata.json").write_text(json.dumps(preview, indent=2), encoding="utf-8")
+
+    included = {
+        "index": "longitudinal_index.html",
+        "longitudinal_summary": "longitudinal_summary.json",
+        "sector_snapshot": "sector_snapshot.json",
+        "atlas_gallery_summary": "atlas_gallery_summary.json",
+        "preview": "preview_image_metadata.json",
+    }
+    hashes = compute_visual_bloom_bundle_hashes(out, included)
+    manifest = {
+        "manifest_version": "v1",
+        "longitudinal_version": "v1",
+        "type": "visual_bloom_longitudinal",
+        "generated_at": summary.get("generated_at", _iso_now()),
+        "included_files": included,
+        "integrity_mode": "sha256" if with_integrity else "none",
+        "file_hashes_sha256": hashes if with_integrity else {},
+        "experimental": True,
+        "compatibility_version": "phase18+",
+        "compatibility_notes": "Additive schema; older artifacts remain supported with safe defaults.",
+    }
+    write_visual_bloom_bundle_manifest(manifest_path=out / "longitudinal_manifest.json", payload=manifest)
     return out
 
 
@@ -2327,6 +2668,25 @@ def build_visual_bloom_dashboard_model(*, journal_dir: Path | None = None, searc
     top_ref = str(sessions[0].get("session_id", "")) if sessions else ""
     recommendations = build_visual_bloom_recommendations(target_ref=top_ref, journal_dir=journal_dir, strategy="golden_angular") if top_ref else []
     diagnostics_snapshot = build_visual_bloom_strategy_diagnostics(target_ref=top_ref, journal_dir=journal_dir) if top_ref else {}
+    atlas_gallery = build_visual_bloom_atlas_gallery_model(journal_dir=journal_dir)
+    longitudinal = build_visual_bloom_longitudinal_summary(journal_dir=journal_dir)
+    entries_obj = atlas_gallery.get("entries")
+    gallery_entries = [e for e in entries_obj if isinstance(e, dict)] if isinstance(entries_obj, list) else []
+    recent_route_compares = [e for e in gallery_entries if str(e.get("source", "")) == "route_compare"][:10]
+    storyboards = list_visual_bloom_storyboards(journal_dir=journal_dir)[:10]
+    timeline_entries: list[dict[str, object]] = []
+    for row in storyboards[:3]:
+        sname = str(row.get("storyboard_name", ""))
+        if not sname:
+            continue
+        try:
+            s_model = build_visual_bloom_storyboard_model(name=sname, journal_dir=journal_dir)
+        except VisualizerError:
+            continue
+        timeline_entries.append({
+            "storyboard_name": sname,
+            "timeline": build_visual_bloom_route_timeline(model=s_model),
+        })
     return {
         "generated_at": _iso_now(),
         "search": search or "",
@@ -2337,8 +2697,16 @@ def build_visual_bloom_dashboard_model(*, journal_dir: Path | None = None, searc
         "results": rows,
         "recommendations": recommendations,
         "diagnostics_snapshot": diagnostics_snapshot,
-        "recent_route_compares": [],
-        "recent_storyboards": list_visual_bloom_storyboards(journal_dir=journal_dir)[:10],
+        "recent_route_compares": recent_route_compares,
+        "recent_storyboards": storyboards,
+        "recent_atlas_gallery_entries": gallery_entries[:10],
+        "longitudinal_snapshot": {
+            "series_count": longitudinal.get("series_count", 0),
+            "target_mode_counts": longitudinal.get("target_mode_counts", {}),
+            "sector_snapshot": longitudinal.get("sector_snapshot", {}),
+        },
+        "storyboard_timelines": timeline_entries,
+        "route_target_mode_counts": longitudinal.get("target_mode_counts", {}),
         "sector_summary": sector_summary,
         "bio_banner": {
             "phi": PHI,

@@ -520,3 +520,36 @@ Storyboards and comparative summaries are deterministic local observatory curati
 - theoretical attractor references are structural,
 - bio-band references are experimental guidance,
 - Hunter’s C remains unconfirmed.
+
+
+## Phase 18: Atlas Gallery, Route Timelines, Sector Snapshots, and Longitudinal Summaries
+
+Phase 18 adds archive-wide atlas gallery views, storyboard-linked route timeline surfacing, sector-comparison dashboard snapshots, and optional longitudinal summary exports over repeated archive artifacts.
+
+### Atlas gallery and longitudinal workflows
+
+- `phi view --atlas-gallery`
+- `phi view --export-longitudinal-summary <output-dir>`
+
+Optional filters/titles:
+- `--longitudinal-title <title>`
+- `--longitudinal-filter-tags <comma,separated>`
+- `--longitudinal-filter-sector <sector>`
+- `--longitudinal-filter-target <theoretical|bio_band|node>`
+
+### Longitudinal export artifacts
+
+- `longitudinal_manifest.json`
+- `longitudinal_index.html`
+- `longitudinal_summary.json`
+- `sector_snapshot.json`
+- `atlas_gallery_summary.json`
+- preview metadata and optional integrity hashes
+
+### Scientific framing reminder
+
+- Atlas galleries, route timelines, sector snapshots, and longitudinal summaries are local interpretive curation layers.
+- Theoretical attractor references are structural.
+- Bio-band references remain experimental guidance.
+- Hunter’s C remains unconfirmed.
+- None of these reports alter PhiKernel truth logic.

@@ -96,6 +96,10 @@ from phios.services.visualizer import (
     load_visual_bloom_storyboard,
     add_visual_bloom_storyboard_section,
     export_visual_bloom_storyboard,
+    build_visual_bloom_atlas_gallery_model,
+    render_visual_bloom_atlas_gallery_html,
+    export_visual_bloom_longitudinal_summary,
+    write_bloom_file,
 )
 from phios.core.lt_engine import compute_lt
 from phios.core.sovereignty import SovereignSnapshot, export_snapshot, verify_snapshot
@@ -686,7 +690,7 @@ def cmd_bio(args: list[str], session: object | None = None) -> str:
 
 
 def cmd_view(args: list[str], session: object | None = None) -> str:
-    usage = "Usage: view --mode sonic [--live] [--refresh-seconds <float>] [--duration <seconds>] [--output <path.html>] [--journal] [--journal-dir <path>] [--label <name>] [--collection <name>] [--replay <session_id|session.json[:idx]>] [--state-idx <n>] [--next-state|--prev-state] [--compare <left_ref> <right_ref>] [--export-report <path.json>] [--export-bundle <dir>] [--with-integrity] [--bundle-label <name>] [--save-compare <name>] [--load-compare <name>] [--browse-compares] [--gallery] [--search <text>] [--filter-mode <mode>] [--filter-preset <name>] [--filter-lens <name>] [--filter-audio <on|off>] [--filter-label <text>] [--filter-session <id>] [--create-narrative <name>] [--narrative-title <text>] [--narrative-summary <text>] [--browse-narratives] [--load-narrative <name>] [--add-to-narrative <name> --session <ref>|--compare <left> <right>|--compare-set <name>] [--link-narrative <name> --link-type <type> --target-ref <ref>] [--entry-title <text>] [--entry-note <text>] [--export-atlas <name> <output-dir>] [--create-constellation <name>] [--constellation-title <text>] [--constellation-summary <text>] [--browse-constellations] [--load-constellation <name>] [--add-to-constellation <name> --narrative <ref>|--session <ref>|--compare-set <name>|--compare <left> <right>] [--export-constellation <name> <output-dir>] [--create-pathway <name>] [--browse-pathways] [--load-pathway <name>] [--add-to-pathway <name> --session <ref>|--compare <left> <right>|--narrative <name>|--atlas <path>|--constellation <name>] [--pathway-title <title>] [--pathway-summary <summary>] [--step-title <title>] [--step-note <note>] [--export-pathway <name> <output-dir>] [--link-pathway-step <pathway> --from-step <id> --to-step <id>] [--branch-label <label>] [--recommend-for <ref>] [--recommend-strategy <name>] [--benchmark-recommendations] [--atlas] [--atlas-target theoretical|bio_band|node] [--atlas-start-ref <ref>] [--atlas-node <idx>] [--atlas-max-l1-radius <int>] [--atlas-heat-mode <mode>] [--list-sectors] [--sector-family HG|HB] [--export-insight-pack <pathway> <output-dir>] [--insight-pack-title <title>] [--insight-pack-include-atlas] [--insight-pack-heat-mode <mode>] [--branch-replay <pathway>] [--export-route-compare <start-ref> <output-dir>] [--route-compare-title <title>] [--route-compare-heat-mode <mode>] [--route-compare-include-sector-overlays] [--show-strategy-diagnostics <ref>] [--create-storyboard <name>] [--browse-storyboards] [--load-storyboard <name>] [--add-to-storyboard <name>] [--section-type <type>] [--artifact-ref <ref>] [--storyboard-title <title>] [--storyboard-summary <summary>] [--storyboard-tags <comma,separated>] [--storyboard-filter-tags <comma,separated>] [--storyboard-filter-sector <sector>] [--storyboard-filter-type <type>] [--export-storyboard <name> <output-dir>] [--dashboard] [--search <query>] [--search-tags <comma,separated>] [--search-type <session|compare|narrative|atlas|constellation|pathway>] [--search-bio <experimental|available|near-target>] [--tags <comma,separated,tags>] [--browse] [--browse-collections] [--browse-collection <name>] [--preset <name>] [--lens <name>] [--audio-reactive]"
+    usage = "Usage: view --mode sonic [--live] [--refresh-seconds <float>] [--duration <seconds>] [--output <path.html>] [--journal] [--journal-dir <path>] [--label <name>] [--collection <name>] [--replay <session_id|session.json[:idx]>] [--state-idx <n>] [--next-state|--prev-state] [--compare <left_ref> <right_ref>] [--export-report <path.json>] [--export-bundle <dir>] [--with-integrity] [--bundle-label <name>] [--save-compare <name>] [--load-compare <name>] [--browse-compares] [--gallery] [--search <text>] [--filter-mode <mode>] [--filter-preset <name>] [--filter-lens <name>] [--filter-audio <on|off>] [--filter-label <text>] [--filter-session <id>] [--create-narrative <name>] [--narrative-title <text>] [--narrative-summary <text>] [--browse-narratives] [--load-narrative <name>] [--add-to-narrative <name> --session <ref>|--compare <left> <right>|--compare-set <name>] [--link-narrative <name> --link-type <type> --target-ref <ref>] [--entry-title <text>] [--entry-note <text>] [--export-atlas <name> <output-dir>] [--create-constellation <name>] [--constellation-title <text>] [--constellation-summary <text>] [--browse-constellations] [--load-constellation <name>] [--add-to-constellation <name> --narrative <ref>|--session <ref>|--compare-set <name>|--compare <left> <right>] [--export-constellation <name> <output-dir>] [--create-pathway <name>] [--browse-pathways] [--load-pathway <name>] [--add-to-pathway <name> --session <ref>|--compare <left> <right>|--narrative <name>|--atlas <path>|--constellation <name>] [--pathway-title <title>] [--pathway-summary <summary>] [--step-title <title>] [--step-note <note>] [--export-pathway <name> <output-dir>] [--link-pathway-step <pathway> --from-step <id> --to-step <id>] [--branch-label <label>] [--recommend-for <ref>] [--recommend-strategy <name>] [--benchmark-recommendations] [--atlas] [--atlas-target theoretical|bio_band|node] [--atlas-start-ref <ref>] [--atlas-node <idx>] [--atlas-max-l1-radius <int>] [--atlas-heat-mode <mode>] [--atlas-gallery] [--list-sectors] [--sector-family HG|HB] [--export-insight-pack <pathway> <output-dir>] [--insight-pack-title <title>] [--insight-pack-include-atlas] [--insight-pack-heat-mode <mode>] [--branch-replay <pathway>] [--export-route-compare <start-ref> <output-dir>] [--route-compare-title <title>] [--route-compare-heat-mode <mode>] [--route-compare-include-sector-overlays] [--show-strategy-diagnostics <ref>] [--create-storyboard <name>] [--browse-storyboards] [--load-storyboard <name>] [--add-to-storyboard <name>] [--section-type <type>] [--artifact-ref <ref>] [--storyboard-title <title>] [--storyboard-summary <summary>] [--storyboard-tags <comma,separated>] [--storyboard-filter-tags <comma,separated>] [--storyboard-filter-sector <sector>] [--storyboard-filter-type <type>] [--export-storyboard <name> <output-dir>] [--export-longitudinal-summary <output-dir>] [--longitudinal-title <title>] [--longitudinal-filter-tags <comma,separated>] [--longitudinal-filter-sector <sector>] [--longitudinal-filter-target <theoretical|bio_band|node>] [--dashboard] [--search <query>] [--search-tags <comma,separated>] [--search-type <session|compare|narrative|atlas|constellation|pathway>] [--search-bio <experimental|available|near-target>] [--tags <comma,separated,tags>] [--browse] [--browse-collections] [--browse-collection <name>] [--preset <name>] [--lens <name>] [--audio-reactive]"
     if "--help" in args or "-h" in args:
         return usage
 
@@ -1000,6 +1004,22 @@ def cmd_view(args: list[str], session: object | None = None) -> str:
             return str(exc)
         return f"Visual bloom atlas generated: {generated}"
 
+    if "--atlas-gallery" in args:
+        try:
+            model = build_visual_bloom_atlas_gallery_model(
+                journal_dir=journal_dir,
+                filter_tags=_extract_flag_value(args, "--storyboard-filter-tags") or _extract_flag_value(args, "--longitudinal-filter-tags"),
+                filter_sector=_extract_flag_value(args, "--storyboard-filter-sector") or _extract_flag_value(args, "--longitudinal-filter-sector"),
+                filter_target=_extract_flag_value(args, "--longitudinal-filter-target"),
+                filter_heat_mode=_extract_flag_value(args, "--atlas-heat-mode"),
+            )
+            html = render_visual_bloom_atlas_gallery_html(model)
+            target = Path(_extract_flag_value(args, "--output")).expanduser() if _extract_flag_value(args, "--output") else Path("/tmp/phios_bloom_atlas_gallery.html")
+            written = write_bloom_file(html, target)
+        except (VisualizerError, ValueError) as exc:
+            return str(exc)
+        return f"Visual bloom atlas gallery generated: {written}"
+
     branch_replay = _extract_flag_value(args, "--branch-replay")
     if branch_replay:
         try:
@@ -1058,6 +1078,25 @@ def cmd_view(args: list[str], session: object | None = None) -> str:
         except (VisualizerError, ValueError) as exc:
             return str(exc)
         return f"Visual bloom storyboard exported: {out}"
+
+    if "--export-longitudinal-summary" in args:
+        idx = args.index("--export-longitudinal-summary")
+        if idx + 1 >= len(args):
+            return usage
+        outdir = Path(args[idx + 1]).expanduser()
+        try:
+            out = export_visual_bloom_longitudinal_summary(
+                output_dir=outdir,
+                journal_dir=journal_dir,
+                title=_extract_flag_value(args, "--longitudinal-title"),
+                filter_tags=_extract_flag_value(args, "--longitudinal-filter-tags"),
+                filter_sector=_extract_flag_value(args, "--longitudinal-filter-sector"),
+                filter_target=_extract_flag_value(args, "--longitudinal-filter-target"),
+                with_integrity="--with-integrity" in args,
+            )
+        except (VisualizerError, ValueError) as exc:
+            return str(exc)
+        return f"Visual bloom longitudinal summary exported: {out}"
 
     if "--dashboard" in args:
         generated = launch_visual_bloom_dashboard(

@@ -952,3 +952,19 @@ def test_view_mode_phase17_storyboard_flags(monkeypatch, tmp_path):
     out, code = route_command(["view", "--export-storyboard", "sb", str(outdir), "--storyboard-filter-tags", "focus", "--storyboard-filter-sector", "geometry", "--storyboard-filter-type", "insight_pack"])
     assert code == 0
     assert "storyboard exported" in out
+
+
+def test_view_mode_phase18_gallery_and_longitudinal_flags(monkeypatch, tmp_path):
+    gpath = tmp_path / "atlas_gallery.html"
+    monkeypatch.setattr("phios.shell.phi_commands.build_visual_bloom_atlas_gallery_model", lambda **_kwargs: {"entries": [], "framing": {"c_star_theoretical": 0.809, "bio_target": 0.81055, "bio_status": "experimental", "hunter_c_status": "unconfirmed"}, "filters": {}, "sector_snapshot": {}})
+    monkeypatch.setattr("phios.shell.phi_commands.render_visual_bloom_atlas_gallery_html", lambda _model: "<html>gallery</html>")
+    monkeypatch.setattr("phios.shell.phi_commands.write_bloom_file", lambda _html, _target: gpath)
+    out, code = route_command(["view", "--atlas-gallery"])
+    assert code == 0
+    assert "atlas gallery generated" in out
+
+    outdir = tmp_path / "longitudinal"
+    monkeypatch.setattr("phios.shell.phi_commands.export_visual_bloom_longitudinal_summary", lambda **_kwargs: outdir)
+    out, code = route_command(["view", "--export-longitudinal-summary", str(outdir), "--longitudinal-filter-target", "theoretical"])
+    assert code == 0
+    assert "longitudinal summary exported" in out
