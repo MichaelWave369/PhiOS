@@ -395,7 +395,78 @@ def load_visual_bloom_state(ref: str, *, journal_dir: Path | None = None) -> dic
     merged.setdefault("preset", str(session.get("preset", "none")))
     merged.setdefault("lens", str(session.get("lens", "none")))
     merged.setdefault("stateIndex", idx)
+    merged.setdefault("stateTotal", len(session.get("states", [])) if isinstance(session.get("states"), list) else 1)
     return merged
+
+
+def select_visual_bloom_state(session: dict[str, object], state_idx: int | None = None) -> tuple[dict[str, object], int, int]:
+    """Select a state by index from a session; defaults to latest."""
+    states = session.get("states")
+    if not isinstance(states, list) or not states:
+        raise VisualizerError("Session has no recorded states.")
+    total = len(states)
+    idx = total - 1 if state_idx is None else state_idx
+    if idx < 0:
+        idx = total + idx
+    if idx < 0 or idx >= total:
+        raise VisualizerError(f"State index out of range: {state_idx}")
+    state = states[idx]
+    if not isinstance(state, dict):
+        raise VisualizerError(f"Malformed state at index {idx}")
+    return dict(state), idx, total
+
+
+def step_visual_bloom_state(session: dict[str, object], current_idx: int, direction: int) -> tuple[dict[str, object], int, int]:
+    """Step +1/-1 across archived states with bounds checking."""
+    target = current_idx + direction
+    return select_visual_bloom_state(session, state_idx=target)
+
+
+def compute_visual_bloom_diff_metrics(left: dict[str, object], right: dict[str, object]) -> dict[str, object]:
+    """Compute concise deterministic deltas between two archived visual states."""
+    def num(d: dict[str, object], k: str, default: float = 0.0) -> float:
+        return _to_float(d.get(k), default)
+
+    out: dict[str, object] = {
+        "delta_coherenceC": round(num(right, "coherenceC") - num(left, "coherenceC"), 6),
+        "delta_frequency": round(num(right, "frequency") - num(left, "frequency"), 6),
+        "delta_particleCount": int(round(num(right, "particleCount") - num(left, "particleCount"))),
+        "delta_noiseScale": round(num(right, "noiseScale") - num(left, "noiseScale"), 6),
+        "delta_goldenInf": round(num(right, "goldenInf", 1.618) - num(left, "goldenInf", 1.618), 6),
+        "driftBand_transition": f"{left.get('driftBand', 'unknown')} -> {right.get('driftBand', 'unknown')}",
+        "preset_transition": f"{left.get('preset', 'none')} -> {right.get('preset', 'none')}",
+        "lens_transition": f"{left.get('lens', 'none')} -> {right.get('lens', 'none')}",
+        "audio_transition": f"{left.get('audioStatus', 'off')} -> {right.get('audioStatus', 'off')}",
+    }
+    return out
+
+
+def export_visual_bloom_compare_report(
+    *,
+    output_path: Path,
+    left: dict[str, object],
+    right: dict[str, object],
+    diff: dict[str, object],
+) -> Path:
+    """Write a local JSON compare report bundle."""
+    if output_path.suffix.lower() != ".json":
+        raise VisualizerError("Compare report path must end with .json")
+    if any(part == ".." for part in output_path.parts):
+        raise VisualizerError("Refusing compare report path containing '..'")
+    if output_path.exists() and output_path.is_dir():
+        raise VisualizerError("Compare report output path points to a directory")
+
+    bundle = {
+        "export_version": "v1",
+        "exported_at": _iso_now(),
+        "source": "PhiOS Visual Bloom Compare Report",
+        "left": left,
+        "right": right,
+        "diff_metrics": diff,
+    }
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(json.dumps(bundle, indent=2), encoding="utf-8")
+    return output_path
 
 
 def append_or_update_journal_state(*, session_dir: Path, params: dict[str, object], output_html: Path) -> Path:
@@ -481,7 +552,7 @@ def render_bloom_html(params: dict[str, object], *, live_mode: bool = False, ref
     return html
 
 
-def render_compare_bloom_html(left_params: dict[str, object], right_params: dict[str, object]) -> str:
+def render_compare_bloom_html(left_params: dict[str, object], right_params: dict[str, object], diff_metrics: dict[str, object]) -> str:
     try:
         template = resources.files("phios.templates").joinpath("sonic_compare.html").read_text(encoding="utf-8")
     except Exception as exc:
@@ -495,6 +566,7 @@ def render_compare_bloom_html(left_params: dict[str, object], right_params: dict
     html = template.replace("__PHIOS_COMPARE_ENABLED__", "true")
     html = html.replace("__PHIOS_COMPARE_LEFT_JSON__", json.dumps(left_params, separators=(",", ":")))
     html = html.replace("__PHIOS_COMPARE_RIGHT_JSON__", json.dumps(right_params, separators=(",", ":")))
+    html = html.replace("__PHIOS_COMPARE_DIFF_JSON__", json.dumps(diff_metrics, separators=(",", ":")))
     html = html.replace("__PHIOS_COMPARE_LEFT_B64__", left_b64)
     html = html.replace("__PHIOS_COMPARE_RIGHT_B64__", right_b64)
     return html
@@ -676,29 +748,37 @@ def launch_replay_bloom(
     preset: str | None = None,
     lens: str | None = None,
     audio_reactive: bool = False,
+    state_idx: int | None = None,
+    step: int = 0,
 ) -> Path:
-    session, last_state, _ = resolve_visual_bloom_state_ref(session_ref, journal_dir=journal_dir)
+    session, _, latest_idx = resolve_visual_bloom_state_ref(session_ref, journal_dir=journal_dir)
+    if step != 0:
+        state, selected_idx, total = step_visual_bloom_state(session, latest_idx if state_idx is None else state_idx, step)
+    else:
+        state, selected_idx, total = select_visual_bloom_state(session, state_idx=state_idx)
 
-    effective_preset = preset or str(last_state.get("preset", session.get("preset", "none")))
-    effective_lens = lens or str(last_state.get("lens", session.get("lens", "none")))
+    effective_preset = preset or str(state.get("preset", session.get("preset", "none")))
+    effective_lens = lens or str(state.get("lens", session.get("lens", "none")))
     if effective_preset == "none":
         effective_preset = None
     if effective_lens == "none":
         effective_lens = None
 
-    replay_base = _compose_visual_params(dict(last_state), preset=effective_preset, lens=effective_lens, audio_reactive=audio_reactive)
+    replay_base = _compose_visual_params(dict(state), preset=effective_preset, lens=effective_lens, audio_reactive=audio_reactive)
     params = _with_live_contract(
         replay_base,
         mode="replay",
         session_id=str(session.get("session_id", "replay")),
         session_label=str(session.get("label", "")) or None,
-        state_timestamp=str(last_state.get("stateTimestamp", _iso_now())),
+        state_timestamp=str(state.get("stateTimestamp", _iso_now())),
         preset=effective_preset,
         lens=effective_lens,
         audio_requested=audio_reactive,
         collection=str(session.get("collection", "")) or None,
     )
     params["sourceLabel"] = "PhiOS Visual Bloom · Replay"
+    params["stateIndex"] = selected_idx
+    params["stateTotal"] = total
     target = output_path or Path("/tmp/phios_bloom_replay.html")
     written = write_bloom_file(render_bloom_html(params, live_mode=False), target)
     _open_browser(written, open_browser)
@@ -712,9 +792,10 @@ def launch_compare_bloom(
     output_path: Path | None = None,
     open_browser: bool = True,
     journal_dir: Path | None = None,
+    export_report_path: Path | None = None,
 ) -> Path:
-    left_session, left_state, _ = resolve_visual_bloom_state_ref(left_ref, journal_dir=journal_dir)
-    right_session, right_state, _ = resolve_visual_bloom_state_ref(right_ref, journal_dir=journal_dir)
+    left_session, left_state, left_idx = resolve_visual_bloom_state_ref(left_ref, journal_dir=journal_dir)
+    right_session, right_state, right_idx = resolve_visual_bloom_state_ref(right_ref, journal_dir=journal_dir)
 
     left_params = _with_live_contract(
         dict(left_state),
@@ -727,6 +808,8 @@ def launch_compare_bloom(
         collection=str(left_session.get("collection", "")) or None,
     )
     left_params["sourceLabel"] = "PhiOS Visual Bloom · Compare Left"
+    left_params["stateIndex"] = left_idx
+    left_params["stateTotal"] = len(left_session.get("states", [])) if isinstance(left_session.get("states"), list) else 1
 
     right_params = _with_live_contract(
         dict(right_state),
@@ -739,8 +822,13 @@ def launch_compare_bloom(
         collection=str(right_session.get("collection", "")) or None,
     )
     right_params["sourceLabel"] = "PhiOS Visual Bloom · Compare Right"
+    right_params["stateIndex"] = right_idx
+    right_params["stateTotal"] = len(right_session.get("states", [])) if isinstance(right_session.get("states"), list) else 1
 
-    html = render_compare_bloom_html(left_params, right_params)
+    diff_metrics = compute_visual_bloom_diff_metrics(left_params, right_params)
+    if export_report_path is not None:
+        export_visual_bloom_compare_report(output_path=export_report_path, left=left_params, right=right_params, diff=diff_metrics)
+    html = render_compare_bloom_html(left_params, right_params, diff_metrics)
     target = output_path or Path("/tmp/phios_bloom_compare.html")
     written = write_bloom_file(html, target)
     _open_browser(written, open_browser)

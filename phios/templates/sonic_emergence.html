@@ -147,7 +147,7 @@
           `<div class="line">seed: ${params.seed} · coherenceC: ${params.coherenceC} · frequency: ${params.frequency}</div>`,
           `<div class="line">particleCount: ${params.particleCount} · noiseScale: ${params.noiseScale} · driftBand: ${params.driftBand}</div>`,
           `<div class="line">mode: ${params.mode || (liveMode ? "live" : "snapshot")} · refresh: ${refreshSecondsLabel}s · state: ${pollStatus}</div>`,
-          `<div class="line">session: ${(params.sessionIdShort || "n/a")} · label: ${(params.sessionLabel || "n/a")} · at: ${(params.stateTimestamp || "n/a")}</div>`,
+          `<div class="line">session: ${(params.sessionIdShort || "n/a")} · state: ${(params.stateIndex ?? "n/a")}/${((params.stateTotal || 1) - 1)} · label: ${(params.sessionLabel || "n/a")} · at: ${(params.stateTimestamp || "n/a")}</div>`,
           `<div class="line">preset: ${(params.preset || "none")} · lens: ${(params.lens || "none")} · audio: ${(params.audioStatus || "off")} · collection: ${(params.collection || "n/a")}</div>`,
           `<div class="line">source: ${params.sourceLabel || "PhiOS Visual Bloom"}</div>`,
         ].join("");

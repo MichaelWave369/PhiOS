@@ -12,6 +12,10 @@ from phios.services.visualizer import (
     apply_audio_reactive_modulation,
     apply_visual_lens,
     apply_visual_preset,
+    step_visual_bloom_state,
+    select_visual_bloom_state,
+    export_visual_bloom_compare_report,
+    compute_visual_bloom_diff_metrics,
     append_or_update_journal_state,
     create_visual_bloom_session,
     launch_bloom,
@@ -380,3 +384,41 @@ def test_launch_compare_bloom_renders_compare_template(tmp_path):
     html = out.read_text(encoding="utf-8")
     assert "PhiOS Visual Bloom Compare" in html
     assert "__PHIOS_COMPARE_LEFT_B64__" not in html
+
+
+
+def test_select_and_step_visual_bloom_state(tmp_path):
+    session_dir = create_visual_bloom_session(
+        mode="snapshot",
+        params={"seed": 1, "driftBand": "Watch", "coherenceC": 0.8, "goldenInf": 1.618, "frequency": 7.83, "particleCount": 1500, "noiseScale": 0.005},
+        refresh_seconds=None,
+        output_path=tmp_path / "s.html",
+        journal_dir=tmp_path,
+    )
+    append_or_update_journal_state(session_dir=session_dir, params={"timestamp": 1, "stateTimestamp": "a", "seed": 1, "coherenceC": 0.7, "goldenInf": 1.618, "frequency": 7.0, "particleCount": 1000, "noiseScale": 0.004, "mode": "snapshot", "driftBand": "Watch"}, output_html=tmp_path / "s.html")
+    append_or_update_journal_state(session_dir=session_dir, params={"timestamp": 2, "stateTimestamp": "b", "seed": 2, "coherenceC": 0.8, "goldenInf": 1.618, "frequency": 8.0, "particleCount": 1200, "noiseScale": 0.005, "mode": "snapshot", "driftBand": "Stable"}, output_html=tmp_path / "s.html")
+    session = load_visual_bloom_session(session_dir.name, journal_dir=tmp_path)
+    state, idx, total = select_visual_bloom_state(session, state_idx=0)
+    assert idx == 0 and total == 2 and state["seed"] == 1
+    state2, idx2, _ = step_visual_bloom_state(session, current_idx=0, direction=1)
+    assert idx2 == 1 and state2["seed"] == 2
+
+
+def test_compute_diff_metrics_and_export_report(tmp_path):
+    left = {"coherenceC": 0.7, "frequency": 7.5, "particleCount": 1000, "noiseScale": 0.004, "goldenInf": 1.618, "driftBand": "Watch", "preset": "stable", "lens": "ritual", "audioStatus": "off"}
+    right = {"coherenceC": 0.9, "frequency": 8.0, "particleCount": 1200, "noiseScale": 0.005, "goldenInf": 1.618, "driftBand": "Stable", "preset": "bloom", "lens": "diagnostic", "audioStatus": "enabled"}
+    diff = compute_visual_bloom_diff_metrics(left, right)
+    assert diff["delta_coherenceC"] == 0.2
+    out = export_visual_bloom_compare_report(output_path=tmp_path / "compare.json", left=left, right=right, diff=diff)
+    data = json.loads(out.read_text(encoding="utf-8"))
+    assert data["source"] == "PhiOS Visual Bloom Compare Report"
+
+
+def test_launch_compare_bloom_with_report_export(tmp_path):
+    left = create_visual_bloom_session(mode="snapshot", params={"seed": 1, "driftBand": "Watch", "coherenceC": 0.8, "goldenInf": 1.618, "frequency": 7.83, "particleCount": 1500, "noiseScale": 0.005}, refresh_seconds=None, output_path=tmp_path / "l.html", journal_dir=tmp_path)
+    right = create_visual_bloom_session(mode="snapshot", params={"seed": 2, "driftBand": "Stable", "coherenceC": 0.9, "goldenInf": 1.618, "frequency": 8.5, "particleCount": 1000, "noiseScale": 0.003}, refresh_seconds=None, output_path=tmp_path / "r.html", journal_dir=tmp_path)
+    append_or_update_journal_state(session_dir=left, params={"timestamp": 1, "stateTimestamp": "a", "seed": 1, "coherenceC": 0.8, "goldenInf": 1.618, "frequency": 7.83, "particleCount": 1500, "noiseScale": 0.005, "mode": "snapshot", "driftBand": "Watch"}, output_html=tmp_path / "l.html")
+    append_or_update_journal_state(session_dir=right, params={"timestamp": 2, "stateTimestamp": "b", "seed": 2, "coherenceC": 0.9, "goldenInf": 1.618, "frequency": 8.5, "particleCount": 1000, "noiseScale": 0.003, "mode": "snapshot", "driftBand": "Stable"}, output_html=tmp_path / "r.html")
+    report = tmp_path / "report.json"
+    out = launch_compare_bloom(left.name, right.name, output_path=tmp_path / "compare2.html", open_browser=False, journal_dir=tmp_path, export_report_path=report)
+    assert out.exists() and report.exists()

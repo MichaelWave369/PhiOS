@@ -252,7 +252,7 @@ def cmd_help(_: list[str], session: object | None = None) -> str:
             "  bio add ... [--json]         Add a bioeffector tracking entry",
             "  bio show [--json]            Show bioeffector summary",
             "  bio export <path>            Export bioeffector layer",
-            "  view --mode sonic [--live] [--refresh-seconds <float>] [--duration <seconds>] [--output <path.html>] [--journal] [--journal-dir <path>] [--label <name>] [--replay <session_id|session.json>] [--preset <name>] [--lens <name>] [--audio-reactive] [--collection <name>] [--browse] [--browse-collections] [--browse-collection <name>] [--compare <left> <right>]",
+            "  view --mode sonic [--live] [--refresh-seconds <float>] [--duration <seconds>] [--output <path.html>] [--journal] [--journal-dir <path>] [--label <name>] [--replay <session_id|session.json[:idx]>] [--state-idx <n>] [--next-state|--prev-state] [--preset <name>] [--lens <name>] [--audio-reactive] [--collection <name>] [--browse] [--browse-collections] [--browse-collection <name>] [--compare <left> <right>] [--export-report <path.json>]",
             "  status [--json]               Show PhiKernel-backed operator status",
             "  ask <prompt> [--json]         Ask PhiKernel coach",
             "  coherence [live|--json]       Show PhiKernel coherence field",
@@ -648,7 +648,7 @@ def cmd_bio(args: list[str], session: object | None = None) -> str:
 
 
 def cmd_view(args: list[str], session: object | None = None) -> str:
-    usage = "Usage: view --mode sonic [--live] [--refresh-seconds <float>] [--duration <seconds>] [--output <path.html>] [--journal] [--journal-dir <path>] [--label <name>] [--collection <name>] [--replay <session_id|session.json[:idx]>] [--compare <left_ref> <right_ref>] [--browse] [--browse-collections] [--browse-collection <name>] [--preset <name>] [--lens <name>] [--audio-reactive]"
+    usage = "Usage: view --mode sonic [--live] [--refresh-seconds <float>] [--duration <seconds>] [--output <path.html>] [--journal] [--journal-dir <path>] [--label <name>] [--collection <name>] [--replay <session_id|session.json[:idx]>] [--state-idx <n>] [--next-state|--prev-state] [--compare <left_ref> <right_ref>] [--export-report <path.json>] [--browse] [--browse-collections] [--browse-collection <name>] [--preset <name>] [--lens <name>] [--audio-reactive]"
     if "--help" in args or "-h" in args:
         return usage
 
@@ -670,6 +670,20 @@ def cmd_view(args: list[str], session: object | None = None) -> str:
         if idx + 2 >= len(args):
             return usage
         compare_refs = (args[idx + 1], args[idx + 2])
+
+    export_report = _extract_flag_value(args, "--export-report")
+    export_report_path = Path(export_report).expanduser() if export_report else None
+
+    raw_state_idx = _extract_flag_value(args, "--state-idx")
+    state_idx: int | None = None
+    if raw_state_idx is not None:
+        try:
+            state_idx = int(raw_state_idx)
+        except ValueError:
+            return usage
+    step = 1 if "--next-state" in args else (-1 if "--prev-state" in args else 0)
+    if "--next-state" in args and "--prev-state" in args:
+        return usage
 
     mode = _extract_flag_value(args, "--mode")
     if mode != "sonic":
@@ -710,10 +724,10 @@ def cmd_view(args: list[str], session: object | None = None) -> str:
 
     try:
         if compare_refs is not None:
-            generated = launch_compare_bloom(compare_refs[0], compare_refs[1], output_path=output_path, open_browser=True, journal_dir=journal_dir)
+            generated = launch_compare_bloom(compare_refs[0], compare_refs[1], output_path=output_path, open_browser=True, journal_dir=journal_dir, export_report_path=export_report_path)
             return f"Compare visual bloom generated: {generated}"
         if replay:
-            generated = launch_replay_bloom(replay, output_path=output_path, open_browser=True, journal_dir=journal_dir, preset=preset, lens=lens, audio_reactive=audio_reactive)
+            generated = launch_replay_bloom(replay, output_path=output_path, open_browser=True, journal_dir=journal_dir, preset=preset, lens=lens, audio_reactive=audio_reactive, state_idx=state_idx, step=step)
             return f"Replay visual bloom generated: {generated}"
         if live:
             generated = launch_live_bloom(

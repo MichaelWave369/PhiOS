@@ -22,6 +22,7 @@
       const compareEnabled = __PHIOS_COMPARE_ENABLED__;
       const leftParams = __PHIOS_COMPARE_LEFT_JSON__;
       const rightParams = __PHIOS_COMPARE_RIGHT_JSON__;
+      const diffMetrics = __PHIOS_COMPARE_DIFF_JSON__;
       const leftB64 = "__PHIOS_COMPARE_LEFT_B64__";
       const rightB64 = "__PHIOS_COMPARE_RIGHT_B64__";
       const hud = document.getElementById("hud");
@@ -32,8 +33,9 @@
       function short(v) { return (v || "n/a").toString(); }
       hud.innerHTML = [
         `<div class="line"><strong>Φ PhiOS Visual Bloom Compare</strong> · enabled: ${compareEnabled}</div>`,
-        `<div class="line">LEFT · session: ${short(leftParams.sessionIdShort)} · label: ${short(leftParams.sessionLabel)} · at: ${short(leftParams.stateTimestamp)} · preset/lens: ${short(leftParams.preset)}/${short(leftParams.lens)}</div>`,
-        `<div class="line">RIGHT · session: ${short(rightParams.sessionIdShort)} · label: ${short(rightParams.sessionLabel)} · at: ${short(rightParams.stateTimestamp)} · preset/lens: ${short(rightParams.preset)}/${short(rightParams.lens)}</div>`,
+        `<div class="line">LEFT · session: ${short(leftParams.sessionIdShort)} · state: ${short(leftParams.stateIndex)}/${short((leftParams.stateTotal || 1) - 1)} · label: ${short(leftParams.sessionLabel)} · at: ${short(leftParams.stateTimestamp)} · preset/lens: ${short(leftParams.preset)}/${short(leftParams.lens)}</div>`,
+        `<div class="line">RIGHT · session: ${short(rightParams.sessionIdShort)} · state: ${short(rightParams.stateIndex)}/${short((rightParams.stateTotal || 1) - 1)} · label: ${short(rightParams.sessionLabel)} · at: ${short(rightParams.stateTimestamp)} · preset/lens: ${short(rightParams.preset)}/${short(rightParams.lens)}</div>`,
+        `<div class="line">Δ coherence: ${short(diffMetrics.delta_coherenceC)} · Δ frequency: ${short(diffMetrics.delta_frequency)} · Δ particles: ${short(diffMetrics.delta_particleCount)} · drift: ${short(diffMetrics.driftBand_transition)}</div>`,
       ].join("");
     </script>
   </body>

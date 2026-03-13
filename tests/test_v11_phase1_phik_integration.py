@@ -649,6 +649,29 @@ def test_view_mode_compare(monkeypatch, tmp_path):
     assert code == 0
     assert "Compare visual bloom generated" in out
 
+
+
+def test_view_mode_replay_state_idx(monkeypatch, tmp_path):
+    target = tmp_path / "replay_state.html"
+    monkeypatch.setattr("phios.shell.phi_commands.launch_replay_bloom", lambda *_args, **_kwargs: target)
+    out, code = route_command(["view", "--mode", "sonic", "--replay", "session-1", "--state-idx", "2", "--output", str(target)])
+    assert code == 0
+    assert "Replay visual bloom generated" in out
+
+
+def test_view_mode_compare_export_report(monkeypatch, tmp_path):
+    target = tmp_path / "compare_export.html"
+    monkeypatch.setattr("phios.shell.phi_commands.launch_compare_bloom", lambda *_args, **_kwargs: target)
+    out, code = route_command(["view", "--mode", "sonic", "--compare", "a:0", "b:1", "--export-report", str(tmp_path / "rep.json"), "--output", str(target)])
+    assert code == 0
+    assert "Compare visual bloom generated" in out
+
+
+def test_view_mode_invalid_state_idx_rejected():
+    out, code = route_command(["view", "--mode", "sonic", "--replay", "session-1", "--state-idx", "x"])
+    assert code == 0
+    assert out.startswith("Usage: view")
+
 def test_view_mode_rejects_unknown_mode():
     out, code = route_command(["view", "--mode", "unknown"])
     assert code == 0
