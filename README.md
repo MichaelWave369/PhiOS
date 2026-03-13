@@ -330,3 +330,48 @@ These are used only for local similarity/recommendation hints. They are not a cl
 ### Backward compatibility
 
 All new branching/recommendation/dashboard/golden-kernel data is additive. Older artifacts without tags, preview metadata, integrity metadata, bio metadata, or branching metadata continue to load with safe defaults.
+
+
+## Phase 14: Golden Lattice, Adaptive Affinity, and Strategy Benchmarks
+
+Phase 14 extends local recommendation tooling with an **experimental** 4D golden-lattice layer and adaptive local affinity scoring. These additions are optional and are not used for PhiKernel core truth logic.
+
+### New experimental ML modules
+
+- `phios.ml.golden_lattice`:
+  - `build_lattice_4d_nodes(...)`
+  - `golden_lattice_kernel_l1(...)`
+  - `golden_lattice_sparse_graph(...)`
+  - `golden_lattice_resonance_score(...)`
+  - `estimate_local_scales(...)`
+  - `adaptive_golden_affinity(...)`
+  - `update_memory_weights(...)`
+- `phios.ml.benchmark_recommendations`:
+  - local exploratory strategy comparison and JSON summary helpers.
+
+### Recommendation strategy options
+
+`phi view --recommend-for <ref> --recommend-strategy <name>` now supports:
+
+- `golden_rbf`
+- `golden_angular`
+- `golden_lattice_l1`
+- `adaptive_golden_affinity`
+- `baseline_rbf`
+- `baseline_cosine`
+
+Optional benchmark summary:
+
+- `phi view --benchmark-recommendations`
+- `phi view --benchmark-recommendations --recommend-strategy golden_rbf,baseline_rbf`
+
+### Scientific framing (unchanged and explicit)
+
+- `C_STAR_THEORETICAL` remains a theoretical reference from `PHI`,
+- `BIO_VACUUM_TARGET` remains **experimental**,
+- `HUNTER_C_STATUS` remains **unconfirmed**,
+- lattice/adaptive scores are **experimental local similarity utilities**, not empirical proofs.
+
+### Backward compatibility
+
+Recommendation metadata is additive (strategy/score-type fields), and older artifacts without these fields continue to load safely.

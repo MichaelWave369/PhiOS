@@ -29,6 +29,8 @@ from phios.core.constants import (
     PHI,
 )
 from phios.ml.golden_kernels import golden_angular_rbf, golden_rbf
+from phios.ml.golden_lattice import adaptive_golden_affinity, golden_lattice_kernel_l1
+from phios.ml.benchmark_recommendations import benchmark_recommendation_strategies
 
 VALID_PRESETS = {"stable", "ritual", "diagnostic", "bloom"}
 VALID_LENSES = {"stable", "ritual", "diagnostic", "bloom"}
@@ -1717,6 +1719,7 @@ def build_visual_bloom_recommendations(
     target_ref: str,
     journal_dir: Path | None = None,
     top_k: int = 5,
+    strategy: str = "golden_angular",
 ) -> list[dict[str, object]]:
     """Build experimental local similarity suggestions for archived metadata."""
     rows = build_visual_bloom_search_index(journal_dir=journal_dir)
@@ -1727,9 +1730,41 @@ def build_visual_bloom_recommendations(
         return []
     feats = [extract_visual_bloom_feature_vector(r) for r in rows]
     q = [feats[target_idx]]
-    ang = golden_angular_rbf(q, feats)[0]
-    rbf = golden_rbf(q, feats, length_scale=1.0)[0]
-    sim = [(0.6 * a) + (0.4 * b) for a, b in zip(ang, rbf)]
+
+    strategy_key = _sanitize_collection(strategy) or "golden_angular"
+    score_type = "kernel"
+    status = "experimental_optional_similarity"
+
+    if strategy_key == "golden_rbf":
+        sim = golden_rbf(q, feats, length_scale=1.0)[0]
+    elif strategy_key == "golden_angular":
+        sim = golden_angular_rbf(q, feats)[0]
+    elif strategy_key == "golden_lattice_l1":
+        sim = golden_lattice_kernel_l1(q, feats, decay=C_STAR_THEORETICAL)[0]
+    elif strategy_key == "adaptive_golden_affinity":
+        sim = adaptive_golden_affinity(q, feats)[0]
+        score_type = "affinity"
+    elif strategy_key == "baseline_rbf":
+        # baseline: plain geometric decay without C* prior
+        sim = golden_lattice_kernel_l1(q, feats, decay=0.85)[0]
+        score_type = "baseline"
+        status = "baseline_reference"
+    elif strategy_key == "baseline_cosine":
+        score_type = "baseline"
+        status = "baseline_reference"
+        qv = q[0]
+        qn = (sum(v * v for v in qv) ** 0.5) or 1e-12
+        sim = []
+        for x in feats:
+            xn = (sum(v * v for v in x) ** 0.5) or 1e-12
+            sim.append(sum(a * b for a, b in zip(qv, x)) / (qn * xn))
+    else:
+        raise VisualizerError(
+            "Unknown recommendation strategy '"
+            f"{strategy}'. Valid: golden_rbf, golden_angular, golden_lattice_l1, "
+            "adaptive_golden_affinity, baseline_rbf, baseline_cosine"
+        )
+
     out: list[dict[str, object]] = []
     for i, score in enumerate(sim):
         if i == target_idx:
@@ -1740,9 +1775,48 @@ def build_visual_bloom_recommendations(
             "title": rows[i].get("title", ""),
             "similarity": float(score),
             "recommendation_status": "experimental_local_similarity",
+            "strategy": strategy_key,
+            "strategy_status": status,
+            "score_type": score_type,
+            "experimental": strategy_key.startswith("golden") or strategy_key == "adaptive_golden_affinity",
+            "feature_vector_version": "v2",
         })
     out.sort(key=lambda r: _to_float(r.get("similarity"), 0.0), reverse=True)
     return out[: max(1, top_k)]
+
+
+def benchmark_visual_bloom_recommendations(
+    *,
+    journal_dir: Path | None = None,
+    strategies: list[str] | None = None,
+    top_k: int = 5,
+    max_targets: int = 10,
+) -> dict[str, object]:
+    rows = build_visual_bloom_search_index(journal_dir=journal_dir)
+    target_refs = [str(r.get("id", "")) for r in rows if str(r.get("id", ""))][: max(1, max_targets)]
+    selected = strategies or [
+        "golden_rbf",
+        "golden_angular",
+        "golden_lattice_l1",
+        "adaptive_golden_affinity",
+        "baseline_rbf",
+        "baseline_cosine",
+    ]
+
+    def _recommender(target: str, strat: str, k: int) -> list[dict[str, object]]:
+        return build_visual_bloom_recommendations(
+            target_ref=target,
+            journal_dir=journal_dir,
+            top_k=k,
+            strategy=strat,
+        )
+
+    return benchmark_recommendation_strategies(
+        target_refs=target_refs,
+        strategies=selected,
+        recommender=_recommender,
+        top_k=top_k,
+    )
 
 
 def build_visual_bloom_search_index(*, journal_dir: Path | None = None) -> list[dict[str, object]]:
@@ -1837,7 +1911,7 @@ def build_visual_bloom_dashboard_model(*, journal_dir: Path | None = None, searc
     constellations = list_visual_bloom_constellations(journal_dir=journal_dir)[:12]
     rows = search_visual_bloom_metadata(query=search or "", journal_dir=journal_dir) if search else []
     top_ref = str(sessions[0].get("session_id", "")) if sessions else ""
-    recommendations = build_visual_bloom_recommendations(target_ref=top_ref, journal_dir=journal_dir) if top_ref else []
+    recommendations = build_visual_bloom_recommendations(target_ref=top_ref, journal_dir=journal_dir, strategy="golden_angular") if top_ref else []
     return {
         "generated_at": _iso_now(),
         "search": search or "",
@@ -1922,10 +1996,22 @@ def export_visual_bloom_pathway(
             "tags": step.get("tags", []),
             "json": str(Path("steps") / step_json.name),
             "resolved": resolved,
-            "experimental_recommendations": build_visual_bloom_recommendations(target_ref=step_ref, journal_dir=journal_dir) if step_ref else [],
+            "experimental_recommendations": build_visual_bloom_recommendations(target_ref=step_ref, journal_dir=journal_dir, strategy="golden_angular") if step_ref else [],
         })
 
-    recommendations = build_visual_bloom_recommendations(target_ref=str(pathway.get("pathway_name", name)), journal_dir=journal_dir)
+    recommendations = build_visual_bloom_recommendations(target_ref=str(pathway.get("pathway_name", name)), journal_dir=journal_dir, strategy="golden_angular")
+    branches_obj = pathway.get("branches")
+    branches = branches_obj if isinstance(branches_obj, list) else []
+    outgoing_by_step: dict[str, list[dict[str, object]]] = {}
+    for b in branches:
+        if not isinstance(b, dict):
+            continue
+        key = str(b.get("from_step", ""))
+        outgoing_by_step.setdefault(key, []).append({
+            "to_step": str(b.get("to_step", "")),
+            "label": str(b.get("label", "")),
+            "note": str(b.get("note", "")),
+        })
 
     model = {
         "pathway_name": pathway.get("pathway_name", _sanitize_collection(name)),
@@ -1937,7 +2023,8 @@ def export_visual_bloom_pathway(
         "exported_at": _iso_now(),
         "step_count": len(rendered),
         "steps": rendered,
-        "branches": pathway.get("branches", []),
+        "branches": branches,
+        "branch_outgoing": outgoing_by_step,
         "recommendations": recommendations,
         "bio_context": pathway.get("bio_context", attach_visual_bloom_bio_metadata({}).get("bio", {})),
     }

@@ -39,6 +39,7 @@ from phios.services.visualizer import (
     build_visual_bloom_recommendations,
     build_visual_bloom_dashboard_model,
     render_visual_bloom_dashboard_html,
+    benchmark_visual_bloom_recommendations,
     create_visual_bloom_narrative,
     export_visual_bloom_atlas,
     list_visual_bloom_narratives,
@@ -750,3 +751,18 @@ def test_recommendations_are_experimental(tmp_path):
     recs = build_visual_bloom_recommendations(target_ref=s1.name, journal_dir=tmp_path)
     assert recs
     assert recs[0]["recommendation_status"] == "experimental_local_similarity"
+
+
+def test_recommendation_strategies_and_benchmark(tmp_path):
+    s1 = create_visual_bloom_session(mode="snapshot", params={"seed": 1, "driftBand": "Watch", "coherenceC": 0.80, "goldenInf": 1.618, "frequency": 7.0, "particleCount": 1000, "noiseScale": 0.004}, refresh_seconds=None, output_path=tmp_path / "1.html", journal_dir=tmp_path, label="one")
+    s2 = create_visual_bloom_session(mode="snapshot", params={"seed": 2, "driftBand": "Stable", "coherenceC": 0.81, "goldenInf": 1.618, "frequency": 8.0, "particleCount": 1100, "noiseScale": 0.004}, refresh_seconds=None, output_path=tmp_path / "2.html", journal_dir=tmp_path, label="two")
+    append_or_update_journal_state(session_dir=s1, params={"timestamp": 1, "stateTimestamp": "a", "seed": 1, "coherenceC": 0.80, "goldenInf": 1.618, "frequency": 7.0, "particleCount": 1000, "noiseScale": 0.004, "mode": "snapshot", "driftBand": "Watch"}, output_html=tmp_path / "1.html")
+    append_or_update_journal_state(session_dir=s2, params={"timestamp": 2, "stateTimestamp": "b", "seed": 2, "coherenceC": 0.81, "goldenInf": 1.618, "frequency": 8.0, "particleCount": 1100, "noiseScale": 0.004, "mode": "snapshot", "driftBand": "Stable"}, output_html=tmp_path / "2.html")
+
+    recs = build_visual_bloom_recommendations(target_ref=s1.name, journal_dir=tmp_path, strategy="golden_lattice_l1")
+    assert recs and recs[0]["strategy"] == "golden_lattice_l1"
+    assert recs[0]["score_type"] == "kernel"
+
+    bench = benchmark_visual_bloom_recommendations(journal_dir=tmp_path, max_targets=2)
+    assert bench["status"] == "experimental_exploratory_benchmark"
+    assert "summary" in bench

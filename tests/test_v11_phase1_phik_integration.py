@@ -866,3 +866,16 @@ def test_view_mode_phase13_branching_dashboard_and_recommendations(monkeypatch, 
     out, code = route_command(["view", "--dashboard", "--output", str(dpath)])
     assert code == 0
     assert "dashboard generated" in out
+
+
+
+def test_view_mode_phase14_recommend_strategy_and_benchmark(monkeypatch):
+    monkeypatch.setattr("phios.shell.phi_commands.build_visual_bloom_recommendations", lambda **_kwargs: [{"id": "x", "strategy": "baseline_cosine"}])
+    out, code = route_command(["view", "--recommend-for", "s1", "--recommend-strategy", "baseline_cosine"])
+    assert code == 0
+    assert '"strategy": "baseline_cosine"' in out
+
+    monkeypatch.setattr("phios.shell.phi_commands.benchmark_visual_bloom_recommendations", lambda **_kwargs: {"status": "experimental_exploratory_benchmark", "results": []})
+    out, code = route_command(["view", "--benchmark-recommendations", "--recommend-strategy", "golden_rbf,baseline_rbf"])
+    assert code == 0
+    assert "experimental_exploratory_benchmark" in out
