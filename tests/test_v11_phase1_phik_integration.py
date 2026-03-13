@@ -1026,3 +1026,141 @@ def test_view_mode_phase20_field_library_flags(monkeypatch, tmp_path):
     out, code = route_command(["view", "--export-field-library", "fl1", str(outdir), "--field-library-filter-type", "dossier", "--field-library-filter-target", "theoretical"])
     assert code == 0
     assert "field library exported" in out
+
+
+def test_view_mode_phase21_shelf_and_catalog_flags(monkeypatch, tmp_path):
+    spath = tmp_path / "shelf.json"
+    monkeypatch.setattr("phios.shell.phi_commands.create_visual_bloom_shelf", lambda **_kwargs: spath)
+    out, code = route_command(["view", "--create-shelf", "s1", "--shelf-title", "S"])
+    assert code == 0
+    assert "shelf created" in out
+
+    monkeypatch.setattr("phios.shell.phi_commands.list_visual_bloom_shelves", lambda **_kwargs: [{"shelf_name": "s1"}])
+    out, code = route_command(["view", "--browse-shelves"])
+    assert code == 0
+    assert '"count": 1' in out
+
+    monkeypatch.setattr("phios.shell.phi_commands.load_visual_bloom_shelf", lambda *_args, **_kwargs: {"shelf_name": "s1", "items": []})
+    out, code = route_command(["view", "--load-shelf", "s1"])
+    assert code == 0
+    assert "shelf_name" in out
+
+    monkeypatch.setattr("phios.shell.phi_commands.add_visual_bloom_shelf_item", lambda **_kwargs: spath)
+    out, code = route_command(["view", "--add-to-shelf", "s1", "--section-type", "dossier", "--artifact-ref", "/tmp/d"])
+    assert code == 0
+    assert "shelf updated" in out
+
+    outdir = tmp_path / "shelf"
+    monkeypatch.setattr("phios.shell.phi_commands.export_visual_bloom_shelf", lambda **_kwargs: outdir)
+    out, code = route_command(["view", "--export-shelf", "s1", str(outdir), "--shelf-filter-type", "dossier"])
+    assert code == 0
+    assert "shelf exported" in out
+
+    monkeypatch.setattr("phios.shell.phi_commands.build_visual_bloom_catalog_model", lambda **_kwargs: {"generated_at": "", "entry_count": 1, "entries": [{"artifact_type": "dossier", "title": "D"}]})
+    monkeypatch.setattr("phios.shell.phi_commands.filter_visual_bloom_catalog_entries", lambda **_kwargs: [{"artifact_type": "dossier", "title": "D"}])
+    monkeypatch.setattr("phios.shell.phi_commands.group_visual_bloom_catalog_entries", lambda **_kwargs: {"dossier": [{"title": "D"}]})
+    out, code = route_command(["view", "--browse-catalog", "--catalog-group-by", "artifact_type"])
+    assert code == 0
+    assert "grouped_entries" in out
+
+
+def test_view_mode_phase22_reading_room_and_collection_map_flags(monkeypatch, tmp_path):
+    rr = tmp_path / "rr.json"
+    monkeypatch.setattr("phios.shell.phi_commands.create_visual_bloom_reading_room", lambda **_kwargs: rr)
+    out, code = route_command(["view", "--create-reading-room", "rr1", "--reading-room-title", "Room"])
+    assert code == 0
+    assert "reading room created" in out
+
+    monkeypatch.setattr("phios.shell.phi_commands.list_visual_bloom_reading_rooms", lambda **_kwargs: [{"reading_room_name": "rr1"}])
+    out, code = route_command(["view", "--browse-reading-rooms"])
+    assert code == 0
+    assert '"count": 1' in out
+
+    monkeypatch.setattr("phios.shell.phi_commands.load_visual_bloom_reading_room", lambda *_args, **_kwargs: {"reading_room_name": "rr1", "sections": []})
+    out, code = route_command(["view", "--load-reading-room", "rr1"])
+    assert code == 0
+    assert "reading_room_name" in out
+
+    monkeypatch.setattr("phios.shell.phi_commands.add_visual_bloom_reading_room_section", lambda **_kwargs: rr)
+    out, code = route_command(["view", "--add-to-reading-room", "rr1", "--section-type", "shelf", "--artifact-ref", "/tmp/s"])
+    assert code == 0
+    assert "reading room updated" in out
+
+    rr_out = tmp_path / "rr"
+    monkeypatch.setattr("phios.shell.phi_commands.export_visual_bloom_reading_room", lambda **_kwargs: rr_out)
+    out, code = route_command(["view", "--export-reading-room", "rr1", str(rr_out)])
+    assert code == 0
+    assert "reading room exported" in out
+
+    mp = tmp_path / "map.json"
+    monkeypatch.setattr("phios.shell.phi_commands.create_visual_bloom_collection_map", lambda **_kwargs: mp)
+    out, code = route_command(["view", "--create-collection-map", "m1", "--collection-map-tags", "focus"])
+    assert code == 0
+    assert "collection map created" in out
+
+    monkeypatch.setattr("phios.shell.phi_commands.list_visual_bloom_collection_maps", lambda **_kwargs: [{"collection_map_name": "m1"}])
+    out, code = route_command(["view", "--browse-collection-maps"])
+    assert code == 0
+    assert '"count": 1' in out
+
+    monkeypatch.setattr("phios.shell.phi_commands.build_visual_bloom_collection_map_model", lambda **_kwargs: {"collection_map_name": "m1", "nodes": [], "edges": []})
+    out, code = route_command(["view", "--load-collection-map", "m1"])
+    assert code == 0
+    assert "collection_map_name" in out
+
+    map_out = tmp_path / "map"
+    monkeypatch.setattr("phios.shell.phi_commands.export_visual_bloom_collection_map", lambda **_kwargs: map_out)
+    out, code = route_command(["view", "--export-collection-map", "m1", str(map_out)])
+    assert code == 0
+    assert "collection map exported" in out
+
+
+def test_view_mode_phase23_study_hall_and_thematic_pathway_flags(monkeypatch, tmp_path):
+    sh = tmp_path / "sh.json"
+    monkeypatch.setattr("phios.shell.phi_commands.create_visual_bloom_study_hall", lambda **_kwargs: sh)
+    out, code = route_command(["view", "--create-study-hall", "sh1", "--study-hall-title", "Hall"])
+    assert code == 0
+    assert "study hall created" in out
+
+    monkeypatch.setattr("phios.shell.phi_commands.list_visual_bloom_study_halls", lambda **_kwargs: [{"study_hall_name": "sh1"}])
+    out, code = route_command(["view", "--browse-study-halls"])
+    assert code == 0
+    assert '"count": 1' in out
+
+    monkeypatch.setattr("phios.shell.phi_commands.load_visual_bloom_study_hall", lambda *_args, **_kwargs: {"study_hall_name": "sh1", "modules": []})
+    out, code = route_command(["view", "--load-study-hall", "sh1"])
+    assert code == 0
+    assert "study_hall_name" in out
+
+    monkeypatch.setattr("phios.shell.phi_commands.add_visual_bloom_study_hall_module", lambda **_kwargs: sh)
+    out, code = route_command(["view", "--add-to-study-hall", "sh1", "--section-type", "reading_room", "--artifact-ref", "/tmp/rr"])
+    assert code == 0
+    assert "study hall updated" in out
+
+    sh_out = tmp_path / "sh"
+    monkeypatch.setattr("phios.shell.phi_commands.export_visual_bloom_study_hall", lambda **_kwargs: sh_out)
+    out, code = route_command(["view", "--export-study-hall", "sh1", str(sh_out)])
+    assert code == 0
+    assert "study hall exported" in out
+
+    tp = tmp_path / "tp.json"
+    monkeypatch.setattr("phios.shell.phi_commands.create_visual_bloom_thematic_pathway", lambda **_kwargs: tp)
+    out, code = route_command(["view", "--create-thematic-pathway", "tp1", "--thematic-pathway-tags", "focus"])
+    assert code == 0
+    assert "thematic pathway created" in out
+
+    monkeypatch.setattr("phios.shell.phi_commands.list_visual_bloom_thematic_pathways", lambda **_kwargs: [{"thematic_pathway_name": "tp1"}])
+    out, code = route_command(["view", "--browse-thematic-pathways"])
+    assert code == 0
+    assert '"count": 1' in out
+
+    monkeypatch.setattr("phios.shell.phi_commands.build_visual_bloom_thematic_pathway_model", lambda **_kwargs: {"thematic_pathway_name": "tp1", "nodes": [], "links": []})
+    out, code = route_command(["view", "--load-thematic-pathway", "tp1"])
+    assert code == 0
+    assert "thematic_pathway_name" in out
+
+    tp_out = tmp_path / "tp"
+    monkeypatch.setattr("phios.shell.phi_commands.export_visual_bloom_thematic_pathway", lambda **_kwargs: tp_out)
+    out, code = route_command(["view", "--export-thematic-pathway", "tp1", str(tp_out)])
+    assert code == 0
+    assert "thematic pathway exported" in out
