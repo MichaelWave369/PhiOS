@@ -1113,3 +1113,54 @@ def test_view_mode_phase22_reading_room_and_collection_map_flags(monkeypatch, tm
     out, code = route_command(["view", "--export-collection-map", "m1", str(map_out)])
     assert code == 0
     assert "collection map exported" in out
+
+
+def test_view_mode_phase23_study_hall_and_thematic_pathway_flags(monkeypatch, tmp_path):
+    sh = tmp_path / "sh.json"
+    monkeypatch.setattr("phios.shell.phi_commands.create_visual_bloom_study_hall", lambda **_kwargs: sh)
+    out, code = route_command(["view", "--create-study-hall", "sh1", "--study-hall-title", "Hall"])
+    assert code == 0
+    assert "study hall created" in out
+
+    monkeypatch.setattr("phios.shell.phi_commands.list_visual_bloom_study_halls", lambda **_kwargs: [{"study_hall_name": "sh1"}])
+    out, code = route_command(["view", "--browse-study-halls"])
+    assert code == 0
+    assert '"count": 1' in out
+
+    monkeypatch.setattr("phios.shell.phi_commands.load_visual_bloom_study_hall", lambda *_args, **_kwargs: {"study_hall_name": "sh1", "modules": []})
+    out, code = route_command(["view", "--load-study-hall", "sh1"])
+    assert code == 0
+    assert "study_hall_name" in out
+
+    monkeypatch.setattr("phios.shell.phi_commands.add_visual_bloom_study_hall_module", lambda **_kwargs: sh)
+    out, code = route_command(["view", "--add-to-study-hall", "sh1", "--section-type", "reading_room", "--artifact-ref", "/tmp/rr"])
+    assert code == 0
+    assert "study hall updated" in out
+
+    sh_out = tmp_path / "sh"
+    monkeypatch.setattr("phios.shell.phi_commands.export_visual_bloom_study_hall", lambda **_kwargs: sh_out)
+    out, code = route_command(["view", "--export-study-hall", "sh1", str(sh_out)])
+    assert code == 0
+    assert "study hall exported" in out
+
+    tp = tmp_path / "tp.json"
+    monkeypatch.setattr("phios.shell.phi_commands.create_visual_bloom_thematic_pathway", lambda **_kwargs: tp)
+    out, code = route_command(["view", "--create-thematic-pathway", "tp1", "--thematic-pathway-tags", "focus"])
+    assert code == 0
+    assert "thematic pathway created" in out
+
+    monkeypatch.setattr("phios.shell.phi_commands.list_visual_bloom_thematic_pathways", lambda **_kwargs: [{"thematic_pathway_name": "tp1"}])
+    out, code = route_command(["view", "--browse-thematic-pathways"])
+    assert code == 0
+    assert '"count": 1' in out
+
+    monkeypatch.setattr("phios.shell.phi_commands.build_visual_bloom_thematic_pathway_model", lambda **_kwargs: {"thematic_pathway_name": "tp1", "nodes": [], "links": []})
+    out, code = route_command(["view", "--load-thematic-pathway", "tp1"])
+    assert code == 0
+    assert "thematic_pathway_name" in out
+
+    tp_out = tmp_path / "tp"
+    monkeypatch.setattr("phios.shell.phi_commands.export_visual_bloom_thematic_pathway", lambda **_kwargs: tp_out)
+    out, code = route_command(["view", "--export-thematic-pathway", "tp1", str(tp_out)])
+    assert code == 0
+    assert "thematic pathway exported" in out

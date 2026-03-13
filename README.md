@@ -739,3 +739,60 @@ Optional reading-room fields:
 ### Backward compatibility note
 
 Older artifacts (field libraries, dossiers, storyboards, route-compare bundles, longitudinal summaries, insight packs, pathways, atlas exports, sessions, compare sets, narratives, constellations, shelves, catalogs) continue loading with safe defaults even when reading-room/collection-map metadata is absent.
+
+## Phase 23: Observatory Study Halls + Comparative Thematic Pathways
+
+Phase 23 adds additive, static/local Study Halls and Thematic Pathways above reading rooms and collection maps to support archive-wide learning/exploration with deterministic metadata navigation.
+
+### Study hall workflows
+
+- `phi view --create-study-hall <name>`
+- `phi view --browse-study-halls`
+- `phi view --load-study-hall <name>`
+- `phi view --add-to-study-hall <name> --section-type <type> --artifact-ref <ref>`
+- `phi view --export-study-hall <name> <output-dir>`
+- `--study-hall-title <title>`
+- `--study-hall-summary <summary>`
+- `--study-hall-tags <comma,separated>`
+
+### Comparative thematic pathway workflows
+
+- `phi view --create-thematic-pathway <name>`
+- `phi view --browse-thematic-pathways`
+- `phi view --load-thematic-pathway <name>`
+- `phi view --export-thematic-pathway <name> <output-dir>`
+- `--thematic-pathway-tags <comma,separated>`
+- `--thematic-pathway-filter-tags <comma,separated>`
+- `--thematic-pathway-filter-sector <sector>`
+- `--thematic-pathway-filter-type <type>`
+- `--thematic-pathway-group-by <field>`
+
+### Study hall export artifacts
+
+- `study_hall_manifest.json`
+- `study_hall_index.html`
+- `study_hall.json`
+- `modules/module_*.json`
+- `study_hall_summary.json`
+- optional sector/diagnostics/route-context summaries
+- preview metadata and optional integrity hashes
+
+### Thematic pathway export artifacts
+
+- `thematic_pathway_manifest.json`
+- `thematic_pathway_index.html`
+- `thematic_pathway.json`
+- `thematic_pathway_summary.json`
+- preview metadata and optional integrity hashes
+
+### Scientific framing reminder
+
+- Study halls, thematic pathways, reading rooms, collection maps, shelves, catalogs, and related curation artifacts are local observatory interpretation only.
+- `C_STAR_THEORETICAL = PHI / 2 = (1 + sqrt(5)) / 4` remains structural/theoretical framing.
+- `BIO_VACUUM_TARGET = 0.81055` and `[BIO_VACUUM_BAND_LOW, BIO_VACUUM_BAND_HIGH] = [0.807, 0.813]` remain experimental guidance.
+- `BIO_VACUUM_STATUS = "experimental"` and `HUNTER_C_STATUS = "unconfirmed"` remain explicit.
+- These layers do not alter PhiKernel truth logic.
+
+### Backward compatibility note
+
+Older reading rooms, collection maps, field libraries, dossiers, storyboards, route-compare bundles, longitudinal summaries, insight packs, pathways, atlas exports, sessions, compare sets, narratives, constellations, shelves, and catalogs continue loading with safe defaults when study-hall/thematic-pathway metadata is absent.

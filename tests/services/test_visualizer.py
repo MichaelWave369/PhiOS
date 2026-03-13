@@ -117,6 +117,24 @@ from phios.services.visualizer import (
     build_visual_bloom_collection_map_summary,
     render_visual_bloom_collection_map_html,
     export_visual_bloom_collection_map,
+    create_visual_bloom_study_hall,
+    list_visual_bloom_study_halls,
+    load_visual_bloom_study_hall,
+    add_visual_bloom_study_hall_module,
+    build_visual_bloom_study_hall_model,
+    build_visual_bloom_study_hall_summary,
+    render_visual_bloom_study_hall_html,
+    export_visual_bloom_study_hall,
+    create_visual_bloom_thematic_pathway,
+    list_visual_bloom_thematic_pathways,
+    load_visual_bloom_thematic_pathway,
+    build_visual_bloom_thematic_pathway,
+    filter_visual_bloom_thematic_pathway_nodes,
+    group_visual_bloom_thematic_pathway_nodes,
+    build_visual_bloom_thematic_pathway_model,
+    build_visual_bloom_thematic_pathway_summary,
+    render_visual_bloom_thematic_pathway_html,
+    export_visual_bloom_thematic_pathway,
     create_visual_bloom_narrative,
     export_visual_bloom_atlas,
     list_visual_bloom_narratives,
@@ -1192,3 +1210,75 @@ def test_phase22_dashboard_model_includes_reading_rooms_and_collection_maps(tmp_
     model = build_visual_bloom_dashboard_model(journal_dir=tmp_path)
     assert "recent_reading_rooms" in model
     assert "recent_collection_maps" in model
+
+
+def test_phase23_study_hall_crud_summary_and_export(tmp_path):
+    create_visual_bloom_study_hall(name="sh1", journal_dir=tmp_path, title="SH", tags="focus")
+    add_visual_bloom_study_hall_module(
+        name="sh1",
+        module_type="reading_room",
+        artifact_ref="/tmp/rr",
+        journal_dir=tmp_path,
+        tags="focus",
+        sector_family="HG",
+    )
+    add_visual_bloom_study_hall_module(
+        name="sh1",
+        module_type="collection_map",
+        artifact_ref="/tmp/map",
+        journal_dir=tmp_path,
+        tags="focus",
+        sector_family="HB",
+    )
+    listed = list_visual_bloom_study_halls(journal_dir=tmp_path)
+    assert listed and listed[0]["study_hall_name"] == "sh1"
+    loaded = load_visual_bloom_study_hall("sh1", journal_dir=tmp_path)
+    assert len(loaded["modules"]) == 2
+
+    model = build_visual_bloom_study_hall_model(name="sh1", journal_dir=tmp_path, filter_type="reading_room")
+    assert len(model["filtered_modules"]) == 1
+    summary = build_visual_bloom_study_hall_summary(modules=model["modules"])
+    assert summary["module_count"] == 2
+    html = render_visual_bloom_study_hall_html(model)
+    assert "__PHIOS_STUDY_HALL_MODEL_JSON__" not in html
+
+    out = export_visual_bloom_study_hall(name="sh1", output_dir=tmp_path / "sh", journal_dir=tmp_path, with_integrity=True)
+    assert (out / "study_hall_manifest.json").exists()
+    assert (out / "study_hall_summary.json").exists()
+
+
+def test_phase23_thematic_pathway_build_summary_and_export(tmp_path):
+    create_visual_bloom_storyboard(name="sb3", journal_dir=tmp_path, title="SB", tags="focus")
+    create_visual_bloom_dossier(name="d3", journal_dir=tmp_path, title="D", tags="focus")
+    create_visual_bloom_field_library(name="fl3", journal_dir=tmp_path, title="FL", tags="focus")
+    create_visual_bloom_thematic_pathway(name="tp1", journal_dir=tmp_path, title="TP", tags="focus")
+
+    listed = list_visual_bloom_thematic_pathways(journal_dir=tmp_path)
+    assert listed and listed[0]["thematic_pathway_name"] == "tp1"
+    loaded = load_visual_bloom_thematic_pathway("tp1", journal_dir=tmp_path)
+    assert "nodes" in loaded and "links" in loaded
+
+    built = build_visual_bloom_thematic_pathway(journal_dir=tmp_path)
+    nodes = built["nodes"]
+    links = built["links"]
+    filtered = filter_visual_bloom_thematic_pathway_nodes(nodes=nodes, filter_tags="focus")
+    grouped = group_visual_bloom_thematic_pathway_nodes(nodes=filtered, group_by="artifact_type")
+    assert isinstance(grouped, dict)
+    summary = build_visual_bloom_thematic_pathway_summary(nodes=filtered, links=links)
+    assert "node_count" in summary
+
+    model = build_visual_bloom_thematic_pathway_model(name="tp1", journal_dir=tmp_path, filter_tags="focus")
+    html = render_visual_bloom_thematic_pathway_html(model)
+    assert "__PHIOS_THEMATIC_PATHWAY_MODEL_JSON__" not in html
+
+    out = export_visual_bloom_thematic_pathway(name="tp1", output_dir=tmp_path / "tp", journal_dir=tmp_path, with_integrity=True)
+    assert (out / "thematic_pathway_manifest.json").exists()
+    assert (out / "thematic_pathway_summary.json").exists()
+
+
+def test_phase23_dashboard_model_includes_study_halls_and_thematic_pathways(tmp_path):
+    create_visual_bloom_study_hall(name="sh1", journal_dir=tmp_path)
+    create_visual_bloom_thematic_pathway(name="tp1", journal_dir=tmp_path)
+    model = build_visual_bloom_dashboard_model(journal_dir=tmp_path)
+    assert "recent_study_halls" in model
+    assert "recent_thematic_pathways" in model
