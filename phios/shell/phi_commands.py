@@ -53,8 +53,11 @@ from phios.services.visualizer import (
     VALID_PRESETS,
     VisualizerError,
     launch_bloom,
+    launch_compare_bloom,
     launch_live_bloom,
     launch_replay_bloom,
+    list_visual_bloom_collections,
+    list_visual_bloom_sessions,
 )
 from phios.core.lt_engine import compute_lt
 from phios.core.sovereignty import SovereignSnapshot, export_snapshot, verify_snapshot
@@ -249,7 +252,7 @@ def cmd_help(_: list[str], session: object | None = None) -> str:
             "  bio add ... [--json]         Add a bioeffector tracking entry",
             "  bio show [--json]            Show bioeffector summary",
             "  bio export <path>            Export bioeffector layer",
-            "  view --mode sonic [--live] [--refresh-seconds <float>] [--duration <seconds>] [--output <path.html>] [--journal] [--journal-dir <path>] [--label <name>] [--replay <session_id|session.json>] [--preset <name>] [--lens <name>] [--audio-reactive]",
+            "  view --mode sonic [--live] [--refresh-seconds <float>] [--duration <seconds>] [--output <path.html>] [--journal] [--journal-dir <path>] [--label <name>] [--replay <session_id|session.json>] [--preset <name>] [--lens <name>] [--audio-reactive] [--collection <name>] [--browse] [--browse-collections] [--browse-collection <name>] [--compare <left> <right>]",
             "  status [--json]               Show PhiKernel-backed operator status",
             "  ask <prompt> [--json]         Ask PhiKernel coach",
             "  coherence [live|--json]       Show PhiKernel coherence field",
@@ -645,9 +648,28 @@ def cmd_bio(args: list[str], session: object | None = None) -> str:
 
 
 def cmd_view(args: list[str], session: object | None = None) -> str:
-    usage = "Usage: view --mode sonic [--live] [--refresh-seconds <float>] [--duration <seconds>] [--output <path.html>] [--journal] [--journal-dir <path>] [--label <name>] [--replay <session_id|session.json>] [--preset <name>] [--lens <name>] [--audio-reactive]"
+    usage = "Usage: view --mode sonic [--live] [--refresh-seconds <float>] [--duration <seconds>] [--output <path.html>] [--journal] [--journal-dir <path>] [--label <name>] [--collection <name>] [--replay <session_id|session.json[:idx]>] [--compare <left_ref> <right_ref>] [--browse] [--browse-collections] [--browse-collection <name>] [--preset <name>] [--lens <name>] [--audio-reactive]"
     if "--help" in args or "-h" in args:
         return usage
+
+    journal_dir_value = _extract_flag_value(args, "--journal-dir")
+    journal_dir = Path(journal_dir_value).expanduser() if journal_dir_value else None
+
+    if "--browse-collections" in args:
+        cols = list_visual_bloom_collections(journal_dir=journal_dir)
+        return json.dumps({"collections": cols}, indent=2)
+
+    browse_collection = _extract_flag_value(args, "--browse-collection")
+    if "--browse" in args or browse_collection is not None:
+        sessions = list_visual_bloom_sessions(journal_dir=journal_dir, collection=browse_collection)
+        return json.dumps({"sessions": sessions, "count": len(sessions)}, indent=2)
+
+    compare_refs: tuple[str, str] | None = None
+    if "--compare" in args:
+        idx = args.index("--compare")
+        if idx + 2 >= len(args):
+            return usage
+        compare_refs = (args[idx + 1], args[idx + 2])
 
     mode = _extract_flag_value(args, "--mode")
     if mode != "sonic":
@@ -659,9 +681,8 @@ def cmd_view(args: list[str], session: object | None = None) -> str:
     out = _extract_flag_value(args, "--output")
     output_path = Path(out).expanduser() if out else None
 
-    journal_dir_value = _extract_flag_value(args, "--journal-dir")
-    journal_dir = Path(journal_dir_value).expanduser() if journal_dir_value else None
     label = _extract_flag_value(args, "--label")
+    collection = _extract_flag_value(args, "--collection")
     preset = _extract_flag_value(args, "--preset")
     lens = _extract_flag_value(args, "--lens")
     audio_reactive = "--audio-reactive" in args
@@ -688,6 +709,9 @@ def cmd_view(args: list[str], session: object | None = None) -> str:
             return usage
 
     try:
+        if compare_refs is not None:
+            generated = launch_compare_bloom(compare_refs[0], compare_refs[1], output_path=output_path, open_browser=True, journal_dir=journal_dir)
+            return f"Compare visual bloom generated: {generated}"
         if replay:
             generated = launch_replay_bloom(replay, output_path=output_path, open_browser=True, journal_dir=journal_dir, preset=preset, lens=lens, audio_reactive=audio_reactive)
             return f"Replay visual bloom generated: {generated}"
@@ -703,6 +727,7 @@ def cmd_view(args: list[str], session: object | None = None) -> str:
                 preset=preset,
                 lens=lens,
                 audio_reactive=audio_reactive,
+                collection=collection,
             )
             return f"Live visual bloom running: {generated}"
         generated = launch_bloom(
@@ -714,6 +739,7 @@ def cmd_view(args: list[str], session: object | None = None) -> str:
             preset=preset,
             lens=lens,
             audio_reactive=audio_reactive,
+            collection=collection,
         )
     except VisualizerError as exc:
         raise RuntimeError(f"Visualizer unavailable: {exc}") from exc

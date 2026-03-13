@@ -626,6 +626,29 @@ def test_view_mode_invalid_preset_rejected():
     assert code == 0
     assert out.startswith("Unknown preset")
 
+
+
+def test_view_mode_browse_collections(monkeypatch):
+    monkeypatch.setattr("phios.shell.phi_commands.list_visual_bloom_collections", lambda **_kwargs: ["morning", "night"])
+    out, code = route_command(["view", "--browse-collections"])
+    assert code == 0
+    assert "morning" in out
+
+
+def test_view_mode_browse_collection(monkeypatch):
+    monkeypatch.setattr("phios.shell.phi_commands.list_visual_bloom_sessions", lambda **_kwargs: [{"session_id": "s1", "collection": "morning"}])
+    out, code = route_command(["view", "--browse-collection", "morning"])
+    assert code == 0
+    assert "s1" in out
+
+
+def test_view_mode_compare(monkeypatch, tmp_path):
+    target = tmp_path / "compare.html"
+    monkeypatch.setattr("phios.shell.phi_commands.launch_compare_bloom", lambda *_args, **_kwargs: target)
+    out, code = route_command(["view", "--mode", "sonic", "--compare", "a", "b", "--output", str(target)])
+    assert code == 0
+    assert "Compare visual bloom generated" in out
+
 def test_view_mode_rejects_unknown_mode():
     out, code = route_command(["view", "--mode", "unknown"])
     assert code == 0

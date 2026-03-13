@@ -6,6 +6,7 @@ It is a local-first adapter layer: PhiKernel remains runtime source-of-truth.
 
 from __future__ import annotations
 
+import base64
 import json
 import shutil
 import subprocess
@@ -86,6 +87,14 @@ def _journal_root(journal_dir: Path | None = None) -> Path:
 
 def _short_session_id(session_id: str) -> str:
     return session_id[:12]
+
+
+def _sanitize_collection(name: str) -> str:
+    safe = "".join(ch.lower() if (ch.isalnum() or ch in {"-", "_"}) else "-" for ch in name.strip())
+    safe = "-".join(part for part in safe.split("-") if part)
+    if not safe:
+        raise VisualizerError("Collection name is empty after sanitization.")
+    return safe
 
 
 def poll_kernel_state() -> tuple[dict[str, object], dict[str, object]]:
@@ -213,6 +222,7 @@ def _with_live_contract(
     preset: str | None = None,
     lens: str | None = None,
     audio_requested: bool = False,
+    collection: str | None = None,
 ) -> dict[str, object]:
     payload: dict[str, object] = {
         **params,
@@ -231,6 +241,8 @@ def _with_live_contract(
         payload["sessionLabel"] = session_label
     if state_timestamp:
         payload["stateTimestamp"] = state_timestamp
+    if collection:
+        payload["collection"] = collection
     return payload
 
 
@@ -243,6 +255,7 @@ def create_visual_bloom_session(
     journal_dir: Path | None = None,
     label: str | None = None,
     source_command: str = "phi view --mode sonic",
+    collection: str | None = None,
 ) -> Path:
     root = _journal_root(journal_dir)
     created_at = _iso_now()
@@ -258,6 +271,7 @@ def create_visual_bloom_session(
         "updated_at": created_at,
         "mode": mode,
         "label": label,
+        "collection": collection,
         "seed": params.get("seed"),
         "refreshSeconds": refresh_seconds,
         "driftBand": params.get("driftBand"),
@@ -298,6 +312,92 @@ def load_visual_bloom_session(session_ref: str, journal_dir: Path | None = None)
     return data
 
 
+def list_visual_bloom_sessions(*, journal_dir: Path | None = None, collection: str | None = None) -> list[dict[str, object]]:
+    root = _journal_root(journal_dir)
+    if not root.exists():
+        return []
+    wanted = _sanitize_collection(collection) if collection else None
+    out: list[dict[str, object]] = []
+    for entry in root.iterdir():
+        if not entry.is_dir():
+            continue
+        session_json = entry / "session.json"
+        if not session_json.exists():
+            continue
+        try:
+            doc = json.loads(session_json.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+        if not isinstance(doc, dict):
+            continue
+        coll = doc.get("collection")
+        if wanted and coll != wanted:
+            continue
+        states = doc.get("states") if isinstance(doc.get("states"), list) else []
+        latest = states[-1] if states else {}
+        latest_ts = latest.get("stateTimestamp") if isinstance(latest, dict) else None
+        out.append(
+            {
+                "session_id": doc.get("session_id", entry.name),
+                "created_at": doc.get("created_at", "unknown"),
+                "updated_at": doc.get("updated_at", "unknown"),
+                "label": doc.get("label") or "",
+                "collection": doc.get("collection") or "",
+                "mode": doc.get("mode", "unknown"),
+                "preset": doc.get("preset", "none"),
+                "lens": doc.get("lens", "none"),
+                "audio": "on" if doc.get("audioReactive", False) else "off",
+                "latest_timestamp": latest_ts or "",
+            }
+        )
+    out.sort(key=lambda i: str(i.get("created_at", "")), reverse=True)
+    return out
+
+
+def list_visual_bloom_collections(*, journal_dir: Path | None = None) -> list[str]:
+    sessions = list_visual_bloom_sessions(journal_dir=journal_dir)
+    cols = {str(s.get("collection", "")).strip() for s in sessions if str(s.get("collection", "")).strip()}
+    return sorted(cols)
+
+
+def resolve_visual_bloom_state_ref(ref: str, *, journal_dir: Path | None = None) -> tuple[dict[str, object], dict[str, object], int]:
+    session_ref = ref
+    state_index: int | None = None
+    if ":" in ref:
+        left, right = ref.rsplit(":", 1)
+        if right.lstrip("-").isdigit():
+            session_ref = left
+            state_index = int(right)
+
+    session = load_visual_bloom_session(session_ref, journal_dir=journal_dir)
+    states = session.get("states")
+    if not isinstance(states, list) or not states:
+        raise VisualizerError(f"Session has no recorded states: {session_ref}")
+
+    idx = len(states) - 1 if state_index is None else state_index
+    if idx < 0:
+        idx = len(states) + idx
+    if idx < 0 or idx >= len(states):
+        raise VisualizerError(f"State index out of range for {session_ref}: {state_index}")
+
+    state = states[idx]
+    if not isinstance(state, dict):
+        raise VisualizerError(f"Malformed state record in {session_ref} at index {idx}")
+    return session, state, idx
+
+
+def load_visual_bloom_state(ref: str, *, journal_dir: Path | None = None) -> dict[str, object]:
+    session, state, idx = resolve_visual_bloom_state_ref(ref, journal_dir=journal_dir)
+    merged = dict(state)
+    merged.setdefault("sessionId", str(session.get("session_id", "replay")))
+    merged.setdefault("sessionLabel", str(session.get("label", "")))
+    merged.setdefault("collection", str(session.get("collection", "")))
+    merged.setdefault("preset", str(session.get("preset", "none")))
+    merged.setdefault("lens", str(session.get("lens", "none")))
+    merged.setdefault("stateIndex", idx)
+    return merged
+
+
 def append_or_update_journal_state(*, session_dir: Path, params: dict[str, object], output_html: Path) -> Path:
     session_json = session_dir / "session.json"
     latest_params = session_dir / "latest.params.json"
@@ -331,6 +431,7 @@ def append_or_update_journal_state(*, session_dir: Path, params: dict[str, objec
         "turbulenceBias": params.get("turbulenceBias"),
         "paletteShift": params.get("paletteShift"),
         "damping": params.get("damping"),
+        "collection": params.get("collection", doc.get("collection", "")),
     }
     states = doc.get("states")
     if not isinstance(states, list):
@@ -342,6 +443,8 @@ def append_or_update_journal_state(*, session_dir: Path, params: dict[str, objec
     doc["preset"] = params.get("preset", doc.get("preset", "none"))
     doc["lens"] = params.get("lens", doc.get("lens", "none"))
     doc["audioReactive"] = bool(params.get("audioReactive", doc.get("audioReactive", False)))
+    if params.get("collection"):
+        doc["collection"] = params.get("collection")
     doc["core_params"] = {
         "seed": params.get("seed"),
         "coherenceC": params.get("coherenceC"),
@@ -353,6 +456,7 @@ def append_or_update_journal_state(*, session_dir: Path, params: dict[str, objec
         "preset": params.get("preset", "none"),
         "lens": params.get("lens", "none"),
         "audioReactive": bool(params.get("audioReactive", False)),
+        "collection": params.get("collection", doc.get("collection", "")),
     }
     doc["artifact_paths"] = {"html": str(output_html), "latest_params": str(latest_params)}
     doc["updated_at"] = _iso_now()
@@ -374,6 +478,25 @@ def render_bloom_html(params: dict[str, object], *, live_mode: bool = False, ref
     html = html.replace("__PHIOS_REFRESH_MS__", str(int(max(refresh_seconds, 0.2) * 1000)))
     html = html.replace("__PHIOS_REFRESH_SECONDS__", f"{max(refresh_seconds, 0.2):.2f}")
     html = html.replace("__PHIOS_PARAMS_PATH__", params_path)
+    return html
+
+
+def render_compare_bloom_html(left_params: dict[str, object], right_params: dict[str, object]) -> str:
+    try:
+        template = resources.files("phios.templates").joinpath("sonic_compare.html").read_text(encoding="utf-8")
+    except Exception as exc:
+        raise VisualizerError(f"Unable to load compare template: {exc}") from exc
+
+    left_html = render_bloom_html(left_params, live_mode=False)
+    right_html = render_bloom_html(right_params, live_mode=False)
+    left_b64 = base64.b64encode(left_html.encode("utf-8")).decode("ascii")
+    right_b64 = base64.b64encode(right_html.encode("utf-8")).decode("ascii")
+
+    html = template.replace("__PHIOS_COMPARE_ENABLED__", "true")
+    html = html.replace("__PHIOS_COMPARE_LEFT_JSON__", json.dumps(left_params, separators=(",", ":")))
+    html = html.replace("__PHIOS_COMPARE_RIGHT_JSON__", json.dumps(right_params, separators=(",", ":")))
+    html = html.replace("__PHIOS_COMPARE_LEFT_B64__", left_b64)
+    html = html.replace("__PHIOS_COMPARE_RIGHT_B64__", right_b64)
     return html
 
 
@@ -425,6 +548,7 @@ def launch_bloom(
     preset: str | None = None,
     lens: str | None = None,
     audio_reactive: bool = False,
+    collection: str | None = None,
 ) -> Path:
     field_data, status_data = poll_kernel_state()
     mapped = map_kernel_to_visual_params(field_data, status_data)
@@ -432,10 +556,30 @@ def launch_bloom(
     target = output_path or Path("/tmp/phios_bloom.html")
     session_dir: Path | None = None
     session_id: str | None = None
+    safe_collection = _sanitize_collection(collection) if collection else None
     if journal:
-        session_dir = create_visual_bloom_session(mode="snapshot", params=mapped, refresh_seconds=None, output_path=target, journal_dir=journal_dir, label=label, source_command=source_command)
+        session_dir = create_visual_bloom_session(
+            mode="snapshot",
+            params=mapped,
+            refresh_seconds=None,
+            output_path=target,
+            journal_dir=journal_dir,
+            label=label,
+            source_command=source_command,
+            collection=safe_collection,
+        )
         session_id = session_dir.name
-    params = _with_live_contract(mapped, mode="snapshot", session_id=session_id, session_label=label, state_timestamp=_iso_now(), preset=preset, lens=lens, audio_requested=audio_reactive)
+    params = _with_live_contract(
+        mapped,
+        mode="snapshot",
+        session_id=session_id,
+        session_label=label,
+        state_timestamp=_iso_now(),
+        preset=preset,
+        lens=lens,
+        audio_requested=audio_reactive,
+        collection=safe_collection,
+    )
     written = write_bloom_file(render_bloom_html(params, live_mode=False), target)
     if session_dir is not None:
         append_or_update_journal_state(session_dir=session_dir, params=params, output_html=written)
@@ -456,20 +600,42 @@ def launch_live_bloom(
     preset: str | None = None,
     lens: str | None = None,
     audio_reactive: bool = False,
+    collection: str | None = None,
 ) -> Path:
     interval = max(refresh_seconds, 0.2)
     target = output_path or Path("/tmp/phios_bloom.html")
     params_path = target.with_suffix(".params.json")
     written = target
+    safe_collection = _sanitize_collection(collection) if collection else None
     try:
         field_data, status_data = poll_kernel_state()
         mapped = _compose_visual_params(map_kernel_to_visual_params(field_data, status_data), preset=preset, lens=lens, audio_reactive=audio_reactive)
         session_dir: Path | None = None
         session_id: str | None = None
         if journal:
-            session_dir = create_visual_bloom_session(mode="live", params=mapped, refresh_seconds=interval, output_path=target, journal_dir=journal_dir, label=label, source_command=source_command)
+            session_dir = create_visual_bloom_session(
+                mode="live",
+                params=mapped,
+                refresh_seconds=interval,
+                output_path=target,
+                journal_dir=journal_dir,
+                label=label,
+                source_command=source_command,
+                collection=safe_collection,
+            )
             session_id = session_dir.name
-        first_params = _with_live_contract(mapped, mode="live", refresh_seconds=interval, session_id=session_id, session_label=label, state_timestamp=_iso_now(), preset=preset, lens=lens, audio_requested=audio_reactive)
+        first_params = _with_live_contract(
+            mapped,
+            mode="live",
+            refresh_seconds=interval,
+            session_id=session_id,
+            session_label=label,
+            state_timestamp=_iso_now(),
+            preset=preset,
+            lens=lens,
+            audio_requested=audio_reactive,
+            collection=safe_collection,
+        )
         write_live_params_json(first_params, params_path)
         written = write_bloom_file(render_bloom_html(first_params, live_mode=True, refresh_seconds=interval, params_path=params_path.name), target)
         if session_dir is not None:
@@ -482,7 +648,18 @@ def launch_live_bloom(
             time.sleep(interval)
             field_data, status_data = poll_kernel_state()
             mapped = _compose_visual_params(map_kernel_to_visual_params(field_data, status_data), preset=preset, lens=lens, audio_reactive=audio_reactive)
-            params = _with_live_contract(mapped, mode="live", refresh_seconds=interval, session_id=session_id, session_label=label, state_timestamp=_iso_now(), preset=preset, lens=lens, audio_requested=audio_reactive)
+            params = _with_live_contract(
+                mapped,
+                mode="live",
+                refresh_seconds=interval,
+                session_id=session_id,
+                session_label=label,
+                state_timestamp=_iso_now(),
+                preset=preset,
+                lens=lens,
+                audio_requested=audio_reactive,
+                collection=safe_collection,
+            )
             write_live_params_json(params, params_path)
             if session_dir is not None:
                 append_or_update_journal_state(session_dir=session_dir, params=params, output_html=written)
@@ -500,13 +677,7 @@ def launch_replay_bloom(
     lens: str | None = None,
     audio_reactive: bool = False,
 ) -> Path:
-    session = load_visual_bloom_session(session_ref, journal_dir=journal_dir)
-    states = session.get("states")
-    if not isinstance(states, list) or not states:
-        raise VisualizerError("Replay session contains no recorded visual states.")
-    last_state = states[-1]
-    if not isinstance(last_state, dict):
-        raise VisualizerError("Replay session contains malformed state records.")
+    session, last_state, _ = resolve_visual_bloom_state_ref(session_ref, journal_dir=journal_dir)
 
     effective_preset = preset or str(last_state.get("preset", session.get("preset", "none")))
     effective_lens = lens or str(last_state.get("lens", session.get("lens", "none")))
@@ -525,9 +696,52 @@ def launch_replay_bloom(
         preset=effective_preset,
         lens=effective_lens,
         audio_requested=audio_reactive,
+        collection=str(session.get("collection", "")) or None,
     )
     params["sourceLabel"] = "PhiOS Visual Bloom · Replay"
     target = output_path or Path("/tmp/phios_bloom_replay.html")
     written = write_bloom_file(render_bloom_html(params, live_mode=False), target)
+    _open_browser(written, open_browser)
+    return written
+
+
+def launch_compare_bloom(
+    left_ref: str,
+    right_ref: str,
+    *,
+    output_path: Path | None = None,
+    open_browser: bool = True,
+    journal_dir: Path | None = None,
+) -> Path:
+    left_session, left_state, _ = resolve_visual_bloom_state_ref(left_ref, journal_dir=journal_dir)
+    right_session, right_state, _ = resolve_visual_bloom_state_ref(right_ref, journal_dir=journal_dir)
+
+    left_params = _with_live_contract(
+        dict(left_state),
+        mode="compare-left",
+        session_id=str(left_session.get("session_id", "left")),
+        session_label=str(left_session.get("label", "")) or None,
+        state_timestamp=str(left_state.get("stateTimestamp", _iso_now())),
+        preset=str(left_state.get("preset", left_session.get("preset", "none"))),
+        lens=str(left_state.get("lens", left_session.get("lens", "none"))),
+        collection=str(left_session.get("collection", "")) or None,
+    )
+    left_params["sourceLabel"] = "PhiOS Visual Bloom · Compare Left"
+
+    right_params = _with_live_contract(
+        dict(right_state),
+        mode="compare-right",
+        session_id=str(right_session.get("session_id", "right")),
+        session_label=str(right_session.get("label", "")) or None,
+        state_timestamp=str(right_state.get("stateTimestamp", _iso_now())),
+        preset=str(right_state.get("preset", right_session.get("preset", "none"))),
+        lens=str(right_state.get("lens", right_session.get("lens", "none"))),
+        collection=str(right_session.get("collection", "")) or None,
+    )
+    right_params["sourceLabel"] = "PhiOS Visual Bloom · Compare Right"
+
+    html = render_compare_bloom_html(left_params, right_params)
+    target = output_path or Path("/tmp/phios_bloom_compare.html")
+    written = write_bloom_file(html, target)
     _open_browser(written, open_browser)
     return written

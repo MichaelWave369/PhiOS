@@ -96,6 +96,10 @@ phi ask "How should I begin?"
 - `phi view --mode sonic --replay <session_id>`
 - `phi view --mode sonic --preset stable --lens ritual`
 - `phi view --mode sonic --live --preset diagnostic --audio-reactive`
+- `phi view --mode sonic --journal --collection morning`
+- `phi view --browse-collections`
+- `phi view --browse-collection morning`
+- `phi view --compare <session_a[:state_idx]> <session_b[:state_idx]>`
 - `phi status [--json]`
 - `phi coherence [--json]`
 - `phi coherence live`
@@ -185,6 +189,10 @@ phi view --mode sonic --live --journal --label focus
 phi view --mode sonic --replay 20260101T120000Z_123456
 phi view --mode sonic --preset stable --lens ritual
 phi view --mode sonic --live --preset diagnostic --audio-reactive
+phi view --mode sonic --journal --collection morning
+phi view --browse-collections
+phi view --browse-collection morning
+phi view --compare 20260101T120000Z_123456:0 20260102T073000Z_654321:0
 ```
 
 Snapshot mode generates a one-shot artifact from current PhiKernel state.
@@ -194,7 +202,11 @@ Optional journaling writes reproducible visual-state archives under `~/.phios/jo
 
 Phase 5 adds optional preset packs and named visual lenses (`stable`, `ritual`, `diagnostic`, `bloom`) that shape rendering interpretation deterministically without changing kernel truth.
 
+Phase 6 adds named archive collections and local browse/compare workflows. You can tag sessions with `--collection`, browse collections/sessions from disk, and compare two saved states side-by-side without polling PhiKernel.
+
 Audio-reactive coupling is optional and off by default (`--audio-reactive`). If local audio support is unavailable, PhiOS continues gracefully without audio modulation.
+
+State references support optional indexing syntax (`<session_id>:<state_idx>`). If omitted, replay/compare defaults to the latest state. Older archives without new metadata fields still replay with safe defaults.
 
 The adapter reads PhiKernel field_state, maps it into visual parameters, renders a local HTML artifact,
 and opens it in the default browser.

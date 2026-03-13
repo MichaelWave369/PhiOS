@@ -15,11 +15,15 @@ from phios.services.visualizer import (
     append_or_update_journal_state,
     create_visual_bloom_session,
     launch_bloom,
+    launch_compare_bloom,
     launch_live_bloom,
     launch_replay_bloom,
+    list_visual_bloom_collections,
+    list_visual_bloom_sessions,
     load_visual_bloom_session,
     map_kernel_to_visual_params,
     render_bloom_html,
+    resolve_visual_bloom_state_ref,
     run_phik_json,
     write_bloom_file,
     write_live_params_json,
@@ -328,3 +332,51 @@ def test_replay_backward_compatible_without_preset_lens_fields(tmp_path):
 def test_valid_sets_exported():
     assert "stable" in VALID_PRESETS
     assert "bloom" in VALID_LENSES
+
+
+
+def test_collection_tagging_and_browsing(tmp_path):
+    session_dir = create_visual_bloom_session(
+        mode="snapshot",
+        params={"seed": 1, "driftBand": "Watch", "coherenceC": 0.8, "goldenInf": 1.618, "frequency": 7.83, "particleCount": 1500, "noiseScale": 0.005, "preset": "stable", "lens": "ritual"},
+        refresh_seconds=None,
+        output_path=tmp_path / "orig.html",
+        journal_dir=tmp_path,
+        collection="morning-ritual",
+    )
+    append_or_update_journal_state(
+        session_dir=session_dir,
+        params={"timestamp": 1, "stateTimestamp": "2020-01-01T00:00:00Z", "seed": 1, "coherenceC": 0.8, "goldenInf": 1.618, "frequency": 7.83, "particleCount": 1500, "noiseScale": 0.005, "mode": "snapshot", "driftBand": "Watch", "collection": "morning-ritual"},
+        output_html=tmp_path / "orig.html",
+    )
+    cols = list_visual_bloom_collections(journal_dir=tmp_path)
+    assert "morning-ritual" in cols
+    sessions = list_visual_bloom_sessions(journal_dir=tmp_path, collection="morning-ritual")
+    assert sessions and sessions[0]["collection"] == "morning-ritual"
+
+
+def test_resolve_state_ref_by_index(tmp_path):
+    session_dir = create_visual_bloom_session(
+        mode="snapshot",
+        params={"seed": 1, "driftBand": "Watch", "coherenceC": 0.8, "goldenInf": 1.618, "frequency": 7.83, "particleCount": 1500, "noiseScale": 0.005},
+        refresh_seconds=None,
+        output_path=tmp_path / "x.html",
+        journal_dir=tmp_path,
+    )
+    append_or_update_journal_state(session_dir=session_dir, params={"timestamp": 1, "stateTimestamp": "a", "seed": 1, "coherenceC": 0.7, "goldenInf": 1.618, "frequency": 6.0, "particleCount": 1200, "noiseScale": 0.004, "mode": "snapshot", "driftBand": "Watch"}, output_html=tmp_path / "x.html")
+    append_or_update_journal_state(session_dir=session_dir, params={"timestamp": 2, "stateTimestamp": "b", "seed": 2, "coherenceC": 0.8, "goldenInf": 1.618, "frequency": 8.0, "particleCount": 1400, "noiseScale": 0.005, "mode": "snapshot", "driftBand": "Stable"}, output_html=tmp_path / "x.html")
+    _session, state, idx = resolve_visual_bloom_state_ref(f"{session_dir.name}:0", journal_dir=tmp_path)
+    assert idx == 0
+    assert state["seed"] == 1
+
+
+def test_launch_compare_bloom_renders_compare_template(tmp_path):
+    left = create_visual_bloom_session(mode="snapshot", params={"seed": 1, "driftBand": "Watch", "coherenceC": 0.8, "goldenInf": 1.618, "frequency": 7.83, "particleCount": 1500, "noiseScale": 0.005}, refresh_seconds=None, output_path=tmp_path / "l.html", journal_dir=tmp_path, label="left")
+    right = create_visual_bloom_session(mode="snapshot", params={"seed": 2, "driftBand": "Stable", "coherenceC": 0.9, "goldenInf": 1.618, "frequency": 8.5, "particleCount": 1000, "noiseScale": 0.003}, refresh_seconds=None, output_path=tmp_path / "r.html", journal_dir=tmp_path, label="right")
+    append_or_update_journal_state(session_dir=left, params={"timestamp": 1, "stateTimestamp": "a", "seed": 1, "coherenceC": 0.8, "goldenInf": 1.618, "frequency": 7.83, "particleCount": 1500, "noiseScale": 0.005, "mode": "snapshot", "driftBand": "Watch"}, output_html=tmp_path / "l.html")
+    append_or_update_journal_state(session_dir=right, params={"timestamp": 2, "stateTimestamp": "b", "seed": 2, "coherenceC": 0.9, "goldenInf": 1.618, "frequency": 8.5, "particleCount": 1000, "noiseScale": 0.003, "mode": "snapshot", "driftBand": "Stable"}, output_html=tmp_path / "r.html")
+
+    out = launch_compare_bloom(left.name, right.name, output_path=tmp_path / "compare.html", open_browser=False, journal_dir=tmp_path)
+    html = out.read_text(encoding="utf-8")
+    assert "PhiOS Visual Bloom Compare" in html
+    assert "__PHIOS_COMPARE_LEFT_B64__" not in html

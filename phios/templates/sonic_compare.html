@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>PhiOS Sonic Compare Bloom</title>
+    <style>
+      html, body { margin: 0; padding: 0; background: #05070c; color: #dde4f3; font-family: Inter, system-ui, sans-serif; }
+      #hud { position: fixed; top: 10px; left: 10px; right: 10px; z-index: 9; background: rgba(10, 12, 18, 0.72); border: 1px solid rgba(201, 168, 76, 0.35); border-radius: 10px; padding: 8px 12px; font-size: 12px; }
+      #wrap { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; height: 100vh; padding-top: 86px; box-sizing: border-box; }
+      iframe { width: 100%; height: 100%; border: 0; background: #06080d; }
+      .line { margin: 2px 0; opacity: 0.92; }
+    </style>
+  </head>
+  <body>
+    <div id="hud"></div>
+    <div id="wrap">
+      <iframe id="left"></iframe>
+      <iframe id="right"></iframe>
+    </div>
+    <script>
+      const compareEnabled = __PHIOS_COMPARE_ENABLED__;
+      const leftParams = __PHIOS_COMPARE_LEFT_JSON__;
+      const rightParams = __PHIOS_COMPARE_RIGHT_JSON__;
+      const leftB64 = "__PHIOS_COMPARE_LEFT_B64__";
+      const rightB64 = "__PHIOS_COMPARE_RIGHT_B64__";
+      const hud = document.getElementById("hud");
+
+      document.getElementById("left").src = `data:text/html;base64,${leftB64}`;
+      document.getElementById("right").src = `data:text/html;base64,${rightB64}`;
+
+      function short(v) { return (v || "n/a").toString(); }
+      hud.innerHTML = [
+        `<div class="line"><strong>Φ PhiOS Visual Bloom Compare</strong> · enabled: ${compareEnabled}</div>`,
+        `<div class="line">LEFT · session: ${short(leftParams.sessionIdShort)} · label: ${short(leftParams.sessionLabel)} · at: ${short(leftParams.stateTimestamp)} · preset/lens: ${short(leftParams.preset)}/${short(leftParams.lens)}</div>`,
+        `<div class="line">RIGHT · session: ${short(rightParams.sessionIdShort)} · label: ${short(rightParams.sessionLabel)} · at: ${short(rightParams.stateTimestamp)} · preset/lens: ${short(rightParams.preset)}/${short(rightParams.lens)}</div>`,
+      ].join("");
+    </script>
+  </body>
+</html>
