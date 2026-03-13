@@ -719,3 +719,23 @@ def test_view_mode_compare_export_bundle(monkeypatch, tmp_path):
     out, code = route_command(["view", "--mode", "sonic", "--compare", "a", "b", "--export-bundle", str(bundle)])
     assert code == 0
     assert "bundle exported" in out
+
+
+def test_view_mode_gallery_filters(monkeypatch, tmp_path):
+    target = tmp_path / "gallery_f.html"
+    monkeypatch.setattr("phios.shell.phi_commands.launch_visual_bloom_gallery", lambda **_kwargs: target)
+    out, code = route_command([
+        "view", "--gallery", "--search", "morning", "--filter-mode", "live", "--filter-preset", "stable", "--filter-lens", "ritual", "--filter-audio", "on", "--filter-label", "focus", "--filter-session", "abc"
+    ])
+    assert code == 0
+    assert "gallery generated" in out
+
+
+def test_view_mode_compare_export_bundle_with_integrity(monkeypatch, tmp_path):
+    bundle = tmp_path / "bundle2"
+    monkeypatch.setattr("phios.shell.phi_commands.export_visual_bloom_bundle", lambda **_kwargs: bundle)
+    out, code = route_command([
+        "view", "--mode", "sonic", "--compare", "a", "b", "--export-bundle", str(bundle), "--with-integrity", "--bundle-label", "nightly"
+    ])
+    assert code == 0
+    assert "bundle exported" in out

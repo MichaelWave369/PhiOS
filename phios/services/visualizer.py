@@ -7,6 +7,7 @@ It is a local-first adapter layer: PhiKernel remains runtime source-of-truth.
 from __future__ import annotations
 
 import base64
+import hashlib
 import json
 import shutil
 import subprocess
@@ -95,6 +96,27 @@ def _sanitize_collection(name: str) -> str:
     if not safe:
         raise VisualizerError("Collection name is empty after sanitization.")
     return safe
+
+
+def augment_visual_bloom_preview_metadata(
+    *,
+    source: str,
+    preview_path: Path | None = None,
+    preview_type: str = "metadata-placeholder",
+    status: str = "placeholder",
+) -> dict[str, object]:
+    """Build deterministic preview metadata for sessions/bundles.
+
+    This phase stores metadata-first preview contracts so future image capture can
+    populate `preview_source` without changing schema.
+    """
+    return {
+        "preview_type": preview_type,
+        "preview_source": str(preview_path) if preview_path is not None else "",
+        "preview_generated_at": _iso_now(),
+        "preview_status": status,
+        "preview_origin": source,
+    }
 
 
 def poll_kernel_state() -> tuple[dict[str, object], dict[str, object]]:
@@ -264,6 +286,8 @@ def create_visual_bloom_session(
     session_dir.mkdir(parents=True, exist_ok=False)
     latest_params = session_dir / "latest.params.json"
     session_json = session_dir / "session.json"
+    preview_meta_path = session_dir / "preview.metadata.json"
+    preview_meta = augment_visual_bloom_preview_metadata(source="session")
 
     session_doc: dict[str, object] = {
         "session_id": session_id,
@@ -279,7 +303,8 @@ def create_visual_bloom_session(
         "lens": params.get("lens", "none"),
         "audioReactive": bool(params.get("audioReactive", False)),
         "source_command": source_command,
-        "artifact_paths": {"html": str(output_path), "latest_params": str(latest_params)},
+        "artifact_paths": {"html": str(output_path), "latest_params": str(latest_params), "preview_metadata": str(preview_meta_path)},
+        "preview": preview_meta,
         "core_params": {
             "seed": params.get("seed"),
             "coherenceC": params.get("coherenceC"),
@@ -295,6 +320,7 @@ def create_visual_bloom_session(
         "states": [],
     }
     session_json.write_text(json.dumps(session_doc, indent=2), encoding="utf-8")
+    preview_meta_path.write_text(json.dumps(preview_meta, indent=2), encoding="utf-8")
     return session_dir
 
 
@@ -336,6 +362,7 @@ def list_visual_bloom_sessions(*, journal_dir: Path | None = None, collection: s
         states = doc.get("states") if isinstance(doc.get("states"), list) else []
         latest = states[-1] if states else {}
         latest_ts = latest.get("stateTimestamp") if isinstance(latest, dict) else None
+        preview = doc.get("preview") if isinstance(doc.get("preview"), dict) else augment_visual_bloom_preview_metadata(source="session", status="unknown")
         out.append(
             {
                 "session_id": doc.get("session_id", entry.name),
@@ -348,6 +375,7 @@ def list_visual_bloom_sessions(*, journal_dir: Path | None = None, collection: s
                 "lens": doc.get("lens", "none"),
                 "audio": "on" if doc.get("audioReactive", False) else "off",
                 "latest_timestamp": latest_ts or "",
+                "preview": preview,
             }
         )
     out.sort(key=lambda i: str(i.get("created_at", "")), reverse=True)
@@ -531,10 +559,14 @@ def append_or_update_journal_state(*, session_dir: Path, params: dict[str, objec
         "audioReactive": bool(params.get("audioReactive", False)),
         "collection": params.get("collection", doc.get("collection", "")),
     }
-    doc["artifact_paths"] = {"html": str(output_html), "latest_params": str(latest_params)}
+    preview_meta_path = session_dir / "preview.metadata.json"
+    preview_meta = augment_visual_bloom_preview_metadata(source="session")
+    doc["artifact_paths"] = {"html": str(output_html), "latest_params": str(latest_params), "preview_metadata": str(preview_meta_path)}
+    doc["preview"] = preview_meta
     doc["updated_at"] = _iso_now()
     session_json.write_text(json.dumps(doc, indent=2), encoding="utf-8")
     latest_params.write_text(json.dumps(params, indent=2), encoding="utf-8")
+    preview_meta_path.write_text(json.dumps(preview_meta, indent=2), encoding="utf-8")
     return latest_params
 
 
@@ -549,6 +581,7 @@ def save_visual_bloom_compare_set(
     right_ref: str,
     journal_dir: Path | None = None,
     report_path: Path | None = None,
+    bundle_path: Path | None = None,
     label: str | None = None,
 ) -> Path:
     safe_name = _sanitize_collection(name)
@@ -562,6 +595,7 @@ def save_visual_bloom_compare_set(
         "right_ref": right_ref,
         "label": label or "",
         "latest_report_path": str(report_path) if report_path else "",
+        "latest_bundle_path": str(bundle_path) if bundle_path else "",
     }
     path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
     return path
@@ -586,6 +620,7 @@ def list_visual_bloom_compare_sets(*, journal_dir: Path | None = None) -> list[d
             "right_ref": data.get("right_ref", ""),
             "label": data.get("label", ""),
             "latest_report_path": data.get("latest_report_path", ""),
+            "latest_bundle_path": data.get("latest_bundle_path", ""),
         })
     out.sort(key=lambda i: str(i.get("created_at", "")), reverse=True)
     return out
@@ -605,12 +640,87 @@ def load_visual_bloom_compare_set(name: str, *, journal_dir: Path | None = None)
     return data
 
 
-def build_visual_bloom_gallery_model(*, journal_dir: Path | None = None, collection: str | None = None) -> dict[str, object]:
+def filter_visual_bloom_gallery_entries(
+    entries: list[dict[str, object]],
+    *,
+    search: str | None = None,
+    mode: str | None = None,
+    preset: str | None = None,
+    lens: str | None = None,
+    audio: str | None = None,
+    label: str | None = None,
+    session_id: str | None = None,
+) -> list[dict[str, object]]:
+    """Apply deterministic prefilters for static gallery generation."""
+    needle = (search or "").strip().lower()
+    mode_n = (mode or "").strip().lower()
+    preset_n = (preset or "").strip().lower()
+    lens_n = (lens or "").strip().lower()
+    audio_n = (audio or "").strip().lower()
+    label_n = (label or "").strip().lower()
+    session_n = (session_id or "").strip().lower()
+
+    out: list[dict[str, object]] = []
+    for entry in entries:
+        if mode_n and str(entry.get("mode", "")).lower() != mode_n:
+            continue
+        if preset_n and str(entry.get("preset", "")).lower() != preset_n:
+            continue
+        if lens_n and str(entry.get("lens", "")).lower() != lens_n:
+            continue
+        if audio_n and str(entry.get("audio", "")).lower() != audio_n:
+            continue
+        if label_n and label_n not in str(entry.get("label", "")).lower():
+            continue
+        if session_n and session_n not in str(entry.get("session_id", "")).lower():
+            continue
+        if needle:
+            blob = " ".join(
+                str(entry.get(k, ""))
+                for k in ("session_id", "label", "collection", "mode", "preset", "lens", "audio", "created_at", "updated_at", "latest_timestamp")
+            ).lower()
+            if needle not in blob:
+                continue
+        out.append(entry)
+    return out
+
+
+def build_visual_bloom_gallery_model(
+    *,
+    journal_dir: Path | None = None,
+    collection: str | None = None,
+    search: str | None = None,
+    mode: str | None = None,
+    preset: str | None = None,
+    lens: str | None = None,
+    audio: str | None = None,
+    label: str | None = None,
+    session_id: str | None = None,
+) -> dict[str, object]:
     sessions = list_visual_bloom_sessions(journal_dir=journal_dir, collection=collection)
+    sessions = filter_visual_bloom_gallery_entries(
+        sessions,
+        search=search,
+        mode=mode,
+        preset=preset,
+        lens=lens,
+        audio=audio,
+        label=label,
+        session_id=session_id,
+    )
     compares = list_visual_bloom_compare_sets(journal_dir=journal_dir)
     return {
         "generated_at": _iso_now(),
         "collection": collection or "",
+        "search": search or "",
+        "filters": {
+            "mode": mode or "",
+            "preset": preset or "",
+            "lens": lens or "",
+            "audio": audio or "",
+            "label": label or "",
+            "session_id": session_id or "",
+        },
         "session_count": len(sessions),
         "compare_set_count": len(compares),
         "sessions": sessions,
@@ -627,13 +737,53 @@ def render_visual_bloom_gallery_html(model: dict[str, object]) -> str:
     return html
 
 
-def launch_visual_bloom_gallery(*, output_path: Path | None = None, open_browser: bool = True, journal_dir: Path | None = None, collection: str | None = None) -> Path:
-    model = build_visual_bloom_gallery_model(journal_dir=journal_dir, collection=collection)
+def launch_visual_bloom_gallery(
+    *,
+    output_path: Path | None = None,
+    open_browser: bool = True,
+    journal_dir: Path | None = None,
+    collection: str | None = None,
+    search: str | None = None,
+    mode: str | None = None,
+    preset: str | None = None,
+    lens: str | None = None,
+    audio: str | None = None,
+    label: str | None = None,
+    session_id: str | None = None,
+) -> Path:
+    model = build_visual_bloom_gallery_model(
+        journal_dir=journal_dir,
+        collection=collection,
+        search=search,
+        mode=mode,
+        preset=preset,
+        lens=lens,
+        audio=audio,
+        label=label,
+        session_id=session_id,
+    )
     html = render_visual_bloom_gallery_html(model)
     target = output_path or Path("/tmp/phios_bloom_gallery.html")
     written = write_bloom_file(html, target)
     _open_browser(written, open_browser)
     return written
+
+
+def compute_visual_bloom_bundle_hashes(base: Path, files: dict[str, str]) -> dict[str, str]:
+    hashes: dict[str, str] = {}
+    for key, rel in files.items():
+        path = base / rel
+        if not path.exists() or not path.is_file():
+            hashes[key] = ""
+            continue
+        digest = hashlib.sha256(path.read_bytes()).hexdigest()
+        hashes[key] = digest
+    return hashes
+
+
+def write_visual_bloom_bundle_manifest(*, manifest_path: Path, payload: dict[str, object]) -> Path:
+    manifest_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    return manifest_path
 
 
 def export_visual_bloom_bundle(
@@ -642,6 +792,8 @@ def export_visual_bloom_bundle(
     right_ref: str,
     output_path: Path,
     journal_dir: Path | None = None,
+    with_integrity: bool = False,
+    bundle_label: str | None = None,
 ) -> Path:
     base = output_path
     if base.suffix.lower() == ".json":
@@ -650,28 +802,36 @@ def export_visual_bloom_bundle(
     report_path = base / "compare_report.json"
     html_path = base / "compare.html"
     manifest_path = base / "bundle_manifest.json"
+    preview_meta_path = base / "preview_image_metadata.json"
 
     launch_compare_bloom(left_ref, right_ref, output_path=html_path, open_browser=False, journal_dir=journal_dir, export_report_path=report_path)
 
-    manifest = {
+    preview_meta = augment_visual_bloom_preview_metadata(source="bundle")
+    preview_meta_path.write_text(json.dumps(preview_meta, indent=2), encoding="utf-8")
+
+    included_files = {
+        "report": str(report_path.name),
+        "html": str(html_path.name),
+        "preview_metadata": str(preview_meta_path.name),
+    }
+    file_hashes = compute_visual_bloom_bundle_hashes(base, included_files)
+
+    manifest: dict[str, object] = {
         "bundle_version": "v1",
-        "exported_at": _iso_now(),
+        "manifest_version": "v2",
         "bundle_type": "visual_bloom_compare",
+        "bundle_label": bundle_label or "",
+        "bundle_created_at": _iso_now(),
         "source_refs": {"left": left_ref, "right": right_ref},
-        "included_files": {
-            "report": str(report_path.name),
-            "html": str(html_path.name),
-            "preview_metadata": "preview_image_metadata.json",
-        },
+        "included_files": included_files,
         "report_schema_version": "v1",
-        "compatibility_notes": "Older archives without newer fields are supported with safe defaults.",
+        "compatibility_version": "phase8+",
+        "compatibility_notes": "Older archives/bundles without new fields remain supported with safe defaults.",
+        "integrity_mode": "sha256" if with_integrity else "none",
+        "file_hashes_sha256": file_hashes if with_integrity else {},
+        "preview": preview_meta,
     }
-    preview_meta = {
-        "image": "",
-        "note": "Placeholder for future preview image export",
-    }
-    manifest_path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
-    (base / "preview_image_metadata.json").write_text(json.dumps(preview_meta, indent=2), encoding="utf-8")
+    write_visual_bloom_bundle_manifest(manifest_path=manifest_path, payload=manifest)
     return base
 
 

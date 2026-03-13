@@ -206,6 +206,8 @@ phi view --mode sonic --compare 20260101T120000Z_123456:0 20260102T073000Z_65432
 phi view --browse-compares
 phi view --mode sonic --load-compare morning_pair
 phi view --mode sonic --compare 20260101T120000Z_123456:0 20260102T073000Z_654321:0 --export-bundle ./exports/morning_pair_bundle
+phi view --gallery --search morning --filter-mode live --filter-preset stable
+phi view --mode sonic --compare 20260101T120000Z_123456:0 20260102T073000Z_654321:0 --export-bundle ./exports/morning_pair_bundle --with-integrity --bundle-label morning_pair
 ```
 
 Snapshot mode generates a one-shot artifact from current PhiKernel state.
@@ -221,11 +223,13 @@ Phase 7 adds replay state stepping (`--state-idx`, `--next-state`, `--prev-state
 
 Phase 8 adds a static archive gallery (`--gallery`), saved compare sets (`--save-compare`, `--browse-compares`, `--load-compare`), and portable observatory compare bundles (`--export-bundle`).
 
+Phase 9 adds richer gallery filtering/search (`--search`, `--filter-mode`, `--filter-preset`, `--filter-lens`, `--filter-audio`, `--filter-label`, `--filter-session`), preview metadata on sessions/bundles, and optional bundle integrity metadata (`--with-integrity`, `--bundle-label`).
+
 Audio-reactive coupling is optional and off by default (`--audio-reactive`). If local audio support is unavailable, PhiOS continues gracefully without audio modulation.
 
 State references support optional indexing syntax (`<session_id>:<state_idx>`). If omitted, replay/compare defaults to the latest state. Older archives without new metadata fields still replay/compare with safe defaults.
 
-Compare bundle manifest (`bundle_manifest.json`) uses a stable schema with: `bundle_version`, `exported_at`, `bundle_type`, `source_refs`, `included_files`, `report_schema_version`, and `compatibility_notes`.
+Compare bundle manifest (`bundle_manifest.json`) uses a stable schema with: `bundle_version`, `manifest_version`, `bundle_type`, `bundle_label`, `bundle_created_at`, `source_refs`, `included_files`, `integrity_mode`, optional `file_hashes_sha256`, `report_schema_version`, `compatibility_version`, and `compatibility_notes`.
 
 The adapter reads PhiKernel field_state, maps it into visual parameters, renders a local HTML artifact,
 and opens it in the default browser.

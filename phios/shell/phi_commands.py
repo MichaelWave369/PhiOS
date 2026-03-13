@@ -653,7 +653,7 @@ def cmd_bio(args: list[str], session: object | None = None) -> str:
 
 
 def cmd_view(args: list[str], session: object | None = None) -> str:
-    usage = "Usage: view --mode sonic [--live] [--refresh-seconds <float>] [--duration <seconds>] [--output <path.html>] [--journal] [--journal-dir <path>] [--label <name>] [--collection <name>] [--replay <session_id|session.json[:idx]>] [--state-idx <n>] [--next-state|--prev-state] [--compare <left_ref> <right_ref>] [--export-report <path.json>] [--export-bundle <dir>] [--save-compare <name>] [--load-compare <name>] [--browse-compares] [--gallery] [--browse] [--browse-collections] [--browse-collection <name>] [--preset <name>] [--lens <name>] [--audio-reactive]"
+    usage = "Usage: view --mode sonic [--live] [--refresh-seconds <float>] [--duration <seconds>] [--output <path.html>] [--journal] [--journal-dir <path>] [--label <name>] [--collection <name>] [--replay <session_id|session.json[:idx]>] [--state-idx <n>] [--next-state|--prev-state] [--compare <left_ref> <right_ref>] [--export-report <path.json>] [--export-bundle <dir>] [--with-integrity] [--bundle-label <name>] [--save-compare <name>] [--load-compare <name>] [--browse-compares] [--gallery] [--search <text>] [--filter-mode <mode>] [--filter-preset <name>] [--filter-lens <name>] [--filter-audio <on|off>] [--filter-label <text>] [--filter-session <id>] [--browse] [--browse-collections] [--browse-collection <name>] [--preset <name>] [--lens <name>] [--audio-reactive]"
     if "--help" in args or "-h" in args:
         return usage
 
@@ -670,7 +670,19 @@ def cmd_view(args: list[str], session: object | None = None) -> str:
 
     if "--gallery" in args:
         gallery_collection = _extract_flag_value(args, "--collection")
-        generated = launch_visual_bloom_gallery(output_path=Path(_extract_flag_value(args, "--output")).expanduser() if _extract_flag_value(args, "--output") else None, open_browser=True, journal_dir=journal_dir, collection=gallery_collection)
+        generated = launch_visual_bloom_gallery(
+            output_path=Path(_extract_flag_value(args, "--output")).expanduser() if _extract_flag_value(args, "--output") else None,
+            open_browser=True,
+            journal_dir=journal_dir,
+            collection=gallery_collection,
+            search=_extract_flag_value(args, "--search"),
+            mode=_extract_flag_value(args, "--filter-mode"),
+            preset=_extract_flag_value(args, "--filter-preset"),
+            lens=_extract_flag_value(args, "--filter-lens"),
+            audio=_extract_flag_value(args, "--filter-audio"),
+            label=_extract_flag_value(args, "--filter-label"),
+            session_id=_extract_flag_value(args, "--filter-session"),
+        )
         return f"Visual bloom gallery generated: {generated}"
 
     browse_collection = _extract_flag_value(args, "--browse-collection")
@@ -699,6 +711,8 @@ def cmd_view(args: list[str], session: object | None = None) -> str:
     export_report_path = Path(export_report).expanduser() if export_report else None
     export_bundle = _extract_flag_value(args, "--export-bundle")
     export_bundle_path = Path(export_bundle).expanduser() if export_bundle else None
+    with_integrity = "--with-integrity" in args
+    bundle_label = _extract_flag_value(args, "--bundle-label")
     save_compare = _extract_flag_value(args, "--save-compare")
 
     raw_state_idx = _extract_flag_value(args, "--state-idx")
@@ -752,13 +766,33 @@ def cmd_view(args: list[str], session: object | None = None) -> str:
     try:
         if compare_refs is not None:
             if export_bundle_path is not None:
-                bundle = export_visual_bloom_bundle(left_ref=compare_refs[0], right_ref=compare_refs[1], output_path=export_bundle_path, journal_dir=journal_dir)
+                bundle = export_visual_bloom_bundle(
+                    left_ref=compare_refs[0],
+                    right_ref=compare_refs[1],
+                    output_path=export_bundle_path,
+                    journal_dir=journal_dir,
+                    with_integrity=with_integrity,
+                    bundle_label=bundle_label,
+                )
                 if save_compare:
-                    save_visual_bloom_compare_set(name=save_compare, left_ref=compare_refs[0], right_ref=compare_refs[1], journal_dir=journal_dir, report_path=(bundle / "compare_report.json"))
+                    save_visual_bloom_compare_set(
+                        name=save_compare,
+                        left_ref=compare_refs[0],
+                        right_ref=compare_refs[1],
+                        journal_dir=journal_dir,
+                        report_path=(bundle / "compare_report.json"),
+                        bundle_path=bundle,
+                    )
                 return f"Visual bloom bundle exported: {bundle}"
             generated = launch_compare_bloom(compare_refs[0], compare_refs[1], output_path=output_path, open_browser=True, journal_dir=journal_dir, export_report_path=export_report_path)
             if save_compare:
-                save_visual_bloom_compare_set(name=save_compare, left_ref=compare_refs[0], right_ref=compare_refs[1], journal_dir=journal_dir, report_path=export_report_path)
+                save_visual_bloom_compare_set(
+                    name=save_compare,
+                    left_ref=compare_refs[0],
+                    right_ref=compare_refs[1],
+                    journal_dir=journal_dir,
+                    report_path=export_report_path,
+                )
             return f"Compare visual bloom generated: {generated}"
         if replay:
             generated = launch_replay_bloom(replay, output_path=output_path, open_browser=True, journal_dir=journal_dir, preset=preset, lens=lens, audio_reactive=audio_reactive, state_idx=state_idx, step=step)

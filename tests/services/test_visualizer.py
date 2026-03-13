@@ -15,10 +15,13 @@ from phios.services.visualizer import (
     step_visual_bloom_state,
     select_visual_bloom_state,
     export_visual_bloom_compare_report,
+    compute_visual_bloom_bundle_hashes,
     compute_visual_bloom_diff_metrics,
     append_or_update_journal_state,
+    augment_visual_bloom_preview_metadata,
     build_visual_bloom_gallery_model,
     create_visual_bloom_session,
+    filter_visual_bloom_gallery_entries,
     export_visual_bloom_bundle,
     launch_bloom,
     launch_compare_bloom,
@@ -31,6 +34,7 @@ from phios.services.visualizer import (
     load_visual_bloom_session,
     map_kernel_to_visual_params,
     render_bloom_html,
+    write_visual_bloom_bundle_manifest,
     render_visual_bloom_gallery_html,
     resolve_visual_bloom_state_ref,
     save_visual_bloom_compare_set,
@@ -480,3 +484,56 @@ def test_export_visual_bloom_bundle_writes_manifest(tmp_path):
     assert manifest["bundle_version"] == "v1"
     assert (bundle_dir / "compare_report.json").exists()
     assert (bundle_dir / "compare.html").exists()
+
+
+def test_augment_preview_metadata_contract():
+    meta = augment_visual_bloom_preview_metadata(source="session")
+    assert meta["preview_type"] == "metadata-placeholder"
+    assert meta["preview_status"] == "placeholder"
+    assert "preview_generated_at" in meta
+
+
+def test_filter_visual_bloom_gallery_entries():
+    entries = [
+        {"session_id": "a", "label": "morning", "collection": "x", "mode": "live", "preset": "stable", "lens": "ritual", "audio": "on", "created_at": "", "updated_at": "", "latest_timestamp": ""},
+        {"session_id": "b", "label": "night", "collection": "y", "mode": "snapshot", "preset": "bloom", "lens": "diagnostic", "audio": "off", "created_at": "", "updated_at": "", "latest_timestamp": ""},
+    ]
+    out = filter_visual_bloom_gallery_entries(entries, search="morning", mode="live", preset="stable", audio="on")
+    assert len(out) == 1 and out[0]["session_id"] == "a"
+
+
+def test_bundle_hashes_and_manifest_writer(tmp_path):
+    base = tmp_path / "bundle"
+    base.mkdir()
+    (base / "x.json").write_text('{"ok":true}', encoding="utf-8")
+    hashes = compute_visual_bloom_bundle_hashes(base, {"x": "x.json", "missing": "none.txt"})
+    assert len(hashes["x"]) == 64
+    assert hashes["missing"] == ""
+    manifest_path = write_visual_bloom_bundle_manifest(manifest_path=base / "bundle_manifest.json", payload={"manifest_version": "v2"})
+    assert manifest_path.exists()
+    assert '"manifest_version": "v2"' in manifest_path.read_text(encoding="utf-8")
+
+
+def test_session_listing_includes_preview_metadata(tmp_path):
+    session_dir = create_visual_bloom_session(
+        mode="snapshot",
+        params={"seed": 1, "driftBand": "Watch", "coherenceC": 0.8, "goldenInf": 1.618, "frequency": 7.83, "particleCount": 1500, "noiseScale": 0.005},
+        refresh_seconds=None,
+        output_path=tmp_path / "s.html",
+        journal_dir=tmp_path,
+    )
+    append_or_update_journal_state(session_dir=session_dir, params={"timestamp": 1, "stateTimestamp": "a", "seed": 1, "coherenceC": 0.8, "goldenInf": 1.618, "frequency": 7.83, "particleCount": 1500, "noiseScale": 0.005, "mode": "snapshot", "driftBand": "Watch"}, output_html=tmp_path / "s.html")
+    sessions = list_visual_bloom_sessions(journal_dir=tmp_path)
+    assert sessions and isinstance(sessions[0].get("preview"), dict)
+
+
+def test_export_bundle_with_integrity_and_label(tmp_path):
+    left = create_visual_bloom_session(mode="snapshot", params={"seed": 1, "driftBand": "Watch", "coherenceC": 0.8, "goldenInf": 1.618, "frequency": 7.83, "particleCount": 1500, "noiseScale": 0.005}, refresh_seconds=None, output_path=tmp_path / "l.html", journal_dir=tmp_path)
+    right = create_visual_bloom_session(mode="snapshot", params={"seed": 2, "driftBand": "Stable", "coherenceC": 0.9, "goldenInf": 1.618, "frequency": 8.5, "particleCount": 1000, "noiseScale": 0.003}, refresh_seconds=None, output_path=tmp_path / "r.html", journal_dir=tmp_path)
+    append_or_update_journal_state(session_dir=left, params={"timestamp": 1, "stateTimestamp": "a", "seed": 1, "coherenceC": 0.8, "goldenInf": 1.618, "frequency": 7.83, "particleCount": 1500, "noiseScale": 0.005, "mode": "snapshot", "driftBand": "Watch"}, output_html=tmp_path / "l.html")
+    append_or_update_journal_state(session_dir=right, params={"timestamp": 2, "stateTimestamp": "b", "seed": 2, "coherenceC": 0.9, "goldenInf": 1.618, "frequency": 8.5, "particleCount": 1000, "noiseScale": 0.003, "mode": "snapshot", "driftBand": "Stable"}, output_html=tmp_path / "r.html")
+    bundle = export_visual_bloom_bundle(left_ref=left.name, right_ref=right.name, output_path=tmp_path / "bundle_int", journal_dir=tmp_path, with_integrity=True, bundle_label="demo")
+    manifest = json.loads((bundle / "bundle_manifest.json").read_text(encoding="utf-8"))
+    assert manifest["integrity_mode"] == "sha256"
+    assert manifest["bundle_label"] == "demo"
+    assert "report" in manifest["file_hashes_sha256"]
