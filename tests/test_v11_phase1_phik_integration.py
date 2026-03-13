@@ -1026,3 +1026,39 @@ def test_view_mode_phase20_field_library_flags(monkeypatch, tmp_path):
     out, code = route_command(["view", "--export-field-library", "fl1", str(outdir), "--field-library-filter-type", "dossier", "--field-library-filter-target", "theoretical"])
     assert code == 0
     assert "field library exported" in out
+
+
+def test_view_mode_phase21_shelf_and_catalog_flags(monkeypatch, tmp_path):
+    spath = tmp_path / "shelf.json"
+    monkeypatch.setattr("phios.shell.phi_commands.create_visual_bloom_shelf", lambda **_kwargs: spath)
+    out, code = route_command(["view", "--create-shelf", "s1", "--shelf-title", "S"])
+    assert code == 0
+    assert "shelf created" in out
+
+    monkeypatch.setattr("phios.shell.phi_commands.list_visual_bloom_shelves", lambda **_kwargs: [{"shelf_name": "s1"}])
+    out, code = route_command(["view", "--browse-shelves"])
+    assert code == 0
+    assert '"count": 1' in out
+
+    monkeypatch.setattr("phios.shell.phi_commands.load_visual_bloom_shelf", lambda *_args, **_kwargs: {"shelf_name": "s1", "items": []})
+    out, code = route_command(["view", "--load-shelf", "s1"])
+    assert code == 0
+    assert "shelf_name" in out
+
+    monkeypatch.setattr("phios.shell.phi_commands.add_visual_bloom_shelf_item", lambda **_kwargs: spath)
+    out, code = route_command(["view", "--add-to-shelf", "s1", "--section-type", "dossier", "--artifact-ref", "/tmp/d"])
+    assert code == 0
+    assert "shelf updated" in out
+
+    outdir = tmp_path / "shelf"
+    monkeypatch.setattr("phios.shell.phi_commands.export_visual_bloom_shelf", lambda **_kwargs: outdir)
+    out, code = route_command(["view", "--export-shelf", "s1", str(outdir), "--shelf-filter-type", "dossier"])
+    assert code == 0
+    assert "shelf exported" in out
+
+    monkeypatch.setattr("phios.shell.phi_commands.build_visual_bloom_catalog_model", lambda **_kwargs: {"generated_at": "", "entry_count": 1, "entries": [{"artifact_type": "dossier", "title": "D"}]})
+    monkeypatch.setattr("phios.shell.phi_commands.filter_visual_bloom_catalog_entries", lambda **_kwargs: [{"artifact_type": "dossier", "title": "D"}])
+    monkeypatch.setattr("phios.shell.phi_commands.group_visual_bloom_catalog_entries", lambda **_kwargs: {"dossier": [{"title": "D"}]})
+    out, code = route_command(["view", "--browse-catalog", "--catalog-group-by", "artifact_type"])
+    assert code == 0
+    assert "grouped_entries" in out
