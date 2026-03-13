@@ -1,6 +1,6 @@
 """Local Visual Bloom adapter for PhiOS.
 
-This module reads live PhiKernel field_state and renders a snapshot HTML bloom.
+This module reads live PhiKernel field_state and renders a local bloom HTML.
 It is a local-first adapter layer: PhiKernel remains runtime source-of-truth.
 """
 
@@ -73,6 +73,11 @@ def _seed_from_identity(status_data: dict[str, object]) -> int:
     return 369369
 
 
+def poll_kernel_state() -> tuple[dict[str, object], dict[str, object]]:
+    """Fetch current PhiKernel field and status state."""
+    return run_phik_json(["field"]), run_phik_json(["status"])
+
+
 def map_kernel_to_visual_params(field_data: dict[str, object], status_data: dict[str, object]) -> dict[str, object]:
     """Map kernel field_state into stable visual parameter space."""
     coherence = _to_float(field_data.get("C_current", field_data.get("coherence", 0.809)), 0.809)
@@ -108,25 +113,40 @@ def map_kernel_to_visual_params(field_data: dict[str, object], status_data: dict
     }
 
 
-def poll_kernel_state() -> tuple[dict[str, object], dict[str, object]]:
-    """Fetch current PhiKernel field and status state."""
-    return run_phik_json(["field"]), run_phik_json(["status"])
+def _with_live_contract(params: dict[str, object], *, mode: str, refresh_seconds: float | None = None) -> dict[str, object]:
+    """Build the stable JSON contract shared with the browser live poller."""
+    payload: dict[str, object] = {
+        **params,
+        "mode": mode,
+        "timestamp": int(time.time()),
+    }
+    if refresh_seconds is not None:
+        payload["refreshSeconds"] = round(max(refresh_seconds, 0.2), 2)
+    return payload
 
 
-def render_bloom_html(params: dict[str, object], *, live_mode: bool = False, refresh_seconds: float = 2.0) -> str:
-    """Render bloom HTML by injecting params into template placeholder."""
+def render_bloom_html(
+    params: dict[str, object],
+    *,
+    live_mode: bool = False,
+    refresh_seconds: float = 2.0,
+    params_path: str = "",
+) -> str:
+    """Render bloom HTML by injecting params and live placeholders into template."""
     try:
         template = resources.files("phios.templates").joinpath("sonic_emergence.html").read_text(encoding="utf-8")
     except Exception as exc:
         raise VisualizerError(f"Unable to load visual template: {exc}") from exc
 
-    marker = "__PHIOS_PARAMS_JSON__"
-    if marker not in template:
-        raise VisualizerError("Template marker __PHIOS_PARAMS_JSON__ not found.")
-    html = template.replace(marker, json.dumps(params, separators=(",", ":")))
+    initial_marker = "__PHIOS_INITIAL_PARAMS_JSON__"
+    if initial_marker not in template:
+        raise VisualizerError("Template marker __PHIOS_INITIAL_PARAMS_JSON__ not found.")
+    html = template.replace(initial_marker, json.dumps(params, separators=(",", ":")))
+
     html = html.replace("__PHIOS_LIVE_ENABLED__", "true" if live_mode else "false")
     html = html.replace("__PHIOS_REFRESH_MS__", str(int(max(refresh_seconds, 0.2) * 1000)))
     html = html.replace("__PHIOS_REFRESH_SECONDS__", f"{max(refresh_seconds, 0.2):.2f}")
+    html = html.replace("__PHIOS_PARAMS_PATH__", params_path)
     return html
 
 
@@ -144,10 +164,18 @@ def write_bloom_file(html: str, output_path: Path) -> Path:
         return path
 
 
+def write_live_params_json(params: dict[str, object], output_path: Path) -> Path:
+    """Persist current mapped params for live-loop updates consumed by browser polling."""
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(json.dumps(params, indent=2), encoding="utf-8")
+    return output_path
+
+
 def launch_bloom(output_path: Path | None = None, open_browser: bool = True) -> Path:
     """Generate a snapshot bloom from live kernel field_state and optionally open it."""
     field_data, status_data = poll_kernel_state()
-    params = map_kernel_to_visual_params(field_data, status_data)
+    mapped = map_kernel_to_visual_params(field_data, status_data)
+    params = _with_live_contract(mapped, mode="snapshot")
     html = render_bloom_html(params, live_mode=False)
 
     target = output_path or Path("/tmp/phios_bloom.html")
@@ -161,13 +189,6 @@ def launch_bloom(output_path: Path | None = None, open_browser: bool = True) -> 
     return written
 
 
-def write_live_params_json(params: dict[str, object], output_path: Path) -> Path:
-    """Persist current mapped params for live-loop observability and debug."""
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(json.dumps(params, indent=2), encoding="utf-8")
-    return output_path
-
-
 def launch_live_bloom(
     output_path: Path | None = None,
     *,
@@ -175,33 +196,42 @@ def launch_live_bloom(
     duration: float | None = None,
     open_browser: bool = True,
 ) -> Path:
-    """Generate and periodically refresh a local bloom artifact until interrupted."""
+    """Generate bloom HTML once and keep updating live JSON params until interrupted."""
     interval = max(refresh_seconds, 0.2)
     target = output_path or Path("/tmp/phios_bloom.html")
     params_path = target.with_suffix(".params.json")
-    start = time.monotonic()
-    opened = False
+    params_uri = params_path.name
 
+    written = target
     try:
+        field_data, status_data = poll_kernel_state()
+        first_mapped = map_kernel_to_visual_params(field_data, status_data)
+        first_params = _with_live_contract(first_mapped, mode="live", refresh_seconds=interval)
+
+        write_live_params_json(first_params, params_path)
+        html = render_bloom_html(
+            first_params,
+            live_mode=True,
+            refresh_seconds=interval,
+            params_path=params_uri,
+        )
+        written = write_bloom_file(html, target)
+
+        if open_browser:
+            try:
+                webbrowser.open(written.as_uri())
+            except Exception as exc:  # pragma: no cover
+                print(f"Warning: bloom written but browser launch failed: {exc}")
+
+        start = time.monotonic()
         while True:
-            field_data, status_data = poll_kernel_state()
-            params = map_kernel_to_visual_params(field_data, status_data)
-            params["mode"] = "live"
-            params["refreshSeconds"] = round(interval, 2)
-
-            html = render_bloom_html(params, live_mode=True, refresh_seconds=interval)
-            written = write_bloom_file(html, target)
-            write_live_params_json(params, params_path)
-
-            if open_browser and not opened:
-                try:
-                    webbrowser.open(written.as_uri())
-                except Exception as exc:  # pragma: no cover
-                    print(f"Warning: bloom written but browser launch failed: {exc}")
-                opened = True
-
             if duration is not None and (time.monotonic() - start) >= duration:
                 return written
+
             time.sleep(interval)
+            field_data, status_data = poll_kernel_state()
+            mapped = map_kernel_to_visual_params(field_data, status_data)
+            params = _with_live_contract(mapped, mode="live", refresh_seconds=interval)
+            write_live_params_json(params, params_path)
     except KeyboardInterrupt:
-        return target
+        return written

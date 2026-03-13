@@ -178,7 +178,7 @@ phi view --mode sonic --live --refresh-seconds 1.5 --duration 120
 ```
 
 Snapshot mode generates a one-shot artifact from current PhiKernel state.
-Live mode rewrites the local artifact on an interval and the browser auto-refreshes to reflect new state.
+Live mode writes the HTML artifact once, then updates a local JSON params file on interval while the page performs in-place polling (no full page reload).
 
 The adapter reads PhiKernel field_state, maps it into visual parameters, renders a local HTML artifact,
 and opens it in the default browser.

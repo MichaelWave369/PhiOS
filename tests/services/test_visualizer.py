@@ -12,6 +12,7 @@ from phios.services.visualizer import (
     render_bloom_html,
     run_phik_json,
     write_bloom_file,
+    write_live_params_json,
 )
 
 
@@ -115,11 +116,20 @@ def test_run_phik_json_never_uses_shell_true(monkeypatch):
 
 
 def test_render_bloom_html_live_mode_replaces_markers():
-    html = render_bloom_html({"seed": 3}, live_mode=True, refresh_seconds=1.5)
+    html = render_bloom_html({"seed": 3}, live_mode=True, refresh_seconds=1.5, params_path="live.params.json")
     assert "__PHIOS_LIVE_ENABLED__" not in html
     assert "__PHIOS_REFRESH_MS__" not in html
     assert "__PHIOS_REFRESH_SECONDS__" not in html
+    assert "__PHIOS_PARAMS_PATH__" not in html
     assert "const liveMode = true;" in html
+    assert 'const paramsPath = "live.params.json";' in html
+
+
+def test_write_live_params_json_writes_payload(tmp_path):
+    target = tmp_path / "live.params.json"
+    out = write_live_params_json({"seed": 1, "timestamp": 123}, target)
+    assert out == target
+    assert '"timestamp": 123' in target.read_text(encoding="utf-8")
 
 
 def test_launch_live_bloom_updates_and_stops_at_duration(monkeypatch, tmp_path):
@@ -137,7 +147,8 @@ def test_launch_live_bloom_updates_and_stops_at_duration(monkeypatch, tmp_path):
     out = launch_live_bloom(output_path=target, refresh_seconds=0.01, duration=0.02, open_browser=False)
     assert out.exists()
     assert (tmp_path / "live.params.json").exists()
-    assert calls["n"] >= 1
+    assert calls["n"] >= 2
+    assert "__PHIOS_PARAMS_PATH__" not in target.read_text(encoding="utf-8")
 
 
 def test_launch_live_bloom_handles_ctrl_c(monkeypatch, tmp_path):

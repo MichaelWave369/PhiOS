@@ -19,23 +19,22 @@
   <body>
     <div id="hud"></div>
     <script>
-      const params = __PHIOS_PARAMS_JSON__;
       const liveMode = __PHIOS_LIVE_ENABLED__;
       const refreshMs = __PHIOS_REFRESH_MS__;
       const refreshSecondsLabel = "__PHIOS_REFRESH_SECONDS__";
+      const paramsPath = "__PHIOS_PARAMS_PATH__";
+      const initialParams = __PHIOS_INITIAL_PARAMS_JSON__;
 
+      let params = { ...initialParams };
+      let pollStatus = liveMode ? "live" : "snapshot";
+      let currentSeed = params.seed || 369369;
       const particles = [];
-      const GOLD = params.goldenInf || 1.618;
       const hud = document.getElementById("hud");
+      let GOLD = params.goldenInf || 1.618;
 
-      function setup() {
-        createCanvas(window.innerWidth, window.innerHeight);
-        pixelDensity(1);
-        noiseDetail(4, 0.5);
-        randomSeed(params.seed || 369369);
-        noiseSeed(params.seed || 369369);
-
-        const count = Math.floor(params.particleCount || 1500);
+      function buildParticles(targetCount) {
+        particles.length = 0;
+        const count = Math.max(120, Math.floor(targetCount || 1500));
         for (let i = 0; i < count; i += 1) {
           particles.push({
             x: random(width),
@@ -43,8 +42,64 @@
             life: random(0.3, 1.0),
           });
         }
+      }
+
+      function applyParams(nextParams) {
+        if (!nextParams || typeof nextParams !== "object") {
+          return;
+        }
+
+        const nextSeed = Number.isFinite(Number(nextParams.seed)) ? Number(nextParams.seed) : currentSeed;
+        const prevCount = Math.floor(params.particleCount || 1500);
+        const nextCount = Math.floor(nextParams.particleCount || prevCount);
+
+        params = { ...params, ...nextParams };
+        GOLD = params.goldenInf || 1.618;
+
+        if (nextSeed !== currentSeed) {
+          currentSeed = nextSeed;
+          randomSeed(currentSeed);
+          noiseSeed(currentSeed);
+          buildParticles(nextCount);
+        } else if (Math.abs(nextCount - prevCount) > 80) {
+          buildParticles(nextCount);
+        }
+        renderHud();
+      }
+
+      async function refreshParams() {
+        if (!liveMode || !paramsPath) return;
+        const cacheBust = `${paramsPath}?t=${Date.now()}`;
+        try {
+          const res = await fetch(cacheBust, { cache: "no-store" });
+          if (!res.ok) {
+            pollStatus = `poll error (${res.status})`;
+            renderHud();
+            return;
+          }
+          const data = await res.json();
+          applyParams(data);
+          pollStatus = "live";
+        } catch (_err) {
+          pollStatus = "poll unavailable";
+          renderHud();
+        }
+      }
+
+      function setup() {
+        createCanvas(window.innerWidth, window.innerHeight);
+        pixelDensity(1);
+        noiseDetail(4, 0.5);
+        randomSeed(currentSeed);
+        noiseSeed(currentSeed);
+
+        buildParticles(params.particleCount || 1500);
         renderHud();
         background(6, 8, 13);
+
+        if (liveMode) {
+          setInterval(refreshParams, refreshMs);
+        }
       }
 
       function draw() {
@@ -83,17 +138,13 @@
           `<div class="line"><strong>Φ PhiOS Visual Bloom · Sonic Emergence</strong></div>`,
           `<div class="line">seed: ${params.seed} · coherenceC: ${params.coherenceC} · frequency: ${params.frequency}</div>`,
           `<div class="line">particleCount: ${params.particleCount} · noiseScale: ${params.noiseScale} · driftBand: ${params.driftBand}</div>`,
-          `<div class="line">mode: ${liveMode ? "live" : "snapshot"} · refresh: ${refreshSecondsLabel}s</div>`,
-          `<div class="line">source: ${params.sourceLabel}</div>`,
+          `<div class="line">mode: ${liveMode ? "live" : "snapshot"} · refresh: ${refreshSecondsLabel}s · state: ${pollStatus}</div>`,
+          `<div class="line">source: ${params.sourceLabel || "PhiOS Visual Bloom"}</div>`,
         ].join("");
       }
 
       function windowResized() {
         resizeCanvas(window.innerWidth, window.innerHeight);
-      }
-
-      if (liveMode) {
-        setTimeout(() => window.location.reload(), refreshMs);
       }
     </script>
   </body>
