@@ -1,0 +1,13 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"/><title>PhiOS Thematic Pathway</title>
+<style>body{font-family:system-ui;background:#0b1221;color:#eaf0ff;padding:1rem}.card{border:1px solid #334;background:#121c34;border-radius:10px;padding:.8rem;margin:.6rem 0}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:.6rem}.muted{color:#b6c0e0}pre{white-space:pre-wrap;word-break:break-word;font-size:.85rem}</style>
+</head><body><h1>Comparative Thematic Pathway (Experimental)</h1><div id="app"></div>
+<script>
+const model=__PHIOS_THEMATIC_PATHWAY_MODEL_JSON__;
+const app=document.getElementById('app');
+app.innerHTML=`<div class="card"><h2>Framing</h2><p class="muted">C* theoretical=(1 + sqrt(5))/4=${model.framing.c_star_theoretical}. Bio target=${model.framing.bio_target}; band=[${model.framing.bio_band_low}, ${model.framing.bio_band_high}] (${model.framing.bio_status}). Hunter's C=${model.framing.hunter_c_status}. Thematic pathways are metadata-driven local navigation only.</p></div>
+<div class="card"><h3>Thematic Pathway</h3><pre>${JSON.stringify({name:model.thematic_pathway_name,title:model.title,summary:model.summary,tags:model.tags,filters:model.filters},null,2)}</pre></div>
+<div class="card"><h3>Thematic Pathway Summary</h3><pre>${JSON.stringify(model.thematic_pathway_summary,null,2)}</pre></div>
+<div class="card"><h3>Grouped Nodes</h3><pre>${JSON.stringify(model.grouped_nodes||{},null,2)}</pre></div>
+<div class="grid"><div class="card"><h4>Nodes</h4><pre>${JSON.stringify(model.nodes||[],null,2)}</pre></div><div class="card"><h4>Links</h4><pre>${JSON.stringify(model.links||[],null,2)}</pre></div></div>`;
+</script></body></html>

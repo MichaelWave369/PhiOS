@@ -109,6 +109,51 @@ from phios.services.visualizer import (
     load_visual_bloom_field_library,
     add_visual_bloom_field_library_entry,
     export_visual_bloom_field_library,
+    create_visual_bloom_shelf,
+    list_visual_bloom_shelves,
+    load_visual_bloom_shelf,
+    add_visual_bloom_shelf_item,
+    export_visual_bloom_shelf,
+    build_visual_bloom_catalog_model,
+    filter_visual_bloom_catalog_entries,
+    group_visual_bloom_catalog_entries,
+    render_visual_bloom_catalog_html,
+    create_visual_bloom_reading_room,
+    list_visual_bloom_reading_rooms,
+    load_visual_bloom_reading_room,
+    add_visual_bloom_reading_room_section,
+    export_visual_bloom_reading_room,
+    create_visual_bloom_collection_map,
+    list_visual_bloom_collection_maps,
+    build_visual_bloom_collection_map_model,
+    export_visual_bloom_collection_map,
+    create_visual_bloom_study_hall,
+    list_visual_bloom_study_halls,
+    load_visual_bloom_study_hall,
+    add_visual_bloom_study_hall_module,
+    export_visual_bloom_study_hall,
+    create_visual_bloom_thematic_pathway,
+    list_visual_bloom_thematic_pathways,
+    build_visual_bloom_thematic_pathway_model,
+    export_visual_bloom_thematic_pathway,
+    create_visual_bloom_curriculum,
+    list_visual_bloom_curricula,
+    load_visual_bloom_curriculum,
+    add_visual_bloom_curriculum_unit,
+    export_visual_bloom_curriculum,
+    create_visual_bloom_journey_ensemble,
+    list_visual_bloom_journey_ensembles,
+    build_visual_bloom_journey_ensemble_model,
+    export_visual_bloom_journey_ensemble,
+    create_visual_bloom_syllabus,
+    list_visual_bloom_syllabi,
+    load_visual_bloom_syllabus,
+    add_visual_bloom_syllabus_module,
+    export_visual_bloom_syllabus,
+    create_visual_bloom_atlas_cohort,
+    list_visual_bloom_atlas_cohorts,
+    build_visual_bloom_atlas_cohort_model,
+    export_visual_bloom_atlas_cohort,
     write_bloom_file,
 )
 from phios.core.lt_engine import compute_lt
@@ -700,7 +745,7 @@ def cmd_bio(args: list[str], session: object | None = None) -> str:
 
 
 def cmd_view(args: list[str], session: object | None = None) -> str:
-    usage = "Usage: view --mode sonic [--live] [--refresh-seconds <float>] [--duration <seconds>] [--output <path.html>] [--journal] [--journal-dir <path>] [--label <name>] [--collection <name>] [--replay <session_id|session.json[:idx]>] [--state-idx <n>] [--next-state|--prev-state] [--compare <left_ref> <right_ref>] [--export-report <path.json>] [--export-bundle <dir>] [--with-integrity] [--bundle-label <name>] [--save-compare <name>] [--load-compare <name>] [--browse-compares] [--gallery] [--search <text>] [--filter-mode <mode>] [--filter-preset <name>] [--filter-lens <name>] [--filter-audio <on|off>] [--filter-label <text>] [--filter-session <id>] [--create-narrative <name>] [--narrative-title <text>] [--narrative-summary <text>] [--browse-narratives] [--load-narrative <name>] [--add-to-narrative <name> --session <ref>|--compare <left> <right>|--compare-set <name>] [--link-narrative <name> --link-type <type> --target-ref <ref>] [--entry-title <text>] [--entry-note <text>] [--export-atlas <name> <output-dir>] [--create-constellation <name>] [--constellation-title <text>] [--constellation-summary <text>] [--browse-constellations] [--load-constellation <name>] [--add-to-constellation <name> --narrative <ref>|--session <ref>|--compare-set <name>|--compare <left> <right>] [--export-constellation <name> <output-dir>] [--create-pathway <name>] [--browse-pathways] [--load-pathway <name>] [--add-to-pathway <name> --session <ref>|--compare <left> <right>|--narrative <name>|--atlas <path>|--constellation <name>] [--pathway-title <title>] [--pathway-summary <summary>] [--step-title <title>] [--step-note <note>] [--export-pathway <name> <output-dir>] [--link-pathway-step <pathway> --from-step <id> --to-step <id>] [--branch-label <label>] [--recommend-for <ref>] [--recommend-strategy <name>] [--benchmark-recommendations] [--atlas] [--atlas-target theoretical|bio_band|node] [--atlas-start-ref <ref>] [--atlas-node <idx>] [--atlas-max-l1-radius <int>] [--atlas-heat-mode <mode>] [--atlas-gallery] [--list-sectors] [--sector-family HG|HB] [--export-insight-pack <pathway> <output-dir>] [--insight-pack-title <title>] [--insight-pack-include-atlas] [--insight-pack-heat-mode <mode>] [--branch-replay <pathway>] [--export-route-compare <start-ref> <output-dir>] [--route-compare-title <title>] [--route-compare-heat-mode <mode>] [--route-compare-include-sector-overlays] [--show-strategy-diagnostics <ref>] [--create-storyboard <name>] [--browse-storyboards] [--load-storyboard <name>] [--add-to-storyboard <name>] [--section-type <type>] [--artifact-ref <ref>] [--storyboard-title <title>] [--storyboard-summary <summary>] [--storyboard-tags <comma,separated>] [--storyboard-filter-tags <comma,separated>] [--storyboard-filter-sector <sector>] [--storyboard-filter-type <type>] [--export-storyboard <name> <output-dir>] [--export-longitudinal-summary <output-dir>] [--longitudinal-title <title>] [--longitudinal-filter-tags <comma,separated>] [--longitudinal-filter-sector <sector>] [--longitudinal-filter-target <theoretical|bio_band|node>] [--create-dossier <name>] [--browse-dossiers] [--load-dossier <name>] [--add-to-dossier <name>] [--dossier-title <title>] [--dossier-summary <summary>] [--dossier-tags <comma,separated>] [--dossier-filter-tags <comma,separated>] [--dossier-filter-sector <sector>] [--dossier-filter-type <type>] [--dossier-filter-target <target>] [--export-dossier <name> <output-dir>] [--create-field-library <name>] [--browse-field-libraries] [--load-field-library <name>] [--add-to-field-library <name>] [--field-library-title <title>] [--field-library-summary <summary>] [--field-library-tags <comma,separated>] [--field-library-filter-tags <comma,separated>] [--field-library-filter-sector <sector>] [--field-library-filter-type <type>] [--field-library-filter-target <target>] [--export-field-library <name> <output-dir>] [--dashboard] [--search <query>] [--search-tags <comma,separated>] [--search-type <session|compare|narrative|atlas|constellation|pathway>] [--search-bio <experimental|available|near-target>] [--tags <comma,separated,tags>] [--browse] [--browse-collections] [--browse-collection <name>] [--preset <name>] [--lens <name>] [--audio-reactive]"
+    usage = "Usage: view --mode sonic [--live] [--refresh-seconds <float>] [--duration <seconds>] [--output <path.html>] [--journal] [--journal-dir <path>] [--label <name>] [--collection <name>] [--replay <session_id|session.json[:idx]>] [--state-idx <n>] [--next-state|--prev-state] [--compare <left_ref> <right_ref>] [--export-report <path.json>] [--export-bundle <dir>] [--with-integrity] [--bundle-label <name>] [--save-compare <name>] [--load-compare <name>] [--browse-compares] [--gallery] [--search <text>] [--filter-mode <mode>] [--filter-preset <name>] [--filter-lens <name>] [--filter-audio <on|off>] [--filter-label <text>] [--filter-session <id>] [--create-narrative <name>] [--narrative-title <text>] [--narrative-summary <text>] [--browse-narratives] [--load-narrative <name>] [--add-to-narrative <name> --session <ref>|--compare <left> <right>|--compare-set <name>] [--link-narrative <name> --link-type <type> --target-ref <ref>] [--entry-title <text>] [--entry-note <text>] [--export-atlas <name> <output-dir>] [--create-constellation <name>] [--constellation-title <text>] [--constellation-summary <text>] [--browse-constellations] [--load-constellation <name>] [--add-to-constellation <name> --narrative <ref>|--session <ref>|--compare-set <name>|--compare <left> <right>] [--export-constellation <name> <output-dir>] [--create-pathway <name>] [--browse-pathways] [--load-pathway <name>] [--add-to-pathway <name> --session <ref>|--compare <left> <right>|--narrative <name>|--atlas <path>|--constellation <name>] [--pathway-title <title>] [--pathway-summary <summary>] [--step-title <title>] [--step-note <note>] [--export-pathway <name> <output-dir>] [--link-pathway-step <pathway> --from-step <id> --to-step <id>] [--branch-label <label>] [--recommend-for <ref>] [--recommend-strategy <name>] [--benchmark-recommendations] [--atlas] [--atlas-target theoretical|bio_band|node] [--atlas-start-ref <ref>] [--atlas-node <idx>] [--atlas-max-l1-radius <int>] [--atlas-heat-mode <mode>] [--atlas-gallery] [--list-sectors] [--sector-family HG|HB] [--export-insight-pack <pathway> <output-dir>] [--insight-pack-title <title>] [--insight-pack-include-atlas] [--insight-pack-heat-mode <mode>] [--branch-replay <pathway>] [--export-route-compare <start-ref> <output-dir>] [--route-compare-title <title>] [--route-compare-heat-mode <mode>] [--route-compare-include-sector-overlays] [--show-strategy-diagnostics <ref>] [--create-storyboard <name>] [--browse-storyboards] [--load-storyboard <name>] [--add-to-storyboard <name>] [--section-type <type>] [--artifact-ref <ref>] [--storyboard-title <title>] [--storyboard-summary <summary>] [--storyboard-tags <comma,separated>] [--storyboard-filter-tags <comma,separated>] [--storyboard-filter-sector <sector>] [--storyboard-filter-type <type>] [--export-storyboard <name> <output-dir>] [--export-longitudinal-summary <output-dir>] [--longitudinal-title <title>] [--longitudinal-filter-tags <comma,separated>] [--longitudinal-filter-sector <sector>] [--longitudinal-filter-target <theoretical|bio_band|node>] [--create-dossier <name>] [--browse-dossiers] [--load-dossier <name>] [--add-to-dossier <name>] [--dossier-title <title>] [--dossier-summary <summary>] [--dossier-tags <comma,separated>] [--dossier-filter-tags <comma,separated>] [--dossier-filter-sector <sector>] [--dossier-filter-type <type>] [--dossier-filter-target <target>] [--export-dossier <name> <output-dir>] [--create-field-library <name>] [--browse-field-libraries] [--load-field-library <name>] [--add-to-field-library <name>] [--field-library-title <title>] [--field-library-summary <summary>] [--field-library-tags <comma,separated>] [--field-library-filter-tags <comma,separated>] [--field-library-filter-sector <sector>] [--field-library-filter-type <type>] [--field-library-filter-target <target>] [--export-field-library <name> <output-dir>] [--create-shelf <name>] [--browse-shelves] [--load-shelf <name>] [--add-to-shelf <name>] [--shelf-title <title>] [--shelf-summary <summary>] [--shelf-tags <comma,separated>] [--shelf-filter-tags <comma,separated>] [--shelf-filter-sector <sector>] [--shelf-filter-type <type>] [--export-shelf <name> <output-dir>] [--browse-catalog] [--catalog-filter-tags <comma,separated>] [--catalog-filter-sector <sector>] [--catalog-filter-type <type>] [--catalog-group-by <field>] [--create-reading-room <name>] [--browse-reading-rooms] [--load-reading-room <name>] [--add-to-reading-room <name>] [--reading-room-title <title>] [--reading-room-summary <summary>] [--reading-room-tags <comma,separated>] [--export-reading-room <name> <output-dir>] [--create-collection-map <name>] [--browse-collection-maps] [--load-collection-map <name>] [--collection-map-tags <comma,separated>] [--collection-map-filter-tags <comma,separated>] [--collection-map-filter-sector <sector>] [--collection-map-filter-type <type>] [--collection-map-group-by <field>] [--export-collection-map <name> <output-dir>] [--create-study-hall <name>] [--browse-study-halls] [--load-study-hall <name>] [--add-to-study-hall <name>] [--study-hall-title <title>] [--study-hall-summary <summary>] [--study-hall-tags <comma,separated>] [--export-study-hall <name> <output-dir>] [--create-thematic-pathway <name>] [--browse-thematic-pathways] [--load-thematic-pathway <name>] [--thematic-pathway-tags <comma,separated>] [--thematic-pathway-filter-tags <comma,separated>] [--thematic-pathway-filter-sector <sector>] [--thematic-pathway-filter-type <type>] [--thematic-pathway-group-by <field>] [--export-thematic-pathway <name> <output-dir>] [--create-curriculum <name>] [--browse-curricula] [--load-curriculum <name>] [--add-to-curriculum <name>] [--curriculum-title <title>] [--curriculum-summary <summary>] [--curriculum-tags <comma,separated>] [--export-curriculum <name> <output-dir>] [--create-journey-ensemble <name>] [--browse-journey-ensembles] [--load-journey-ensemble <name>] [--journey-ensemble-tags <comma,separated>] [--journey-ensemble-filter-tags <comma,separated>] [--journey-ensemble-filter-sector <sector>] [--journey-ensemble-filter-type <type>] [--journey-ensemble-group-by <field>] [--export-journey-ensemble <name> <output-dir>] [--create-syllabus <name>] [--browse-syllabi] [--load-syllabus <name>] [--add-to-syllabus <name>] [--syllabus-title <title>] [--syllabus-summary <summary>] [--syllabus-tags <comma,separated>] [--export-syllabus <name> <output-dir>] [--create-atlas-cohort <name>] [--browse-atlas-cohorts] [--load-atlas-cohort <name>] [--atlas-cohort-tags <comma,separated>] [--atlas-cohort-filter-tags <comma,separated>] [--atlas-cohort-filter-sector <sector>] [--atlas-cohort-filter-type <type>] [--atlas-cohort-group-by <field>] [--export-atlas-cohort <name> <output-dir>] [--dashboard] [--search <query>] [--search-tags <comma,separated>] [--search-type <session|compare|narrative|atlas|constellation|pathway>] [--search-bio <experimental|available|near-target>] [--tags <comma,separated,tags>] [--browse] [--browse-collections] [--browse-collection <name>] [--preset <name>] [--lens <name>] [--audio-reactive]"
     if "--help" in args or "-h" in args:
         return usage
 
@@ -863,6 +908,399 @@ def cmd_view(args: list[str], session: object | None = None) -> str:
         except VisualizerError as exc:
             return str(exc)
         return f"Visual bloom field library updated: {out}"
+
+    if "--browse-shelves" in args:
+        rows = list_visual_bloom_shelves(journal_dir=journal_dir)
+        return json.dumps({"shelves": rows, "count": len(rows)}, indent=2)
+
+    create_shelf = _extract_flag_value(args, "--create-shelf")
+    if create_shelf:
+        try:
+            path = create_visual_bloom_shelf(
+                name=create_shelf,
+                journal_dir=journal_dir,
+                title=_extract_flag_value(args, "--shelf-title"),
+                summary=_extract_flag_value(args, "--shelf-summary"),
+                tags=_extract_flag_value(args, "--shelf-tags") or _extract_flag_value(args, "--tags"),
+            )
+        except VisualizerError as exc:
+            return str(exc)
+        return f"Visual bloom shelf created: {path}"
+
+    load_shelf = _extract_flag_value(args, "--load-shelf")
+    if load_shelf:
+        try:
+            doc = load_visual_bloom_shelf(load_shelf, journal_dir=journal_dir)
+        except VisualizerError as exc:
+            return str(exc)
+        return json.dumps(doc, indent=2)
+
+    add_shelf = _extract_flag_value(args, "--add-to-shelf")
+    if add_shelf:
+        try:
+            out = add_visual_bloom_shelf_item(
+                name=add_shelf,
+                item_type=_extract_flag_value(args, "--section-type") or "dossier",
+                artifact_ref=_extract_flag_value(args, "--artifact-ref") or "",
+                journal_dir=journal_dir,
+                title=_extract_flag_value(args, "--entry-title") or _extract_flag_value(args, "--shelf-title"),
+                summary=_extract_flag_value(args, "--shelf-summary"),
+                notes=_extract_flag_value(args, "--entry-note"),
+                tags=_extract_flag_value(args, "--shelf-tags") or _extract_flag_value(args, "--tags"),
+                sector_family=_extract_flag_value(args, "--sector-family"),
+            )
+        except VisualizerError as exc:
+            return str(exc)
+        return f"Visual bloom shelf updated: {out}"
+
+    if "--browse-catalog" in args:
+        try:
+            model = build_visual_bloom_catalog_model(journal_dir=journal_dir)
+            entries_obj = model.get("entries")
+            entries = [e for e in entries_obj if isinstance(e, dict)] if isinstance(entries_obj, list) else []
+            filtered = filter_visual_bloom_catalog_entries(
+                entries=entries,
+                filter_tags=_extract_flag_value(args, "--catalog-filter-tags"),
+                filter_sector=_extract_flag_value(args, "--catalog-filter-sector"),
+                filter_type=_extract_flag_value(args, "--catalog-filter-type"),
+            )
+            group_by = _extract_flag_value(args, "--catalog-group-by") or "artifact_type"
+            groups = group_visual_bloom_catalog_entries(entries=filtered, group_by=group_by)
+            browse_model = {
+                **model,
+                "filters": {
+                    "tags": _extract_flag_value(args, "--catalog-filter-tags") or "",
+                    "sector": _extract_flag_value(args, "--catalog-filter-sector") or "",
+                    "type": _extract_flag_value(args, "--catalog-filter-type") or "",
+                    "group_by": group_by,
+                },
+                "filtered_entries": filtered,
+                "grouped_entries": groups,
+            }
+            out = _extract_flag_value(args, "--output")
+            if out:
+                html = render_visual_bloom_catalog_html(browse_model)
+                target = write_bloom_file(html, Path(out).expanduser())
+                return f"Visual bloom catalog generated: {target}"
+        except (VisualizerError, ValueError) as exc:
+            return str(exc)
+        return json.dumps({
+            "catalog": {
+                "generated_at": model.get("generated_at", ""),
+                "entry_count": model.get("entry_count", 0),
+            },
+            "filters": browse_model.get("filters", {}),
+            "filtered_count": len(filtered),
+            "grouped_entries": groups,
+        }, indent=2)
+
+    if "--browse-reading-rooms" in args:
+        rows = list_visual_bloom_reading_rooms(journal_dir=journal_dir)
+        return json.dumps({"reading_rooms": rows, "count": len(rows)}, indent=2)
+
+    create_room = _extract_flag_value(args, "--create-reading-room")
+    if create_room:
+        try:
+            path = create_visual_bloom_reading_room(
+                name=create_room,
+                journal_dir=journal_dir,
+                title=_extract_flag_value(args, "--reading-room-title"),
+                summary=_extract_flag_value(args, "--reading-room-summary"),
+                tags=_extract_flag_value(args, "--reading-room-tags") or _extract_flag_value(args, "--tags"),
+            )
+        except VisualizerError as exc:
+            return str(exc)
+        return f"Visual bloom reading room created: {path}"
+
+    load_room = _extract_flag_value(args, "--load-reading-room")
+    if load_room:
+        try:
+            room = load_visual_bloom_reading_room(load_room, journal_dir=journal_dir)
+        except VisualizerError as exc:
+            return str(exc)
+        return json.dumps(room, indent=2)
+
+    add_room = _extract_flag_value(args, "--add-to-reading-room")
+    if add_room:
+        try:
+            out = add_visual_bloom_reading_room_section(
+                name=add_room,
+                section_type=_extract_flag_value(args, "--section-type") or "shelf",
+                artifact_ref=_extract_flag_value(args, "--artifact-ref") or "",
+                journal_dir=journal_dir,
+                title=_extract_flag_value(args, "--entry-title") or _extract_flag_value(args, "--reading-room-title"),
+                summary=_extract_flag_value(args, "--reading-room-summary"),
+                notes=_extract_flag_value(args, "--entry-note"),
+                tags=_extract_flag_value(args, "--reading-room-tags") or _extract_flag_value(args, "--tags"),
+                sector_family=_extract_flag_value(args, "--sector-family"),
+            )
+        except VisualizerError as exc:
+            return str(exc)
+        return f"Visual bloom reading room updated: {out}"
+
+    if "--browse-collection-maps" in args:
+        rows = list_visual_bloom_collection_maps(journal_dir=journal_dir)
+        return json.dumps({"collection_maps": rows, "count": len(rows)}, indent=2)
+
+    create_map = _extract_flag_value(args, "--create-collection-map")
+    if create_map:
+        try:
+            path = create_visual_bloom_collection_map(
+                name=create_map,
+                journal_dir=journal_dir,
+                title=_extract_flag_value(args, "--entry-title"),
+                summary=_extract_flag_value(args, "--entry-note"),
+                tags=_extract_flag_value(args, "--collection-map-tags") or _extract_flag_value(args, "--tags"),
+            )
+        except VisualizerError as exc:
+            return str(exc)
+        return f"Visual bloom collection map created: {path}"
+
+    load_map = _extract_flag_value(args, "--load-collection-map")
+    if load_map:
+        try:
+            model = build_visual_bloom_collection_map_model(
+                name=load_map,
+                journal_dir=journal_dir,
+                filter_tags=_extract_flag_value(args, "--collection-map-filter-tags"),
+                filter_sector=_extract_flag_value(args, "--collection-map-filter-sector"),
+                filter_type=_extract_flag_value(args, "--collection-map-filter-type"),
+                group_by=_extract_flag_value(args, "--collection-map-group-by") or "artifact_type",
+            )
+        except VisualizerError as exc:
+            return str(exc)
+        return json.dumps(model, indent=2)
+
+    if "--browse-study-halls" in args:
+        rows = list_visual_bloom_study_halls(journal_dir=journal_dir)
+        return json.dumps({"study_halls": rows, "count": len(rows)}, indent=2)
+
+    create_study_hall = _extract_flag_value(args, "--create-study-hall")
+    if create_study_hall:
+        try:
+            path = create_visual_bloom_study_hall(
+                name=create_study_hall,
+                journal_dir=journal_dir,
+                title=_extract_flag_value(args, "--study-hall-title"),
+                summary=_extract_flag_value(args, "--study-hall-summary"),
+                tags=_extract_flag_value(args, "--study-hall-tags") or _extract_flag_value(args, "--tags"),
+            )
+        except VisualizerError as exc:
+            return str(exc)
+        return f"Visual bloom study hall created: {path}"
+
+    load_study_hall = _extract_flag_value(args, "--load-study-hall")
+    if load_study_hall:
+        try:
+            hall = load_visual_bloom_study_hall(load_study_hall, journal_dir=journal_dir)
+        except VisualizerError as exc:
+            return str(exc)
+        return json.dumps(hall, indent=2)
+
+    add_study_hall = _extract_flag_value(args, "--add-to-study-hall")
+    if add_study_hall:
+        try:
+            out = add_visual_bloom_study_hall_module(
+                name=add_study_hall,
+                module_type=_extract_flag_value(args, "--section-type") or "reading_room",
+                artifact_ref=_extract_flag_value(args, "--artifact-ref") or "",
+                journal_dir=journal_dir,
+                title=_extract_flag_value(args, "--entry-title") or _extract_flag_value(args, "--study-hall-title"),
+                summary=_extract_flag_value(args, "--study-hall-summary"),
+                notes=_extract_flag_value(args, "--entry-note"),
+                tags=_extract_flag_value(args, "--study-hall-tags") or _extract_flag_value(args, "--tags"),
+                sector_family=_extract_flag_value(args, "--sector-family"),
+            )
+        except VisualizerError as exc:
+            return str(exc)
+        return f"Visual bloom study hall updated: {out}"
+
+    if "--browse-thematic-pathways" in args:
+        rows = list_visual_bloom_thematic_pathways(journal_dir=journal_dir)
+        return json.dumps({"thematic_pathways": rows, "count": len(rows)}, indent=2)
+
+    create_thematic = _extract_flag_value(args, "--create-thematic-pathway")
+    if create_thematic:
+        try:
+            path = create_visual_bloom_thematic_pathway(
+                name=create_thematic,
+                journal_dir=journal_dir,
+                title=_extract_flag_value(args, "--entry-title"),
+                summary=_extract_flag_value(args, "--entry-note"),
+                tags=_extract_flag_value(args, "--thematic-pathway-tags") or _extract_flag_value(args, "--tags"),
+            )
+        except VisualizerError as exc:
+            return str(exc)
+        return f"Visual bloom thematic pathway created: {path}"
+
+    load_thematic = _extract_flag_value(args, "--load-thematic-pathway")
+    if load_thematic:
+        try:
+            model = build_visual_bloom_thematic_pathway_model(
+                name=load_thematic,
+                journal_dir=journal_dir,
+                filter_tags=_extract_flag_value(args, "--thematic-pathway-filter-tags"),
+                filter_sector=_extract_flag_value(args, "--thematic-pathway-filter-sector"),
+                filter_type=_extract_flag_value(args, "--thematic-pathway-filter-type"),
+                group_by=_extract_flag_value(args, "--thematic-pathway-group-by") or "artifact_type",
+            )
+        except VisualizerError as exc:
+            return str(exc)
+        return json.dumps(model, indent=2)
+
+    if "--browse-curricula" in args:
+        rows = list_visual_bloom_curricula(journal_dir=journal_dir)
+        return json.dumps({"curricula": rows, "count": len(rows)}, indent=2)
+
+    create_curriculum = _extract_flag_value(args, "--create-curriculum")
+    if create_curriculum:
+        try:
+            path = create_visual_bloom_curriculum(
+                name=create_curriculum,
+                journal_dir=journal_dir,
+                title=_extract_flag_value(args, "--curriculum-title"),
+                summary=_extract_flag_value(args, "--curriculum-summary"),
+                tags=_extract_flag_value(args, "--curriculum-tags") or _extract_flag_value(args, "--tags"),
+            )
+        except VisualizerError as exc:
+            return str(exc)
+        return f"Visual bloom curriculum created: {path}"
+
+    load_curriculum = _extract_flag_value(args, "--load-curriculum")
+    if load_curriculum:
+        try:
+            model = load_visual_bloom_curriculum(load_curriculum, journal_dir=journal_dir)
+        except VisualizerError as exc:
+            return str(exc)
+        return json.dumps(model, indent=2)
+
+    add_curriculum = _extract_flag_value(args, "--add-to-curriculum")
+    if add_curriculum:
+        try:
+            out = add_visual_bloom_curriculum_unit(
+                name=add_curriculum,
+                unit_type=_extract_flag_value(args, "--section-type") or "study_hall",
+                artifact_ref=_extract_flag_value(args, "--artifact-ref") or "",
+                journal_dir=journal_dir,
+                title=_extract_flag_value(args, "--entry-title") or _extract_flag_value(args, "--curriculum-title"),
+                summary=_extract_flag_value(args, "--curriculum-summary"),
+                notes=_extract_flag_value(args, "--entry-note"),
+                tags=_extract_flag_value(args, "--curriculum-tags") or _extract_flag_value(args, "--tags"),
+                sector_family=_extract_flag_value(args, "--sector-family"),
+            )
+        except VisualizerError as exc:
+            return str(exc)
+        return f"Visual bloom curriculum updated: {out}"
+
+    if "--browse-journey-ensembles" in args:
+        rows = list_visual_bloom_journey_ensembles(journal_dir=journal_dir)
+        return json.dumps({"journey_ensembles": rows, "count": len(rows)}, indent=2)
+
+    create_ensemble = _extract_flag_value(args, "--create-journey-ensemble")
+    if create_ensemble:
+        try:
+            path = create_visual_bloom_journey_ensemble(
+                name=create_ensemble,
+                journal_dir=journal_dir,
+                title=_extract_flag_value(args, "--entry-title"),
+                summary=_extract_flag_value(args, "--entry-note"),
+                tags=_extract_flag_value(args, "--journey-ensemble-tags") or _extract_flag_value(args, "--tags"),
+            )
+        except VisualizerError as exc:
+            return str(exc)
+        return f"Visual bloom journey ensemble created: {path}"
+
+    load_ensemble = _extract_flag_value(args, "--load-journey-ensemble")
+    if load_ensemble:
+        try:
+            model = build_visual_bloom_journey_ensemble_model(
+                name=load_ensemble,
+                journal_dir=journal_dir,
+                filter_tags=_extract_flag_value(args, "--journey-ensemble-filter-tags"),
+                filter_sector=_extract_flag_value(args, "--journey-ensemble-filter-sector"),
+                filter_type=_extract_flag_value(args, "--journey-ensemble-filter-type"),
+                group_by=_extract_flag_value(args, "--journey-ensemble-group-by") or "artifact_type",
+            )
+        except VisualizerError as exc:
+            return str(exc)
+        return json.dumps(model, indent=2)
+
+    if "--browse-syllabi" in args:
+        rows = list_visual_bloom_syllabi(journal_dir=journal_dir)
+        return json.dumps({"syllabi": rows, "count": len(rows)}, indent=2)
+
+    create_syllabus = _extract_flag_value(args, "--create-syllabus")
+    if create_syllabus:
+        try:
+            path = create_visual_bloom_syllabus(
+                name=create_syllabus,
+                journal_dir=journal_dir,
+                title=_extract_flag_value(args, "--syllabus-title"),
+                summary=_extract_flag_value(args, "--syllabus-summary"),
+                tags=_extract_flag_value(args, "--syllabus-tags") or _extract_flag_value(args, "--tags"),
+            )
+        except VisualizerError as exc:
+            return str(exc)
+        return f"Visual bloom syllabus created: {path}"
+
+    load_syllabus = _extract_flag_value(args, "--load-syllabus")
+    if load_syllabus:
+        try:
+            model = load_visual_bloom_syllabus(load_syllabus, journal_dir=journal_dir)
+        except VisualizerError as exc:
+            return str(exc)
+        return json.dumps(model, indent=2)
+
+    add_syllabus = _extract_flag_value(args, "--add-to-syllabus")
+    if add_syllabus:
+        try:
+            out = add_visual_bloom_syllabus_module(
+                name=add_syllabus,
+                module_type=_extract_flag_value(args, "--section-type") or "curriculum",
+                artifact_ref=_extract_flag_value(args, "--artifact-ref") or "",
+                journal_dir=journal_dir,
+                title=_extract_flag_value(args, "--entry-title") or _extract_flag_value(args, "--syllabus-title"),
+                summary=_extract_flag_value(args, "--syllabus-summary"),
+                notes=_extract_flag_value(args, "--entry-note"),
+                tags=_extract_flag_value(args, "--syllabus-tags") or _extract_flag_value(args, "--tags"),
+                sector_family=_extract_flag_value(args, "--sector-family"),
+            )
+        except VisualizerError as exc:
+            return str(exc)
+        return f"Visual bloom syllabus updated: {out}"
+
+    if "--browse-atlas-cohorts" in args:
+        rows = list_visual_bloom_atlas_cohorts(journal_dir=journal_dir)
+        return json.dumps({"atlas_cohorts": rows, "count": len(rows)}, indent=2)
+
+    create_cohort = _extract_flag_value(args, "--create-atlas-cohort")
+    if create_cohort:
+        try:
+            path = create_visual_bloom_atlas_cohort(
+                name=create_cohort,
+                journal_dir=journal_dir,
+                title=_extract_flag_value(args, "--entry-title"),
+                summary=_extract_flag_value(args, "--entry-note"),
+                tags=_extract_flag_value(args, "--atlas-cohort-tags") or _extract_flag_value(args, "--tags"),
+            )
+        except VisualizerError as exc:
+            return str(exc)
+        return f"Visual bloom atlas cohort created: {path}"
+
+    load_cohort = _extract_flag_value(args, "--load-atlas-cohort")
+    if load_cohort:
+        try:
+            model = build_visual_bloom_atlas_cohort_model(
+                name=load_cohort,
+                journal_dir=journal_dir,
+                filter_tags=_extract_flag_value(args, "--atlas-cohort-filter-tags"),
+                filter_sector=_extract_flag_value(args, "--atlas-cohort-filter-sector"),
+                filter_type=_extract_flag_value(args, "--atlas-cohort-filter-type"),
+                group_by=_extract_flag_value(args, "--atlas-cohort-group-by") or "artifact_type",
+            )
+        except VisualizerError as exc:
+            return str(exc)
+        return json.dumps(model, indent=2)
 
     search_query = _extract_flag_value(args, "--search")
     if search_query and "--gallery" not in args:
@@ -1239,6 +1677,199 @@ def cmd_view(args: list[str], session: object | None = None) -> str:
         except (VisualizerError, ValueError) as exc:
             return str(exc)
         return f"Visual bloom field library exported: {out}"
+
+    if "--export-shelf" in args:
+        idx = args.index("--export-shelf")
+        if idx + 2 >= len(args):
+            return usage
+        sname = args[idx + 1]
+        outdir = Path(args[idx + 2]).expanduser()
+        try:
+            out = export_visual_bloom_shelf(
+                name=sname,
+                output_dir=outdir,
+                journal_dir=journal_dir,
+                title=_extract_flag_value(args, "--shelf-title"),
+                filter_tags=_extract_flag_value(args, "--shelf-filter-tags"),
+                filter_sector=_extract_flag_value(args, "--shelf-filter-sector"),
+                filter_type=_extract_flag_value(args, "--shelf-filter-type"),
+                with_integrity="--with-integrity" in args,
+            )
+        except (VisualizerError, ValueError) as exc:
+            return str(exc)
+        return f"Visual bloom shelf exported: {out}"
+
+    if "--export-reading-room" in args:
+        idx = args.index("--export-reading-room")
+        if idx + 2 >= len(args):
+            return usage
+        rname = args[idx + 1]
+        outdir = Path(args[idx + 2]).expanduser()
+        try:
+            out = export_visual_bloom_reading_room(
+                name=rname,
+                output_dir=outdir,
+                journal_dir=journal_dir,
+                title=_extract_flag_value(args, "--reading-room-title"),
+                filter_tags=_extract_flag_value(args, "--shelf-filter-tags"),
+                filter_sector=_extract_flag_value(args, "--shelf-filter-sector"),
+                filter_type=_extract_flag_value(args, "--shelf-filter-type"),
+                with_integrity="--with-integrity" in args,
+            )
+        except (VisualizerError, ValueError) as exc:
+            return str(exc)
+        return f"Visual bloom reading room exported: {out}"
+
+    if "--export-collection-map" in args:
+        idx = args.index("--export-collection-map")
+        if idx + 2 >= len(args):
+            return usage
+        mname = args[idx + 1]
+        outdir = Path(args[idx + 2]).expanduser()
+        try:
+            out = export_visual_bloom_collection_map(
+                name=mname,
+                output_dir=outdir,
+                journal_dir=journal_dir,
+                title=_extract_flag_value(args, "--entry-title"),
+                filter_tags=_extract_flag_value(args, "--collection-map-filter-tags"),
+                filter_sector=_extract_flag_value(args, "--collection-map-filter-sector"),
+                filter_type=_extract_flag_value(args, "--collection-map-filter-type"),
+                group_by=_extract_flag_value(args, "--collection-map-group-by") or "artifact_type",
+                with_integrity="--with-integrity" in args,
+            )
+        except (VisualizerError, ValueError) as exc:
+            return str(exc)
+        return f"Visual bloom collection map exported: {out}"
+
+    if "--export-study-hall" in args:
+        idx = args.index("--export-study-hall")
+        if idx + 2 >= len(args):
+            return usage
+        hname = args[idx + 1]
+        outdir = Path(args[idx + 2]).expanduser()
+        try:
+            out = export_visual_bloom_study_hall(
+                name=hname,
+                output_dir=outdir,
+                journal_dir=journal_dir,
+                title=_extract_flag_value(args, "--study-hall-title"),
+                filter_tags=_extract_flag_value(args, "--shelf-filter-tags"),
+                filter_sector=_extract_flag_value(args, "--shelf-filter-sector"),
+                filter_type=_extract_flag_value(args, "--shelf-filter-type"),
+                with_integrity="--with-integrity" in args,
+            )
+        except (VisualizerError, ValueError) as exc:
+            return str(exc)
+        return f"Visual bloom study hall exported: {out}"
+
+    if "--export-thematic-pathway" in args:
+        idx = args.index("--export-thematic-pathway")
+        if idx + 2 >= len(args):
+            return usage
+        tname = args[idx + 1]
+        outdir = Path(args[idx + 2]).expanduser()
+        try:
+            out = export_visual_bloom_thematic_pathway(
+                name=tname,
+                output_dir=outdir,
+                journal_dir=journal_dir,
+                title=_extract_flag_value(args, "--entry-title"),
+                filter_tags=_extract_flag_value(args, "--thematic-pathway-filter-tags"),
+                filter_sector=_extract_flag_value(args, "--thematic-pathway-filter-sector"),
+                filter_type=_extract_flag_value(args, "--thematic-pathway-filter-type"),
+                group_by=_extract_flag_value(args, "--thematic-pathway-group-by") or "artifact_type",
+                with_integrity="--with-integrity" in args,
+            )
+        except (VisualizerError, ValueError) as exc:
+            return str(exc)
+        return f"Visual bloom thematic pathway exported: {out}"
+
+    if "--export-curriculum" in args:
+        idx = args.index("--export-curriculum")
+        if idx + 2 >= len(args):
+            return usage
+        cname = args[idx + 1]
+        outdir = Path(args[idx + 2]).expanduser()
+        try:
+            out = export_visual_bloom_curriculum(
+                name=cname,
+                output_dir=outdir,
+                journal_dir=journal_dir,
+                title=_extract_flag_value(args, "--curriculum-title"),
+                filter_tags=_extract_flag_value(args, "--shelf-filter-tags"),
+                filter_sector=_extract_flag_value(args, "--shelf-filter-sector"),
+                filter_type=_extract_flag_value(args, "--shelf-filter-type"),
+                with_integrity="--with-integrity" in args,
+            )
+        except (VisualizerError, ValueError) as exc:
+            return str(exc)
+        return f"Visual bloom curriculum exported: {out}"
+
+    if "--export-journey-ensemble" in args:
+        idx = args.index("--export-journey-ensemble")
+        if idx + 2 >= len(args):
+            return usage
+        jname = args[idx + 1]
+        outdir = Path(args[idx + 2]).expanduser()
+        try:
+            out = export_visual_bloom_journey_ensemble(
+                name=jname,
+                output_dir=outdir,
+                journal_dir=journal_dir,
+                title=_extract_flag_value(args, "--entry-title"),
+                filter_tags=_extract_flag_value(args, "--journey-ensemble-filter-tags"),
+                filter_sector=_extract_flag_value(args, "--journey-ensemble-filter-sector"),
+                filter_type=_extract_flag_value(args, "--journey-ensemble-filter-type"),
+                group_by=_extract_flag_value(args, "--journey-ensemble-group-by") or "artifact_type",
+                with_integrity="--with-integrity" in args,
+            )
+        except (VisualizerError, ValueError) as exc:
+            return str(exc)
+        return f"Visual bloom journey ensemble exported: {out}"
+
+    if "--export-syllabus" in args:
+        idx = args.index("--export-syllabus")
+        if idx + 2 >= len(args):
+            return usage
+        sname = args[idx + 1]
+        outdir = Path(args[idx + 2]).expanduser()
+        try:
+            out = export_visual_bloom_syllabus(
+                name=sname,
+                output_dir=outdir,
+                journal_dir=journal_dir,
+                title=_extract_flag_value(args, "--syllabus-title"),
+                filter_tags=_extract_flag_value(args, "--shelf-filter-tags"),
+                filter_sector=_extract_flag_value(args, "--shelf-filter-sector"),
+                filter_type=_extract_flag_value(args, "--shelf-filter-type"),
+                with_integrity="--with-integrity" in args,
+            )
+        except (VisualizerError, ValueError) as exc:
+            return str(exc)
+        return f"Visual bloom syllabus exported: {out}"
+
+    if "--export-atlas-cohort" in args:
+        idx = args.index("--export-atlas-cohort")
+        if idx + 2 >= len(args):
+            return usage
+        cname = args[idx + 1]
+        outdir = Path(args[idx + 2]).expanduser()
+        try:
+            out = export_visual_bloom_atlas_cohort(
+                name=cname,
+                output_dir=outdir,
+                journal_dir=journal_dir,
+                title=_extract_flag_value(args, "--entry-title"),
+                filter_tags=_extract_flag_value(args, "--atlas-cohort-filter-tags"),
+                filter_sector=_extract_flag_value(args, "--atlas-cohort-filter-sector"),
+                filter_type=_extract_flag_value(args, "--atlas-cohort-filter-type"),
+                group_by=_extract_flag_value(args, "--atlas-cohort-group-by") or "artifact_type",
+                with_integrity="--with-integrity" in args,
+            )
+        except (VisualizerError, ValueError) as exc:
+            return str(exc)
+        return f"Visual bloom atlas cohort exported: {out}"
 
     if "--dashboard" in args:
         generated = launch_visual_bloom_dashboard(
