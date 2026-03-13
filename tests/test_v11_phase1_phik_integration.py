@@ -556,3 +556,17 @@ def test_session_layer_still_passes_without_bio_entries(monkeypatch, tmp_path):
     assert code == 0
     data = json.loads(out)
     assert data["session_state"] == "steady"
+
+
+def test_view_mode_sonic_generates_snapshot(monkeypatch, tmp_path):
+    target = tmp_path / "bloom.html"
+    monkeypatch.setattr("phios.shell.phi_commands.launch_bloom", lambda **_kwargs: target)
+    out, code = route_command(["view", "--mode", "sonic", "--output", str(target)])
+    assert code == 0
+    assert "Visual bloom generated" in out
+
+
+def test_view_mode_rejects_unknown_mode():
+    out, code = route_command(["view", "--mode", "unknown"])
+    assert code == 0
+    assert out.startswith("Usage: view")

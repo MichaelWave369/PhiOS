@@ -48,6 +48,7 @@ from phios.core.bioeffector_layer import (
     list_bioeffectors,
     summarize_bioeffectors,
 )
+from phios.services.visualizer import VisualizerError, launch_bloom
 from phios.core.lt_engine import compute_lt
 from phios.core.sovereignty import SovereignSnapshot, export_snapshot, verify_snapshot
 from phios.core.tbrc_bridge import TBRCBridge, tbrc_connected
@@ -241,6 +242,7 @@ def cmd_help(_: list[str], session: object | None = None) -> str:
             "  bio add ... [--json]         Add a bioeffector tracking entry",
             "  bio show [--json]            Show bioeffector summary",
             "  bio export <path>            Export bioeffector layer",
+            "  view --mode sonic            Render visual bloom snapshot",
             "  status [--json]               Show PhiKernel-backed operator status",
             "  ask <prompt> [--json]         Ask PhiKernel coach",
             "  coherence [live|--json]       Show PhiKernel coherence field",
@@ -633,6 +635,23 @@ def cmd_bio(args: list[str], session: object | None = None) -> str:
         return f"✓ Bioeffector bundle written: {out}"
 
     return "Usage: bio <list|add|show|export> ..."
+
+
+def cmd_view(args: list[str], session: object | None = None) -> str:
+    if "--help" in args or "-h" in args:
+        return "Usage: view --mode sonic [--output <path.html>]"
+
+    mode = _extract_flag_value(args, "--mode")
+    if mode != "sonic":
+        return "Usage: view --mode sonic [--output <path.html>]"
+
+    out = _extract_flag_value(args, "--output")
+    output_path = Path(out).expanduser() if out else None
+    try:
+        generated = launch_bloom(output_path=output_path, open_browser=True)
+    except VisualizerError as exc:
+        raise RuntimeError(f"Visualizer unavailable: {exc}") from exc
+    return f"Visual bloom generated: {generated}"
 
 def cmd_version(_: list[str], session: object | None = None) -> str:
     return "\n".join(
@@ -1286,6 +1305,7 @@ COMMANDS: dict[str, CommandHandler] = {
     "mind": cmd_mind,
     "session": cmd_session,
     "bio": cmd_bio,
+    "view": cmd_view,
     "status": cmd_status,
     "ask": cmd_ask,
     "coherence": cmd_coherence,

@@ -89,6 +89,7 @@ phi ask "How should I begin?"
 - `phi bio add --name <name> --compound <compound> --source <source> [--dose <dose>] [--unit <unit>] [--timing <timing>] [--notes <notes>] [--json]`
 - `phi bio show [--json]`
 - `phi bio export <path.json>`
+- `phi view --mode sonic`
 - `phi status [--json]`
 - `phi coherence [--json]`
 - `phi coherence live`
@@ -162,6 +163,19 @@ phi bio list
 phi bio show
 phi bio export ./phi_bio_snapshot.json
 ```
+
+
+## Visual Bloom Adapter
+
+PhiOS can render a local visual bloom snapshot from live PhiKernel telemetry.
+This is an operator-facing visual lens and composition layer, not a second runtime engine.
+
+```bash
+phi view --mode sonic
+```
+
+The adapter reads PhiKernel telemetry, maps it into visual parameters, renders a local HTML artifact,
+and opens it in the default browser.
 
 ## Security posture
 
