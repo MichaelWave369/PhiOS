@@ -18,6 +18,11 @@ from phios.services.visualizer import (
     compute_visual_bloom_bundle_hashes,
     compute_visual_bloom_diff_metrics,
     append_or_update_journal_state,
+    add_visual_bloom_narrative_entry,
+    create_visual_bloom_narrative,
+    export_visual_bloom_atlas,
+    list_visual_bloom_narratives,
+    load_visual_bloom_narrative,
     augment_visual_bloom_preview_metadata,
     build_visual_bloom_gallery_model,
     create_visual_bloom_session,
@@ -537,3 +542,37 @@ def test_export_bundle_with_integrity_and_label(tmp_path):
     assert manifest["integrity_mode"] == "sha256"
     assert manifest["bundle_label"] == "demo"
     assert "report" in manifest["file_hashes_sha256"]
+
+
+def test_narrative_create_list_load(tmp_path):
+    path = create_visual_bloom_narrative(name="morning atlas", journal_dir=tmp_path, title="Morning", summary="Focus")
+    assert path.exists()
+    listed = list_visual_bloom_narratives(journal_dir=tmp_path)
+    assert listed and listed[0]["narrative_name"] == "morning-atlas"
+    doc = load_visual_bloom_narrative("morning atlas", journal_dir=tmp_path)
+    assert doc["title"] == "Morning"
+
+
+def test_narrative_add_session_and_compare_entries_and_export_atlas(tmp_path):
+    left = create_visual_bloom_session(mode="snapshot", params={"seed": 1, "driftBand": "Watch", "coherenceC": 0.8, "goldenInf": 1.618, "frequency": 7.83, "particleCount": 1500, "noiseScale": 0.005}, refresh_seconds=None, output_path=tmp_path / "l.html", journal_dir=tmp_path)
+    right = create_visual_bloom_session(mode="snapshot", params={"seed": 2, "driftBand": "Stable", "coherenceC": 0.9, "goldenInf": 1.618, "frequency": 8.5, "particleCount": 1000, "noiseScale": 0.003}, refresh_seconds=None, output_path=tmp_path / "r.html", journal_dir=tmp_path)
+    append_or_update_journal_state(session_dir=left, params={"timestamp": 1, "stateTimestamp": "a", "seed": 1, "coherenceC": 0.8, "goldenInf": 1.618, "frequency": 7.83, "particleCount": 1500, "noiseScale": 0.005, "mode": "snapshot", "driftBand": "Watch"}, output_html=tmp_path / "l.html")
+    append_or_update_journal_state(session_dir=right, params={"timestamp": 2, "stateTimestamp": "b", "seed": 2, "coherenceC": 0.9, "goldenInf": 1.618, "frequency": 8.5, "particleCount": 1000, "noiseScale": 0.003, "mode": "snapshot", "driftBand": "Stable"}, output_html=tmp_path / "r.html")
+
+    create_visual_bloom_narrative(name="story", journal_dir=tmp_path)
+    add_visual_bloom_narrative_entry(name="story", journal_dir=tmp_path, session_ref=f"{left.name}:0", entry_note="opening")
+    add_visual_bloom_narrative_entry(name="story", journal_dir=tmp_path, compare_left=f"{left.name}:0", compare_right=f"{right.name}:0", entry_note="delta")
+
+    out = export_visual_bloom_atlas(name="story", output_dir=tmp_path / "atlas", journal_dir=tmp_path, with_integrity=True)
+    assert (out / "atlas_manifest.json").exists()
+    assert (out / "atlas_index.html").exists()
+    manifest = json.loads((out / "atlas_manifest.json").read_text(encoding="utf-8"))
+    assert manifest["integrity_mode"] == "sha256"
+    assert manifest["entry_count"] == 2
+
+
+def test_narrative_bad_ref_handling(tmp_path):
+    create_visual_bloom_narrative(name="bad", journal_dir=tmp_path)
+    add_visual_bloom_narrative_entry(name="bad", journal_dir=tmp_path, session_ref="missing")
+    with pytest.raises(VisualizerError, match="Replay session file not found"):
+        export_visual_bloom_atlas(name="bad", output_dir=tmp_path / "atlas_bad", journal_dir=tmp_path)

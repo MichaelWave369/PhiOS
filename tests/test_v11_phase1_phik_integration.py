@@ -739,3 +739,37 @@ def test_view_mode_compare_export_bundle_with_integrity(monkeypatch, tmp_path):
     ])
     assert code == 0
     assert "bundle exported" in out
+
+
+def test_view_mode_create_browse_load_narrative(monkeypatch, tmp_path):
+    npath = tmp_path / "n.json"
+    monkeypatch.setattr("phios.shell.phi_commands.create_visual_bloom_narrative", lambda **_kwargs: npath)
+    out, code = route_command(["view", "--create-narrative", "story", "--narrative-title", "Story", "--narrative-summary", "Summary"])
+    assert code == 0
+    assert "narrative created" in out
+
+    monkeypatch.setattr("phios.shell.phi_commands.list_visual_bloom_narratives", lambda **_kwargs: [{"narrative_name": "story"}])
+    out, code = route_command(["view", "--browse-narratives"])
+    assert code == 0
+    assert "story" in out
+
+    monkeypatch.setattr("phios.shell.phi_commands.load_visual_bloom_narrative", lambda *_args, **_kwargs: {"narrative_name": "story", "entries": []})
+    out, code = route_command(["view", "--load-narrative", "story"])
+    assert code == 0
+    assert "narrative_name" in out
+
+
+def test_view_mode_add_to_narrative(monkeypatch, tmp_path):
+    updated = tmp_path / "u.json"
+    monkeypatch.setattr("phios.shell.phi_commands.add_visual_bloom_narrative_entry", lambda **_kwargs: updated)
+    out, code = route_command(["view", "--add-to-narrative", "story", "--session", "s1:0", "--entry-note", "hello"])
+    assert code == 0
+    assert "narrative updated" in out
+
+
+def test_view_mode_export_atlas(monkeypatch, tmp_path):
+    atlas = tmp_path / "atlas"
+    monkeypatch.setattr("phios.shell.phi_commands.export_visual_bloom_atlas", lambda **_kwargs: atlas)
+    out, code = route_command(["view", "--export-atlas", "story", str(atlas), "--with-integrity"])
+    assert code == 0
+    assert "atlas exported" in out

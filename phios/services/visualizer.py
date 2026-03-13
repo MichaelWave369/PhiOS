@@ -835,6 +835,277 @@ def export_visual_bloom_bundle(
     return base
 
 
+def _narratives_root(journal_dir: Path | None = None) -> Path:
+    return _journal_root(journal_dir) / "narratives"
+
+
+def create_visual_bloom_narrative(
+    *,
+    name: str,
+    journal_dir: Path | None = None,
+    title: str | None = None,
+    summary: str | None = None,
+    collection: str | None = None,
+) -> Path:
+    safe_name = _sanitize_collection(name)
+    root = _narratives_root(journal_dir)
+    root.mkdir(parents=True, exist_ok=True)
+    path = root / f"{safe_name}.json"
+    now = _iso_now()
+    if path.exists():
+        raise VisualizerError(f"Narrative already exists: {safe_name}")
+    doc: dict[str, object] = {
+        "narrative_name": safe_name,
+        "created_at": now,
+        "updated_at": now,
+        "title": title or "",
+        "summary": summary or "",
+        "collection": collection or "",
+        "entries": [],
+        "artifact_paths": {},
+    }
+    path.write_text(json.dumps(doc, indent=2), encoding='utf-8')
+    return path
+
+
+def load_visual_bloom_narrative(name: str, *, journal_dir: Path | None = None) -> dict[str, object]:
+    safe_name = _sanitize_collection(name)
+    path = _narratives_root(journal_dir) / f"{safe_name}.json"
+    if not path.exists():
+        raise VisualizerError(f"Narrative not found: {safe_name}")
+    try:
+        doc = json.loads(path.read_text(encoding='utf-8'))
+    except json.JSONDecodeError as exc:
+        raise VisualizerError(f"Narrative JSON is invalid: {exc.msg}") from exc
+    if not isinstance(doc, dict):
+        raise VisualizerError("Narrative document must be an object")
+    entries = doc.get('entries')
+    if not isinstance(entries, list):
+        doc['entries'] = []
+    return doc
+
+
+def list_visual_bloom_narratives(*, journal_dir: Path | None = None) -> list[dict[str, object]]:
+    root = _narratives_root(journal_dir)
+    if not root.exists():
+        return []
+    out: list[dict[str, object]] = []
+    for pth in root.glob('*.json'):
+        try:
+            doc = json.loads(pth.read_text(encoding='utf-8'))
+        except Exception:
+            continue
+        if not isinstance(doc, dict):
+            continue
+        entries = doc.get('entries')
+        count = len(entries) if isinstance(entries, list) else 0
+        out.append({
+            'narrative_name': doc.get('narrative_name', pth.stem),
+            'created_at': doc.get('created_at', ''),
+            'updated_at': doc.get('updated_at', ''),
+            'title': doc.get('title', ''),
+            'summary': doc.get('summary', ''),
+            'collection': doc.get('collection', ''),
+            'entry_count': count,
+        })
+    out.sort(key=lambda i: str(i.get('created_at', '')), reverse=True)
+    return out
+
+
+def add_visual_bloom_narrative_entry(
+    *,
+    name: str,
+    journal_dir: Path | None = None,
+    session_ref: str | None = None,
+    compare_left: str | None = None,
+    compare_right: str | None = None,
+    compare_set: str | None = None,
+    entry_title: str | None = None,
+    entry_note: str | None = None,
+) -> Path:
+    doc = load_visual_bloom_narrative(name, journal_dir=journal_dir)
+    safe_name = _sanitize_collection(name)
+    path = _narratives_root(journal_dir) / f"{safe_name}.json"
+
+    kind = ''
+    ref: dict[str, object] = {}
+    if session_ref:
+        kind = 'session'
+        ref = {'session_ref': session_ref}
+    elif compare_set:
+        kind = 'compare_set'
+        ref = {'compare_set': _sanitize_collection(compare_set)}
+    elif compare_left and compare_right:
+        kind = 'compare'
+        ref = {'left_ref': compare_left, 'right_ref': compare_right}
+    else:
+        raise VisualizerError('Narrative entry requires --session, --compare <left> <right>, or --compare-set')
+
+    entries = doc.get('entries')
+    if not isinstance(entries, list):
+        entries = []
+    entry = {
+        'entry_id': f"e{len(entries):03d}",
+        'entry_type': kind,
+        'title': entry_title or '',
+        'note': entry_note or '',
+        'created_at': _iso_now(),
+        **ref,
+    }
+    entries.append(entry)
+    doc['entries'] = entries
+    doc['updated_at'] = _iso_now()
+    path.write_text(json.dumps(doc, indent=2), encoding='utf-8')
+    return path
+
+
+def resolve_visual_bloom_narrative_entry(
+    entry: dict[str, object],
+    *,
+    journal_dir: Path | None = None,
+) -> dict[str, object]:
+    kind = str(entry.get('entry_type', ''))
+    if kind == 'session':
+        session_ref = str(entry.get('session_ref', ''))
+        if not session_ref:
+            raise VisualizerError('Narrative session entry missing session_ref')
+        state = load_visual_bloom_state(session_ref, journal_dir=journal_dir)
+        return {'entry_type': 'session', 'state': state}
+    if kind == 'compare_set':
+        set_name = str(entry.get('compare_set', ''))
+        data = load_visual_bloom_compare_set(set_name, journal_dir=journal_dir)
+        left_ref = str(data.get('left_ref', ''))
+        right_ref = str(data.get('right_ref', ''))
+        if not left_ref or not right_ref:
+            raise VisualizerError(f"Compare set '{set_name}' is missing refs")
+        return {'entry_type': 'compare', 'left_ref': left_ref, 'right_ref': right_ref, 'compare_set': set_name}
+    if kind == 'compare':
+        left_ref = str(entry.get('left_ref', ''))
+        right_ref = str(entry.get('right_ref', ''))
+        if not left_ref or not right_ref:
+            raise VisualizerError('Narrative compare entry missing refs')
+        return {'entry_type': 'compare', 'left_ref': left_ref, 'right_ref': right_ref}
+    raise VisualizerError(f"Unsupported narrative entry type: {kind}")
+
+
+def render_visual_bloom_atlas_html(model: dict[str, object]) -> str:
+    try:
+        template = resources.files('phios.templates').joinpath('sonic_atlas.html').read_text(encoding='utf-8')
+    except Exception as exc:
+        raise VisualizerError(f"Unable to load atlas template: {exc}") from exc
+    return template.replace('__PHIOS_ATLAS_MODEL_JSON__', json.dumps(model, separators=(',', ':')))
+
+
+def export_visual_bloom_atlas(
+    *,
+    name: str,
+    output_dir: Path,
+    journal_dir: Path | None = None,
+    with_integrity: bool = False,
+) -> Path:
+    narrative = load_visual_bloom_narrative(name, journal_dir=journal_dir)
+    atlas_dir = output_dir.expanduser()
+    atlas_dir.mkdir(parents=True, exist_ok=True)
+    entries_dir = atlas_dir / 'entries'
+    entries_dir.mkdir(parents=True, exist_ok=True)
+
+    raw_entries = narrative.get('entries')
+    entries = raw_entries if isinstance(raw_entries, list) else []
+    atlas_entries: list[dict[str, object]] = []
+
+    for idx, item in enumerate(entries):
+        if not isinstance(item, dict):
+            continue
+        resolved = resolve_visual_bloom_narrative_entry(item, journal_dir=journal_dir)
+        entry_json = entries_dir / f'entry_{idx:03d}.json'
+        entry_html = entries_dir / f'entry_{idx:03d}.html'
+        entry_meta: dict[str, object] = {
+            'index': idx,
+            'entry': item,
+            'resolved': {},
+            'artifact_paths': {'json': str(entry_json.name), 'html': str(entry_html.name)},
+        }
+
+        if resolved.get('entry_type') == 'session':
+            state_obj = resolved.get('state')
+            state = dict(state_obj) if isinstance(state_obj, dict) else {}
+            state['mode'] = 'replay'
+            html = render_bloom_html(state, live_mode=False)
+            write_bloom_file(html, entry_html)
+            entry_meta['resolved'] = {'entry_type': 'session', 'session_ref': item.get('session_ref', ''), 'stateTimestamp': state.get('stateTimestamp', '')}
+        else:
+            left_ref = str(resolved.get('left_ref', ''))
+            right_ref = str(resolved.get('right_ref', ''))
+            left_session, left_state, _ = resolve_visual_bloom_state_ref(left_ref, journal_dir=journal_dir)
+            right_session, right_state, _ = resolve_visual_bloom_state_ref(right_ref, journal_dir=journal_dir)
+            left_params = _with_live_contract(dict(left_state), mode='compare-left', session_id=str(left_session.get('session_id', 'left')))
+            right_params = _with_live_contract(dict(right_state), mode='compare-right', session_id=str(right_session.get('session_id', 'right')))
+            diff = compute_visual_bloom_diff_metrics(left_params, right_params)
+            html = render_compare_bloom_html(left_params, right_params, diff)
+            write_bloom_file(html, entry_html)
+            entry_meta['resolved'] = {'entry_type': 'compare', 'left_ref': left_ref, 'right_ref': right_ref, 'diff': diff}
+
+        entry_json.write_text(json.dumps(entry_meta, indent=2), encoding='utf-8')
+        resolved_meta = entry_meta.get('resolved')
+        resolved_dict = resolved_meta if isinstance(resolved_meta, dict) else {}
+        atlas_entries.append({
+            'index': idx,
+            'entry_type': str(resolved_dict.get('entry_type', '')),
+            'title': item.get('title', ''),
+            'note': item.get('note', ''),
+            'json': str(Path('entries') / entry_json.name),
+            'html': str(Path('entries') / entry_html.name),
+        })
+
+    atlas_model = {
+        'narrative_name': narrative.get('narrative_name', _sanitize_collection(name)),
+        'title': narrative.get('title', ''),
+        'summary': narrative.get('summary', ''),
+        'created_at': narrative.get('created_at', ''),
+        'updated_at': narrative.get('updated_at', ''),
+        'exported_at': _iso_now(),
+        'entry_count': len(atlas_entries),
+        'entries': atlas_entries,
+    }
+    atlas_html = render_visual_bloom_atlas_html(atlas_model)
+    write_bloom_file(atlas_html, atlas_dir / 'atlas_index.html')
+
+    included_files = {
+        'atlas_index': 'atlas_index.html',
+        'narrative_source': 'narrative.json',
+    }
+    for e in atlas_entries:
+        idx_val = str(e.get('index', ''))
+        included_files[f"entry_json_{idx_val}"] = str(e.get('json', ''))
+        included_files[f"entry_html_{idx_val}"] = str(e.get('html', ''))
+
+    file_hashes = compute_visual_bloom_bundle_hashes(atlas_dir, included_files)
+    preview_meta = augment_visual_bloom_preview_metadata(source='atlas')
+    (atlas_dir / 'preview_image_metadata.json').write_text(json.dumps(preview_meta, indent=2), encoding='utf-8')
+
+    narrative_copy = dict(narrative)
+    narrative_copy['artifact_paths'] = {'atlas_dir': str(atlas_dir)}
+    (atlas_dir / 'narrative.json').write_text(json.dumps(narrative_copy, indent=2), encoding='utf-8')
+
+    manifest: dict[str, object] = {
+        'atlas_version': 'v1',
+        'manifest_version': 'v1',
+        'atlas_type': 'visual_bloom_field_atlas',
+        'narrative_name': atlas_model['narrative_name'],
+        'bundle_created_at': atlas_model['exported_at'],
+        'entry_count': len(atlas_entries),
+        'included_files': included_files,
+        'integrity_mode': 'sha256' if with_integrity else 'none',
+        'file_hashes_sha256': file_hashes if with_integrity else {},
+        'preview': preview_meta,
+        'compatibility_version': 'phase10+',
+        'compatibility_notes': 'Additive schema; older archives/bundles remain supported with safe defaults.',
+    }
+    write_visual_bloom_bundle_manifest(manifest_path=atlas_dir / 'atlas_manifest.json', payload=manifest)
+    return atlas_dir
+
+
+
 def render_bloom_html(params: dict[str, object], *, live_mode: bool = False, refresh_seconds: float = 2.0, params_path: str = "") -> str:
     try:
         template = resources.files("phios.templates").joinpath("sonic_emergence.html").read_text(encoding="utf-8")

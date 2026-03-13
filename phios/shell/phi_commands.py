@@ -52,6 +52,7 @@ from phios.services.visualizer import (
     VALID_LENSES,
     VALID_PRESETS,
     VisualizerError,
+    export_visual_bloom_atlas,
     export_visual_bloom_bundle,
     launch_bloom,
     launch_compare_bloom,
@@ -63,6 +64,10 @@ from phios.services.visualizer import (
     list_visual_bloom_sessions,
     load_visual_bloom_compare_set,
     save_visual_bloom_compare_set,
+    add_visual_bloom_narrative_entry,
+    create_visual_bloom_narrative,
+    list_visual_bloom_narratives,
+    load_visual_bloom_narrative,
 )
 from phios.core.lt_engine import compute_lt
 from phios.core.sovereignty import SovereignSnapshot, export_snapshot, verify_snapshot
@@ -653,7 +658,7 @@ def cmd_bio(args: list[str], session: object | None = None) -> str:
 
 
 def cmd_view(args: list[str], session: object | None = None) -> str:
-    usage = "Usage: view --mode sonic [--live] [--refresh-seconds <float>] [--duration <seconds>] [--output <path.html>] [--journal] [--journal-dir <path>] [--label <name>] [--collection <name>] [--replay <session_id|session.json[:idx]>] [--state-idx <n>] [--next-state|--prev-state] [--compare <left_ref> <right_ref>] [--export-report <path.json>] [--export-bundle <dir>] [--with-integrity] [--bundle-label <name>] [--save-compare <name>] [--load-compare <name>] [--browse-compares] [--gallery] [--search <text>] [--filter-mode <mode>] [--filter-preset <name>] [--filter-lens <name>] [--filter-audio <on|off>] [--filter-label <text>] [--filter-session <id>] [--browse] [--browse-collections] [--browse-collection <name>] [--preset <name>] [--lens <name>] [--audio-reactive]"
+    usage = "Usage: view --mode sonic [--live] [--refresh-seconds <float>] [--duration <seconds>] [--output <path.html>] [--journal] [--journal-dir <path>] [--label <name>] [--collection <name>] [--replay <session_id|session.json[:idx]>] [--state-idx <n>] [--next-state|--prev-state] [--compare <left_ref> <right_ref>] [--export-report <path.json>] [--export-bundle <dir>] [--with-integrity] [--bundle-label <name>] [--save-compare <name>] [--load-compare <name>] [--browse-compares] [--gallery] [--search <text>] [--filter-mode <mode>] [--filter-preset <name>] [--filter-lens <name>] [--filter-audio <on|off>] [--filter-label <text>] [--filter-session <id>] [--create-narrative <name>] [--narrative-title <text>] [--narrative-summary <text>] [--browse-narratives] [--load-narrative <name>] [--add-to-narrative <name> --session <ref>|--compare <left> <right>|--compare-set <name>] [--entry-title <text>] [--entry-note <text>] [--export-atlas <name> <output-dir>] [--browse] [--browse-collections] [--browse-collection <name>] [--preset <name>] [--lens <name>] [--audio-reactive]"
     if "--help" in args or "-h" in args:
         return usage
 
@@ -667,6 +672,74 @@ def cmd_view(args: list[str], session: object | None = None) -> str:
     if "--browse-compares" in args:
         compares = list_visual_bloom_compare_sets(journal_dir=journal_dir)
         return json.dumps({"compare_sets": compares, "count": len(compares)}, indent=2)
+
+    if "--browse-narratives" in args:
+        narratives = list_visual_bloom_narratives(journal_dir=journal_dir)
+        return json.dumps({"narratives": narratives, "count": len(narratives)}, indent=2)
+
+    create_narrative = _extract_flag_value(args, "--create-narrative")
+    if create_narrative:
+        try:
+            path = create_visual_bloom_narrative(
+                name=create_narrative,
+                journal_dir=journal_dir,
+                title=_extract_flag_value(args, "--narrative-title"),
+                summary=_extract_flag_value(args, "--narrative-summary"),
+                collection=_extract_flag_value(args, "--collection"),
+            )
+        except VisualizerError as exc:
+            return str(exc)
+        return f"Visual bloom narrative created: {path}"
+
+    load_narrative = _extract_flag_value(args, "--load-narrative")
+    if load_narrative:
+        try:
+            doc = load_visual_bloom_narrative(load_narrative, journal_dir=journal_dir)
+        except VisualizerError as exc:
+            return str(exc)
+        return json.dumps(doc, indent=2)
+
+    add_narrative = _extract_flag_value(args, "--add-to-narrative")
+    if add_narrative:
+        session_entry = _extract_flag_value(args, "--session")
+        compare_set_entry = _extract_flag_value(args, "--compare-set")
+        left: str | None = None
+        right: str | None = None
+        if "--compare" in args:
+            idx = args.index("--compare")
+            if idx + 2 < len(args):
+                left, right = args[idx + 1], args[idx + 2]
+        try:
+            updated = add_visual_bloom_narrative_entry(
+                name=add_narrative,
+                journal_dir=journal_dir,
+                session_ref=session_entry,
+                compare_left=left,
+                compare_right=right,
+                compare_set=compare_set_entry,
+                entry_title=_extract_flag_value(args, "--entry-title"),
+                entry_note=_extract_flag_value(args, "--entry-note"),
+            )
+        except VisualizerError as exc:
+            return str(exc)
+        return f"Visual bloom narrative updated: {updated}"
+
+    if "--export-atlas" in args:
+        idx = args.index("--export-atlas")
+        if idx + 2 >= len(args):
+            return usage
+        narrative_name = args[idx + 1]
+        atlas_dir = Path(args[idx + 2]).expanduser()
+        try:
+            out_dir = export_visual_bloom_atlas(
+                name=narrative_name,
+                output_dir=atlas_dir,
+                journal_dir=journal_dir,
+                with_integrity="--with-integrity" in args,
+            )
+        except VisualizerError as exc:
+            return str(exc)
+        return f"Visual bloom atlas exported: {out_dir}"
 
     if "--gallery" in args:
         gallery_collection = _extract_flag_value(args, "--collection")
