@@ -91,6 +91,11 @@ phi ask "How should I begin?"
 - `phi bio export <path.json>`
 - `phi view --mode sonic`
 - `phi view --mode sonic --live --refresh-seconds 2 --duration 60`
+- `phi view --mode sonic --journal --label morning`
+- `phi view --mode sonic --live --journal --label focus`
+- `phi view --mode sonic --replay <session_id>`
+- `phi view --mode sonic --preset stable --lens ritual`
+- `phi view --mode sonic --live --preset diagnostic --audio-reactive`
 - `phi status [--json]`
 - `phi coherence [--json]`
 - `phi coherence live`
@@ -175,10 +180,21 @@ This is an operator-facing visual lens and composition layer, not a second runti
 phi view --mode sonic
 phi view --mode sonic --live
 phi view --mode sonic --live --refresh-seconds 1.5 --duration 120
+phi view --mode sonic --journal --label morning
+phi view --mode sonic --live --journal --label focus
+phi view --mode sonic --replay 20260101T120000Z_123456
+phi view --mode sonic --preset stable --lens ritual
+phi view --mode sonic --live --preset diagnostic --audio-reactive
 ```
 
 Snapshot mode generates a one-shot artifact from current PhiKernel state.
 Live mode writes the HTML artifact once, then updates a local JSON params file on interval while the page performs in-place polling (no full page reload).
+
+Optional journaling writes reproducible visual-state archives under `~/.phios/journal/visual_bloom/<session_id>/` with `session.json` and `latest.params.json`. Replay mode renders a saved state locally without polling PhiKernel.
+
+Phase 5 adds optional preset packs and named visual lenses (`stable`, `ritual`, `diagnostic`, `bloom`) that shape rendering interpretation deterministically without changing kernel truth.
+
+Audio-reactive coupling is optional and off by default (`--audio-reactive`). If local audio support is unavailable, PhiOS continues gracefully without audio modulation.
 
 The adapter reads PhiKernel field_state, maps it into visual parameters, renders a local HTML artifact,
 and opens it in the default browser.

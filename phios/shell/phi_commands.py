@@ -48,7 +48,14 @@ from phios.core.bioeffector_layer import (
     list_bioeffectors,
     summarize_bioeffectors,
 )
-from phios.services.visualizer import VisualizerError, launch_bloom, launch_live_bloom
+from phios.services.visualizer import (
+    VALID_LENSES,
+    VALID_PRESETS,
+    VisualizerError,
+    launch_bloom,
+    launch_live_bloom,
+    launch_replay_bloom,
+)
 from phios.core.lt_engine import compute_lt
 from phios.core.sovereignty import SovereignSnapshot, export_snapshot, verify_snapshot
 from phios.core.tbrc_bridge import TBRCBridge, tbrc_connected
@@ -242,7 +249,7 @@ def cmd_help(_: list[str], session: object | None = None) -> str:
             "  bio add ... [--json]         Add a bioeffector tracking entry",
             "  bio show [--json]            Show bioeffector summary",
             "  bio export <path>            Export bioeffector layer",
-            "  view --mode sonic [--live] [--refresh-seconds <float>] [--duration <seconds>] [--output <path.html>]",
+            "  view --mode sonic [--live] [--refresh-seconds <float>] [--duration <seconds>] [--output <path.html>] [--journal] [--journal-dir <path>] [--label <name>] [--replay <session_id|session.json>] [--preset <name>] [--lens <name>] [--audio-reactive]",
             "  status [--json]               Show PhiKernel-backed operator status",
             "  ask <prompt> [--json]         Ask PhiKernel coach",
             "  coherence [live|--json]       Show PhiKernel coherence field",
@@ -638,7 +645,7 @@ def cmd_bio(args: list[str], session: object | None = None) -> str:
 
 
 def cmd_view(args: list[str], session: object | None = None) -> str:
-    usage = "Usage: view --mode sonic [--live] [--refresh-seconds <float>] [--duration <seconds>] [--output <path.html>]"
+    usage = "Usage: view --mode sonic [--live] [--refresh-seconds <float>] [--duration <seconds>] [--output <path.html>] [--journal] [--journal-dir <path>] [--label <name>] [--replay <session_id|session.json>] [--preset <name>] [--lens <name>] [--audio-reactive]"
     if "--help" in args or "-h" in args:
         return usage
 
@@ -647,8 +654,22 @@ def cmd_view(args: list[str], session: object | None = None) -> str:
         return usage
 
     live = "--live" in args
+    journal = "--journal" in args
+    replay = _extract_flag_value(args, "--replay")
     out = _extract_flag_value(args, "--output")
     output_path = Path(out).expanduser() if out else None
+
+    journal_dir_value = _extract_flag_value(args, "--journal-dir")
+    journal_dir = Path(journal_dir_value).expanduser() if journal_dir_value else None
+    label = _extract_flag_value(args, "--label")
+    preset = _extract_flag_value(args, "--preset")
+    lens = _extract_flag_value(args, "--lens")
+    audio_reactive = "--audio-reactive" in args
+
+    if preset is not None and preset not in VALID_PRESETS:
+        return f"Unknown preset: {preset}. Valid presets: {', '.join(sorted(VALID_PRESETS))}"
+    if lens is not None and lens not in VALID_LENSES:
+        return f"Unknown lens: {lens}. Valid lenses: {', '.join(sorted(VALID_LENSES))}"
 
     refresh_seconds = 2.0
     raw_refresh = _extract_flag_value(args, "--refresh-seconds")
@@ -667,15 +688,33 @@ def cmd_view(args: list[str], session: object | None = None) -> str:
             return usage
 
     try:
+        if replay:
+            generated = launch_replay_bloom(replay, output_path=output_path, open_browser=True, journal_dir=journal_dir, preset=preset, lens=lens, audio_reactive=audio_reactive)
+            return f"Replay visual bloom generated: {generated}"
         if live:
             generated = launch_live_bloom(
                 output_path=output_path,
                 refresh_seconds=refresh_seconds,
                 duration=duration,
                 open_browser=True,
+                journal=journal,
+                journal_dir=journal_dir,
+                label=label,
+                preset=preset,
+                lens=lens,
+                audio_reactive=audio_reactive,
             )
             return f"Live visual bloom running: {generated}"
-        generated = launch_bloom(output_path=output_path, open_browser=True)
+        generated = launch_bloom(
+            output_path=output_path,
+            open_browser=True,
+            journal=journal,
+            journal_dir=journal_dir,
+            label=label,
+            preset=preset,
+            lens=lens,
+            audio_reactive=audio_reactive,
+        )
     except VisualizerError as exc:
         raise RuntimeError(f"Visualizer unavailable: {exc}") from exc
     return f"Visual bloom generated: {generated}"

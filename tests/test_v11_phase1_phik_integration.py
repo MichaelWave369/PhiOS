@@ -592,6 +592,40 @@ def test_view_mode_live_invalid_refresh_rejected():
     assert code == 0
     assert out.startswith("Usage: view")
 
+
+
+def test_view_mode_snapshot_with_journal(monkeypatch, tmp_path):
+    target = tmp_path / "j_bloom.html"
+    monkeypatch.setattr("phios.shell.phi_commands.launch_bloom", lambda **_kwargs: target)
+    out, code = route_command(["view", "--mode", "sonic", "--journal", "--label", "focus", "--output", str(target)])
+    assert code == 0
+    assert "Visual bloom generated" in out
+
+
+def test_view_mode_replay(monkeypatch, tmp_path):
+    target = tmp_path / "replay.html"
+    monkeypatch.setattr("phios.shell.phi_commands.launch_replay_bloom", lambda *_args, **_kwargs: target)
+    out, code = route_command(["view", "--mode", "sonic", "--replay", "session-1", "--output", str(target)])
+    assert code == 0
+    assert "Replay visual bloom generated" in out
+
+
+
+def test_view_mode_with_preset_lens_audio(monkeypatch, tmp_path):
+    target = tmp_path / "preset.html"
+    monkeypatch.setattr("phios.shell.phi_commands.launch_bloom", lambda **_kwargs: target)
+    out, code = route_command([
+        "view", "--mode", "sonic", "--preset", "stable", "--lens", "diagnostic", "--audio-reactive", "--output", str(target)
+    ])
+    assert code == 0
+    assert "Visual bloom generated" in out
+
+
+def test_view_mode_invalid_preset_rejected():
+    out, code = route_command(["view", "--mode", "sonic", "--preset", "bad"])
+    assert code == 0
+    assert out.startswith("Unknown preset")
+
 def test_view_mode_rejects_unknown_mode():
     out, code = route_command(["view", "--mode", "unknown"])
     assert code == 0
