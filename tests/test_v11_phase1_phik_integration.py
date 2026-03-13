@@ -997,3 +997,32 @@ def test_view_mode_phase19_dossier_flags(monkeypatch, tmp_path):
     out, code = route_command(["view", "--export-dossier", "d1", str(outdir), "--dossier-filter-type", "storyboard", "--dossier-filter-target", "theoretical"])
     assert code == 0
     assert "dossier exported" in out
+
+
+def test_view_mode_phase20_field_library_flags(monkeypatch, tmp_path):
+    fpath = tmp_path / "field_library.json"
+    monkeypatch.setattr("phios.shell.phi_commands.create_visual_bloom_field_library", lambda **_kwargs: fpath)
+    out, code = route_command(["view", "--create-field-library", "fl1", "--field-library-title", "F"])
+    assert code == 0
+    assert "field library created" in out
+
+    monkeypatch.setattr("phios.shell.phi_commands.list_visual_bloom_field_libraries", lambda **_kwargs: [{"library_name": "fl1"}])
+    out, code = route_command(["view", "--browse-field-libraries"])
+    assert code == 0
+    assert '"count": 1' in out
+
+    monkeypatch.setattr("phios.shell.phi_commands.load_visual_bloom_field_library", lambda *_args, **_kwargs: {"library_name": "fl1", "collections": []})
+    out, code = route_command(["view", "--load-field-library", "fl1"])
+    assert code == 0
+    assert "library_name" in out
+
+    monkeypatch.setattr("phios.shell.phi_commands.add_visual_bloom_field_library_entry", lambda **_kwargs: fpath)
+    out, code = route_command(["view", "--add-to-field-library", "fl1", "--section-type", "dossier", "--artifact-ref", "/tmp/d"])
+    assert code == 0
+    assert "field library updated" in out
+
+    outdir = tmp_path / "field_library"
+    monkeypatch.setattr("phios.shell.phi_commands.export_visual_bloom_field_library", lambda **_kwargs: outdir)
+    out, code = route_command(["view", "--export-field-library", "fl1", str(outdir), "--field-library-filter-type", "dossier", "--field-library-filter-target", "theoretical"])
+    assert code == 0
+    assert "field library exported" in out

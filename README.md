@@ -591,3 +591,41 @@ Optional dossier filters:
 - Bio-band references remain experimental guidance.
 - Hunter’s C remains unconfirmed.
 - Dossiers do not alter PhiKernel truth logic.
+
+
+## Phase 20: Archive-wide Field Libraries
+
+Phase 20 adds static local Field Libraries that organize dossiers, storyboards, route-compare bundles, longitudinal summaries, and related artifacts into reusable thematic collections with lightweight local indexing/navigation.
+
+### Field library workflows
+
+- `phi view --create-field-library <name>`
+- `phi view --browse-field-libraries`
+- `phi view --load-field-library <name>`
+- `phi view --add-to-field-library <name> --section-type <type> --artifact-ref <ref>`
+- `phi view --export-field-library <name> <output-dir>`
+
+Optional field-library filters:
+- `--field-library-tags <comma,separated>`
+- `--field-library-filter-tags <comma,separated>`
+- `--field-library-filter-sector <sector>`
+- `--field-library-filter-type <type>`
+- `--field-library-filter-target <theoretical|bio_band|node>`
+
+### Field library export artifacts
+
+- `field_library_manifest.json`
+- `field_library_index.html`
+- `field_library.json`
+- `collections/collection_*.json`
+- `field_library_summary.json`
+- optional sector/diagnostics/route-context summaries
+- preview metadata and optional integrity hashes
+
+### Scientific framing reminder
+
+- Field libraries and thematic collections are local interpretive observatory layers.
+- Theoretical attractor references are structural.
+- Bio-band references remain experimental guidance.
+- Hunter’s C remains unconfirmed.
+- Field libraries do not alter PhiKernel truth logic.

@@ -77,6 +77,16 @@ from phios.services.visualizer import (
     build_visual_bloom_dossier_model,
     render_visual_bloom_dossier_html,
     export_visual_bloom_dossier,
+    create_visual_bloom_field_library,
+    list_visual_bloom_field_libraries,
+    load_visual_bloom_field_library,
+    add_visual_bloom_field_library_entry,
+    build_visual_bloom_field_library_index,
+    filter_visual_bloom_field_library_candidates,
+    build_visual_bloom_field_library_summary,
+    build_visual_bloom_field_library_model,
+    render_visual_bloom_field_library_html,
+    export_visual_bloom_field_library,
     create_visual_bloom_narrative,
     export_visual_bloom_atlas,
     list_visual_bloom_narratives,
@@ -982,3 +992,42 @@ def test_phase19_dossier_crud_summary_and_export(tmp_path):
     out = export_visual_bloom_dossier(name="d1", output_dir=tmp_path / "dossier", journal_dir=tmp_path, with_integrity=True)
     assert (out / "dossier_manifest.json").exists()
     assert (out / "dossier_summary.json").exists()
+
+
+def test_phase20_field_library_crud_summary_and_export(tmp_path):
+    create_visual_bloom_field_library(name="fl1", journal_dir=tmp_path, title="Field Library", tags="focus")
+    add_visual_bloom_field_library_entry(
+        name="fl1",
+        collection_type="dossier",
+        artifact_ref="/tmp/dossier",
+        journal_dir=tmp_path,
+        tags="focus",
+        sector_family="HG",
+    )
+    add_visual_bloom_field_library_entry(
+        name="fl1",
+        collection_type="storyboard",
+        artifact_ref="/tmp/storyboard",
+        journal_dir=tmp_path,
+        tags="focus",
+        sector_family="HB",
+    )
+    listed = list_visual_bloom_field_libraries(journal_dir=tmp_path)
+    assert listed and listed[0]["library_name"] == "fl1"
+    loaded = load_visual_bloom_field_library("fl1", journal_dir=tmp_path)
+    assert len(loaded["collections"]) == 2
+
+    idx = build_visual_bloom_field_library_index(journal_dir=tmp_path)
+    assert isinstance(idx, list)
+    filtered = filter_visual_bloom_field_library_candidates(candidates=idx, filter_type="dossier")
+    assert isinstance(filtered, list)
+
+    model = build_visual_bloom_field_library_model(name="fl1", journal_dir=tmp_path)
+    summary = build_visual_bloom_field_library_summary(collections=model["collections"])
+    assert summary["collection_count"] == 2
+    html = render_visual_bloom_field_library_html(model)
+    assert "__PHIOS_FIELD_LIBRARY_MODEL_JSON__" not in html
+
+    out = export_visual_bloom_field_library(name="fl1", output_dir=tmp_path / "field_library", journal_dir=tmp_path, with_integrity=True)
+    assert (out / "field_library_manifest.json").exists()
+    assert (out / "field_library_summary.json").exists()

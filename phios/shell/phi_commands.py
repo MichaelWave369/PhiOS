@@ -104,6 +104,11 @@ from phios.services.visualizer import (
     load_visual_bloom_dossier,
     add_visual_bloom_dossier_section,
     export_visual_bloom_dossier,
+    create_visual_bloom_field_library,
+    list_visual_bloom_field_libraries,
+    load_visual_bloom_field_library,
+    add_visual_bloom_field_library_entry,
+    export_visual_bloom_field_library,
     write_bloom_file,
 )
 from phios.core.lt_engine import compute_lt
@@ -695,7 +700,7 @@ def cmd_bio(args: list[str], session: object | None = None) -> str:
 
 
 def cmd_view(args: list[str], session: object | None = None) -> str:
-    usage = "Usage: view --mode sonic [--live] [--refresh-seconds <float>] [--duration <seconds>] [--output <path.html>] [--journal] [--journal-dir <path>] [--label <name>] [--collection <name>] [--replay <session_id|session.json[:idx]>] [--state-idx <n>] [--next-state|--prev-state] [--compare <left_ref> <right_ref>] [--export-report <path.json>] [--export-bundle <dir>] [--with-integrity] [--bundle-label <name>] [--save-compare <name>] [--load-compare <name>] [--browse-compares] [--gallery] [--search <text>] [--filter-mode <mode>] [--filter-preset <name>] [--filter-lens <name>] [--filter-audio <on|off>] [--filter-label <text>] [--filter-session <id>] [--create-narrative <name>] [--narrative-title <text>] [--narrative-summary <text>] [--browse-narratives] [--load-narrative <name>] [--add-to-narrative <name> --session <ref>|--compare <left> <right>|--compare-set <name>] [--link-narrative <name> --link-type <type> --target-ref <ref>] [--entry-title <text>] [--entry-note <text>] [--export-atlas <name> <output-dir>] [--create-constellation <name>] [--constellation-title <text>] [--constellation-summary <text>] [--browse-constellations] [--load-constellation <name>] [--add-to-constellation <name> --narrative <ref>|--session <ref>|--compare-set <name>|--compare <left> <right>] [--export-constellation <name> <output-dir>] [--create-pathway <name>] [--browse-pathways] [--load-pathway <name>] [--add-to-pathway <name> --session <ref>|--compare <left> <right>|--narrative <name>|--atlas <path>|--constellation <name>] [--pathway-title <title>] [--pathway-summary <summary>] [--step-title <title>] [--step-note <note>] [--export-pathway <name> <output-dir>] [--link-pathway-step <pathway> --from-step <id> --to-step <id>] [--branch-label <label>] [--recommend-for <ref>] [--recommend-strategy <name>] [--benchmark-recommendations] [--atlas] [--atlas-target theoretical|bio_band|node] [--atlas-start-ref <ref>] [--atlas-node <idx>] [--atlas-max-l1-radius <int>] [--atlas-heat-mode <mode>] [--atlas-gallery] [--list-sectors] [--sector-family HG|HB] [--export-insight-pack <pathway> <output-dir>] [--insight-pack-title <title>] [--insight-pack-include-atlas] [--insight-pack-heat-mode <mode>] [--branch-replay <pathway>] [--export-route-compare <start-ref> <output-dir>] [--route-compare-title <title>] [--route-compare-heat-mode <mode>] [--route-compare-include-sector-overlays] [--show-strategy-diagnostics <ref>] [--create-storyboard <name>] [--browse-storyboards] [--load-storyboard <name>] [--add-to-storyboard <name>] [--section-type <type>] [--artifact-ref <ref>] [--storyboard-title <title>] [--storyboard-summary <summary>] [--storyboard-tags <comma,separated>] [--storyboard-filter-tags <comma,separated>] [--storyboard-filter-sector <sector>] [--storyboard-filter-type <type>] [--export-storyboard <name> <output-dir>] [--export-longitudinal-summary <output-dir>] [--longitudinal-title <title>] [--longitudinal-filter-tags <comma,separated>] [--longitudinal-filter-sector <sector>] [--longitudinal-filter-target <theoretical|bio_band|node>] [--create-dossier <name>] [--browse-dossiers] [--load-dossier <name>] [--add-to-dossier <name>] [--dossier-title <title>] [--dossier-summary <summary>] [--dossier-tags <comma,separated>] [--dossier-filter-tags <comma,separated>] [--dossier-filter-sector <sector>] [--dossier-filter-type <type>] [--dossier-filter-target <target>] [--export-dossier <name> <output-dir>] [--dashboard] [--search <query>] [--search-tags <comma,separated>] [--search-type <session|compare|narrative|atlas|constellation|pathway>] [--search-bio <experimental|available|near-target>] [--tags <comma,separated,tags>] [--browse] [--browse-collections] [--browse-collection <name>] [--preset <name>] [--lens <name>] [--audio-reactive]"
+    usage = "Usage: view --mode sonic [--live] [--refresh-seconds <float>] [--duration <seconds>] [--output <path.html>] [--journal] [--journal-dir <path>] [--label <name>] [--collection <name>] [--replay <session_id|session.json[:idx]>] [--state-idx <n>] [--next-state|--prev-state] [--compare <left_ref> <right_ref>] [--export-report <path.json>] [--export-bundle <dir>] [--with-integrity] [--bundle-label <name>] [--save-compare <name>] [--load-compare <name>] [--browse-compares] [--gallery] [--search <text>] [--filter-mode <mode>] [--filter-preset <name>] [--filter-lens <name>] [--filter-audio <on|off>] [--filter-label <text>] [--filter-session <id>] [--create-narrative <name>] [--narrative-title <text>] [--narrative-summary <text>] [--browse-narratives] [--load-narrative <name>] [--add-to-narrative <name> --session <ref>|--compare <left> <right>|--compare-set <name>] [--link-narrative <name> --link-type <type> --target-ref <ref>] [--entry-title <text>] [--entry-note <text>] [--export-atlas <name> <output-dir>] [--create-constellation <name>] [--constellation-title <text>] [--constellation-summary <text>] [--browse-constellations] [--load-constellation <name>] [--add-to-constellation <name> --narrative <ref>|--session <ref>|--compare-set <name>|--compare <left> <right>] [--export-constellation <name> <output-dir>] [--create-pathway <name>] [--browse-pathways] [--load-pathway <name>] [--add-to-pathway <name> --session <ref>|--compare <left> <right>|--narrative <name>|--atlas <path>|--constellation <name>] [--pathway-title <title>] [--pathway-summary <summary>] [--step-title <title>] [--step-note <note>] [--export-pathway <name> <output-dir>] [--link-pathway-step <pathway> --from-step <id> --to-step <id>] [--branch-label <label>] [--recommend-for <ref>] [--recommend-strategy <name>] [--benchmark-recommendations] [--atlas] [--atlas-target theoretical|bio_band|node] [--atlas-start-ref <ref>] [--atlas-node <idx>] [--atlas-max-l1-radius <int>] [--atlas-heat-mode <mode>] [--atlas-gallery] [--list-sectors] [--sector-family HG|HB] [--export-insight-pack <pathway> <output-dir>] [--insight-pack-title <title>] [--insight-pack-include-atlas] [--insight-pack-heat-mode <mode>] [--branch-replay <pathway>] [--export-route-compare <start-ref> <output-dir>] [--route-compare-title <title>] [--route-compare-heat-mode <mode>] [--route-compare-include-sector-overlays] [--show-strategy-diagnostics <ref>] [--create-storyboard <name>] [--browse-storyboards] [--load-storyboard <name>] [--add-to-storyboard <name>] [--section-type <type>] [--artifact-ref <ref>] [--storyboard-title <title>] [--storyboard-summary <summary>] [--storyboard-tags <comma,separated>] [--storyboard-filter-tags <comma,separated>] [--storyboard-filter-sector <sector>] [--storyboard-filter-type <type>] [--export-storyboard <name> <output-dir>] [--export-longitudinal-summary <output-dir>] [--longitudinal-title <title>] [--longitudinal-filter-tags <comma,separated>] [--longitudinal-filter-sector <sector>] [--longitudinal-filter-target <theoretical|bio_band|node>] [--create-dossier <name>] [--browse-dossiers] [--load-dossier <name>] [--add-to-dossier <name>] [--dossier-title <title>] [--dossier-summary <summary>] [--dossier-tags <comma,separated>] [--dossier-filter-tags <comma,separated>] [--dossier-filter-sector <sector>] [--dossier-filter-type <type>] [--dossier-filter-target <target>] [--export-dossier <name> <output-dir>] [--create-field-library <name>] [--browse-field-libraries] [--load-field-library <name>] [--add-to-field-library <name>] [--field-library-title <title>] [--field-library-summary <summary>] [--field-library-tags <comma,separated>] [--field-library-filter-tags <comma,separated>] [--field-library-filter-sector <sector>] [--field-library-filter-type <type>] [--field-library-filter-target <target>] [--export-field-library <name> <output-dir>] [--dashboard] [--search <query>] [--search-tags <comma,separated>] [--search-type <session|compare|narrative|atlas|constellation|pathway>] [--search-bio <experimental|available|near-target>] [--tags <comma,separated,tags>] [--browse] [--browse-collections] [--browse-collection <name>] [--preset <name>] [--lens <name>] [--audio-reactive]"
     if "--help" in args or "-h" in args:
         return usage
 
@@ -814,6 +819,50 @@ def cmd_view(args: list[str], session: object | None = None) -> str:
         except VisualizerError as exc:
             return str(exc)
         return f"Visual bloom dossier updated: {out}"
+
+    if "--browse-field-libraries" in args:
+        rows = list_visual_bloom_field_libraries(journal_dir=journal_dir)
+        return json.dumps({"field_libraries": rows, "count": len(rows)}, indent=2)
+
+    create_library = _extract_flag_value(args, "--create-field-library")
+    if create_library:
+        try:
+            path = create_visual_bloom_field_library(
+                name=create_library,
+                journal_dir=journal_dir,
+                title=_extract_flag_value(args, "--field-library-title"),
+                summary=_extract_flag_value(args, "--field-library-summary"),
+                tags=_extract_flag_value(args, "--field-library-tags") or _extract_flag_value(args, "--tags"),
+            )
+        except VisualizerError as exc:
+            return str(exc)
+        return f"Visual bloom field library created: {path}"
+
+    load_library = _extract_flag_value(args, "--load-field-library")
+    if load_library:
+        try:
+            doc = load_visual_bloom_field_library(load_library, journal_dir=journal_dir)
+        except VisualizerError as exc:
+            return str(exc)
+        return json.dumps(doc, indent=2)
+
+    add_library = _extract_flag_value(args, "--add-to-field-library")
+    if add_library:
+        try:
+            out = add_visual_bloom_field_library_entry(
+                name=add_library,
+                collection_type=_extract_flag_value(args, "--section-type") or "dossier",
+                artifact_ref=_extract_flag_value(args, "--artifact-ref") or "",
+                journal_dir=journal_dir,
+                title=_extract_flag_value(args, "--entry-title") or _extract_flag_value(args, "--field-library-title"),
+                summary=_extract_flag_value(args, "--field-library-summary"),
+                notes=_extract_flag_value(args, "--entry-note"),
+                tags=_extract_flag_value(args, "--field-library-tags") or _extract_flag_value(args, "--tags"),
+                sector_family=_extract_flag_value(args, "--sector-family"),
+            )
+        except VisualizerError as exc:
+            return str(exc)
+        return f"Visual bloom field library updated: {out}"
 
     search_query = _extract_flag_value(args, "--search")
     if search_query and "--gallery" not in args:
@@ -1168,6 +1217,28 @@ def cmd_view(args: list[str], session: object | None = None) -> str:
         except (VisualizerError, ValueError) as exc:
             return str(exc)
         return f"Visual bloom dossier exported: {out}"
+
+    if "--export-field-library" in args:
+        idx = args.index("--export-field-library")
+        if idx + 2 >= len(args):
+            return usage
+        lname = args[idx + 1]
+        outdir = Path(args[idx + 2]).expanduser()
+        try:
+            out = export_visual_bloom_field_library(
+                name=lname,
+                output_dir=outdir,
+                journal_dir=journal_dir,
+                title=_extract_flag_value(args, "--field-library-title"),
+                filter_tags=_extract_flag_value(args, "--field-library-filter-tags"),
+                filter_sector=_extract_flag_value(args, "--field-library-filter-sector"),
+                filter_type=_extract_flag_value(args, "--field-library-filter-type"),
+                filter_target=_extract_flag_value(args, "--field-library-filter-target"),
+                with_integrity="--with-integrity" in args,
+            )
+        except (VisualizerError, ValueError) as exc:
+            return str(exc)
+        return f"Visual bloom field library exported: {out}"
 
     if "--dashboard" in args:
         generated = launch_visual_bloom_dashboard(

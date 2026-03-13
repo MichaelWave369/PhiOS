@@ -2267,6 +2267,334 @@ def export_visual_bloom_dossier(
     return out
 
 
+def _field_libraries_root(journal_dir: Path | None = None) -> Path:
+    return _journal_root(journal_dir) / "field_libraries"
+
+
+def create_visual_bloom_field_library(
+    *,
+    name: str,
+    journal_dir: Path | None = None,
+    title: str | None = None,
+    summary: str | None = None,
+    tags: str | list[str] | None = None,
+    filters: dict[str, object] | None = None,
+) -> Path:
+    safe = _sanitize_collection(name)
+    root = _field_libraries_root(journal_dir)
+    root.mkdir(parents=True, exist_ok=True)
+    path = root / f"{safe}.json"
+    if path.exists():
+        raise VisualizerError(f"Field library '{safe}' already exists")
+    now = _iso_now()
+    doc = {
+        "library_name": safe,
+        "created_at": now,
+        "updated_at": now,
+        "title": title or safe,
+        "summary": summary or "",
+        "tags": normalize_visual_bloom_tags(tags),
+        "filters": filters or {},
+        "collections": [],
+        "artifact_refs": [],
+        "generated_artifact_paths": {},
+        "framing": {
+            "c_star_theoretical": C_STAR_THEORETICAL,
+            "bio_target": BIO_VACUUM_TARGET,
+            "bio_band_low": BIO_VACUUM_BAND_LOW,
+            "bio_band_high": BIO_VACUUM_BAND_HIGH,
+            "bio_status": BIO_VACUUM_STATUS,
+            "hunter_c_status": HUNTER_C_STATUS,
+        },
+        "experimental": True,
+    }
+    path.write_text(json.dumps(doc, indent=2), encoding="utf-8")
+    return path
+
+
+def list_visual_bloom_field_libraries(*, journal_dir: Path | None = None) -> list[dict[str, object]]:
+    root = _field_libraries_root(journal_dir)
+    if not root.exists():
+        return []
+    out: list[dict[str, object]] = []
+    for pth in sorted(root.glob("*.json")):
+        doc = _safe_load_json(pth)
+        if not doc:
+            continue
+        col_obj = doc.get("collections")
+        out.append({
+            "library_name": doc.get("library_name", pth.stem),
+            "created_at": doc.get("created_at", ""),
+            "updated_at": doc.get("updated_at", ""),
+            "title": doc.get("title", ""),
+            "summary": doc.get("summary", ""),
+            "tags": doc.get("tags", []),
+            "collection_count": len(col_obj) if isinstance(col_obj, list) else 0,
+        })
+    out.sort(key=lambda r: str(r.get("created_at", "")), reverse=True)
+    return out
+
+
+def load_visual_bloom_field_library(name: str, *, journal_dir: Path | None = None) -> dict[str, object]:
+    safe = _sanitize_collection(name)
+    path = _field_libraries_root(journal_dir) / f"{safe}.json"
+    doc = _safe_load_json(path)
+    if not doc:
+        raise VisualizerError(f"Field library not found or invalid: {name}")
+    return doc
+
+
+def add_visual_bloom_field_library_entry(
+    *,
+    name: str,
+    collection_type: str,
+    artifact_ref: str,
+    journal_dir: Path | None = None,
+    title: str | None = None,
+    summary: str | None = None,
+    notes: str | None = None,
+    tags: str | list[str] | None = None,
+    sector_family: str | None = None,
+) -> Path:
+    doc = load_visual_bloom_field_library(name, journal_dir=journal_dir)
+    safe = _sanitize_collection(name)
+    path = _field_libraries_root(journal_dir) / f"{safe}.json"
+    ctype = _sanitize_collection(collection_type)
+    allowed = {
+        "dossier", "storyboard", "route_compare", "longitudinal", "insight_pack", "atlas_gallery",
+        "pathway", "narrative", "constellation", "atlas",
+    }
+    if ctype not in allowed:
+        raise VisualizerError("Unsupported field-library collection type")
+    cols_obj = doc.get("collections")
+    cols = cols_obj if isinstance(cols_obj, list) else []
+    sec_summary = build_visual_bloom_sector_summary(metadata={"tags": normalize_visual_bloom_tags(tags)}, family=sector_family or "HG")
+    entry = {
+        "collection_id": f"c{len(cols):03d}",
+        "collection_type": ctype,
+        "title": title or ctype,
+        "summary": summary or "",
+        "artifact_ref": artifact_ref,
+        "notes": notes or "",
+        "tags": normalize_visual_bloom_tags(tags),
+        "sector_overlay": sec_summary,
+        "diagnostics_ref": "",
+        "route_context": {},
+        "timeline_context": {},
+        "dossier_context": {},
+    }
+    cols.append(entry)
+    doc["collections"] = cols
+    refs_obj = doc.get("artifact_refs")
+    refs = refs_obj if isinstance(refs_obj, list) else []
+    refs.append({"type": ctype, "ref": artifact_ref})
+    doc["artifact_refs"] = refs
+    doc["updated_at"] = _iso_now()
+    path.write_text(json.dumps(doc, indent=2), encoding="utf-8")
+    return path
+
+
+def build_visual_bloom_field_library_index(*, journal_dir: Path | None = None) -> list[dict[str, object]]:
+    index = build_visual_bloom_dossier_candidates(journal_dir=journal_dir)
+    for d in list_visual_bloom_dossiers(journal_dir=journal_dir):
+        dname = str(d.get("dossier_name", ""))
+        if not dname:
+            continue
+        index.append({
+            "artifact_type": "dossier",
+            "artifact_ref": str(_dossiers_root(journal_dir) / f"{_sanitize_collection(dname)}.json"),
+            "title": d.get("title", dname),
+            "tags": d.get("tags", []),
+            "created_at": d.get("created_at", ""),
+            "dominant_sector": "",
+            "sector_family": "",
+            "target_mode": "",
+            "heat_mode": "",
+            "has_bio": True,
+            "has_route_compare": True,
+            "has_diagnostics": False,
+        })
+    return index
+
+
+def filter_visual_bloom_field_library_candidates(
+    *,
+    candidates: list[dict[str, object]],
+    filter_tags: str | None = None,
+    filter_sector: str | None = None,
+    filter_type: str | None = None,
+    filter_target: str | None = None,
+) -> list[dict[str, object]]:
+    return filter_visual_bloom_dossier_candidates(
+        candidates=candidates,
+        filter_tags=filter_tags,
+        filter_sector=filter_sector,
+        filter_type=filter_type,
+        filter_target=filter_target,
+    )
+
+
+def build_visual_bloom_field_library_summary(*, collections: list[dict[str, object]]) -> dict[str, object]:
+    type_counts: dict[str, int] = {}
+    sector_counts: dict[str, int] = {}
+    target_counts: dict[str, int] = {}
+    tag_counts: dict[str, int] = {}
+    coverage = {
+        "route_compare": 0,
+        "longitudinal": 0,
+        "dossier": 0,
+        "storyboard": 0,
+        "diagnostics": 0,
+    }
+    for col in collections:
+        ctype = _sanitize_collection(str(col.get("collection_type", "")))
+        if ctype:
+            type_counts[ctype] = type_counts.get(ctype, 0) + 1
+        so = col.get("sector_overlay")
+        sd = so if isinstance(so, dict) else {}
+        dom = str(sd.get("dominant_sector", "")).strip().lower().replace(" ", "_")
+        if dom:
+            sector_counts[dom] = sector_counts.get(dom, 0) + 1
+        rc = col.get("route_context")
+        rcd = rc if isinstance(rc, dict) else {}
+        tgt = _sanitize_collection(str(rcd.get("target_mode", ""))) if rcd.get("target_mode") else ""
+        if tgt:
+            target_counts[tgt] = target_counts.get(tgt, 0) + 1
+        tags_obj = col.get("tags")
+        tags = normalize_visual_bloom_tags(tags_obj if isinstance(tags_obj, (str, list)) else None)
+        for tag in tags:
+            tag_counts[tag] = tag_counts.get(tag, 0) + 1
+        if ctype in coverage:
+            coverage[ctype] += 1
+        if col.get("diagnostics_ref"):
+            coverage["diagnostics"] += 1
+    return {
+        "summary_version": "v1",
+        "collection_count": len(collections),
+        "artifact_type_counts": type_counts,
+        "dominant_sector_counts": sector_counts,
+        "route_target_mode_counts": target_counts,
+        "tag_coverage": tag_counts,
+        "coverage": coverage,
+        "interpretive_note": "Field library summaries are deterministic local curation layers and do not validate physical laws.",
+    }
+
+
+def build_visual_bloom_field_library_model(
+    *,
+    name: str,
+    journal_dir: Path | None = None,
+    filter_tags: str | None = None,
+    filter_sector: str | None = None,
+    filter_type: str | None = None,
+    filter_target: str | None = None,
+) -> dict[str, object]:
+    doc = load_visual_bloom_field_library(name, journal_dir=journal_dir)
+    cols_obj = doc.get("collections")
+    cols = [c for c in cols_obj if isinstance(c, dict)] if isinstance(cols_obj, list) else []
+    index = build_visual_bloom_field_library_index(journal_dir=journal_dir)
+    curated = filter_visual_bloom_field_library_candidates(
+        candidates=index,
+        filter_tags=filter_tags,
+        filter_sector=filter_sector,
+        filter_type=filter_type,
+        filter_target=filter_target,
+    )
+    filters = {
+        "tags": filter_tags or "",
+        "sector": filter_sector or "",
+        "type": filter_type or "",
+        "target": filter_target or "",
+    }
+    summary = build_visual_bloom_field_library_summary(collections=cols)
+    return {
+        **doc,
+        "filters": filters,
+        "collections": cols,
+        "field_library_summary": summary,
+        "curated_index": curated,
+        "generated_at": _iso_now(),
+        "experimental": True,
+    }
+
+
+def render_visual_bloom_field_library_html(model: dict[str, object]) -> str:
+    try:
+        template = resources.files("phios.templates").joinpath("sonic_field_library.html").read_text(encoding="utf-8")
+    except Exception as exc:
+        raise VisualizerError(f"Unable to load field-library template: {exc}") from exc
+    return template.replace("__PHIOS_FIELD_LIBRARY_MODEL_JSON__", json.dumps(model, separators=(",", ":")))
+
+
+def export_visual_bloom_field_library(
+    *,
+    name: str,
+    output_dir: Path,
+    journal_dir: Path | None = None,
+    title: str | None = None,
+    filter_tags: str | None = None,
+    filter_sector: str | None = None,
+    filter_type: str | None = None,
+    filter_target: str | None = None,
+    with_integrity: bool = False,
+) -> Path:
+    out = output_dir.expanduser()
+    out.mkdir(parents=True, exist_ok=True)
+    model = build_visual_bloom_field_library_model(
+        name=name,
+        journal_dir=journal_dir,
+        filter_tags=filter_tags,
+        filter_sector=filter_sector,
+        filter_type=filter_type,
+        filter_target=filter_target,
+    )
+    if title:
+        model["title"] = title
+    html = render_visual_bloom_field_library_html(model)
+    write_bloom_file(html, out / "field_library_index.html")
+    (out / "field_library.json").write_text(json.dumps(model, indent=2), encoding="utf-8")
+    col_dir = out / "collections"
+    col_dir.mkdir(parents=True, exist_ok=True)
+    cols_obj = model.get("collections")
+    cols = cols_obj if isinstance(cols_obj, list) else []
+    for idx, col in enumerate(cols):
+        if isinstance(col, dict):
+            (col_dir / f"collection_{idx:03d}.json").write_text(json.dumps(col, indent=2), encoding="utf-8")
+    fls_obj = model.get("field_library_summary")
+    fls = fls_obj if isinstance(fls_obj, dict) else {}
+    (out / "field_library_summary.json").write_text(json.dumps(fls, indent=2), encoding="utf-8")
+    (out / "route_context_summary.json").write_text(json.dumps(fls.get("route_target_mode_counts", {}), indent=2), encoding="utf-8")
+    (out / "sector_summary.json").write_text(json.dumps(fls.get("dominant_sector_counts", {}), indent=2), encoding="utf-8")
+    (out / "diagnostics_summary.json").write_text(json.dumps(fls.get("coverage", {}), indent=2), encoding="utf-8")
+    preview = augment_visual_bloom_preview_metadata(source="field-library")
+    (out / "preview_image_metadata.json").write_text(json.dumps(preview, indent=2), encoding="utf-8")
+    included = {
+        "index": "field_library_index.html",
+        "field_library": "field_library.json",
+        "field_library_summary": "field_library_summary.json",
+        "sector_summary": "sector_summary.json",
+        "diagnostics_summary": "diagnostics_summary.json",
+        "route_context_summary": "route_context_summary.json",
+        "preview": "preview_image_metadata.json",
+    }
+    hashes = compute_visual_bloom_bundle_hashes(out, included)
+    manifest = {
+        "manifest_version": "v1",
+        "field_library_version": "v1",
+        "type": "visual_bloom_field_library",
+        "library_name": model.get("library_name", name),
+        "generated_at": model.get("generated_at", _iso_now()),
+        "included_files": included,
+        "integrity_mode": "sha256" if with_integrity else "none",
+        "file_hashes_sha256": hashes if with_integrity else {},
+        "experimental": True,
+        "compatibility_version": "phase20+",
+        "compatibility_notes": "Additive schema; older artifacts remain supported with safe defaults.",
+    }
+    write_visual_bloom_bundle_manifest(manifest_path=out / "field_library_manifest.json", payload=manifest)
+    return out
+
+
 def build_visual_bloom_route_timeline(*, model: dict[str, object]) -> dict[str, object]:
     sections_obj = model.get("sections")
     sections = [s for s in sections_obj if isinstance(s, dict)] if isinstance(sections_obj, list) else []
@@ -3051,6 +3379,7 @@ def build_visual_bloom_dashboard_model(*, journal_dir: Path | None = None, searc
     recent_route_compares = [e for e in gallery_entries if str(e.get("source", "")) == "route_compare"][:10]
     storyboards = list_visual_bloom_storyboards(journal_dir=journal_dir)[:10]
     dossiers = list_visual_bloom_dossiers(journal_dir=journal_dir)[:10]
+    field_libraries = list_visual_bloom_field_libraries(journal_dir=journal_dir)[:10]
     timeline_entries: list[dict[str, object]] = []
     for row in storyboards[:3]:
         sname = str(row.get("storyboard_name", ""))
@@ -3077,6 +3406,7 @@ def build_visual_bloom_dashboard_model(*, journal_dir: Path | None = None, searc
         "recent_route_compares": recent_route_compares,
         "recent_storyboards": storyboards,
         "recent_dossiers": dossiers,
+        "recent_field_libraries": field_libraries,
         "recent_atlas_gallery_entries": gallery_entries[:10],
         "longitudinal_snapshot": {
             "series_count": longitudinal.get("series_count", 0),
@@ -3088,6 +3418,10 @@ def build_visual_bloom_dashboard_model(*, journal_dir: Path | None = None, searc
         "dossier_summary_counts": {
             "dossier_count": len(dossiers),
             "section_count": sum(int(_to_float(d.get("section_count"), 0.0)) for d in dossiers),
+        },
+        "field_library_summary_counts": {
+            "library_count": len(field_libraries),
+            "collection_count": sum(int(_to_float(d.get("collection_count"), 0.0)) for d in field_libraries),
         },
         "sector_summary": sector_summary,
         "bio_banner": {
