@@ -156,10 +156,10 @@ def apply_visual_preset(params: dict[str, object], preset_name: str | None) -> d
         "diagnostic": (0.95, 1.0, 1.0, 1.15),
         "bloom": (1.2, 1.25, 1.12, 1.05),
     }[preset]
-    out["trailStrength"] = _clamp(out["trailStrength"] * bias[0], 0.5, 2.0)
-    out["glowGain"] = _clamp(out["glowGain"] * bias[1], 0.5, 2.0)
-    out["speedBias"] = _clamp(out["speedBias"] * bias[2], 0.5, 2.0)
-    out["turbulenceBias"] = _clamp(out["turbulenceBias"] * bias[3], 0.5, 2.0)
+    out["trailStrength"] = _clamp(_to_float(out.get("trailStrength"), 1.0) * bias[0], 0.5, 2.0)
+    out["glowGain"] = _clamp(_to_float(out.get("glowGain"), 1.0) * bias[1], 0.5, 2.0)
+    out["speedBias"] = _clamp(_to_float(out.get("speedBias"), 1.0) * bias[2], 0.5, 2.0)
+    out["turbulenceBias"] = _clamp(_to_float(out.get("turbulenceBias"), 1.0) * bias[3], 0.5, 2.0)
     return out
 
 
@@ -181,8 +181,8 @@ def apply_visual_lens(params: dict[str, object], lens_name: str | None) -> dict[
         "diagnostic": (0.88, 1.22),
         "bloom": (1.18, 0.9),
     }[lens]
-    out["paletteShift"] = _clamp(out["paletteShift"] * bias[0], 0.8, 1.3)
-    out["damping"] = _clamp(out["damping"] * bias[1], 0.7, 1.4)
+    out["paletteShift"] = _clamp(_to_float(out.get("paletteShift"), 1.0) * bias[0], 0.8, 1.3)
+    out["damping"] = _clamp(_to_float(out.get("damping"), 1.0) * bias[1], 0.7, 1.4)
     return out
 
 
@@ -389,13 +389,15 @@ def resolve_visual_bloom_state_ref(ref: str, *, journal_dir: Path | None = None)
 def load_visual_bloom_state(ref: str, *, journal_dir: Path | None = None) -> dict[str, object]:
     session, state, idx = resolve_visual_bloom_state_ref(ref, journal_dir=journal_dir)
     merged = dict(state)
+    state_records = session.get("states")
+    state_total = len(state_records) if isinstance(state_records, list) else 1
     merged.setdefault("sessionId", str(session.get("session_id", "replay")))
     merged.setdefault("sessionLabel", str(session.get("label", "")))
     merged.setdefault("collection", str(session.get("collection", "")))
     merged.setdefault("preset", str(session.get("preset", "none")))
     merged.setdefault("lens", str(session.get("lens", "none")))
     merged.setdefault("stateIndex", idx)
-    merged.setdefault("stateTotal", len(session.get("states", [])) if isinstance(session.get("states"), list) else 1)
+    merged.setdefault("stateTotal", state_total)
     return merged
 
 
@@ -534,6 +536,143 @@ def append_or_update_journal_state(*, session_dir: Path, params: dict[str, objec
     session_json.write_text(json.dumps(doc, indent=2), encoding="utf-8")
     latest_params.write_text(json.dumps(params, indent=2), encoding="utf-8")
     return latest_params
+
+
+def _compare_sets_root(journal_dir: Path | None = None) -> Path:
+    return _journal_root(journal_dir) / "compare_sets"
+
+
+def save_visual_bloom_compare_set(
+    *,
+    name: str,
+    left_ref: str,
+    right_ref: str,
+    journal_dir: Path | None = None,
+    report_path: Path | None = None,
+    label: str | None = None,
+) -> Path:
+    safe_name = _sanitize_collection(name)
+    root = _compare_sets_root(journal_dir)
+    root.mkdir(parents=True, exist_ok=True)
+    path = root / f"{safe_name}.json"
+    payload = {
+        "name": safe_name,
+        "created_at": _iso_now(),
+        "left_ref": left_ref,
+        "right_ref": right_ref,
+        "label": label or "",
+        "latest_report_path": str(report_path) if report_path else "",
+    }
+    path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    return path
+
+
+def list_visual_bloom_compare_sets(*, journal_dir: Path | None = None) -> list[dict[str, object]]:
+    root = _compare_sets_root(journal_dir)
+    if not root.exists():
+        return []
+    out: list[dict[str, object]] = []
+    for p in root.glob("*.json"):
+        try:
+            data = json.loads(p.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+        if not isinstance(data, dict):
+            continue
+        out.append({
+            "name": data.get("name", p.stem),
+            "created_at": data.get("created_at", ""),
+            "left_ref": data.get("left_ref", ""),
+            "right_ref": data.get("right_ref", ""),
+            "label": data.get("label", ""),
+            "latest_report_path": data.get("latest_report_path", ""),
+        })
+    out.sort(key=lambda i: str(i.get("created_at", "")), reverse=True)
+    return out
+
+
+def load_visual_bloom_compare_set(name: str, *, journal_dir: Path | None = None) -> dict[str, object]:
+    safe_name = _sanitize_collection(name)
+    path = _compare_sets_root(journal_dir) / f"{safe_name}.json"
+    if not path.exists():
+        raise VisualizerError(f"Compare set not found: {safe_name}")
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        raise VisualizerError(f"Compare set JSON is invalid: {exc.msg}") from exc
+    if not isinstance(data, dict):
+        raise VisualizerError("Compare set document must be an object")
+    return data
+
+
+def build_visual_bloom_gallery_model(*, journal_dir: Path | None = None, collection: str | None = None) -> dict[str, object]:
+    sessions = list_visual_bloom_sessions(journal_dir=journal_dir, collection=collection)
+    compares = list_visual_bloom_compare_sets(journal_dir=journal_dir)
+    return {
+        "generated_at": _iso_now(),
+        "collection": collection or "",
+        "session_count": len(sessions),
+        "compare_set_count": len(compares),
+        "sessions": sessions,
+        "compare_sets": compares,
+    }
+
+
+def render_visual_bloom_gallery_html(model: dict[str, object]) -> str:
+    try:
+        template = resources.files("phios.templates").joinpath("sonic_gallery.html").read_text(encoding="utf-8")
+    except Exception as exc:
+        raise VisualizerError(f"Unable to load gallery template: {exc}") from exc
+    html = template.replace("__PHIOS_GALLERY_MODEL_JSON__", json.dumps(model, separators=(",", ":")))
+    return html
+
+
+def launch_visual_bloom_gallery(*, output_path: Path | None = None, open_browser: bool = True, journal_dir: Path | None = None, collection: str | None = None) -> Path:
+    model = build_visual_bloom_gallery_model(journal_dir=journal_dir, collection=collection)
+    html = render_visual_bloom_gallery_html(model)
+    target = output_path or Path("/tmp/phios_bloom_gallery.html")
+    written = write_bloom_file(html, target)
+    _open_browser(written, open_browser)
+    return written
+
+
+def export_visual_bloom_bundle(
+    *,
+    left_ref: str,
+    right_ref: str,
+    output_path: Path,
+    journal_dir: Path | None = None,
+) -> Path:
+    base = output_path
+    if base.suffix.lower() == ".json":
+        base = base.with_suffix("")
+    base.mkdir(parents=True, exist_ok=True)
+    report_path = base / "compare_report.json"
+    html_path = base / "compare.html"
+    manifest_path = base / "bundle_manifest.json"
+
+    launch_compare_bloom(left_ref, right_ref, output_path=html_path, open_browser=False, journal_dir=journal_dir, export_report_path=report_path)
+
+    manifest = {
+        "bundle_version": "v1",
+        "exported_at": _iso_now(),
+        "bundle_type": "visual_bloom_compare",
+        "source_refs": {"left": left_ref, "right": right_ref},
+        "included_files": {
+            "report": str(report_path.name),
+            "html": str(html_path.name),
+            "preview_metadata": "preview_image_metadata.json",
+        },
+        "report_schema_version": "v1",
+        "compatibility_notes": "Older archives without newer fields are supported with safe defaults.",
+    }
+    preview_meta = {
+        "image": "",
+        "note": "Placeholder for future preview image export",
+    }
+    manifest_path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+    (base / "preview_image_metadata.json").write_text(json.dumps(preview_meta, indent=2), encoding="utf-8")
+    return base
 
 
 def render_bloom_html(params: dict[str, object], *, live_mode: bool = False, refresh_seconds: float = 2.0, params_path: str = "") -> str:
@@ -757,8 +896,8 @@ def launch_replay_bloom(
     else:
         state, selected_idx, total = select_visual_bloom_state(session, state_idx=state_idx)
 
-    effective_preset = preset or str(state.get("preset", session.get("preset", "none")))
-    effective_lens = lens or str(state.get("lens", session.get("lens", "none")))
+    effective_preset: str | None = preset or str(state.get("preset", session.get("preset", "none")))
+    effective_lens: str | None = lens or str(state.get("lens", session.get("lens", "none")))
     if effective_preset == "none":
         effective_preset = None
     if effective_lens == "none":
@@ -809,7 +948,9 @@ def launch_compare_bloom(
     )
     left_params["sourceLabel"] = "PhiOS Visual Bloom · Compare Left"
     left_params["stateIndex"] = left_idx
-    left_params["stateTotal"] = len(left_session.get("states", [])) if isinstance(left_session.get("states"), list) else 1
+    left_states = left_session.get("states")
+    left_total = len(left_states) if isinstance(left_states, list) else 1
+    left_params["stateTotal"] = left_total
 
     right_params = _with_live_contract(
         dict(right_state),
@@ -823,7 +964,9 @@ def launch_compare_bloom(
     )
     right_params["sourceLabel"] = "PhiOS Visual Bloom · Compare Right"
     right_params["stateIndex"] = right_idx
-    right_params["stateTotal"] = len(right_session.get("states", [])) if isinstance(right_session.get("states"), list) else 1
+    right_states = right_session.get("states")
+    right_total = len(right_states) if isinstance(right_states, list) else 1
+    right_params["stateTotal"] = right_total
 
     diff_metrics = compute_visual_bloom_diff_metrics(left_params, right_params)
     if export_report_path is not None:

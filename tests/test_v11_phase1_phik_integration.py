@@ -676,3 +676,46 @@ def test_view_mode_rejects_unknown_mode():
     out, code = route_command(["view", "--mode", "unknown"])
     assert code == 0
     assert out.startswith("Usage: view")
+
+
+def test_view_mode_gallery(monkeypatch, tmp_path):
+    target = tmp_path / "gallery.html"
+    monkeypatch.setattr("phios.shell.phi_commands.launch_visual_bloom_gallery", lambda **_kwargs: target)
+    out, code = route_command(["view", "--gallery", "--collection", "morning", "--output", str(target)])
+    assert code == 0
+    assert "gallery generated" in out
+
+
+def test_view_mode_browse_compares(monkeypatch):
+    monkeypatch.setattr("phios.shell.phi_commands.list_visual_bloom_compare_sets", lambda **_kwargs: [{"name": "a_b"}])
+    out, code = route_command(["view", "--browse-compares"])
+    assert code == 0
+    assert "a_b" in out
+
+
+def test_view_mode_load_compare_and_save(monkeypatch, tmp_path):
+    target = tmp_path / "compare.html"
+    monkeypatch.setattr(
+        "phios.shell.phi_commands.load_visual_bloom_compare_set",
+        lambda *_args, **_kwargs: {"left_ref": "left:0", "right_ref": "right:1"},
+    )
+    monkeypatch.setattr("phios.shell.phi_commands.launch_compare_bloom", lambda *_args, **_kwargs: target)
+    saved = {"called": False}
+
+    def fake_save(**_kwargs):
+        saved["called"] = True
+        return tmp_path / "saved.json"
+
+    monkeypatch.setattr("phios.shell.phi_commands.save_visual_bloom_compare_set", fake_save)
+    out, code = route_command(["view", "--mode", "sonic", "--load-compare", "focus", "--save-compare", "focus-pair"])
+    assert code == 0
+    assert "Compare visual bloom generated" in out
+    assert saved["called"] is True
+
+
+def test_view_mode_compare_export_bundle(monkeypatch, tmp_path):
+    bundle = tmp_path / "bundle"
+    monkeypatch.setattr("phios.shell.phi_commands.export_visual_bloom_bundle", lambda **_kwargs: bundle)
+    out, code = route_command(["view", "--mode", "sonic", "--compare", "a", "b", "--export-bundle", str(bundle)])
+    assert code == 0
+    assert "bundle exported" in out

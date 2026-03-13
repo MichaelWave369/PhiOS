@@ -17,17 +17,23 @@ from phios.services.visualizer import (
     export_visual_bloom_compare_report,
     compute_visual_bloom_diff_metrics,
     append_or_update_journal_state,
+    build_visual_bloom_gallery_model,
     create_visual_bloom_session,
+    export_visual_bloom_bundle,
     launch_bloom,
     launch_compare_bloom,
     launch_live_bloom,
     launch_replay_bloom,
     list_visual_bloom_collections,
+    list_visual_bloom_compare_sets,
     list_visual_bloom_sessions,
+    load_visual_bloom_compare_set,
     load_visual_bloom_session,
     map_kernel_to_visual_params,
     render_bloom_html,
+    render_visual_bloom_gallery_html,
     resolve_visual_bloom_state_ref,
+    save_visual_bloom_compare_set,
     run_phik_json,
     write_bloom_file,
     write_live_params_json,
@@ -422,3 +428,55 @@ def test_launch_compare_bloom_with_report_export(tmp_path):
     report = tmp_path / "report.json"
     out = launch_compare_bloom(left.name, right.name, output_path=tmp_path / "compare2.html", open_browser=False, journal_dir=tmp_path, export_report_path=report)
     assert out.exists() and report.exists()
+
+
+def test_compare_set_roundtrip(tmp_path):
+    saved = save_visual_bloom_compare_set(
+        name="morning pair",
+        left_ref="s1:0",
+        right_ref="s2:1",
+        journal_dir=tmp_path,
+        label="focus",
+    )
+    assert saved.exists()
+    listing = list_visual_bloom_compare_sets(journal_dir=tmp_path)
+    assert listing and listing[0]["name"] == "morning-pair"
+    loaded = load_visual_bloom_compare_set("morning pair", journal_dir=tmp_path)
+    assert loaded["left_ref"] == "s1:0"
+
+
+def test_gallery_model_and_render(tmp_path):
+    session_dir = create_visual_bloom_session(
+        mode="snapshot",
+        params={"seed": 1, "driftBand": "Watch", "coherenceC": 0.8, "goldenInf": 1.618, "frequency": 7.83, "particleCount": 1500, "noiseScale": 0.005},
+        refresh_seconds=None,
+        output_path=tmp_path / "snap.html",
+        journal_dir=tmp_path,
+        label="gallery",
+        collection="set-a",
+    )
+    append_or_update_journal_state(
+        session_dir=session_dir,
+        params={"timestamp": 1, "stateTimestamp": "2020-01-01T00:00:00Z", "seed": 1, "coherenceC": 0.8, "goldenInf": 1.618, "frequency": 7.83, "particleCount": 1500, "noiseScale": 0.005, "mode": "snapshot", "driftBand": "Watch"},
+        output_html=tmp_path / "snap.html",
+    )
+    save_visual_bloom_compare_set(name="first", left_ref="a", right_ref="b", journal_dir=tmp_path)
+    model = build_visual_bloom_gallery_model(journal_dir=tmp_path, collection="set-a")
+    assert model["session_count"] == 1
+    assert model["compare_set_count"] == 1
+    html = render_visual_bloom_gallery_html(model)
+    assert "Φ Visual Bloom Gallery" in html
+    assert "__PHIOS_GALLERY_MODEL_JSON__" not in html
+
+
+def test_export_visual_bloom_bundle_writes_manifest(tmp_path):
+    left = create_visual_bloom_session(mode="snapshot", params={"seed": 1, "driftBand": "Watch", "coherenceC": 0.8, "goldenInf": 1.618, "frequency": 7.83, "particleCount": 1500, "noiseScale": 0.005}, refresh_seconds=None, output_path=tmp_path / "l.html", journal_dir=tmp_path)
+    right = create_visual_bloom_session(mode="snapshot", params={"seed": 2, "driftBand": "Stable", "coherenceC": 0.9, "goldenInf": 1.618, "frequency": 8.5, "particleCount": 1000, "noiseScale": 0.003}, refresh_seconds=None, output_path=tmp_path / "r.html", journal_dir=tmp_path)
+    append_or_update_journal_state(session_dir=left, params={"timestamp": 1, "stateTimestamp": "a", "seed": 1, "coherenceC": 0.8, "goldenInf": 1.618, "frequency": 7.83, "particleCount": 1500, "noiseScale": 0.005, "mode": "snapshot", "driftBand": "Watch"}, output_html=tmp_path / "l.html")
+    append_or_update_journal_state(session_dir=right, params={"timestamp": 2, "stateTimestamp": "b", "seed": 2, "coherenceC": 0.9, "goldenInf": 1.618, "frequency": 8.5, "particleCount": 1000, "noiseScale": 0.003, "mode": "snapshot", "driftBand": "Stable"}, output_html=tmp_path / "r.html")
+
+    bundle_dir = export_visual_bloom_bundle(left_ref=left.name, right_ref=right.name, output_path=tmp_path / "bundle", journal_dir=tmp_path)
+    manifest = json.loads((bundle_dir / "bundle_manifest.json").read_text(encoding="utf-8"))
+    assert manifest["bundle_version"] == "v1"
+    assert (bundle_dir / "compare_report.json").exists()
+    assert (bundle_dir / "compare.html").exists()

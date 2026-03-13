@@ -200,6 +200,12 @@ phi view --compare 20260101T120000Z_123456:0 20260102T073000Z_654321:0
 phi view --mode sonic --replay 20260101T120000Z_123456 --state-idx 3
 phi view --mode sonic --replay 20260101T120000Z_123456 --next-state
 phi view --mode sonic --compare 20260101T120000Z_123456:0 20260102T073000Z_654321:0 --export-report ./phi_compare_report.json
+phi view --gallery
+phi view --gallery --collection morning
+phi view --mode sonic --compare 20260101T120000Z_123456:0 20260102T073000Z_654321:0 --save-compare morning_pair
+phi view --browse-compares
+phi view --mode sonic --load-compare morning_pair
+phi view --mode sonic --compare 20260101T120000Z_123456:0 20260102T073000Z_654321:0 --export-bundle ./exports/morning_pair_bundle
 ```
 
 Snapshot mode generates a one-shot artifact from current PhiKernel state.
@@ -213,9 +219,13 @@ Phase 6 adds named archive collections and local browse/compare workflows. You c
 
 Phase 7 adds replay state stepping (`--state-idx`, `--next-state`, `--prev-state`), concise compare diff metrics, and optional JSON report export via `--export-report` for local observatory comparisons.
 
+Phase 8 adds a static archive gallery (`--gallery`), saved compare sets (`--save-compare`, `--browse-compares`, `--load-compare`), and portable observatory compare bundles (`--export-bundle`).
+
 Audio-reactive coupling is optional and off by default (`--audio-reactive`). If local audio support is unavailable, PhiOS continues gracefully without audio modulation.
 
 State references support optional indexing syntax (`<session_id>:<state_idx>`). If omitted, replay/compare defaults to the latest state. Older archives without new metadata fields still replay/compare with safe defaults.
+
+Compare bundle manifest (`bundle_manifest.json`) uses a stable schema with: `bundle_version`, `exported_at`, `bundle_type`, `source_refs`, `included_files`, `report_schema_version`, and `compatibility_notes`.
 
 The adapter reads PhiKernel field_state, maps it into visual parameters, renders a local HTML artifact,
 and opens it in the default browser.
