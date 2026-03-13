@@ -67,6 +67,16 @@ from phios.services.visualizer import (
     filter_visual_bloom_longitudinal_series,
     render_visual_bloom_longitudinal_html,
     export_visual_bloom_longitudinal_summary,
+    create_visual_bloom_dossier,
+    list_visual_bloom_dossiers,
+    load_visual_bloom_dossier,
+    add_visual_bloom_dossier_section,
+    build_visual_bloom_dossier_candidates,
+    filter_visual_bloom_dossier_candidates,
+    build_visual_bloom_dossier_summary,
+    build_visual_bloom_dossier_model,
+    render_visual_bloom_dossier_html,
+    export_visual_bloom_dossier,
     create_visual_bloom_narrative,
     export_visual_bloom_atlas,
     list_visual_bloom_narratives,
@@ -933,3 +943,42 @@ def test_phase18_atlas_gallery_and_longitudinal_exports(tmp_path):
     out = export_visual_bloom_longitudinal_summary(output_dir=tmp_path / "longitudinal", journal_dir=tmp_path, with_integrity=True)
     assert (out / "longitudinal_manifest.json").exists()
     assert (out / "longitudinal_summary.json").exists()
+
+
+def test_phase19_dossier_crud_summary_and_export(tmp_path):
+    create_visual_bloom_dossier(name="d1", journal_dir=tmp_path, title="Dossier 1", tags="focus")
+    add_visual_bloom_dossier_section(
+        name="d1",
+        section_type="storyboard",
+        artifact_ref="/tmp/storyboard",
+        journal_dir=tmp_path,
+        tags="focus",
+        sector_family="HG",
+    )
+    add_visual_bloom_dossier_section(
+        name="d1",
+        section_type="route_compare",
+        artifact_ref="/tmp/route",
+        journal_dir=tmp_path,
+        tags="focus",
+        sector_family="HB",
+    )
+    listed = list_visual_bloom_dossiers(journal_dir=tmp_path)
+    assert listed and listed[0]["dossier_name"] == "d1"
+    loaded = load_visual_bloom_dossier("d1", journal_dir=tmp_path)
+    assert len(loaded["sections"]) == 2
+
+    cands = build_visual_bloom_dossier_candidates(journal_dir=tmp_path)
+    assert isinstance(cands, list)
+    filtered = filter_visual_bloom_dossier_candidates(candidates=cands, filter_type="storyboard")
+    assert isinstance(filtered, list)
+
+    model = build_visual_bloom_dossier_model(name="d1", journal_dir=tmp_path)
+    summary = build_visual_bloom_dossier_summary(sections=model["sections"])
+    assert summary["section_count"] == 2
+    html = render_visual_bloom_dossier_html(model)
+    assert "__PHIOS_DOSSIER_MODEL_JSON__" not in html
+
+    out = export_visual_bloom_dossier(name="d1", output_dir=tmp_path / "dossier", journal_dir=tmp_path, with_integrity=True)
+    assert (out / "dossier_manifest.json").exists()
+    assert (out / "dossier_summary.json").exists()

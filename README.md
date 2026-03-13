@@ -553,3 +553,41 @@ Optional filters/titles:
 - Bio-band references remain experimental guidance.
 - Hunter’s C remains unconfirmed.
 - None of these reports alter PhiKernel truth logic.
+
+
+## Phase 19: Cross-Report Observatory Dossiers
+
+Phase 19 adds portable static/local dossier bundles that unify storyboards, route-compare bundles, atlas-gallery outputs, longitudinal summaries, and archive-wide thematic curation into one cross-report navigation layer.
+
+### Dossier workflows
+
+- `phi view --create-dossier <name>`
+- `phi view --browse-dossiers`
+- `phi view --load-dossier <name>`
+- `phi view --add-to-dossier <name> --section-type <type> --artifact-ref <ref>`
+- `phi view --export-dossier <name> <output-dir>`
+
+Optional dossier filters:
+- `--dossier-tags <comma,separated>`
+- `--dossier-filter-tags <comma,separated>`
+- `--dossier-filter-sector <sector>`
+- `--dossier-filter-type <type>`
+- `--dossier-filter-target <theoretical|bio_band|node>`
+
+### Dossier export artifacts
+
+- `dossier_manifest.json`
+- `dossier_index.html`
+- `dossier.json`
+- `sections/section_*.json`
+- `dossier_summary.json`
+- optional sector/diagnostics/route-context summaries
+- preview metadata and optional integrity hashes
+
+### Scientific framing reminder
+
+- Dossiers and curation filters are local interpretive observatory layers.
+- Theoretical attractor references are structural.
+- Bio-band references remain experimental guidance.
+- Hunter’s C remains unconfirmed.
+- Dossiers do not alter PhiKernel truth logic.

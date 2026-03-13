@@ -968,3 +968,32 @@ def test_view_mode_phase18_gallery_and_longitudinal_flags(monkeypatch, tmp_path)
     out, code = route_command(["view", "--export-longitudinal-summary", str(outdir), "--longitudinal-filter-target", "theoretical"])
     assert code == 0
     assert "longitudinal summary exported" in out
+
+
+def test_view_mode_phase19_dossier_flags(monkeypatch, tmp_path):
+    dpath = tmp_path / "dossier.json"
+    monkeypatch.setattr("phios.shell.phi_commands.create_visual_bloom_dossier", lambda **_kwargs: dpath)
+    out, code = route_command(["view", "--create-dossier", "d1", "--dossier-title", "D"])
+    assert code == 0
+    assert "dossier created" in out
+
+    monkeypatch.setattr("phios.shell.phi_commands.list_visual_bloom_dossiers", lambda **_kwargs: [{"dossier_name": "d1"}])
+    out, code = route_command(["view", "--browse-dossiers"])
+    assert code == 0
+    assert '"count": 1' in out
+
+    monkeypatch.setattr("phios.shell.phi_commands.load_visual_bloom_dossier", lambda *_args, **_kwargs: {"dossier_name": "d1", "sections": []})
+    out, code = route_command(["view", "--load-dossier", "d1"])
+    assert code == 0
+    assert "dossier_name" in out
+
+    monkeypatch.setattr("phios.shell.phi_commands.add_visual_bloom_dossier_section", lambda **_kwargs: dpath)
+    out, code = route_command(["view", "--add-to-dossier", "d1", "--section-type", "storyboard", "--artifact-ref", "/tmp/sb"])
+    assert code == 0
+    assert "dossier updated" in out
+
+    outdir = tmp_path / "dossier"
+    monkeypatch.setattr("phios.shell.phi_commands.export_visual_bloom_dossier", lambda **_kwargs: outdir)
+    out, code = route_command(["view", "--export-dossier", "d1", str(outdir), "--dossier-filter-type", "storyboard", "--dossier-filter-target", "theoretical"])
+    assert code == 0
+    assert "dossier exported" in out
