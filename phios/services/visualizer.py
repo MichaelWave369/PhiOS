@@ -2861,11 +2861,15 @@ def export_visual_bloom_shelf(
     for idx, item in enumerate(items):
         if isinstance(item, dict):
             (items_dir / f"item_{idx:03d}.json").write_text(json.dumps(item, indent=2), encoding="utf-8")
-    summary = model.get("shelf_summary") if isinstance(model.get("shelf_summary"), dict) else {}
+    summary_obj = model.get("shelf_summary")
+    summary = summary_obj if isinstance(summary_obj, dict) else {}
+    sector_summary = summary.get("dominant_sector_counts") if isinstance(summary.get("dominant_sector_counts"), dict) else {}
+    diagnostics_summary = summary.get("coverage") if isinstance(summary.get("coverage"), dict) else {}
+    route_summary = summary.get("route_target_mode_counts") if isinstance(summary.get("route_target_mode_counts"), dict) else {}
     (out / "shelf_summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
-    (out / "sector_summary.json").write_text(json.dumps(summary.get("dominant_sector_counts", {}), indent=2), encoding="utf-8")
-    (out / "diagnostics_summary.json").write_text(json.dumps(summary.get("coverage", {}), indent=2), encoding="utf-8")
-    (out / "route_context_summary.json").write_text(json.dumps(summary.get("route_target_mode_counts", {}), indent=2), encoding="utf-8")
+    (out / "sector_summary.json").write_text(json.dumps(sector_summary, indent=2), encoding="utf-8")
+    (out / "diagnostics_summary.json").write_text(json.dumps(diagnostics_summary, indent=2), encoding="utf-8")
+    (out / "route_context_summary.json").write_text(json.dumps(route_summary, indent=2), encoding="utf-8")
     preview = augment_visual_bloom_preview_metadata(source="shelf")
     (out / "preview_image_metadata.json").write_text(json.dumps(preview, indent=2), encoding="utf-8")
     included = {
@@ -2916,11 +2920,46 @@ def build_visual_bloom_catalog_model(*, journal_dir: Path | None = None) -> dict
                 "has_route_compare": True,
                 "has_diagnostics": False,
             })
-    for sb in list_visual_bloom_storyboards(journal_dir=journal_dir):
-        if not isinstance(sb, dict):
+    for ds in list_visual_bloom_dossiers(journal_dir=journal_dir):
+        dname = str(ds.get("dossier_name", ""))
+        if not dname:
             continue
-        sb.setdefault("name_ref", sb.get("storyboard_name", ""))
-        sb.setdefault("collection", "storyboards")
+        entries.append({
+            "artifact_type": "dossier",
+            "artifact_ref": str(_dossiers_root(journal_dir) / f"{_sanitize_collection(dname)}.json"),
+            "title": ds.get("title", dname),
+            "name_ref": dname,
+            "collection": "dossiers",
+            "tags": ds.get("tags", []),
+            "created_at": ds.get("created_at", ""),
+            "dominant_sector": "",
+            "sector_family": "",
+            "target_mode": "",
+            "heat_mode": "",
+            "has_bio": True,
+            "has_route_compare": True,
+            "has_diagnostics": False,
+        })
+    for sb in list_visual_bloom_storyboards(journal_dir=journal_dir):
+        sname = str(sb.get("storyboard_name", ""))
+        if not sname:
+            continue
+        entries.append({
+            "artifact_type": "storyboard",
+            "artifact_ref": str(_storyboards_root(journal_dir) / f"{_sanitize_collection(sname)}.json"),
+            "title": sb.get("title", sname),
+            "name_ref": sname,
+            "collection": "storyboards",
+            "tags": sb.get("tags", []),
+            "created_at": sb.get("created_at", ""),
+            "dominant_sector": "",
+            "sector_family": "",
+            "target_mode": "",
+            "heat_mode": "",
+            "has_bio": True,
+            "has_route_compare": True,
+            "has_diagnostics": False,
+        })
     entries.sort(key=lambda row: (str(row.get("created_at", "")), str(row.get("artifact_type", "")), str(row.get("title", ""))), reverse=True)
     return {
         "catalog_version": "v1",
@@ -2954,7 +2993,9 @@ def filter_visual_bloom_catalog_entries(
     for row in entries:
         if not isinstance(row, dict):
             continue
-        tags_row = set(normalize_visual_bloom_tags(row.get("tags") if isinstance(row.get("tags"), (str, list)) else None))
+        tags_obj = row.get("tags")
+        tags_value: str | list[str] | None = tags_obj if isinstance(tags_obj, (str, list)) else None
+        tags_row = set(normalize_visual_bloom_tags(tags_value))
         if tags_req and not tags_req.issubset(tags_row):
             continue
         dom = _sanitize_collection(str(row.get("dominant_sector", ""))) if row.get("dominant_sector") else ""
@@ -2992,6 +3033,631 @@ def render_visual_bloom_catalog_html(model: dict[str, object]) -> str:
         raise VisualizerError(f"Unable to load catalog template: {exc}") from exc
     return template.replace("__PHIOS_CATALOG_MODEL_JSON__", json.dumps(model, separators=(",", ":")))
 
+
+
+
+def _reading_rooms_root(journal_dir: Path | None = None) -> Path:
+    return _journal_root(journal_dir) / "reading_rooms"
+
+
+def create_visual_bloom_reading_room(
+    *,
+    name: str,
+    journal_dir: Path | None = None,
+    title: str | None = None,
+    summary: str | None = None,
+    tags: str | list[str] | None = None,
+    filters: dict[str, object] | None = None,
+) -> Path:
+    safe = _sanitize_collection(name)
+    root = _reading_rooms_root(journal_dir)
+    root.mkdir(parents=True, exist_ok=True)
+    path = root / f"{safe}.json"
+    if path.exists():
+        raise VisualizerError(f"Reading room '{safe}' already exists")
+    now = _iso_now()
+    doc = {
+        "reading_room_name": safe,
+        "created_at": now,
+        "updated_at": now,
+        "title": title or safe,
+        "summary": summary or "",
+        "tags": normalize_visual_bloom_tags(tags),
+        "filters": filters or {},
+        "sections": [],
+        "artifact_refs": [],
+        "generated_artifact_paths": {},
+        "framing": {
+            "c_star_theoretical": C_STAR_THEORETICAL,
+            "bio_target": BIO_VACUUM_TARGET,
+            "bio_band_low": BIO_VACUUM_BAND_LOW,
+            "bio_band_high": BIO_VACUUM_BAND_HIGH,
+            "bio_status": BIO_VACUUM_STATUS,
+            "hunter_c_status": HUNTER_C_STATUS,
+            "curation_status": "interpretive_local_only",
+        },
+        "experimental": True,
+    }
+    path.write_text(json.dumps(doc, indent=2), encoding="utf-8")
+    return path
+
+
+def list_visual_bloom_reading_rooms(*, journal_dir: Path | None = None) -> list[dict[str, object]]:
+    root = _reading_rooms_root(journal_dir)
+    if not root.exists():
+        return []
+    out: list[dict[str, object]] = []
+    for pth in sorted(root.glob("*.json")):
+        doc = _safe_load_json(pth)
+        if not doc:
+            continue
+        sections_obj = doc.get("sections")
+        out.append({
+            "reading_room_name": doc.get("reading_room_name", pth.stem),
+            "created_at": doc.get("created_at", ""),
+            "updated_at": doc.get("updated_at", ""),
+            "title": doc.get("title", ""),
+            "summary": doc.get("summary", ""),
+            "tags": doc.get("tags", []),
+            "section_count": len(sections_obj) if isinstance(sections_obj, list) else 0,
+        })
+    out.sort(key=lambda r: str(r.get("created_at", "")), reverse=True)
+    return out
+
+
+def load_visual_bloom_reading_room(name: str, *, journal_dir: Path | None = None) -> dict[str, object]:
+    safe = _sanitize_collection(name)
+    path = _reading_rooms_root(journal_dir) / f"{safe}.json"
+    doc = _safe_load_json(path)
+    if not doc:
+        raise VisualizerError(f"Reading room not found or invalid: {name}")
+    sections_obj = doc.get("sections")
+    doc["sections"] = [s for s in sections_obj if isinstance(s, dict)] if isinstance(sections_obj, list) else []
+    framing_obj = doc.get("framing")
+    if not isinstance(framing_obj, dict):
+        doc["framing"] = {
+            "c_star_theoretical": C_STAR_THEORETICAL,
+            "bio_target": BIO_VACUUM_TARGET,
+            "bio_band_low": BIO_VACUUM_BAND_LOW,
+            "bio_band_high": BIO_VACUUM_BAND_HIGH,
+            "bio_status": BIO_VACUUM_STATUS,
+            "hunter_c_status": HUNTER_C_STATUS,
+            "curation_status": "interpretive_local_only",
+        }
+    return doc
+
+
+def add_visual_bloom_reading_room_section(
+    *,
+    name: str,
+    section_type: str,
+    artifact_ref: str,
+    journal_dir: Path | None = None,
+    title: str | None = None,
+    summary: str | None = None,
+    notes: str | None = None,
+    tags: str | list[str] | None = None,
+    sector_family: str | None = None,
+) -> Path:
+    if not artifact_ref.strip():
+        raise VisualizerError("Reading room section requires a non-empty --artifact-ref")
+    doc = load_visual_bloom_reading_room(name, journal_dir=journal_dir)
+    safe = _sanitize_collection(name)
+    path = _reading_rooms_root(journal_dir) / f"{safe}.json"
+    stype = _sanitize_collection(section_type)
+    allowed = {
+        "shelf", "field_library", "dossier", "storyboard", "route_compare", "longitudinal", "insight_pack",
+        "atlas_gallery", "narrative", "constellation", "pathway", "atlas",
+    }
+    if stype not in allowed:
+        raise VisualizerError("Unsupported reading-room section type")
+    rows_obj = doc.get("sections")
+    rows = rows_obj if isinstance(rows_obj, list) else []
+    sec_summary = build_visual_bloom_sector_summary(metadata={"tags": normalize_visual_bloom_tags(tags)}, family=sector_family or "HG")
+    row = {
+        "section_id": f"rr{len(rows):03d}",
+        "section_type": stype,
+        "title": title or stype,
+        "summary": summary or "",
+        "artifact_ref": artifact_ref,
+        "notes": notes or "",
+        "tags": normalize_visual_bloom_tags(tags),
+        "sector_overlay": sec_summary,
+        "diagnostics_ref": "",
+        "route_context": {},
+        "timeline_context": {},
+        "dossier_context": {},
+        "field_library_context": {},
+        "shelf_context": {},
+    }
+    rows.append(row)
+    doc["sections"] = rows
+    refs_obj = doc.get("artifact_refs")
+    refs = refs_obj if isinstance(refs_obj, list) else []
+    refs.append({"type": stype, "ref": artifact_ref})
+    doc["artifact_refs"] = refs
+    doc["updated_at"] = _iso_now()
+    path.write_text(json.dumps(doc, indent=2), encoding="utf-8")
+    return path
+
+
+def build_visual_bloom_reading_room_summary(*, sections: list[dict[str, object]]) -> dict[str, object]:
+    section_type_counts: dict[str, int] = {}
+    dominant_sector_counts: dict[str, int] = {}
+    route_target_mode_counts: dict[str, int] = {}
+    tag_counts: dict[str, int] = {}
+    coverage = {"shelf": 0, "field_library": 0, "dossier": 0, "storyboard": 0, "diagnostics": 0}
+    for sec in sections:
+        stype = _sanitize_collection(str(sec.get("section_type", "")))
+        if stype:
+            section_type_counts[stype] = section_type_counts.get(stype, 0) + 1
+            if stype in coverage:
+                coverage[stype] = coverage.get(stype, 0) + 1
+        so_obj = sec.get("sector_overlay")
+        so = so_obj if isinstance(so_obj, dict) else {}
+        dom = _sanitize_collection(str(so.get("dominant_sector", ""))) if so.get("dominant_sector") else ""
+        if dom:
+            dominant_sector_counts[dom] = dominant_sector_counts.get(dom, 0) + 1
+        rc_obj = sec.get("route_context")
+        rc = rc_obj if isinstance(rc_obj, dict) else {}
+        target = _sanitize_collection(str(rc.get("target_mode", ""))) if rc.get("target_mode") else ""
+        if target:
+            route_target_mode_counts[target] = route_target_mode_counts.get(target, 0) + 1
+        if sec.get("diagnostics_ref"):
+            coverage["diagnostics"] = coverage.get("diagnostics", 0) + 1
+        tags_obj = sec.get("tags")
+        tags = normalize_visual_bloom_tags(tags_obj if isinstance(tags_obj, (str, list)) else None)
+        for tag in tags:
+            tag_counts[tag] = tag_counts.get(tag, 0) + 1
+    return {
+        "summary_version": "v1",
+        "section_count": len(sections),
+        "section_type_counts": section_type_counts,
+        "dominant_sector_counts": dominant_sector_counts,
+        "route_target_mode_counts": route_target_mode_counts,
+        "tag_counts": tag_counts,
+        "coverage": coverage,
+        "interpretive_note": "Reading-room summary is deterministic local observatory curation and is not physics validation.",
+        "status": "experimental_reading_room_summary",
+    }
+
+
+def build_visual_bloom_reading_room_model(
+    *,
+    name: str,
+    journal_dir: Path | None = None,
+    filter_tags: str | None = None,
+    filter_sector: str | None = None,
+    filter_type: str | None = None,
+) -> dict[str, object]:
+    doc = load_visual_bloom_reading_room(name, journal_dir=journal_dir)
+    sections_obj = doc.get("sections")
+    sections = [s for s in sections_obj if isinstance(s, dict)] if isinstance(sections_obj, list) else []
+    filtered = filter_visual_bloom_catalog_entries(
+        entries=[{**s, "artifact_type": s.get("section_type", "")} for s in sections],
+        filter_tags=filter_tags,
+        filter_sector=filter_sector,
+        filter_type=filter_type,
+    )
+    summary = build_visual_bloom_reading_room_summary(sections=sections)
+    return {
+        **doc,
+        "filters": {
+            "tags": filter_tags or "",
+            "sector": filter_sector or "",
+            "type": filter_type or "",
+        },
+        "sections": sections,
+        "filtered_sections": filtered,
+        "reading_room_summary": summary,
+        "generated_at": _iso_now(),
+        "experimental": True,
+    }
+
+
+def render_visual_bloom_reading_room_html(model: dict[str, object]) -> str:
+    try:
+        template = resources.files("phios.templates").joinpath("sonic_reading_room.html").read_text(encoding="utf-8")
+    except Exception as exc:
+        raise VisualizerError(f"Unable to load reading-room template: {exc}") from exc
+    return template.replace("__PHIOS_READING_ROOM_MODEL_JSON__", json.dumps(model, separators=(",", ":")))
+
+
+def export_visual_bloom_reading_room(
+    *,
+    name: str,
+    output_dir: Path,
+    journal_dir: Path | None = None,
+    title: str | None = None,
+    filter_tags: str | None = None,
+    filter_sector: str | None = None,
+    filter_type: str | None = None,
+    with_integrity: bool = False,
+) -> Path:
+    out = output_dir.expanduser()
+    out.mkdir(parents=True, exist_ok=True)
+    model = build_visual_bloom_reading_room_model(
+        name=name,
+        journal_dir=journal_dir,
+        filter_tags=filter_tags,
+        filter_sector=filter_sector,
+        filter_type=filter_type,
+    )
+    if title:
+        model["title"] = title
+    html = render_visual_bloom_reading_room_html(model)
+    write_bloom_file(html, out / "reading_room_index.html")
+    (out / "reading_room.json").write_text(json.dumps(model, indent=2), encoding="utf-8")
+    sections_dir = out / "sections"
+    sections_dir.mkdir(parents=True, exist_ok=True)
+    sections_obj = model.get("sections")
+    sections = sections_obj if isinstance(sections_obj, list) else []
+    for idx, sec in enumerate(sections):
+        if isinstance(sec, dict):
+            (sections_dir / f"section_{idx:03d}.json").write_text(json.dumps(sec, indent=2), encoding="utf-8")
+    rr_summary_obj = model.get("reading_room_summary")
+    rr_summary = rr_summary_obj if isinstance(rr_summary_obj, dict) else {}
+    (out / "reading_room_summary.json").write_text(json.dumps(rr_summary, indent=2), encoding="utf-8")
+    sector_summary = rr_summary.get("dominant_sector_counts") if isinstance(rr_summary.get("dominant_sector_counts"), dict) else {}
+    diagnostics_summary = rr_summary.get("coverage") if isinstance(rr_summary.get("coverage"), dict) else {}
+    route_summary = rr_summary.get("route_target_mode_counts") if isinstance(rr_summary.get("route_target_mode_counts"), dict) else {}
+    (out / "sector_summary.json").write_text(json.dumps(sector_summary, indent=2), encoding="utf-8")
+    (out / "diagnostics_summary.json").write_text(json.dumps(diagnostics_summary, indent=2), encoding="utf-8")
+    (out / "route_context_summary.json").write_text(json.dumps(route_summary, indent=2), encoding="utf-8")
+    preview = augment_visual_bloom_preview_metadata(source="reading-room")
+    (out / "preview_image_metadata.json").write_text(json.dumps(preview, indent=2), encoding="utf-8")
+    included = {
+        "index": "reading_room_index.html",
+        "reading_room": "reading_room.json",
+        "reading_room_summary": "reading_room_summary.json",
+        "sector_summary": "sector_summary.json",
+        "diagnostics_summary": "diagnostics_summary.json",
+        "route_context_summary": "route_context_summary.json",
+        "preview": "preview_image_metadata.json",
+    }
+    hashes = compute_visual_bloom_bundle_hashes(out, included)
+    manifest = {
+        "manifest_version": "v1",
+        "reading_room_version": "v1",
+        "type": "visual_bloom_reading_room",
+        "reading_room_name": model.get("reading_room_name", name),
+        "generated_at": model.get("generated_at", _iso_now()),
+        "included_files": included,
+        "integrity_mode": "sha256" if with_integrity else "none",
+        "file_hashes_sha256": hashes if with_integrity else {},
+        "experimental": True,
+        "compatibility_version": "phase22+",
+        "compatibility_notes": "Additive schema; older artifacts remain supported with safe defaults.",
+    }
+    write_visual_bloom_bundle_manifest(manifest_path=out / "reading_room_manifest.json", payload=manifest)
+    return out
+
+
+def _collection_maps_root(journal_dir: Path | None = None) -> Path:
+    return _journal_root(journal_dir) / "collection_maps"
+
+
+def create_visual_bloom_collection_map(
+    *,
+    name: str,
+    journal_dir: Path | None = None,
+    title: str | None = None,
+    summary: str | None = None,
+    tags: str | list[str] | None = None,
+    filters: dict[str, object] | None = None,
+) -> Path:
+    safe = _sanitize_collection(name)
+    root = _collection_maps_root(journal_dir)
+    root.mkdir(parents=True, exist_ok=True)
+    path = root / f"{safe}.json"
+    if path.exists():
+        raise VisualizerError(f"Collection map '{safe}' already exists")
+    now = _iso_now()
+    doc = {
+        "collection_map_name": safe,
+        "created_at": now,
+        "updated_at": now,
+        "title": title or safe,
+        "summary": summary or "",
+        "tags": normalize_visual_bloom_tags(tags),
+        "filters": filters or {},
+        "nodes": [],
+        "edges": [],
+        "artifact_refs": [],
+        "generated_artifact_paths": {},
+        "framing": {
+            "c_star_theoretical": C_STAR_THEORETICAL,
+            "bio_target": BIO_VACUUM_TARGET,
+            "bio_band_low": BIO_VACUUM_BAND_LOW,
+            "bio_band_high": BIO_VACUUM_BAND_HIGH,
+            "bio_status": BIO_VACUUM_STATUS,
+            "hunter_c_status": HUNTER_C_STATUS,
+            "curation_status": "interpretive_local_only",
+        },
+        "experimental": True,
+    }
+    path.write_text(json.dumps(doc, indent=2), encoding="utf-8")
+    return path
+
+
+def list_visual_bloom_collection_maps(*, journal_dir: Path | None = None) -> list[dict[str, object]]:
+    root = _collection_maps_root(journal_dir)
+    if not root.exists():
+        return []
+    out: list[dict[str, object]] = []
+    for pth in sorted(root.glob("*.json")):
+        doc = _safe_load_json(pth)
+        if not doc:
+            continue
+        nodes_obj = doc.get("nodes")
+        edges_obj = doc.get("edges")
+        out.append({
+            "collection_map_name": doc.get("collection_map_name", pth.stem),
+            "created_at": doc.get("created_at", ""),
+            "updated_at": doc.get("updated_at", ""),
+            "title": doc.get("title", ""),
+            "summary": doc.get("summary", ""),
+            "tags": doc.get("tags", []),
+            "node_count": len(nodes_obj) if isinstance(nodes_obj, list) else 0,
+            "edge_count": len(edges_obj) if isinstance(edges_obj, list) else 0,
+        })
+    out.sort(key=lambda r: str(r.get("created_at", "")), reverse=True)
+    return out
+
+
+def load_visual_bloom_collection_map(name: str, *, journal_dir: Path | None = None) -> dict[str, object]:
+    safe = _sanitize_collection(name)
+    path = _collection_maps_root(journal_dir) / f"{safe}.json"
+    doc = _safe_load_json(path)
+    if not doc:
+        raise VisualizerError(f"Collection map not found or invalid: {name}")
+    nodes_obj = doc.get("nodes")
+    edges_obj = doc.get("edges")
+    doc["nodes"] = [n for n in nodes_obj if isinstance(n, dict)] if isinstance(nodes_obj, list) else []
+    doc["edges"] = [e for e in edges_obj if isinstance(e, dict)] if isinstance(edges_obj, list) else []
+    return doc
+
+
+def filter_visual_bloom_collection_map_nodes(
+    *,
+    nodes: list[dict[str, object]],
+    filter_tags: str | None = None,
+    filter_sector: str | None = None,
+    filter_type: str | None = None,
+) -> list[dict[str, object]]:
+    return filter_visual_bloom_catalog_entries(
+        entries=nodes,
+        filter_tags=filter_tags,
+        filter_sector=filter_sector,
+        filter_type=filter_type,
+    )
+
+
+def group_visual_bloom_collection_map_nodes(*, nodes: list[dict[str, object]], group_by: str | None = None) -> dict[str, list[dict[str, object]]]:
+    return group_visual_bloom_catalog_entries(entries=nodes, group_by=group_by or "artifact_type")
+
+
+def build_visual_bloom_collection_map(*, journal_dir: Path | None = None) -> dict[str, object]:
+    cat = build_visual_bloom_catalog_model(journal_dir=journal_dir)
+    entries_obj = cat.get("entries")
+    rows = [r for r in entries_obj if isinstance(r, dict)] if isinstance(entries_obj, list) else []
+    nodes: list[dict[str, object]] = []
+    for idx, row in enumerate(rows):
+        tags_obj = row.get("tags")
+        row_tags = normalize_visual_bloom_tags(tags_obj if isinstance(tags_obj, (str, list)) else None)
+        nodes.append({
+            "node_id": f"n{idx:04d}",
+            "artifact_type": _sanitize_collection(str(row.get("artifact_type", ""))) or "unknown",
+            "title": str(row.get("title", row.get("name_ref", "artifact"))),
+            "artifact_ref": str(row.get("artifact_ref", "")),
+            "collection": str(row.get("collection", "")),
+            "tags": row_tags,
+            "sector_family": str(row.get("sector_family", "")),
+            "dominant_sector": str(row.get("dominant_sector", "")),
+            "target_mode": str(row.get("target_mode", "")),
+            "has_diagnostics": bool(row.get("has_diagnostics", False)),
+            "has_route_compare": bool(row.get("has_route_compare", False)),
+        })
+
+    ref_to_id = {str(n.get("artifact_ref", "")): str(n.get("node_id", "")) for n in nodes if str(n.get("artifact_ref", ""))}
+    edges: list[dict[str, object]] = []
+    for i, left in enumerate(nodes):
+        left_tags_obj = left.get("tags")
+        left_tags: str | list[str] | None = left_tags_obj if isinstance(left_tags_obj, (str, list)) else None
+        ltags = set(normalize_visual_bloom_tags(left_tags))
+        for right in nodes[i + 1 : i + 40]:
+            rel = ""
+            right_tags_obj = right.get("tags")
+            right_tags: str | list[str] | None = right_tags_obj if isinstance(right_tags_obj, (str, list)) else None
+            rtags = set(normalize_visual_bloom_tags(right_tags))
+            if ltags and (ltags & rtags):
+                rel = "shared_tag"
+            elif _sanitize_collection(str(left.get("sector_family", ""))) and left.get("sector_family") == right.get("sector_family"):
+                rel = "shared_sector_family"
+            elif _sanitize_collection(str(left.get("target_mode", ""))) and left.get("target_mode") == right.get("target_mode"):
+                rel = "shared_target_mode"
+            elif str(left.get("collection", "")) and left.get("collection") == right.get("collection"):
+                rel = "shared_collection"
+            if rel:
+                edges.append({
+                    "edge_id": f"e{len(edges):04d}",
+                    "source_node_id": left.get("node_id", ""),
+                    "target_node_id": right.get("node_id", ""),
+                    "relationship_type": rel,
+                })
+    for room in list_visual_bloom_reading_rooms(journal_dir=journal_dir):
+        rname = str(room.get("reading_room_name", ""))
+        if not rname:
+            continue
+        try:
+            doc = load_visual_bloom_reading_room(rname, journal_dir=journal_dir)
+        except VisualizerError:
+            continue
+        secs_obj = doc.get("sections")
+        sections = [s for s in secs_obj if isinstance(s, dict)] if isinstance(secs_obj, list) else []
+        for sec in sections:
+            ref = str(sec.get("artifact_ref", ""))
+            if not ref or ref not in ref_to_id:
+                continue
+            edges.append({
+                "edge_id": f"e{len(edges):04d}",
+                "source_node_id": f"reading-room:{rname}",
+                "target_node_id": ref_to_id[ref],
+                "relationship_type": "explicit_inclusion",
+            })
+    return {
+        "nodes": nodes,
+        "edges": edges,
+    }
+
+
+def build_visual_bloom_collection_map_summary(*, nodes: list[dict[str, object]], edges: list[dict[str, object]]) -> dict[str, object]:
+    node_type_counts: dict[str, int] = {}
+    edge_type_counts: dict[str, int] = {}
+    dominant_sector_counts: dict[str, int] = {}
+    target_mode_counts: dict[str, int] = {}
+    tag_counts: dict[str, int] = {}
+    for node in nodes:
+        ntype_raw = str(node.get("artifact_type", ""))
+        ntype = _sanitize_collection(ntype_raw) if ntype_raw.strip() else ""
+        if ntype:
+            node_type_counts[ntype] = node_type_counts.get(ntype, 0) + 1
+        dom_raw = str(node.get("dominant_sector", ""))
+        dom = _sanitize_collection(dom_raw) if dom_raw.strip() else ""
+        if dom:
+            dominant_sector_counts[dom] = dominant_sector_counts.get(dom, 0) + 1
+        target_raw = str(node.get("target_mode", ""))
+        target = _sanitize_collection(target_raw) if target_raw.strip() else ""
+        if target:
+            target_mode_counts[target] = target_mode_counts.get(target, 0) + 1
+        tags_obj = node.get("tags")
+        tags = normalize_visual_bloom_tags(tags_obj if isinstance(tags_obj, (str, list)) else None)
+        for tag in tags:
+            tag_counts[tag] = tag_counts.get(tag, 0) + 1
+    for edge in edges:
+        etype_raw = str(edge.get("relationship_type", ""))
+        etype = _sanitize_collection(etype_raw) if etype_raw.strip() else ""
+        if etype:
+            edge_type_counts[etype] = edge_type_counts.get(etype, 0) + 1
+    return {
+        "summary_version": "v1",
+        "node_count": len(nodes),
+        "edge_count": len(edges),
+        "node_type_counts": node_type_counts,
+        "edge_relationship_counts": edge_type_counts,
+        "dominant_sector_counts": dominant_sector_counts,
+        "target_mode_counts": target_mode_counts,
+        "tag_counts": tag_counts,
+        "interpretive_note": "Collection-map relationships are deterministic metadata links for local navigation, not semantic proof.",
+        "status": "experimental_collection_map_summary",
+    }
+
+
+def build_visual_bloom_collection_map_model(
+    *,
+    name: str,
+    journal_dir: Path | None = None,
+    filter_tags: str | None = None,
+    filter_sector: str | None = None,
+    filter_type: str | None = None,
+    group_by: str | None = None,
+) -> dict[str, object]:
+    doc = load_visual_bloom_collection_map(name, journal_dir=journal_dir)
+    built = build_visual_bloom_collection_map(journal_dir=journal_dir)
+    built_nodes_obj = built.get("nodes")
+    built_edges_obj = built.get("edges")
+    built_nodes = [n for n in built_nodes_obj if isinstance(n, dict)] if isinstance(built_nodes_obj, list) else []
+    built_edges = [e for e in built_edges_obj if isinstance(e, dict)] if isinstance(built_edges_obj, list) else []
+    filtered_nodes = filter_visual_bloom_collection_map_nodes(
+        nodes=built_nodes,
+        filter_tags=filter_tags,
+        filter_sector=filter_sector,
+        filter_type=filter_type,
+    )
+    included_ids = {str(n.get("node_id", "")) for n in filtered_nodes}
+    filtered_edges = [
+        e for e in built_edges
+        if str(e.get("source_node_id", "")) in included_ids and str(e.get("target_node_id", "")) in included_ids
+    ]
+    groups = group_visual_bloom_collection_map_nodes(nodes=filtered_nodes, group_by=group_by or "artifact_type")
+    summary = build_visual_bloom_collection_map_summary(nodes=filtered_nodes, edges=filtered_edges)
+    doc["nodes"] = filtered_nodes
+    doc["edges"] = filtered_edges
+    doc["generated_at"] = _iso_now()
+    doc["filters"] = {
+        "tags": filter_tags or "",
+        "sector": filter_sector or "",
+        "type": filter_type or "",
+        "group_by": group_by or "artifact_type",
+    }
+    doc["grouped_nodes"] = groups
+    doc["collection_map_summary"] = summary
+    doc["experimental"] = True
+    return doc
+
+
+def render_visual_bloom_collection_map_html(model: dict[str, object]) -> str:
+    try:
+        template = resources.files("phios.templates").joinpath("sonic_collection_map.html").read_text(encoding="utf-8")
+    except Exception as exc:
+        raise VisualizerError(f"Unable to load collection-map template: {exc}") from exc
+    return template.replace("__PHIOS_COLLECTION_MAP_MODEL_JSON__", json.dumps(model, separators=(",", ":")))
+
+
+def export_visual_bloom_collection_map(
+    *,
+    name: str,
+    output_dir: Path,
+    journal_dir: Path | None = None,
+    title: str | None = None,
+    filter_tags: str | None = None,
+    filter_sector: str | None = None,
+    filter_type: str | None = None,
+    group_by: str | None = None,
+    with_integrity: bool = False,
+) -> Path:
+    out = output_dir.expanduser()
+    out.mkdir(parents=True, exist_ok=True)
+    model = build_visual_bloom_collection_map_model(
+        name=name,
+        journal_dir=journal_dir,
+        filter_tags=filter_tags,
+        filter_sector=filter_sector,
+        filter_type=filter_type,
+        group_by=group_by,
+    )
+    if title:
+        model["title"] = title
+    html = render_visual_bloom_collection_map_html(model)
+    write_bloom_file(html, out / "collection_map_index.html")
+    (out / "collection_map.json").write_text(json.dumps(model, indent=2), encoding="utf-8")
+    cm_summary_obj = model.get("collection_map_summary")
+    cm_summary = cm_summary_obj if isinstance(cm_summary_obj, dict) else {}
+    (out / "collection_map_summary.json").write_text(json.dumps(cm_summary, indent=2), encoding="utf-8")
+    preview = augment_visual_bloom_preview_metadata(source="collection-map")
+    (out / "preview_image_metadata.json").write_text(json.dumps(preview, indent=2), encoding="utf-8")
+    included = {
+        "index": "collection_map_index.html",
+        "collection_map": "collection_map.json",
+        "collection_map_summary": "collection_map_summary.json",
+        "preview": "preview_image_metadata.json",
+    }
+    hashes = compute_visual_bloom_bundle_hashes(out, included)
+    manifest = {
+        "manifest_version": "v1",
+        "collection_map_version": "v1",
+        "type": "visual_bloom_collection_map",
+        "collection_map_name": model.get("collection_map_name", name),
+        "generated_at": model.get("generated_at", _iso_now()),
+        "included_files": included,
+        "integrity_mode": "sha256" if with_integrity else "none",
+        "file_hashes_sha256": hashes if with_integrity else {},
+        "experimental": True,
+        "compatibility_version": "phase22+",
+        "compatibility_notes": "Additive schema; older artifacts remain supported with safe defaults.",
+    }
+    write_visual_bloom_bundle_manifest(manifest_path=out / "collection_map_manifest.json", payload=manifest)
+    return out
 
 def build_visual_bloom_route_timeline(*, model: dict[str, object]) -> dict[str, object]:
     sections_obj = model.get("sections")
@@ -3779,6 +4445,8 @@ def build_visual_bloom_dashboard_model(*, journal_dir: Path | None = None, searc
     dossiers = list_visual_bloom_dossiers(journal_dir=journal_dir)[:10]
     field_libraries = list_visual_bloom_field_libraries(journal_dir=journal_dir)[:10]
     shelves = list_visual_bloom_shelves(journal_dir=journal_dir)[:10]
+    reading_rooms = list_visual_bloom_reading_rooms(journal_dir=journal_dir)[:10]
+    collection_maps = list_visual_bloom_collection_maps(journal_dir=journal_dir)[:10]
     catalog = build_visual_bloom_catalog_model(journal_dir=journal_dir)
     catalog_entries_obj = catalog.get("entries")
     catalog_entries = [e for e in catalog_entries_obj if isinstance(e, dict)] if isinstance(catalog_entries_obj, list) else []
@@ -3815,6 +4483,21 @@ def build_visual_bloom_dashboard_model(*, journal_dir: Path | None = None, searc
         "recent_dossiers": dossiers,
         "recent_field_libraries": field_libraries,
         "recent_shelves": shelves,
+        "recent_reading_rooms": reading_rooms,
+        "recent_collection_maps": collection_maps,
+        "reading_room_summary_counts": {
+            "reading_room_count": len(reading_rooms),
+            "section_count": sum(int(_to_float(r.get("section_count"), 0.0)) for r in reading_rooms),
+        },
+        "collection_map_summary_counts": {
+            "collection_map_count": len(collection_maps),
+            "node_count": sum(int(_to_float(r.get("node_count"), 0.0)) for r in collection_maps),
+            "edge_count": sum(int(_to_float(r.get("edge_count"), 0.0)) for r in collection_maps),
+        },
+        "latest_curated_entry_points": [
+            *[{"kind": "reading_room", "name": r.get("reading_room_name", ""), "title": r.get("title", "")} for r in reading_rooms[:3]],
+            *[{"kind": "collection_map", "name": m.get("collection_map_name", ""), "title": m.get("title", "")} for m in collection_maps[:3]],
+        ],
         "recent_catalog_snapshots": [{
             "generated_at": catalog.get("generated_at", ""),
             "entry_count": catalog.get("entry_count", 0),

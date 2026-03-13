@@ -680,3 +680,62 @@ Optional shelf filters/tags:
 ### Backward compatibility note
 
 Older field libraries, dossiers, storyboards, route-compare bundles, longitudinal summaries, insight packs, pathways, atlas exports, sessions, compare sets, narratives, and constellations continue loading with safe defaults even when shelf/catalog metadata is absent.
+
+## Phase 22: Observatory Reading Rooms + Themed Collection Maps
+
+Phase 22 adds additive, static/local Reading Rooms and Collection Maps above shelves/field libraries to provide curated archive entry points with deterministic metadata navigation.
+
+### Reading room workflows
+
+- `phi view --create-reading-room <name>`
+- `phi view --browse-reading-rooms`
+- `phi view --load-reading-room <name>`
+- `phi view --add-to-reading-room <name> --section-type <type> --artifact-ref <ref>`
+- `phi view --export-reading-room <name> <output-dir>`
+
+Optional reading-room fields:
+- `--reading-room-title <title>`
+- `--reading-room-summary <summary>`
+- `--reading-room-tags <comma,separated>`
+
+### Collection map workflows
+
+- `phi view --create-collection-map <name>`
+- `phi view --browse-collection-maps`
+- `phi view --load-collection-map <name>`
+- `phi view --export-collection-map <name> <output-dir>`
+- `--collection-map-tags <comma,separated>`
+- `--collection-map-filter-tags <comma,separated>`
+- `--collection-map-filter-sector <sector>`
+- `--collection-map-filter-type <type>`
+- `--collection-map-group-by <field>`
+
+### Reading room export artifacts
+
+- `reading_room_manifest.json`
+- `reading_room_index.html`
+- `reading_room.json`
+- `sections/section_*.json`
+- `reading_room_summary.json`
+- optional sector/diagnostics/route-context summaries
+- preview metadata and optional integrity hashes
+
+### Collection map export artifacts
+
+- `collection_map_manifest.json`
+- `collection_map_index.html`
+- `collection_map.json`
+- `collection_map_summary.json`
+- preview metadata and optional integrity hashes
+
+### Scientific framing reminder
+
+- Reading rooms, collection maps, shelves, catalogs, and downstream curation artifacts remain local interpretive layers only.
+- `C_STAR_THEORETICAL = PHI / 2 = (1 + sqrt(5)) / 4` is structural/theoretical framing.
+- `BIO_VACUUM_TARGET = 0.81055` and `[BIO_VACUUM_BAND_LOW, BIO_VACUUM_BAND_HIGH] = [0.807, 0.813]` remain experimental guidance.
+- `BIO_VACUUM_STATUS = "experimental"` and `HUNTER_C_STATUS = "unconfirmed"` remain explicit.
+- These layers do not alter PhiKernel truth logic.
+
+### Backward compatibility note
+
+Older artifacts (field libraries, dossiers, storyboards, route-compare bundles, longitudinal summaries, insight packs, pathways, atlas exports, sessions, compare sets, narratives, constellations, shelves, catalogs) continue loading with safe defaults even when reading-room/collection-map metadata is absent.
