@@ -46,6 +46,12 @@ from phios.services.visualizer import (
     build_visual_bloom_insight_pack_model,
     render_visual_bloom_insight_pack_html,
     export_visual_bloom_insight_pack,
+    build_visual_bloom_branch_replay_model,
+    render_visual_bloom_branch_replay_html,
+    build_visual_bloom_route_compare_model,
+    render_visual_bloom_route_compare_html,
+    export_visual_bloom_route_compare_bundle,
+    build_visual_bloom_strategy_diagnostics,
     create_visual_bloom_narrative,
     export_visual_bloom_atlas,
     list_visual_bloom_narratives,
@@ -803,3 +809,48 @@ def test_sector_summary_and_insight_pack_export(tmp_path):
 
     out = export_visual_bloom_insight_pack(pathway_name="ipath", output_dir=tmp_path / "pack", journal_dir=tmp_path, include_atlas=True, with_integrity=True)
     assert (out / "insight_pack_manifest.json").exists()
+
+
+
+def test_branch_replay_and_route_compare_bundle(tmp_path):
+    session_dir = create_visual_bloom_session(
+        mode="snapshot",
+        params={"seed": 1, "driftBand": "Watch", "coherenceC": 0.81, "goldenInf": 1.618, "frequency": 7.83, "particleCount": 1500, "noiseScale": 0.005},
+        refresh_seconds=None,
+        output_path=tmp_path / "s.html",
+        journal_dir=tmp_path,
+    )
+    append_or_update_journal_state(session_dir=session_dir, params={"timestamp": 1, "stateTimestamp": "a", "seed": 1, "coherenceC": 0.81, "goldenInf": 1.618, "frequency": 7.83, "particleCount": 1500, "noiseScale": 0.005, "mode": "snapshot", "driftBand": "Watch"}, output_html=tmp_path / "s.html")
+    create_visual_bloom_pathway(name="bpath", journal_dir=tmp_path, title="Branch")
+    add_visual_bloom_pathway_entry(name="bpath", journal_dir=tmp_path, session_ref=f"{session_dir.name}:0")
+    add_visual_bloom_pathway_entry(name="bpath", journal_dir=tmp_path, session_ref=f"{session_dir.name}:0")
+    from phios.services.visualizer import link_visual_bloom_pathway_steps
+    link_visual_bloom_pathway_steps(name="bpath", from_step="p000", to_step="p001", journal_dir=tmp_path, branch_label="A")
+
+    replay_model = build_visual_bloom_branch_replay_model(pathway_name="bpath", journal_dir=tmp_path)
+    assert replay_model["branch_count"] == 1
+    replay_html = render_visual_bloom_branch_replay_html(replay_model)
+    assert "__PHIOS_BRANCH_REPLAY_MODEL_JSON__" not in replay_html
+
+    start_ref = f"{session_dir.name}:0"
+    cmp_model = build_visual_bloom_route_compare_model(start_ref=start_ref, journal_dir=tmp_path, include_sector_overlays=True)
+    assert "route_diff_summary" in cmp_model
+    cmp_html = render_visual_bloom_route_compare_html(cmp_model)
+    assert "__PHIOS_ROUTE_COMPARE_MODEL_JSON__" not in cmp_html
+
+    out = export_visual_bloom_route_compare_bundle(start_ref=start_ref, output_dir=tmp_path / "route_cmp", journal_dir=tmp_path, include_sector_overlays=True, with_integrity=True)
+    assert (out / "route_compare_manifest.json").exists()
+
+
+def test_strategy_diagnostics_schema(tmp_path):
+    session_dir = create_visual_bloom_session(
+        mode="snapshot",
+        params={"seed": 1, "driftBand": "Watch", "coherenceC": 0.80, "goldenInf": 1.618, "frequency": 7.83, "particleCount": 1500, "noiseScale": 0.005},
+        refresh_seconds=None,
+        output_path=tmp_path / "s2.html",
+        journal_dir=tmp_path,
+    )
+    append_or_update_journal_state(session_dir=session_dir, params={"timestamp": 1, "stateTimestamp": "a", "seed": 1, "coherenceC": 0.80, "goldenInf": 1.618, "frequency": 7.83, "particleCount": 1500, "noiseScale": 0.005, "mode": "snapshot", "driftBand": "Watch"}, output_html=tmp_path / "s2.html")
+    diag = build_visual_bloom_strategy_diagnostics(target_ref=session_dir.name, journal_dir=tmp_path)
+    assert diag["status"] == "experimental_strategy_diagnostics"
+    assert "overlap" in diag

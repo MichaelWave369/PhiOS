@@ -902,3 +902,23 @@ def test_view_mode_phase15_sector_and_insight_pack_flags(monkeypatch, tmp_path):
     out, code = route_command(["view", "--export-insight-pack", "pathway1", str(pdir), "--insight-pack-title", "Pack", "--insight-pack-include-atlas", "--insight-pack-heat-mode", "geometry_balance"])
     assert code == 0
     assert "insight pack exported" in out
+
+
+
+def test_view_mode_phase16_branch_replay_route_compare_and_diagnostics(monkeypatch, tmp_path):
+    bpath = tmp_path / "branch.html"
+    monkeypatch.setattr("phios.shell.phi_commands.launch_visual_bloom_branch_replay", lambda **_kwargs: bpath)
+    out, code = route_command(["view", "--branch-replay", "p1", "--output", str(bpath)])
+    assert code == 0
+    assert "branch replay generated" in out
+
+    rdir = tmp_path / "routecmp"
+    monkeypatch.setattr("phios.shell.phi_commands.export_visual_bloom_route_compare_bundle", lambda **_kwargs: rdir)
+    out, code = route_command(["view", "--export-route-compare", "s1:0", str(rdir), "--route-compare-title", "R", "--route-compare-heat-mode", "geometry_balance", "--route-compare-include-sector-overlays"])
+    assert code == 0
+    assert "route compare exported" in out
+
+    monkeypatch.setattr("phios.shell.phi_commands.build_visual_bloom_strategy_diagnostics", lambda **_kwargs: {"status": "experimental_strategy_diagnostics"})
+    out, code = route_command(["view", "--show-strategy-diagnostics", "s1"])
+    assert code == 0
+    assert "experimental_strategy_diagnostics" in out

@@ -441,3 +441,46 @@ Phase 15 introduces a formal **experimental sector ontology** derived from HG/HB
 - `BIO_VACUUM_TARGET` and bio band remain experimental.
 - `HUNTER_C_STATUS` remains unconfirmed.
 - Sector ontology, atlas navigation, and insight packs are optional interpretive/operator layers and do not alter PhiKernel truth logic.
+
+
+## Phase 16: Branch Replay, Sector Overlays, and Route Compare Bundles
+
+Phase 16 adds branch-aware journey replay, sector overlays in replay/map contexts, richer recommendation diagnostics, and static route-compare bundles.
+
+### Branch-aware replay
+
+- `phi view --branch-replay <pathway>` renders static branch-aware replay context with:
+  - current ordered steps
+  - outgoing branch labels/notes
+  - recommended next-step hints
+  - sector overlay summaries
+
+### Route compare bundles
+
+- `phi view --export-route-compare <start-ref> <output-dir>`
+- Optional flags:
+  - `--route-compare-title <title>`
+  - `--route-compare-heat-mode <mode>`
+  - `--route-compare-include-sector-overlays`
+
+Export includes static artifacts such as:
+- `route_compare_manifest.json`
+- `route_compare_index.html`
+- `theoretical_route.json`
+- `bio_band_route.json`
+- `route_diff_summary.json`
+- `strategy_diagnostics.json`
+- optional `sector_overlay_summary.json`
+
+### Strategy diagnostics
+
+- `phi view --show-strategy-diagnostics <ref>`
+
+Diagnostics remain local exploratory summaries (agreement/overlap behavior), not claims of strategy superiority.
+
+### Scientific framing reminder
+
+- Theoretical attractor routes are reference structures.
+- Bio-band routes are experimental guidance structures.
+- Hunter’s C remains unconfirmed.
+- These overlays/comparisons are interpretive observatory layers and do not alter PhiKernel truth logic.

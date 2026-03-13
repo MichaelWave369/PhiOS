@@ -2055,6 +2055,7 @@ def build_visual_bloom_dashboard_model(*, journal_dir: Path | None = None, searc
     sector_summary = build_visual_bloom_sector_summary(metadata=first_session if isinstance(first_session, dict) else {}, family="HG")
     top_ref = str(sessions[0].get("session_id", "")) if sessions else ""
     recommendations = build_visual_bloom_recommendations(target_ref=top_ref, journal_dir=journal_dir, strategy="golden_angular") if top_ref else []
+    diagnostics_snapshot = build_visual_bloom_strategy_diagnostics(target_ref=top_ref, journal_dir=journal_dir) if top_ref else {}
     return {
         "generated_at": _iso_now(),
         "search": search or "",
@@ -2064,6 +2065,8 @@ def build_visual_bloom_dashboard_model(*, journal_dir: Path | None = None, searc
         "constellations": constellations,
         "results": rows,
         "recommendations": recommendations,
+        "diagnostics_snapshot": diagnostics_snapshot,
+        "recent_route_compares": [],
         "sector_summary": sector_summary,
         "bio_banner": {
             "phi": PHI,
@@ -2144,6 +2147,7 @@ def export_visual_bloom_pathway(
         })
 
     recommendations = build_visual_bloom_recommendations(target_ref=str(pathway.get("pathway_name", name)), journal_dir=journal_dir, strategy="golden_angular")
+    diagnostics_snapshot = build_visual_bloom_strategy_diagnostics(target_ref=str(pathway.get("pathway_name", name)), journal_dir=journal_dir)
     sector_summary = build_visual_bloom_sector_summary(metadata=pathway if isinstance(pathway, dict) else {}, family="HG")
     branches_obj = pathway.get("branches")
     branches = branches_obj if isinstance(branches_obj, list) else []
@@ -2171,6 +2175,8 @@ def export_visual_bloom_pathway(
         "branches": branches,
         "branch_outgoing": outgoing_by_step,
         "recommendations": recommendations,
+        "diagnostics_snapshot": diagnostics_snapshot,
+        "recent_route_compares": [],
         "sector_summary": sector_summary,
         "bio_context": pathway.get("bio_context", attach_visual_bloom_bio_metadata({}).get("bio", {})),
     }
@@ -2216,6 +2222,7 @@ def build_visual_bloom_insight_pack_model(
     pathway = load_visual_bloom_pathway(pathway_name, journal_dir=journal_dir)
     sector_summary = build_visual_bloom_sector_summary(metadata=pathway if isinstance(pathway, dict) else {}, family="HG")
     recommendations = build_visual_bloom_recommendations(target_ref=str(pathway.get("pathway_name", pathway_name)), journal_dir=journal_dir, strategy="golden_angular")
+    diagnostics_snapshot = build_visual_bloom_strategy_diagnostics(target_ref=str(pathway.get("pathway_name", pathway_name)), journal_dir=journal_dir)
     atlas_summary: dict[str, object] = {}
     if include_atlas:
         atlas_model = build_visual_bloom_atlas_model(atlas_target="theoretical", atlas_heat_mode=insight_pack_heat_mode, journal_dir=journal_dir)
@@ -2234,6 +2241,8 @@ def build_visual_bloom_insight_pack_model(
         "pathway": pathway,
         "sector_summary": sector_summary,
         "recommendations": recommendations,
+        "diagnostics_snapshot": diagnostics_snapshot,
+        "recent_route_compares": [],
         "atlas_summary": atlas_summary,
         "bio_framing": {
             "c_star_theoretical": C_STAR_THEORETICAL,
@@ -2308,6 +2317,271 @@ def export_visual_bloom_insight_pack(
         "compatibility_notes": "Additive schema; older artifacts remain supported with safe defaults.",
     }
     write_visual_bloom_bundle_manifest(manifest_path=out / "insight_pack_manifest.json", payload=manifest)
+    return out
+
+
+def build_visual_bloom_branch_replay_model(*, pathway_name: str, journal_dir: Path | None = None) -> dict[str, object]:
+    pathway = load_visual_bloom_pathway(pathway_name, journal_dir=journal_dir)
+    raw_steps = pathway.get("steps")
+    steps = raw_steps if isinstance(raw_steps, list) else []
+    raw_branches = pathway.get("branches")
+    branches = raw_branches if isinstance(raw_branches, list) else []
+
+    outgoing: dict[str, list[dict[str, object]]] = {}
+    for b in branches:
+        if not isinstance(b, dict):
+            continue
+        from_step = str(b.get("from_step", ""))
+        outgoing.setdefault(from_step, []).append({
+            "to_step": str(b.get("to_step", "")),
+            "label": str(b.get("label", "")),
+            "note": str(b.get("note", "")),
+        })
+
+    enriched_steps: list[dict[str, object]] = []
+    for idx, step in enumerate(steps):
+        if not isinstance(step, dict):
+            continue
+        sid = str(step.get("step_id", f"p{idx:03d}"))
+        sref = str(step.get("session_ref", step.get("narrative_ref", step.get("constellation_ref", step.get("atlas_ref", "")))))
+        recs = build_visual_bloom_recommendations(target_ref=sref, journal_dir=journal_dir, strategy="golden_angular") if sref else []
+        enriched_steps.append({
+            "index": idx,
+            "step_id": sid,
+            "step_type": str(step.get("step_type", "")),
+            "title": str(step.get("title", "")),
+            "note": str(step.get("note", "")),
+            "tags": step.get("tags", []),
+            "outgoing_branches": outgoing.get(sid, []),
+            "recommended_next": recs[:3],
+            "sector_overlay": build_visual_bloom_sector_summary(metadata=step, family="HG"),
+        })
+
+    return {
+        "generated_at": _iso_now(),
+        "pathway_name": pathway.get("pathway_name", pathway_name),
+        "title": pathway.get("title", ""),
+        "summary": pathway.get("summary", ""),
+        "step_count": len(enriched_steps),
+        "branch_count": len(branches),
+        "steps": enriched_steps,
+        "framing": {
+            "c_star_theoretical": C_STAR_THEORETICAL,
+            "bio_target": BIO_VACUUM_TARGET,
+            "bio_band_low": BIO_VACUUM_BAND_LOW,
+            "bio_band_high": BIO_VACUUM_BAND_HIGH,
+            "bio_status": BIO_VACUUM_STATUS,
+            "hunter_c_status": HUNTER_C_STATUS,
+        },
+        "experimental": True,
+    }
+
+
+def render_visual_bloom_branch_replay_html(model: dict[str, object]) -> str:
+    try:
+        template = resources.files("phios.templates").joinpath("sonic_branch_replay.html").read_text(encoding="utf-8")
+    except Exception as exc:
+        raise VisualizerError(f"Unable to load branch replay template: {exc}") from exc
+    return template.replace("__PHIOS_BRANCH_REPLAY_MODEL_JSON__", json.dumps(model, separators=(",", ":")))
+
+
+def launch_visual_bloom_branch_replay(*, pathway_name: str, output_path: Path | None = None, open_browser: bool = True, journal_dir: Path | None = None) -> Path:
+    model = build_visual_bloom_branch_replay_model(pathway_name=pathway_name, journal_dir=journal_dir)
+    html = render_visual_bloom_branch_replay_html(model)
+    target = output_path or Path("/tmp/phios_bloom_branch_replay.html")
+    written = write_bloom_file(html, target)
+    _open_browser(written, open_browser)
+    return written
+
+
+def _route_overlap_ratio(a: list[int], b: list[int]) -> float:
+    sa, sb = set(a), set(b)
+    u = len(sa | sb)
+    return (len(sa & sb) / u) if u else 1.0
+
+
+def _route_divergence_index(a: list[int], b: list[int]) -> int:
+    for i, (x, y) in enumerate(zip(a, b)):
+        if x != y:
+            return i
+    return min(len(a), len(b))
+
+
+def build_visual_bloom_strategy_diagnostics(*, target_ref: str, journal_dir: Path | None = None, top_k: int = 5) -> dict[str, object]:
+    strategies = ["golden_rbf", "golden_angular", "golden_lattice_l1", "adaptive_golden_affinity", "baseline_rbf", "baseline_cosine"]
+    rows: dict[str, list[dict[str, object]]] = {}
+    for sname in strategies:
+        rows[sname] = build_visual_bloom_recommendations(target_ref=target_ref, journal_dir=journal_dir, top_k=top_k, strategy=sname)
+
+    ids = {k: {str(r.get("id", "")) for r in v if str(r.get("id", ""))} for k, v in rows.items()}
+    overlap: dict[str, float] = {}
+    keys = list(ids.keys())
+    for i, a in enumerate(keys):
+        for b in keys[i + 1:]:
+            ua, ub = ids[a], ids[b]
+            overlap[f"{a}__vs__{b}"] = (len(ua & ub) / len(ua | ub)) if (ua | ub) else 1.0
+
+    return {
+        "target_ref": target_ref,
+        "top_k": top_k,
+        "strategies": rows,
+        "overlap": overlap,
+        "status": "experimental_strategy_diagnostics",
+    }
+
+
+def build_visual_bloom_route_compare_model(
+    *,
+    start_ref: str,
+    route_compare_title: str | None = None,
+    route_compare_heat_mode: str = "target_proximity",
+    include_sector_overlays: bool = False,
+    journal_dir: Path | None = None,
+) -> dict[str, object]:
+    nodes = [list(n) for n in build_lattice_4d_nodes()]
+    graph = build_golden_atlas_graph(nodes, max_l1_radius=1, max_neighbors=16)
+
+    state = load_visual_bloom_state(start_ref, journal_dir=journal_dir)
+    point = [
+        _to_float(state.get("coherenceC"), C_STAR_THEORETICAL),
+        _to_float(state.get("frequency"), 7.83) / 40.0,
+        _to_float(state.get("particleCount"), 1500.0) / 2500.0,
+        _to_float(state.get("noiseScale"), 0.005) / 0.02,
+    ]
+    start_idx = nearest_lattice_node(nodes, point)
+
+    theoretical_idx = nearest_lattice_node(nodes, [C_STAR_THEORETICAL] * 4)
+    theoretical_route = find_path_to_target(nodes, graph, start_idx=start_idx, target_idx=theoretical_idx, target_point=[C_STAR_THEORETICAL] * 4)
+    bio_route = find_path_to_bio_band(nodes, graph, start_idx=start_idx)
+
+    tr_obj = theoretical_route.get("path")
+    br_obj = bio_route.get("path")
+    tr_seq = tr_obj if isinstance(tr_obj, list) else []
+    br_seq = br_obj if isinstance(br_obj, list) else []
+    tr_path = [i for i in tr_seq if isinstance(i, int)]
+    br_path = [i for i in br_seq if isinstance(i, int)]
+
+    end_a = tr_path[-1] if tr_path else -1
+    end_b = br_path[-1] if br_path else -1
+    end_dist = _to_float(abs(end_a - end_b), 0.0) if end_a >= 0 and end_b >= 0 else 0.0
+
+    heat_a = compute_atlas_heat(nodes, graph, target_point=[C_STAR_THEORETICAL] * 4, mode=route_compare_heat_mode)
+    heat_b = compute_atlas_heat(nodes, graph, target_point=[BIO_VACUUM_TARGET] * 4, mode=route_compare_heat_mode)
+
+    sector_overlay: dict[str, object] = {}
+    if include_sector_overlays:
+        sec_a = build_visual_bloom_sector_summary(metadata={"coherenceC": C_STAR_THEORETICAL, "noiseScale": 0.003}, family="HG")
+        sec_b = build_visual_bloom_sector_summary(metadata={"coherenceC": BIO_VACUUM_TARGET, "noiseScale": 0.006}, family="HG")
+        sector_overlay = {"theoretical": sec_a, "bio_band": sec_b}
+
+    theo_obj = sector_overlay.get("theoretical")
+    bio_obj = sector_overlay.get("bio_band")
+    theo_sec = theo_obj if isinstance(theo_obj, dict) else {}
+    bio_sec = bio_obj if isinstance(bio_obj, dict) else {}
+
+    diff = {
+        "path_length_theoretical": len(tr_path),
+        "path_length_bio_band": len(br_path),
+        "total_cost_theoretical": _to_float(theoretical_route.get("cost"), 0.0),
+        "total_cost_bio_band": _to_float(bio_route.get("cost"), 0.0),
+        "overlap_ratio": _route_overlap_ratio(tr_path, br_path),
+        "divergence_step_index": _route_divergence_index(tr_path, br_path),
+        "end_node_distance": end_dist,
+        "heat_avg_delta": ((sum(heat_a) / len(heat_a)) - (sum(heat_b) / len(heat_b))) if heat_a and heat_b else 0.0,
+        "dominant_sector_theoretical": str(theo_sec.get("dominant_sector", "")),
+        "dominant_sector_bio_band": str(bio_sec.get("dominant_sector", "")),
+    }
+
+    diagnostics = build_visual_bloom_strategy_diagnostics(target_ref=start_ref, journal_dir=journal_dir)
+
+    return {
+        "route_compare_version": "v1",
+        "generated_at": _iso_now(),
+        "title": route_compare_title or f"Route compare · {start_ref}",
+        "start_ref": start_ref,
+        "start_idx": start_idx,
+        "heat_mode": route_compare_heat_mode,
+        "theoretical_route": theoretical_route,
+        "bio_band_route": bio_route,
+        "route_diff_summary": diff,
+        "sector_overlay_summary": sector_overlay,
+        "strategy_diagnostics": diagnostics,
+        "framing": {
+            "c_star_theoretical": C_STAR_THEORETICAL,
+            "bio_target": BIO_VACUUM_TARGET,
+            "bio_band_low": BIO_VACUUM_BAND_LOW,
+            "bio_band_high": BIO_VACUUM_BAND_HIGH,
+            "bio_status": BIO_VACUUM_STATUS,
+            "hunter_c_status": HUNTER_C_STATUS,
+        },
+        "experimental": True,
+    }
+
+
+def render_visual_bloom_route_compare_html(model: dict[str, object]) -> str:
+    try:
+        template = resources.files("phios.templates").joinpath("sonic_route_compare.html").read_text(encoding="utf-8")
+    except Exception as exc:
+        raise VisualizerError(f"Unable to load route-compare template: {exc}") from exc
+    return template.replace("__PHIOS_ROUTE_COMPARE_MODEL_JSON__", json.dumps(model, separators=(",", ":")))
+
+
+def export_visual_bloom_route_compare_bundle(
+    *,
+    start_ref: str,
+    output_dir: Path,
+    route_compare_title: str | None = None,
+    route_compare_heat_mode: str = "target_proximity",
+    include_sector_overlays: bool = False,
+    journal_dir: Path | None = None,
+    with_integrity: bool = False,
+) -> Path:
+    out = output_dir.expanduser()
+    out.mkdir(parents=True, exist_ok=True)
+    model = build_visual_bloom_route_compare_model(
+        start_ref=start_ref,
+        route_compare_title=route_compare_title,
+        route_compare_heat_mode=route_compare_heat_mode,
+        include_sector_overlays=include_sector_overlays,
+        journal_dir=journal_dir,
+    )
+    html = render_visual_bloom_route_compare_html(model)
+    write_bloom_file(html, out / "route_compare_index.html")
+    (out / "theoretical_route.json").write_text(json.dumps(model.get("theoretical_route", {}), indent=2), encoding="utf-8")
+    (out / "bio_band_route.json").write_text(json.dumps(model.get("bio_band_route", {}), indent=2), encoding="utf-8")
+    (out / "route_diff_summary.json").write_text(json.dumps(model.get("route_diff_summary", {}), indent=2), encoding="utf-8")
+    (out / "strategy_diagnostics.json").write_text(json.dumps(model.get("strategy_diagnostics", {}), indent=2), encoding="utf-8")
+    if include_sector_overlays:
+        (out / "sector_overlay_summary.json").write_text(json.dumps(model.get("sector_overlay_summary", {}), indent=2), encoding="utf-8")
+    preview = augment_visual_bloom_preview_metadata(source="route-compare")
+    (out / "preview_image_metadata.json").write_text(json.dumps(preview, indent=2), encoding="utf-8")
+
+    included = {
+        "index": "route_compare_index.html",
+        "theoretical_route": "theoretical_route.json",
+        "bio_band_route": "bio_band_route.json",
+        "route_diff_summary": "route_diff_summary.json",
+        "strategy_diagnostics": "strategy_diagnostics.json",
+        "preview": "preview_image_metadata.json",
+    }
+    if include_sector_overlays:
+        included["sector_overlay_summary"] = "sector_overlay_summary.json"
+    hashes = compute_visual_bloom_bundle_hashes(out, included)
+    manifest = {
+        "manifest_version": "v1",
+        "route_compare_version": "v1",
+        "type": "visual_bloom_route_compare",
+        "start_ref": start_ref,
+        "generated_at": model.get("generated_at", _iso_now()),
+        "heat_mode": route_compare_heat_mode,
+        "included_files": included,
+        "integrity_mode": "sha256" if with_integrity else "none",
+        "file_hashes_sha256": hashes if with_integrity else {},
+        "experimental": True,
+        "compatibility_version": "phase16+",
+        "compatibility_notes": "Additive schema; older artifacts remain supported with safe defaults.",
+    }
+    write_visual_bloom_bundle_manifest(manifest_path=out / "route_compare_manifest.json", payload=manifest)
     return out
 
 
