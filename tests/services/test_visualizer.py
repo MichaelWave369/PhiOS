@@ -28,6 +28,13 @@ from phios.services.visualizer import (
     list_visual_bloom_constellations,
     create_visual_bloom_constellation,
     add_visual_bloom_narrative_link,
+    search_visual_bloom_metadata,
+    load_visual_bloom_pathway,
+    list_visual_bloom_pathways,
+    export_visual_bloom_pathway,
+    create_visual_bloom_pathway,
+    build_visual_bloom_bio_metadata,
+    add_visual_bloom_pathway_entry,
     create_visual_bloom_narrative,
     export_visual_bloom_atlas,
     list_visual_bloom_narratives,
@@ -642,3 +649,64 @@ def test_constellation_bad_ref_handling(tmp_path):
     add_visual_bloom_constellation_entry(name="bad", journal_dir=tmp_path, narrative_ref="missing")
     with pytest.raises(VisualizerError, match="Narrative not found"):
         export_visual_bloom_constellation(name="bad", output_dir=tmp_path / "x", journal_dir=tmp_path)
+
+
+def test_bio_metadata_schema_distinction():
+    bio = build_visual_bloom_bio_metadata({"coherenceC": 0.81})
+    assert bio["bio_status"] == "experimental"
+    assert bio["hunter_c_status"] == "unconfirmed"
+    assert abs(float(bio["bio_target"]) - 0.81055) < 1e-6
+
+
+def test_pathway_create_add_list_load_and_export(tmp_path):
+    session_dir = create_visual_bloom_session(
+        mode="snapshot",
+        params={"seed": 1, "driftBand": "Watch", "coherenceC": 0.809, "goldenInf": 1.618, "frequency": 7.83, "particleCount": 1500, "noiseScale": 0.005},
+        refresh_seconds=None,
+        output_path=tmp_path / "s.html",
+        journal_dir=tmp_path,
+    )
+    append_or_update_journal_state(session_dir=session_dir, params={"timestamp": 1, "stateTimestamp": "a", "seed": 1, "coherenceC": 0.809, "goldenInf": 1.618, "frequency": 7.83, "particleCount": 1500, "noiseScale": 0.005, "mode": "snapshot", "driftBand": "Watch"}, output_html=tmp_path / "s.html")
+    create_visual_bloom_narrative(name="npath", journal_dir=tmp_path)
+    create_visual_bloom_constellation(name="cpath", journal_dir=tmp_path)
+
+    create_visual_bloom_pathway(name="journey", journal_dir=tmp_path, title="Journey", tags="focus,alpha")
+    add_visual_bloom_pathway_entry(name="journey", journal_dir=tmp_path, session_ref=f"{session_dir.name}:0", step_note="step-1")
+    add_visual_bloom_pathway_entry(name="journey", journal_dir=tmp_path, narrative_ref="npath")
+    add_visual_bloom_pathway_entry(name="journey", journal_dir=tmp_path, constellation_ref="cpath")
+
+    listed = list_visual_bloom_pathways(journal_dir=tmp_path)
+    assert listed and listed[0]["pathway_name"] == "journey"
+    loaded = load_visual_bloom_pathway("journey", journal_dir=tmp_path)
+    assert len(loaded["steps"]) == 3
+
+    out = export_visual_bloom_pathway(name="journey", output_dir=tmp_path / "journey_out", journal_dir=tmp_path, with_integrity=True)
+    assert (out / "pathway_manifest.json").exists()
+    assert (out / "journey_index.html").exists()
+    manifest = json.loads((out / "pathway_manifest.json").read_text(encoding="utf-8"))
+    assert manifest["integrity_mode"] == "sha256"
+
+
+def test_pathway_bad_ref_handling(tmp_path):
+    create_visual_bloom_pathway(name="badpath", journal_dir=tmp_path)
+    add_visual_bloom_pathway_entry(name="badpath", journal_dir=tmp_path, session_ref="missing")
+    with pytest.raises(VisualizerError, match="Replay session file not found"):
+        export_visual_bloom_pathway(name="badpath", output_dir=tmp_path / "out", journal_dir=tmp_path)
+
+
+def test_search_visual_bloom_metadata_filters(tmp_path):
+    session_dir = create_visual_bloom_session(
+        mode="snapshot",
+        params={"seed": 1, "driftBand": "Watch", "coherenceC": 0.8105, "goldenInf": 1.618, "frequency": 7.83, "particleCount": 1500, "noiseScale": 0.005},
+        refresh_seconds=None,
+        output_path=tmp_path / "s.html",
+        journal_dir=tmp_path,
+        label="focus",
+        tags="coherence",
+    )
+    append_or_update_journal_state(session_dir=session_dir, params={"timestamp": 1, "stateTimestamp": "a", "seed": 1, "coherenceC": 0.8105, "goldenInf": 1.618, "frequency": 7.83, "particleCount": 1500, "noiseScale": 0.005, "mode": "snapshot", "driftBand": "Watch"}, output_html=tmp_path / "s.html")
+    create_visual_bloom_pathway(name="findme", journal_dir=tmp_path, tags="coherence")
+    rows = search_visual_bloom_metadata(query="coherence", journal_dir=tmp_path, search_tags="coherence")
+    assert rows
+    only_pathways = search_visual_bloom_metadata(query="findme", journal_dir=tmp_path, search_type="pathway")
+    assert only_pathways and all(r["type"] == "pathway" for r in only_pathways)

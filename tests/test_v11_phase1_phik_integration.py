@@ -810,3 +810,37 @@ def test_view_mode_link_narrative(monkeypatch, tmp_path):
     out, code = route_command(["view", "--link-narrative", "story", "--link-type", "narrative", "--target-ref", "story2", "--entry-note", "rel", "--tags", "cross"])
     assert code == 0
     assert "narrative link added" in out
+
+
+def test_view_mode_pathway_crud_search_and_export(monkeypatch, tmp_path):
+    ppath = tmp_path / "p.json"
+    monkeypatch.setattr("phios.shell.phi_commands.create_visual_bloom_pathway", lambda **_kwargs: ppath)
+    out, code = route_command(["view", "--create-pathway", "journey", "--pathway-title", "Journey", "--pathway-summary", "Summary", "--tags", "focus"])
+    assert code == 0
+    assert "pathway created" in out
+
+    monkeypatch.setattr("phios.shell.phi_commands.list_visual_bloom_pathways", lambda **_kwargs: [{"pathway_name": "journey"}])
+    out, code = route_command(["view", "--browse-pathways"])
+    assert code == 0
+    assert "journey" in out
+
+    monkeypatch.setattr("phios.shell.phi_commands.load_visual_bloom_pathway", lambda *_args, **_kwargs: {"pathway_name": "journey", "steps": []})
+    out, code = route_command(["view", "--load-pathway", "journey"])
+    assert code == 0
+    assert "pathway_name" in out
+
+    monkeypatch.setattr("phios.shell.phi_commands.add_visual_bloom_pathway_entry", lambda **_kwargs: ppath)
+    out, code = route_command(["view", "--add-to-pathway", "journey", "--session", "s1:0", "--step-note", "note", "--tags", "a"])
+    assert code == 0
+    assert "pathway updated" in out
+
+    monkeypatch.setattr("phios.shell.phi_commands.search_visual_bloom_metadata", lambda **_kwargs: [{"type": "pathway", "id": "journey"}])
+    out, code = route_command(["view", "--search", "journey", "--search-type", "pathway", "--search-tags", "a", "--search-bio", "experimental"])
+    assert code == 0
+    assert "journey" in out
+
+    out_dir = tmp_path / "pout"
+    monkeypatch.setattr("phios.shell.phi_commands.export_visual_bloom_pathway", lambda **_kwargs: out_dir)
+    out, code = route_command(["view", "--export-pathway", "journey", str(out_dir), "--with-integrity", "--tags", "focus"])
+    assert code == 0
+    assert "pathway exported" in out

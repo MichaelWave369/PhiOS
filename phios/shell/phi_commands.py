@@ -69,11 +69,17 @@ from phios.services.visualizer import (
     add_visual_bloom_narrative_link,
     create_visual_bloom_constellation,
     create_visual_bloom_narrative,
+    create_visual_bloom_pathway,
     export_visual_bloom_constellation,
+    export_visual_bloom_pathway,
     list_visual_bloom_constellations,
     list_visual_bloom_narratives,
+    list_visual_bloom_pathways,
     load_visual_bloom_constellation,
     load_visual_bloom_narrative,
+    load_visual_bloom_pathway,
+    search_visual_bloom_metadata,
+    add_visual_bloom_pathway_entry,
 )
 from phios.core.lt_engine import compute_lt
 from phios.core.sovereignty import SovereignSnapshot, export_snapshot, verify_snapshot
@@ -664,7 +670,7 @@ def cmd_bio(args: list[str], session: object | None = None) -> str:
 
 
 def cmd_view(args: list[str], session: object | None = None) -> str:
-    usage = "Usage: view --mode sonic [--live] [--refresh-seconds <float>] [--duration <seconds>] [--output <path.html>] [--journal] [--journal-dir <path>] [--label <name>] [--collection <name>] [--replay <session_id|session.json[:idx]>] [--state-idx <n>] [--next-state|--prev-state] [--compare <left_ref> <right_ref>] [--export-report <path.json>] [--export-bundle <dir>] [--with-integrity] [--bundle-label <name>] [--save-compare <name>] [--load-compare <name>] [--browse-compares] [--gallery] [--search <text>] [--filter-mode <mode>] [--filter-preset <name>] [--filter-lens <name>] [--filter-audio <on|off>] [--filter-label <text>] [--filter-session <id>] [--create-narrative <name>] [--narrative-title <text>] [--narrative-summary <text>] [--browse-narratives] [--load-narrative <name>] [--add-to-narrative <name> --session <ref>|--compare <left> <right>|--compare-set <name>] [--link-narrative <name> --link-type <type> --target-ref <ref>] [--entry-title <text>] [--entry-note <text>] [--export-atlas <name> <output-dir>] [--create-constellation <name>] [--constellation-title <text>] [--constellation-summary <text>] [--browse-constellations] [--load-constellation <name>] [--add-to-constellation <name> --narrative <ref>|--session <ref>|--compare-set <name>|--compare <left> <right>] [--export-constellation <name> <output-dir>] [--tags <comma,separated,tags>] [--browse] [--browse-collections] [--browse-collection <name>] [--preset <name>] [--lens <name>] [--audio-reactive]"
+    usage = "Usage: view --mode sonic [--live] [--refresh-seconds <float>] [--duration <seconds>] [--output <path.html>] [--journal] [--journal-dir <path>] [--label <name>] [--collection <name>] [--replay <session_id|session.json[:idx]>] [--state-idx <n>] [--next-state|--prev-state] [--compare <left_ref> <right_ref>] [--export-report <path.json>] [--export-bundle <dir>] [--with-integrity] [--bundle-label <name>] [--save-compare <name>] [--load-compare <name>] [--browse-compares] [--gallery] [--search <text>] [--filter-mode <mode>] [--filter-preset <name>] [--filter-lens <name>] [--filter-audio <on|off>] [--filter-label <text>] [--filter-session <id>] [--create-narrative <name>] [--narrative-title <text>] [--narrative-summary <text>] [--browse-narratives] [--load-narrative <name>] [--add-to-narrative <name> --session <ref>|--compare <left> <right>|--compare-set <name>] [--link-narrative <name> --link-type <type> --target-ref <ref>] [--entry-title <text>] [--entry-note <text>] [--export-atlas <name> <output-dir>] [--create-constellation <name>] [--constellation-title <text>] [--constellation-summary <text>] [--browse-constellations] [--load-constellation <name>] [--add-to-constellation <name> --narrative <ref>|--session <ref>|--compare-set <name>|--compare <left> <right>] [--export-constellation <name> <output-dir>] [--create-pathway <name>] [--browse-pathways] [--load-pathway <name>] [--add-to-pathway <name> --session <ref>|--compare <left> <right>|--narrative <name>|--atlas <path>|--constellation <name>] [--pathway-title <title>] [--pathway-summary <summary>] [--step-title <title>] [--step-note <note>] [--export-pathway <name> <output-dir>] [--search <query>] [--search-tags <comma,separated>] [--search-type <session|compare|narrative|atlas|constellation|pathway>] [--search-bio <experimental|available|near-target>] [--tags <comma,separated,tags>] [--browse] [--browse-collections] [--browse-collection <name>] [--preset <name>] [--lens <name>] [--audio-reactive]"
     if "--help" in args or "-h" in args:
         return usage
 
@@ -686,6 +692,43 @@ def cmd_view(args: list[str], session: object | None = None) -> str:
     if "--browse-constellations" in args:
         consts = list_visual_bloom_constellations(journal_dir=journal_dir)
         return json.dumps({"constellations": consts, "count": len(consts)}, indent=2)
+
+    if "--browse-pathways" in args:
+        pathways = list_visual_bloom_pathways(journal_dir=journal_dir)
+        return json.dumps({"pathways": pathways, "count": len(pathways)}, indent=2)
+
+    search_query = _extract_flag_value(args, "--search")
+    if search_query and "--gallery" not in args:
+        found = search_visual_bloom_metadata(
+            query=search_query,
+            journal_dir=journal_dir,
+            search_tags=_extract_flag_value(args, "--search-tags"),
+            search_type=_extract_flag_value(args, "--search-type"),
+            search_bio=_extract_flag_value(args, "--search-bio"),
+        )
+        return json.dumps({"results": found, "count": len(found)}, indent=2)
+
+    create_pathway = _extract_flag_value(args, "--create-pathway")
+    if create_pathway:
+        try:
+            path = create_visual_bloom_pathway(
+                name=create_pathway,
+                journal_dir=journal_dir,
+                title=_extract_flag_value(args, "--pathway-title"),
+                summary=_extract_flag_value(args, "--pathway-summary"),
+                tags=_extract_flag_value(args, "--tags"),
+            )
+        except VisualizerError as exc:
+            return str(exc)
+        return f"Visual bloom pathway created: {path}"
+
+    load_pathway = _extract_flag_value(args, "--load-pathway")
+    if load_pathway:
+        try:
+            doc = load_visual_bloom_pathway(load_pathway, journal_dir=journal_dir)
+        except VisualizerError as exc:
+            return str(exc)
+        return json.dumps(doc, indent=2)
 
     create_constellation = _extract_flag_value(args, "--create-constellation")
     if create_constellation:
@@ -801,6 +844,54 @@ def cmd_view(args: list[str], session: object | None = None) -> str:
         except VisualizerError as exc:
             return str(exc)
         return f"Visual bloom constellation updated: {updated}"
+
+    add_pathway = _extract_flag_value(args, "--add-to-pathway")
+    if add_pathway:
+        sref = _extract_flag_value(args, "--session")
+        nref = _extract_flag_value(args, "--narrative")
+        aref = _extract_flag_value(args, "--atlas")
+        cref = _extract_flag_value(args, "--constellation")
+        left: str | None = None
+        right: str | None = None
+        if "--compare" in args:
+            idx = args.index("--compare")
+            if idx + 2 < len(args):
+                left, right = args[idx + 1], args[idx + 2]
+        try:
+            updated = add_visual_bloom_pathway_entry(
+                name=add_pathway,
+                journal_dir=journal_dir,
+                session_ref=sref,
+                compare_left=left,
+                compare_right=right,
+                narrative_ref=nref,
+                atlas_ref=aref,
+                constellation_ref=cref,
+                step_title=_extract_flag_value(args, "--step-title") or _extract_flag_value(args, "--entry-title"),
+                step_note=_extract_flag_value(args, "--step-note") or _extract_flag_value(args, "--entry-note"),
+                tags=_extract_flag_value(args, "--tags"),
+            )
+        except VisualizerError as exc:
+            return str(exc)
+        return f"Visual bloom pathway updated: {updated}"
+
+    if "--export-pathway" in args:
+        idx = args.index("--export-pathway")
+        if idx + 2 >= len(args):
+            return usage
+        pname = args[idx + 1]
+        pdir = Path(args[idx + 2]).expanduser()
+        try:
+            out_dir = export_visual_bloom_pathway(
+                name=pname,
+                output_dir=pdir,
+                journal_dir=journal_dir,
+                with_integrity="--with-integrity" in args,
+                tags=_extract_flag_value(args, "--tags"),
+            )
+        except VisualizerError as exc:
+            return str(exc)
+        return f"Visual bloom pathway exported: {out_dir}"
 
     if "--export-atlas" in args:
         idx = args.index("--export-atlas")

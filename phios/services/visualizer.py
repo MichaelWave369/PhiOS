@@ -20,6 +20,14 @@ import importlib.resources as resources
 VALID_PRESETS = {"stable", "ritual", "diagnostic", "bloom"}
 VALID_LENSES = {"stable", "ritual", "diagnostic", "bloom"}
 
+C_STAR_THEORETICAL = 1.618033988749895 / 2.0
+BIO_VACUUM_TARGET = 0.81055
+BIO_VACUUM_BAND_LOW = 0.807
+BIO_VACUUM_BAND_HIGH = 0.813
+BIO_VACUUM_STATUS = "experimental"
+HUNTER_C_STATUS = "unconfirmed"
+BIO_MODEL_PROVENANCE = "proxy-calibrated, not empirically confirmed"
+
 
 class VisualizerError(RuntimeError):
     """Raised when visualizer field_state, journaling, or rendering fails."""
@@ -132,6 +140,33 @@ def augment_visual_bloom_preview_metadata(
         "preview_status": status,
         "preview_origin": source,
     }
+
+
+def build_visual_bloom_bio_metadata(params: dict[str, object]) -> dict[str, object]:
+    coherence = _to_float(params.get("coherenceC"), C_STAR_THEORETICAL)
+    score = _clamp(1.0 - abs(coherence - BIO_VACUUM_TARGET) / 0.02, 0.0, 1.0)
+    return {
+        "bio_target": BIO_VACUUM_TARGET,
+        "bio_band_low": BIO_VACUUM_BAND_LOW,
+        "bio_band_high": BIO_VACUUM_BAND_HIGH,
+        "bio_status": BIO_VACUUM_STATUS,
+        "hunter_c_status": HUNTER_C_STATUS,
+        "model_provenance": BIO_MODEL_PROVENANCE,
+        "c_star_theoretical": C_STAR_THEORETICAL,
+        "bio_score": round(score, 6),
+        "bio_distance_from_target": round(abs(coherence - BIO_VACUUM_TARGET), 6),
+    }
+
+
+def attach_visual_bloom_bio_metadata(params: dict[str, object], *, include_proxy: bool = False) -> dict[str, object]:
+    out = dict(params)
+    bio = build_visual_bloom_bio_metadata(out)
+    if include_proxy:
+        for key in ("hrv_coherence", "eeg_gamma", "neural_spike_density", "atp_flux", "psi_bar_psi"):
+            if key in out:
+                bio[key] = out.get(key)
+    out["bio"] = bio
+    return out
 
 
 def poll_kernel_state() -> tuple[dict[str, object], dict[str, object]]:
@@ -1440,6 +1475,324 @@ def export_visual_bloom_constellation(
     }
     write_visual_bloom_bundle_manifest(manifest_path=out_dir / 'constellation_manifest.json', payload=manifest)
     return out_dir
+
+
+
+def _pathways_root(journal_dir: Path | None = None) -> Path:
+    return _journal_root(journal_dir) / "pathways"
+
+
+def create_visual_bloom_pathway(
+    *,
+    name: str,
+    journal_dir: Path | None = None,
+    title: str | None = None,
+    summary: str | None = None,
+    tags: str | list[str] | None = None,
+) -> Path:
+    safe_name = _sanitize_collection(name)
+    root = _pathways_root(journal_dir)
+    root.mkdir(parents=True, exist_ok=True)
+    path = root / f"{safe_name}.json"
+    if path.exists():
+        raise VisualizerError(f"Pathway already exists: {safe_name}")
+    now = _iso_now()
+    doc = {
+        "pathway_name": safe_name,
+        "created_at": now,
+        "updated_at": now,
+        "title": title or "",
+        "summary": summary or "",
+        "tags": normalize_visual_bloom_tags(tags),
+        "steps": [],
+        "artifact_paths": {},
+        "bio_context": {
+            "c_star_theoretical": C_STAR_THEORETICAL,
+            "bio_target": BIO_VACUUM_TARGET,
+            "bio_band_low": BIO_VACUUM_BAND_LOW,
+            "bio_band_high": BIO_VACUUM_BAND_HIGH,
+            "bio_status": BIO_VACUUM_STATUS,
+            "hunter_c_status": HUNTER_C_STATUS,
+            "model_provenance": BIO_MODEL_PROVENANCE,
+        },
+    }
+    path.write_text(json.dumps(doc, indent=2), encoding="utf-8")
+    return path
+
+
+def load_visual_bloom_pathway(name: str, *, journal_dir: Path | None = None) -> dict[str, object]:
+    safe_name = _sanitize_collection(name)
+    path = _pathways_root(journal_dir) / f"{safe_name}.json"
+    if not path.exists():
+        raise VisualizerError(f"Pathway not found: {safe_name}")
+    doc = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(doc, dict):
+        raise VisualizerError("Pathway document must be an object")
+    if not isinstance(doc.get("steps"), list):
+        doc["steps"] = []
+    if not isinstance(doc.get("tags"), list):
+        doc["tags"] = []
+    return doc
+
+
+def list_visual_bloom_pathways(*, journal_dir: Path | None = None) -> list[dict[str, object]]:
+    root = _pathways_root(journal_dir)
+    if not root.exists():
+        return []
+    out: list[dict[str, object]] = []
+    for pth in root.glob("*.json"):
+        try:
+            doc = json.loads(pth.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+        if not isinstance(doc, dict):
+            continue
+        steps = doc.get("steps")
+        out.append({
+            "pathway_name": doc.get("pathway_name", pth.stem),
+            "created_at": doc.get("created_at", ""),
+            "updated_at": doc.get("updated_at", ""),
+            "title": doc.get("title", ""),
+            "summary": doc.get("summary", ""),
+            "tags": doc.get("tags", []),
+            "step_count": len(steps) if isinstance(steps, list) else 0,
+        })
+    out.sort(key=lambda i: str(i.get("created_at", "")), reverse=True)
+    return out
+
+
+def add_visual_bloom_pathway_entry(
+    *,
+    name: str,
+    journal_dir: Path | None = None,
+    session_ref: str | None = None,
+    compare_left: str | None = None,
+    compare_right: str | None = None,
+    narrative_ref: str | None = None,
+    atlas_ref: str | None = None,
+    constellation_ref: str | None = None,
+    step_title: str | None = None,
+    step_note: str | None = None,
+    tags: str | list[str] | None = None,
+) -> Path:
+    doc = load_visual_bloom_pathway(name, journal_dir=journal_dir)
+    safe_name = _sanitize_collection(name)
+    path = _pathways_root(journal_dir) / f"{safe_name}.json"
+    steps = doc.get("steps")
+    if not isinstance(steps, list):
+        steps = []
+
+    if session_ref:
+        step_type = "session"
+        ref = {"session_ref": session_ref}
+    elif compare_left and compare_right:
+        step_type = "compare"
+        ref = {"left_ref": compare_left, "right_ref": compare_right}
+    elif narrative_ref:
+        step_type = "narrative"
+        ref = {"narrative_ref": _sanitize_collection(narrative_ref)}
+    elif atlas_ref:
+        step_type = "atlas"
+        ref = {"atlas_ref": atlas_ref}
+    elif constellation_ref:
+        step_type = "constellation"
+        ref = {"constellation_ref": _sanitize_collection(constellation_ref)}
+    else:
+        raise VisualizerError("Pathway step requires --session, --compare, --narrative, --atlas, or --constellation")
+
+    steps.append({
+        "step_id": f"p{len(steps):03d}",
+        "step_type": step_type,
+        "title": step_title or "",
+        "note": step_note or "",
+        "tags": normalize_visual_bloom_tags(tags),
+        "created_at": _iso_now(),
+        **ref,
+    })
+    doc["steps"] = steps
+    doc["updated_at"] = _iso_now()
+    path.write_text(json.dumps(doc, indent=2), encoding="utf-8")
+    return path
+
+
+def resolve_visual_bloom_pathway_entry(step: dict[str, object], *, journal_dir: Path | None = None) -> dict[str, object]:
+    kind = str(step.get("step_type", ""))
+    if kind == "session":
+        state = load_visual_bloom_state(str(step.get("session_ref", "")), journal_dir=journal_dir)
+        return {"step_type": "session", "state": state}
+    if kind == "compare":
+        left_ref = str(step.get("left_ref", ""))
+        right_ref = str(step.get("right_ref", ""))
+        if not left_ref or not right_ref:
+            raise VisualizerError("Pathway compare step missing refs")
+        return {"step_type": "compare", "left_ref": left_ref, "right_ref": right_ref}
+    if kind == "narrative":
+        n = load_visual_bloom_narrative(str(step.get("narrative_ref", "")), journal_dir=journal_dir)
+        return {"step_type": "narrative", "name": n.get("narrative_name", "")}
+    if kind == "atlas":
+        ref = Path(str(step.get("atlas_ref", "")).strip()).expanduser()
+        manifest = ref / "atlas_manifest.json" if ref.is_dir() else ref
+        if not manifest.exists():
+            raise VisualizerError(f"Atlas reference not found: {ref}")
+        return {"step_type": "atlas", "manifest": str(manifest)}
+    if kind == "constellation":
+        c = load_visual_bloom_constellation(str(step.get("constellation_ref", "")), journal_dir=journal_dir)
+        return {"step_type": "constellation", "name": c.get("constellation_name", "")}
+    raise VisualizerError(f"Unsupported pathway step type: {kind}")
+
+
+def build_visual_bloom_search_index(*, journal_dir: Path | None = None) -> list[dict[str, object]]:
+    rows: list[dict[str, object]] = []
+    for s in list_visual_bloom_sessions(journal_dir=journal_dir):
+        rows.append({"type": "session", "id": str(s.get("session_id", "")), "title": str(s.get("label", "")), "tags": s.get("tags", []), "collection": str(s.get("collection", "")), "mode": str(s.get("mode", "")), "preset": str(s.get("preset", "")), "lens": str(s.get("lens", "")), "audio": str(s.get("audio", "")), "bio": s.get("bio", {})})
+    for c in list_visual_bloom_compare_sets(journal_dir=journal_dir):
+        rows.append({"type": "compare", "id": str(c.get("name", "")), "title": str(c.get("label", "")), "tags": c.get("tags", []), "bio": {}})
+    for n in list_visual_bloom_narratives(journal_dir=journal_dir):
+        rows.append({"type": "narrative", "id": str(n.get("narrative_name", "")), "title": str(n.get("title", "")), "tags": n.get("tags", []), "bio": {"bio_status": BIO_VACUUM_STATUS}})
+    for c in list_visual_bloom_constellations(journal_dir=journal_dir):
+        rows.append({"type": "constellation", "id": str(c.get("constellation_name", "")), "title": str(c.get("title", "")), "tags": c.get("tags", []), "bio": {}})
+    for p in list_visual_bloom_pathways(journal_dir=journal_dir):
+        rows.append({"type": "pathway", "id": str(p.get("pathway_name", "")), "title": str(p.get("title", "")), "tags": p.get("tags", []), "bio": {"bio_status": BIO_VACUUM_STATUS}})
+    return rows
+
+
+def search_visual_bloom_metadata(
+    *,
+    query: str,
+    journal_dir: Path | None = None,
+    search_tags: str | None = None,
+    search_type: str | None = None,
+    search_bio: str | None = None,
+) -> list[dict[str, object]]:
+    tokens = [t for t in query.lower().split() if t]
+    must_tags = set(normalize_visual_bloom_tags(search_tags)) if search_tags else set()
+    type_filter = _sanitize_collection(search_type) if search_type else ""
+    bio_filter = (search_bio or "").strip().lower()
+
+    results: list[dict[str, object]] = []
+    for row in build_visual_bloom_search_index(journal_dir=journal_dir):
+        rtype = str(row.get("type", "")).lower()
+        if type_filter and rtype != type_filter:
+            continue
+        tags_obj = row.get("tags")
+        row_tags = {str(t) for t in tags_obj if str(t)} if isinstance(tags_obj, list) else set()
+        if must_tags and not must_tags.issubset(row_tags):
+            continue
+
+        bio_obj = row.get("bio")
+        bio = bio_obj if isinstance(bio_obj, dict) else {}
+        if bio_filter == "experimental" and str(bio.get("bio_status", "")).lower() != "experimental":
+            continue
+        if bio_filter == "available" and not bio:
+            continue
+        if bio_filter == "near-target":
+            dist = _to_float(bio.get("bio_distance_from_target"), 999.0)
+            if dist > 0.003:
+                continue
+
+        blob = " ".join([
+            str(row.get("id", "")),
+            str(row.get("title", "")),
+            " ".join(sorted(row_tags)),
+            str(row.get("collection", "")),
+            str(row.get("mode", "")),
+            str(row.get("preset", "")),
+            str(row.get("lens", "")),
+            str(row.get("audio", "")),
+            str(bio.get("bio_status", "")),
+        ]).lower()
+        if tokens and not all(tok in blob for tok in tokens):
+            continue
+        score = sum(1 for tok in tokens if tok in blob) + (2 if must_tags else 0)
+        results.append({**row, "score": score})
+
+    results.sort(key=lambda r: (int(_to_float(r.get("score"), 0.0)), str(r.get("id", ""))), reverse=True)
+    return results
+
+
+def render_visual_bloom_pathway_html(model: dict[str, object]) -> str:
+    try:
+        template = resources.files("phios.templates").joinpath("sonic_pathway.html").read_text(encoding="utf-8")
+    except Exception as exc:
+        raise VisualizerError(f"Unable to load pathway template: {exc}") from exc
+    return template.replace("__PHIOS_PATHWAY_MODEL_JSON__", json.dumps(model, separators=(",", ":")))
+
+
+def export_visual_bloom_pathway(
+    *,
+    name: str,
+    output_dir: Path,
+    journal_dir: Path | None = None,
+    with_integrity: bool = False,
+    tags: str | list[str] | None = None,
+) -> Path:
+    pathway = load_visual_bloom_pathway(name, journal_dir=journal_dir)
+    out = output_dir.expanduser()
+    out.mkdir(parents=True, exist_ok=True)
+    steps_dir = out / "steps"
+    steps_dir.mkdir(parents=True, exist_ok=True)
+
+    raw_steps = pathway.get("steps")
+    steps = raw_steps if isinstance(raw_steps, list) else []
+    rendered: list[dict[str, object]] = []
+
+    for idx, step in enumerate(steps):
+        if not isinstance(step, dict):
+            continue
+        resolved = resolve_visual_bloom_pathway_entry(step, journal_dir=journal_dir)
+        step_json = steps_dir / f"step_{idx:03d}.json"
+        payload = {"index": idx, "step": step, "resolved": resolved}
+        step_json.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+        rendered.append({
+            "index": idx,
+            "step_type": step.get("step_type", ""),
+            "title": step.get("title", ""),
+            "note": step.get("note", ""),
+            "tags": step.get("tags", []),
+            "json": str(Path("steps") / step_json.name),
+            "resolved": resolved,
+        })
+
+    model = {
+        "pathway_name": pathway.get("pathway_name", _sanitize_collection(name)),
+        "title": pathway.get("title", ""),
+        "summary": pathway.get("summary", ""),
+        "tags": normalize_visual_bloom_tags(tags) or pathway.get("tags", []),
+        "created_at": pathway.get("created_at", ""),
+        "updated_at": pathway.get("updated_at", ""),
+        "exported_at": _iso_now(),
+        "step_count": len(rendered),
+        "steps": rendered,
+        "bio_context": pathway.get("bio_context", attach_visual_bloom_bio_metadata({}).get("bio", {})),
+    }
+    html = render_visual_bloom_pathway_html(model)
+    write_bloom_file(html, out / "journey_index.html")
+    (out / "pathway.json").write_text(json.dumps(pathway, indent=2), encoding="utf-8")
+    preview = augment_visual_bloom_preview_metadata(source="pathway")
+    (out / "preview_image_metadata.json").write_text(json.dumps(preview, indent=2), encoding="utf-8")
+
+    included = {"index": "journey_index.html", "pathway": "pathway.json", "preview": "preview_image_metadata.json"}
+    for row in rendered:
+        included[f"step_{row['index']}"] = str(row.get("json", ""))
+    hashes = compute_visual_bloom_bundle_hashes(out, included)
+    manifest = {
+        "pathway_version": "v1",
+        "manifest_version": "v1",
+        "pathway_type": "visual_bloom_field_journey",
+        "pathway_name": model["pathway_name"],
+        "bundle_created_at": model["exported_at"],
+        "step_count": len(rendered),
+        "tags": model["tags"],
+        "bio_context": model["bio_context"],
+        "included_files": included,
+        "integrity_mode": "sha256" if with_integrity else "none",
+        "file_hashes_sha256": hashes if with_integrity else {},
+        "preview": preview,
+        "compatibility_version": "phase12+",
+        "compatibility_notes": "Additive schema; older artifacts remain supported with safe defaults.",
+    }
+    write_visual_bloom_bundle_manifest(manifest_path=out / "pathway_manifest.json", payload=manifest)
+    return out
 
 
 

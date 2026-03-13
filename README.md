@@ -221,6 +221,15 @@ phi view --browse-constellations
 phi view --load-constellation sky_map
 phi view --export-constellation sky_map ./exports/sky_map --with-integrity
 phi view --link-narrative morning_story --link-type narrative --target-ref evening_story --entry-note "continuation" --tags bridge
+phi view --create-pathway shift_journey --pathway-title "Shift Journey" --pathway-summary "Guided arc" --tags coherence,experimental
+phi view --add-to-pathway shift_journey --session 20260101T120000Z_123456:0 --step-note "Entry baseline"
+phi view --add-to-pathway shift_journey --narrative morning_story --step-note "Narrative anchor"
+phi view --add-to-pathway shift_journey --atlas ./exports/morning_story_atlas --step-note "Atlas handoff"
+phi view --add-to-pathway shift_journey --constellation sky_map --step-note "Cross-link context"
+phi view --browse-pathways
+phi view --load-pathway shift_journey
+phi view --export-pathway shift_journey ./exports/shift_journey --with-integrity
+phi view --search coherence --search-tags coherence --search-type pathway --search-bio experimental
 ```
 
 Snapshot mode generates a one-shot artifact from current PhiKernel state.
@@ -242,6 +251,23 @@ Phase 10 adds curated narratives/storyboards and portable Field Atlas export (`-
 
 Phase 11 adds thematic tags (`--tags`), cross-narrative links (`--link-narrative`, `--link-type`, `--target-ref`), and constellation maps (`--create-constellation`, `--add-to-constellation`, `--browse-constellations`, `--load-constellation`, `--export-constellation`) for multi-artifact curation.
 
+Phase 12 adds curated operator pathways/journeys (`--create-pathway`, `--add-to-pathway`, `--browse-pathways`, `--load-pathway`, `--export-pathway`) and local metadata search (`--search`, `--search-tags`, `--search-type`, `--search-bio`) across sessions/compares/narratives/atlases/constellations/pathways.
+
+
+### Experimental bio-resonance framing (careful distinction)
+
+PhiOS uses **explicitly experimental** bio-resonance metadata for operator interpretation only:
+
+- `C_STAR_THEORETICAL = φ / 2 ≈ 0.809016994...`
+- `BIO_VACUUM_TARGET = 0.81055`
+- `BIO_VACUUM_BAND_LOW = 0.807`
+- `BIO_VACUUM_BAND_HIGH = 0.813`
+- `BIO_VACUUM_STATUS = "experimental"`
+- `HUNTER_C_STATUS = "unconfirmed"`
+- `BIO_MODEL_PROVENANCE = "proxy-calibrated, not empirically confirmed"`
+
+Important: PhiOS does **not** present `BIO_VACUUM_TARGET` as a proven physical constant or as validated Hunter's C. This layer is optional, additive, and used for cautious operator-side annotation/search/journey guidance.
+
 Audio-reactive coupling is optional and off by default (`--audio-reactive`). If local audio support is unavailable, PhiOS continues gracefully without audio modulation.
 
 State references support optional indexing syntax (`<session_id>:<state_idx>`). If omitted, replay/compare defaults to the latest state. Older archives without new metadata fields still replay/compare with safe defaults.
@@ -251,6 +277,8 @@ Compare bundle manifest (`bundle_manifest.json`) uses a stable schema with: `bun
 Field Atlas manifest (`atlas_manifest.json`) includes: `atlas_version`, `manifest_version`, `atlas_type`, `narrative_name`, `bundle_created_at`, `entry_count`, `included_files`, `integrity_mode`, optional `file_hashes_sha256`, `preview`, `compatibility_version`, and `compatibility_notes`.
 
 Constellation manifest (`constellation_manifest.json`) includes: `constellation_version`, `manifest_version`, `constellation_type`, `constellation_name`, `bundle_created_at`, `entry_count`, `link_count`, `tags`, `included_files`, `integrity_mode`, optional `file_hashes_sha256`, `preview`, `compatibility_version`, and `compatibility_notes`.
+
+Pathway manifest (`pathway_manifest.json`) includes: `pathway_version`, `manifest_version`, `pathway_type`, `pathway_name`, `bundle_created_at`, `step_count`, `tags`, `bio_context`, `included_files`, `integrity_mode`, optional `file_hashes_sha256`, `preview`, `compatibility_version`, and `compatibility_notes`.
 
 The adapter reads PhiKernel field_state, maps it into visual parameters, renders a local HTML artifact,
 and opens it in the default browser.
