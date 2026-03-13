@@ -214,6 +214,13 @@ phi view --add-to-narrative morning_story --compare 20260101T120000Z_123456:0 20
 phi view --browse-narratives
 phi view --load-narrative morning_story
 phi view --export-atlas morning_story ./exports/morning_story_atlas --with-integrity
+phi view --create-constellation sky_map --constellation-title "Sky Map" --constellation-summary "Cross-shift threads" --tags coherence,bridge
+phi view --add-to-constellation sky_map --narrative morning_story --entry-note "Primary arc" --tags anchor
+phi view --add-to-constellation sky_map --compare-set morning_pair --entry-note "Key delta"
+phi view --browse-constellations
+phi view --load-constellation sky_map
+phi view --export-constellation sky_map ./exports/sky_map --with-integrity
+phi view --link-narrative morning_story --link-type narrative --target-ref evening_story --entry-note "continuation" --tags bridge
 ```
 
 Snapshot mode generates a one-shot artifact from current PhiKernel state.
@@ -233,6 +240,8 @@ Phase 9 adds richer gallery filtering/search (`--search`, `--filter-mode`, `--fi
 
 Phase 10 adds curated narratives/storyboards and portable Field Atlas export (`--create-narrative`, `--add-to-narrative`, `--browse-narratives`, `--load-narrative`, `--export-atlas`) so saved sessions/compares can be assembled into ordered observatory arcs.
 
+Phase 11 adds thematic tags (`--tags`), cross-narrative links (`--link-narrative`, `--link-type`, `--target-ref`), and constellation maps (`--create-constellation`, `--add-to-constellation`, `--browse-constellations`, `--load-constellation`, `--export-constellation`) for multi-artifact curation.
+
 Audio-reactive coupling is optional and off by default (`--audio-reactive`). If local audio support is unavailable, PhiOS continues gracefully without audio modulation.
 
 State references support optional indexing syntax (`<session_id>:<state_idx>`). If omitted, replay/compare defaults to the latest state. Older archives without new metadata fields still replay/compare with safe defaults.
@@ -240,6 +249,8 @@ State references support optional indexing syntax (`<session_id>:<state_idx>`). 
 Compare bundle manifest (`bundle_manifest.json`) uses a stable schema with: `bundle_version`, `manifest_version`, `bundle_type`, `bundle_label`, `bundle_created_at`, `source_refs`, `included_files`, `integrity_mode`, optional `file_hashes_sha256`, `report_schema_version`, `compatibility_version`, and `compatibility_notes`.
 
 Field Atlas manifest (`atlas_manifest.json`) includes: `atlas_version`, `manifest_version`, `atlas_type`, `narrative_name`, `bundle_created_at`, `entry_count`, `included_files`, `integrity_mode`, optional `file_hashes_sha256`, `preview`, `compatibility_version`, and `compatibility_notes`.
+
+Constellation manifest (`constellation_manifest.json`) includes: `constellation_version`, `manifest_version`, `constellation_type`, `constellation_name`, `bundle_created_at`, `entry_count`, `link_count`, `tags`, `included_files`, `integrity_mode`, optional `file_hashes_sha256`, `preview`, `compatibility_version`, and `compatibility_notes`.
 
 The adapter reads PhiKernel field_state, maps it into visual parameters, renders a local HTML artifact,
 and opens it in the default browser.

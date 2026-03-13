@@ -64,9 +64,15 @@ from phios.services.visualizer import (
     list_visual_bloom_sessions,
     load_visual_bloom_compare_set,
     save_visual_bloom_compare_set,
+    add_visual_bloom_constellation_entry,
     add_visual_bloom_narrative_entry,
+    add_visual_bloom_narrative_link,
+    create_visual_bloom_constellation,
     create_visual_bloom_narrative,
+    export_visual_bloom_constellation,
+    list_visual_bloom_constellations,
     list_visual_bloom_narratives,
+    load_visual_bloom_constellation,
     load_visual_bloom_narrative,
 )
 from phios.core.lt_engine import compute_lt
@@ -658,7 +664,7 @@ def cmd_bio(args: list[str], session: object | None = None) -> str:
 
 
 def cmd_view(args: list[str], session: object | None = None) -> str:
-    usage = "Usage: view --mode sonic [--live] [--refresh-seconds <float>] [--duration <seconds>] [--output <path.html>] [--journal] [--journal-dir <path>] [--label <name>] [--collection <name>] [--replay <session_id|session.json[:idx]>] [--state-idx <n>] [--next-state|--prev-state] [--compare <left_ref> <right_ref>] [--export-report <path.json>] [--export-bundle <dir>] [--with-integrity] [--bundle-label <name>] [--save-compare <name>] [--load-compare <name>] [--browse-compares] [--gallery] [--search <text>] [--filter-mode <mode>] [--filter-preset <name>] [--filter-lens <name>] [--filter-audio <on|off>] [--filter-label <text>] [--filter-session <id>] [--create-narrative <name>] [--narrative-title <text>] [--narrative-summary <text>] [--browse-narratives] [--load-narrative <name>] [--add-to-narrative <name> --session <ref>|--compare <left> <right>|--compare-set <name>] [--entry-title <text>] [--entry-note <text>] [--export-atlas <name> <output-dir>] [--browse] [--browse-collections] [--browse-collection <name>] [--preset <name>] [--lens <name>] [--audio-reactive]"
+    usage = "Usage: view --mode sonic [--live] [--refresh-seconds <float>] [--duration <seconds>] [--output <path.html>] [--journal] [--journal-dir <path>] [--label <name>] [--collection <name>] [--replay <session_id|session.json[:idx]>] [--state-idx <n>] [--next-state|--prev-state] [--compare <left_ref> <right_ref>] [--export-report <path.json>] [--export-bundle <dir>] [--with-integrity] [--bundle-label <name>] [--save-compare <name>] [--load-compare <name>] [--browse-compares] [--gallery] [--search <text>] [--filter-mode <mode>] [--filter-preset <name>] [--filter-lens <name>] [--filter-audio <on|off>] [--filter-label <text>] [--filter-session <id>] [--create-narrative <name>] [--narrative-title <text>] [--narrative-summary <text>] [--browse-narratives] [--load-narrative <name>] [--add-to-narrative <name> --session <ref>|--compare <left> <right>|--compare-set <name>] [--link-narrative <name> --link-type <type> --target-ref <ref>] [--entry-title <text>] [--entry-note <text>] [--export-atlas <name> <output-dir>] [--create-constellation <name>] [--constellation-title <text>] [--constellation-summary <text>] [--browse-constellations] [--load-constellation <name>] [--add-to-constellation <name> --narrative <ref>|--session <ref>|--compare-set <name>|--compare <left> <right>] [--export-constellation <name> <output-dir>] [--tags <comma,separated,tags>] [--browse] [--browse-collections] [--browse-collection <name>] [--preset <name>] [--lens <name>] [--audio-reactive]"
     if "--help" in args or "-h" in args:
         return usage
 
@@ -677,6 +683,32 @@ def cmd_view(args: list[str], session: object | None = None) -> str:
         narratives = list_visual_bloom_narratives(journal_dir=journal_dir)
         return json.dumps({"narratives": narratives, "count": len(narratives)}, indent=2)
 
+    if "--browse-constellations" in args:
+        consts = list_visual_bloom_constellations(journal_dir=journal_dir)
+        return json.dumps({"constellations": consts, "count": len(consts)}, indent=2)
+
+    create_constellation = _extract_flag_value(args, "--create-constellation")
+    if create_constellation:
+        try:
+            path = create_visual_bloom_constellation(
+                name=create_constellation,
+                journal_dir=journal_dir,
+                title=_extract_flag_value(args, "--constellation-title"),
+                summary=_extract_flag_value(args, "--constellation-summary"),
+                tags=_extract_flag_value(args, "--tags"),
+            )
+        except VisualizerError as exc:
+            return str(exc)
+        return f"Visual bloom constellation created: {path}"
+
+    load_constellation = _extract_flag_value(args, "--load-constellation")
+    if load_constellation:
+        try:
+            doc = load_visual_bloom_constellation(load_constellation, journal_dir=journal_dir)
+        except VisualizerError as exc:
+            return str(exc)
+        return json.dumps(doc, indent=2)
+
     create_narrative = _extract_flag_value(args, "--create-narrative")
     if create_narrative:
         try:
@@ -686,6 +718,7 @@ def cmd_view(args: list[str], session: object | None = None) -> str:
                 title=_extract_flag_value(args, "--narrative-title"),
                 summary=_extract_flag_value(args, "--narrative-summary"),
                 collection=_extract_flag_value(args, "--collection"),
+                tags=_extract_flag_value(args, "--tags"),
             )
         except VisualizerError as exc:
             return str(exc)
@@ -719,10 +752,55 @@ def cmd_view(args: list[str], session: object | None = None) -> str:
                 compare_set=compare_set_entry,
                 entry_title=_extract_flag_value(args, "--entry-title"),
                 entry_note=_extract_flag_value(args, "--entry-note"),
+                tags=_extract_flag_value(args, "--tags"),
             )
         except VisualizerError as exc:
             return str(exc)
         return f"Visual bloom narrative updated: {updated}"
+
+    link_narrative = _extract_flag_value(args, "--link-narrative")
+    if link_narrative:
+        try:
+            updated = add_visual_bloom_narrative_link(
+                name=link_narrative,
+                link_type=_extract_flag_value(args, "--link-type") or "narrative",
+                target_ref=_extract_flag_value(args, "--target-ref") or "",
+                journal_dir=journal_dir,
+                label=_extract_flag_value(args, "--entry-title"),
+                note=_extract_flag_value(args, "--entry-note"),
+                tags=_extract_flag_value(args, "--tags"),
+            )
+        except VisualizerError as exc:
+            return str(exc)
+        return f"Visual bloom narrative link added: {updated}"
+
+    add_constellation = _extract_flag_value(args, "--add-to-constellation")
+    if add_constellation:
+        nref = _extract_flag_value(args, "--narrative")
+        sref = _extract_flag_value(args, "--session")
+        cset = _extract_flag_value(args, "--compare-set")
+        left: str | None = None
+        right: str | None = None
+        if "--compare" in args:
+            idx = args.index("--compare")
+            if idx + 2 < len(args):
+                left, right = args[idx + 1], args[idx + 2]
+        try:
+            updated = add_visual_bloom_constellation_entry(
+                name=add_constellation,
+                journal_dir=journal_dir,
+                narrative_ref=nref,
+                session_ref=sref,
+                compare_set=cset,
+                compare_left=left,
+                compare_right=right,
+                entry_title=_extract_flag_value(args, "--entry-title"),
+                entry_note=_extract_flag_value(args, "--entry-note"),
+                tags=_extract_flag_value(args, "--tags"),
+            )
+        except VisualizerError as exc:
+            return str(exc)
+        return f"Visual bloom constellation updated: {updated}"
 
     if "--export-atlas" in args:
         idx = args.index("--export-atlas")
@@ -736,10 +814,29 @@ def cmd_view(args: list[str], session: object | None = None) -> str:
                 output_dir=atlas_dir,
                 journal_dir=journal_dir,
                 with_integrity="--with-integrity" in args,
+                tags=_extract_flag_value(args, "--tags"),
             )
         except VisualizerError as exc:
             return str(exc)
         return f"Visual bloom atlas exported: {out_dir}"
+
+    if "--export-constellation" in args:
+        idx = args.index("--export-constellation")
+        if idx + 2 >= len(args):
+            return usage
+        cname = args[idx + 1]
+        cdir = Path(args[idx + 2]).expanduser()
+        try:
+            out_dir = export_visual_bloom_constellation(
+                name=cname,
+                output_dir=cdir,
+                journal_dir=journal_dir,
+                with_integrity="--with-integrity" in args,
+                tags=_extract_flag_value(args, "--tags"),
+            )
+        except VisualizerError as exc:
+            return str(exc)
+        return f"Visual bloom constellation exported: {out_dir}"
 
     if "--gallery" in args:
         gallery_collection = _extract_flag_value(args, "--collection")
@@ -855,6 +952,7 @@ def cmd_view(args: list[str], session: object | None = None) -> str:
                         journal_dir=journal_dir,
                         report_path=(bundle / "compare_report.json"),
                         bundle_path=bundle,
+                        tags=_extract_flag_value(args, "--tags"),
                     )
                 return f"Visual bloom bundle exported: {bundle}"
             generated = launch_compare_bloom(compare_refs[0], compare_refs[1], output_path=output_path, open_browser=True, journal_dir=journal_dir, export_report_path=export_report_path)
@@ -865,6 +963,7 @@ def cmd_view(args: list[str], session: object | None = None) -> str:
                     right_ref=compare_refs[1],
                     journal_dir=journal_dir,
                     report_path=export_report_path,
+                    tags=_extract_flag_value(args, "--tags"),
                 )
             return f"Compare visual bloom generated: {generated}"
         if replay:

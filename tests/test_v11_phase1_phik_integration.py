@@ -773,3 +773,40 @@ def test_view_mode_export_atlas(monkeypatch, tmp_path):
     out, code = route_command(["view", "--export-atlas", "story", str(atlas), "--with-integrity"])
     assert code == 0
     assert "atlas exported" in out
+
+
+def test_view_mode_constellation_crud_and_export(monkeypatch, tmp_path):
+    cpath = tmp_path / "const.json"
+    monkeypatch.setattr("phios.shell.phi_commands.create_visual_bloom_constellation", lambda **_kwargs: cpath)
+    out, code = route_command(["view", "--create-constellation", "sky", "--constellation-title", "Sky", "--constellation-summary", "Map", "--tags", "a,b"])
+    assert code == 0
+    assert "constellation created" in out
+
+    monkeypatch.setattr("phios.shell.phi_commands.list_visual_bloom_constellations", lambda **_kwargs: [{"constellation_name": "sky"}])
+    out, code = route_command(["view", "--browse-constellations"])
+    assert code == 0
+    assert "sky" in out
+
+    monkeypatch.setattr("phios.shell.phi_commands.load_visual_bloom_constellation", lambda *_args, **_kwargs: {"constellation_name": "sky", "entries": []})
+    out, code = route_command(["view", "--load-constellation", "sky"])
+    assert code == 0
+    assert "constellation_name" in out
+
+    monkeypatch.setattr("phios.shell.phi_commands.add_visual_bloom_constellation_entry", lambda **_kwargs: cpath)
+    out, code = route_command(["view", "--add-to-constellation", "sky", "--narrative", "n1", "--entry-note", "x", "--tags", "t1"])
+    assert code == 0
+    assert "constellation updated" in out
+
+    out_dir = tmp_path / "const_out"
+    monkeypatch.setattr("phios.shell.phi_commands.export_visual_bloom_constellation", lambda **_kwargs: out_dir)
+    out, code = route_command(["view", "--export-constellation", "sky", str(out_dir), "--with-integrity", "--tags", "alpha"])
+    assert code == 0
+    assert "constellation exported" in out
+
+
+def test_view_mode_link_narrative(monkeypatch, tmp_path):
+    np = tmp_path / "n.json"
+    monkeypatch.setattr("phios.shell.phi_commands.add_visual_bloom_narrative_link", lambda **_kwargs: np)
+    out, code = route_command(["view", "--link-narrative", "story", "--link-type", "narrative", "--target-ref", "story2", "--entry-note", "rel", "--tags", "cross"])
+    assert code == 0
+    assert "narrative link added" in out

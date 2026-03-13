@@ -98,6 +98,21 @@ def _sanitize_collection(name: str) -> str:
     return safe
 
 
+def normalize_visual_bloom_tags(tags: str | list[str] | None) -> list[str]:
+    if tags is None:
+        return []
+    raw = tags.split(",") if isinstance(tags, str) else tags
+    out: list[str] = []
+    for item in raw:
+        token = str(item).strip()
+        if not token:
+            continue
+        safe = _sanitize_collection(token)
+        if safe not in out:
+            out.append(safe)
+    return out
+
+
 def augment_visual_bloom_preview_metadata(
     *,
     source: str,
@@ -278,6 +293,7 @@ def create_visual_bloom_session(
     label: str | None = None,
     source_command: str = "phi view --mode sonic",
     collection: str | None = None,
+    tags: str | list[str] | None = None,
 ) -> Path:
     root = _journal_root(journal_dir)
     created_at = _iso_now()
@@ -296,6 +312,7 @@ def create_visual_bloom_session(
         "mode": mode,
         "label": label,
         "collection": collection,
+        "tags": normalize_visual_bloom_tags(tags),
         "seed": params.get("seed"),
         "refreshSeconds": refresh_seconds,
         "driftBand": params.get("driftBand"),
@@ -583,6 +600,7 @@ def save_visual_bloom_compare_set(
     report_path: Path | None = None,
     bundle_path: Path | None = None,
     label: str | None = None,
+    tags: str | list[str] | None = None,
 ) -> Path:
     safe_name = _sanitize_collection(name)
     root = _compare_sets_root(journal_dir)
@@ -596,6 +614,7 @@ def save_visual_bloom_compare_set(
         "label": label or "",
         "latest_report_path": str(report_path) if report_path else "",
         "latest_bundle_path": str(bundle_path) if bundle_path else "",
+        "tags": normalize_visual_bloom_tags(tags),
     }
     path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
     return path
@@ -621,6 +640,7 @@ def list_visual_bloom_compare_sets(*, journal_dir: Path | None = None) -> list[d
             "label": data.get("label", ""),
             "latest_report_path": data.get("latest_report_path", ""),
             "latest_bundle_path": data.get("latest_bundle_path", ""),
+            "tags": data.get("tags", []),
         })
     out.sort(key=lambda i: str(i.get("created_at", "")), reverse=True)
     return out
@@ -846,6 +866,7 @@ def create_visual_bloom_narrative(
     title: str | None = None,
     summary: str | None = None,
     collection: str | None = None,
+    tags: str | list[str] | None = None,
 ) -> Path:
     safe_name = _sanitize_collection(name)
     root = _narratives_root(journal_dir)
@@ -861,7 +882,9 @@ def create_visual_bloom_narrative(
         "title": title or "",
         "summary": summary or "",
         "collection": collection or "",
+        "tags": normalize_visual_bloom_tags(tags),
         "entries": [],
+        "links": [],
         "artifact_paths": {},
     }
     path.write_text(json.dumps(doc, indent=2), encoding='utf-8')
@@ -882,6 +905,12 @@ def load_visual_bloom_narrative(name: str, *, journal_dir: Path | None = None) -
     entries = doc.get('entries')
     if not isinstance(entries, list):
         doc['entries'] = []
+    links = doc.get('links')
+    if not isinstance(links, list):
+        doc['links'] = []
+    tags = doc.get('tags')
+    if not isinstance(tags, list):
+        doc['tags'] = []
     return doc
 
 
@@ -907,6 +936,8 @@ def list_visual_bloom_narratives(*, journal_dir: Path | None = None) -> list[dic
             'summary': doc.get('summary', ''),
             'collection': doc.get('collection', ''),
             'entry_count': count,
+            'tags': doc.get('tags', []),
+            'link_count': len(doc.get('links', [])) if isinstance(doc.get('links'), list) else 0,
         })
     out.sort(key=lambda i: str(i.get('created_at', '')), reverse=True)
     return out
@@ -922,6 +953,7 @@ def add_visual_bloom_narrative_entry(
     compare_set: str | None = None,
     entry_title: str | None = None,
     entry_note: str | None = None,
+    tags: str | list[str] | None = None,
 ) -> Path:
     doc = load_visual_bloom_narrative(name, journal_dir=journal_dir)
     safe_name = _sanitize_collection(name)
@@ -950,6 +982,7 @@ def add_visual_bloom_narrative_entry(
         'title': entry_title or '',
         'note': entry_note or '',
         'created_at': _iso_now(),
+        'tags': normalize_visual_bloom_tags(tags),
         **ref,
     }
     entries.append(entry)
@@ -957,6 +990,62 @@ def add_visual_bloom_narrative_entry(
     doc['updated_at'] = _iso_now()
     path.write_text(json.dumps(doc, indent=2), encoding='utf-8')
     return path
+
+
+def add_visual_bloom_narrative_link(
+    *,
+    name: str,
+    link_type: str,
+    target_ref: str,
+    journal_dir: Path | None = None,
+    label: str | None = None,
+    note: str | None = None,
+    tags: str | list[str] | None = None,
+) -> Path:
+    doc = load_visual_bloom_narrative(name, journal_dir=journal_dir)
+    safe_name = _sanitize_collection(name)
+    path = _narratives_root(journal_dir) / f"{safe_name}.json"
+    links = doc.get('links')
+    if not isinstance(links, list):
+        links = []
+    links.append({
+        'link_id': f"l{len(links):03d}",
+        'link_type': _sanitize_collection(link_type),
+        'target_ref': target_ref,
+        'label': label or '',
+        'note': note or '',
+        'tags': normalize_visual_bloom_tags(tags),
+        'created_at': _iso_now(),
+    })
+    doc['links'] = links
+    doc['updated_at'] = _iso_now()
+    path.write_text(json.dumps(doc, indent=2), encoding='utf-8')
+    return path
+
+
+def resolve_visual_bloom_link_ref(
+    *,
+    link_type: str,
+    target_ref: str,
+    journal_dir: Path | None = None,
+) -> dict[str, object]:
+    kind = _sanitize_collection(link_type)
+    if kind == 'narrative':
+        doc = load_visual_bloom_narrative(target_ref, journal_dir=journal_dir)
+        return {'link_type': 'narrative', 'target': doc.get('narrative_name', target_ref)}
+    if kind == 'session':
+        state = load_visual_bloom_state(target_ref, journal_dir=journal_dir)
+        return {'link_type': 'session', 'target': state.get('sessionId', target_ref)}
+    if kind == 'compare-set':
+        comp = load_visual_bloom_compare_set(target_ref, journal_dir=journal_dir)
+        return {'link_type': 'compare-set', 'target': target_ref, 'left_ref': comp.get('left_ref', ''), 'right_ref': comp.get('right_ref', '')}
+    if kind == 'atlas':
+        p = Path(target_ref).expanduser()
+        manifest = p / 'atlas_manifest.json' if p.is_dir() else p
+        if not manifest.exists():
+            raise VisualizerError(f"Atlas reference not found: {target_ref}")
+        return {'link_type': 'atlas', 'target': str(manifest)}
+    raise VisualizerError(f"Unsupported link type: {link_type}")
 
 
 def resolve_visual_bloom_narrative_entry(
@@ -1002,6 +1091,7 @@ def export_visual_bloom_atlas(
     output_dir: Path,
     journal_dir: Path | None = None,
     with_integrity: bool = False,
+    tags: str | list[str] | None = None,
 ) -> Path:
     narrative = load_visual_bloom_narrative(name, journal_dir=journal_dir)
     atlas_dir = output_dir.expanduser()
@@ -1094,6 +1184,7 @@ def export_visual_bloom_atlas(
         'narrative_name': atlas_model['narrative_name'],
         'bundle_created_at': atlas_model['exported_at'],
         'entry_count': len(atlas_entries),
+        'tags': atlas_model.get('tags', []),
         'included_files': included_files,
         'integrity_mode': 'sha256' if with_integrity else 'none',
         'file_hashes_sha256': file_hashes if with_integrity else {},
@@ -1103,6 +1194,252 @@ def export_visual_bloom_atlas(
     }
     write_visual_bloom_bundle_manifest(manifest_path=atlas_dir / 'atlas_manifest.json', payload=manifest)
     return atlas_dir
+
+
+
+def _constellations_root(journal_dir: Path | None = None) -> Path:
+    return _journal_root(journal_dir) / 'constellations'
+
+
+def create_visual_bloom_constellation(
+    *,
+    name: str,
+    journal_dir: Path | None = None,
+    title: str | None = None,
+    summary: str | None = None,
+    tags: str | list[str] | None = None,
+) -> Path:
+    safe_name = _sanitize_collection(name)
+    root = _constellations_root(journal_dir)
+    root.mkdir(parents=True, exist_ok=True)
+    path = root / f"{safe_name}.json"
+    if path.exists():
+        raise VisualizerError(f"Constellation already exists: {safe_name}")
+    now = _iso_now()
+    doc = {
+        'constellation_name': safe_name,
+        'created_at': now,
+        'updated_at': now,
+        'title': title or '',
+        'summary': summary or '',
+        'tags': normalize_visual_bloom_tags(tags),
+        'entries': [],
+        'links': [],
+        'artifact_paths': {},
+    }
+    path.write_text(json.dumps(doc, indent=2), encoding='utf-8')
+    return path
+
+
+def load_visual_bloom_constellation(name: str, *, journal_dir: Path | None = None) -> dict[str, object]:
+    safe_name = _sanitize_collection(name)
+    path = _constellations_root(journal_dir) / f"{safe_name}.json"
+    if not path.exists():
+        raise VisualizerError(f"Constellation not found: {safe_name}")
+    doc = json.loads(path.read_text(encoding='utf-8'))
+    if not isinstance(doc, dict):
+        raise VisualizerError('Constellation document must be an object')
+    if not isinstance(doc.get('entries'), list):
+        doc['entries'] = []
+    if not isinstance(doc.get('links'), list):
+        doc['links'] = []
+    if not isinstance(doc.get('tags'), list):
+        doc['tags'] = []
+    return doc
+
+
+def list_visual_bloom_constellations(*, journal_dir: Path | None = None) -> list[dict[str, object]]:
+    root = _constellations_root(journal_dir)
+    if not root.exists():
+        return []
+    out: list[dict[str, object]] = []
+    for pth in root.glob('*.json'):
+        try:
+            doc = json.loads(pth.read_text(encoding='utf-8'))
+        except Exception:
+            continue
+        if not isinstance(doc, dict):
+            continue
+        entries = doc.get('entries')
+        links = doc.get('links')
+        out.append({
+            'constellation_name': doc.get('constellation_name', pth.stem),
+            'created_at': doc.get('created_at', ''),
+            'updated_at': doc.get('updated_at', ''),
+            'title': doc.get('title', ''),
+            'summary': doc.get('summary', ''),
+            'tags': doc.get('tags', []),
+            'entry_count': len(entries) if isinstance(entries, list) else 0,
+            'link_count': len(links) if isinstance(links, list) else 0,
+        })
+    out.sort(key=lambda i: str(i.get('created_at', '')), reverse=True)
+    return out
+
+
+def add_visual_bloom_constellation_entry(
+    *,
+    name: str,
+    journal_dir: Path | None = None,
+    narrative_ref: str | None = None,
+    session_ref: str | None = None,
+    compare_set: str | None = None,
+    compare_left: str | None = None,
+    compare_right: str | None = None,
+    entry_title: str | None = None,
+    entry_note: str | None = None,
+    tags: str | list[str] | None = None,
+) -> Path:
+    doc = load_visual_bloom_constellation(name, journal_dir=journal_dir)
+    safe_name = _sanitize_collection(name)
+    path = _constellations_root(journal_dir) / f"{safe_name}.json"
+    entries = doc.get('entries')
+    if not isinstance(entries, list):
+        entries = []
+
+    if narrative_ref:
+        entry_type = 'narrative'
+        ref = {'narrative_ref': _sanitize_collection(narrative_ref)}
+    elif session_ref:
+        entry_type = 'session'
+        ref = {'session_ref': session_ref}
+    elif compare_set:
+        entry_type = 'compare_set'
+        ref = {'compare_set': _sanitize_collection(compare_set)}
+    elif compare_left and compare_right:
+        entry_type = 'compare'
+        ref = {'left_ref': compare_left, 'right_ref': compare_right}
+    else:
+        raise VisualizerError('Constellation entry requires --narrative, --session, --compare-set, or --compare <left> <right>')
+
+    entries.append({
+        'entry_id': f"c{len(entries):03d}",
+        'entry_type': entry_type,
+        'title': entry_title or '',
+        'note': entry_note or '',
+        'tags': normalize_visual_bloom_tags(tags),
+        'created_at': _iso_now(),
+        **ref,
+    })
+    doc['entries'] = entries
+    doc['updated_at'] = _iso_now()
+    path.write_text(json.dumps(doc, indent=2), encoding='utf-8')
+    return path
+
+
+def render_visual_bloom_constellation_html(model: dict[str, object]) -> str:
+    try:
+        template = resources.files('phios.templates').joinpath('sonic_constellation.html').read_text(encoding='utf-8')
+    except Exception as exc:
+        raise VisualizerError(f"Unable to load constellation template: {exc}") from exc
+    return template.replace('__PHIOS_CONSTELLATION_MODEL_JSON__', json.dumps(model, separators=(',', ':')))
+
+
+def export_visual_bloom_constellation(
+    *,
+    name: str,
+    output_dir: Path,
+    journal_dir: Path | None = None,
+    with_integrity: bool = False,
+    tags: str | list[str] | None = None,
+) -> Path:
+    const = load_visual_bloom_constellation(name, journal_dir=journal_dir)
+    out_dir = output_dir.expanduser()
+    out_dir.mkdir(parents=True, exist_ok=True)
+    entries_dir = out_dir / 'items'
+    entries_dir.mkdir(parents=True, exist_ok=True)
+
+    raw_entries = const.get('entries')
+    entries = raw_entries if isinstance(raw_entries, list) else []
+    rendered: list[dict[str, object]] = []
+
+    for idx, entry in enumerate(entries):
+        if not isinstance(entry, dict):
+            continue
+        et = str(entry.get('entry_type', ''))
+        resolved: dict[str, object]
+        if et == 'narrative':
+            nref = str(entry.get('narrative_ref', ''))
+            ndoc = load_visual_bloom_narrative(nref, journal_dir=journal_dir)
+            resolved = {'entry_type': 'narrative', 'target': ndoc.get('narrative_name', nref), 'title': ndoc.get('title', ''), 'tags': ndoc.get('tags', [])}
+        elif et == 'session':
+            sref = str(entry.get('session_ref', ''))
+            st = load_visual_bloom_state(sref, journal_dir=journal_dir)
+            resolved = {'entry_type': 'session', 'target': st.get('sessionId', sref), 'stateTimestamp': st.get('stateTimestamp', '')}
+        elif et == 'compare_set':
+            cref = str(entry.get('compare_set', ''))
+            comp = load_visual_bloom_compare_set(cref, journal_dir=journal_dir)
+            resolved = {'entry_type': 'compare_set', 'target': cref, 'left_ref': comp.get('left_ref', ''), 'right_ref': comp.get('right_ref', ''), 'tags': comp.get('tags', [])}
+        elif et == 'compare':
+            left_ref = str(entry.get('left_ref', ''))
+            right_ref = str(entry.get('right_ref', ''))
+            if not left_ref or not right_ref:
+                raise VisualizerError('Constellation compare entry missing refs')
+            resolved = {'entry_type': 'compare', 'left_ref': left_ref, 'right_ref': right_ref}
+        else:
+            raise VisualizerError(f"Unsupported constellation entry type: {et}")
+
+        entry_json = entries_dir / f'item_{idx:03d}.json'
+        payload = {'index': idx, 'entry': entry, 'resolved': resolved}
+        entry_json.write_text(json.dumps(payload, indent=2), encoding='utf-8')
+        rendered.append({'index': idx, 'entry_type': et, 'title': entry.get('title', ''), 'note': entry.get('note', ''), 'tags': entry.get('tags', []), 'json': str(Path('items') / entry_json.name), 'resolved': resolved})
+
+    links_raw = const.get('links')
+    links = links_raw if isinstance(links_raw, list) else []
+    link_summaries: list[dict[str, object]] = []
+    for lk in links:
+        if not isinstance(lk, dict):
+            continue
+        ltype = str(lk.get('link_type', ''))
+        tref = str(lk.get('target_ref', ''))
+        try:
+            resolved = resolve_visual_bloom_link_ref(link_type=ltype, target_ref=tref, journal_dir=journal_dir)
+            status = 'resolved'
+        except VisualizerError:
+            resolved = {'link_type': ltype, 'target': tref}
+            status = 'unresolved'
+        link_summaries.append({'link_type': ltype, 'target_ref': tref, 'label': lk.get('label', ''), 'note': lk.get('note', ''), 'tags': lk.get('tags', []), 'status': status, 'resolved': resolved})
+
+    model = {
+        'constellation_name': const.get('constellation_name', _sanitize_collection(name)),
+        'title': const.get('title', ''),
+        'summary': const.get('summary', ''),
+        'tags': normalize_visual_bloom_tags(tags) or const.get('tags', []),
+        'created_at': const.get('created_at', ''),
+        'updated_at': const.get('updated_at', ''),
+        'exported_at': _iso_now(),
+        'entry_count': len(rendered),
+        'link_count': len(link_summaries),
+        'entries': rendered,
+        'links': link_summaries,
+    }
+    html = render_visual_bloom_constellation_html(model)
+    write_bloom_file(html, out_dir / 'constellation_index.html')
+    (out_dir / 'constellation.json').write_text(json.dumps(const, indent=2), encoding='utf-8')
+    preview = augment_visual_bloom_preview_metadata(source='constellation')
+    (out_dir / 'preview_image_metadata.json').write_text(json.dumps(preview, indent=2), encoding='utf-8')
+
+    included = {'index': 'constellation_index.html', 'constellation': 'constellation.json', 'preview': 'preview_image_metadata.json'}
+    for item in rendered:
+        included[f"item_{item['index']}"] = str(item.get('json', ''))
+    hashes = compute_visual_bloom_bundle_hashes(out_dir, included)
+    manifest = {
+        'constellation_version': 'v1',
+        'manifest_version': 'v1',
+        'constellation_type': 'visual_bloom_constellation',
+        'constellation_name': model['constellation_name'],
+        'bundle_created_at': model['exported_at'],
+        'entry_count': len(rendered),
+        'link_count': len(link_summaries),
+        'tags': model['tags'],
+        'included_files': included,
+        'integrity_mode': 'sha256' if with_integrity else 'none',
+        'file_hashes_sha256': hashes if with_integrity else {},
+        'preview': preview,
+        'compatibility_version': 'phase11+',
+        'compatibility_notes': 'Additive schema; older artifacts remain supported with safe defaults.',
+    }
+    write_visual_bloom_bundle_manifest(manifest_path=out_dir / 'constellation_manifest.json', payload=manifest)
+    return out_dir
 
 
 
@@ -1191,6 +1528,7 @@ def launch_bloom(
     lens: str | None = None,
     audio_reactive: bool = False,
     collection: str | None = None,
+    tags: str | list[str] | None = None,
 ) -> Path:
     field_data, status_data = poll_kernel_state()
     mapped = map_kernel_to_visual_params(field_data, status_data)
@@ -1243,6 +1581,7 @@ def launch_live_bloom(
     lens: str | None = None,
     audio_reactive: bool = False,
     collection: str | None = None,
+    tags: str | list[str] | None = None,
 ) -> Path:
     interval = max(refresh_seconds, 0.2)
     target = output_path or Path("/tmp/phios_bloom.html")

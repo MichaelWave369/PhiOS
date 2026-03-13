@@ -19,6 +19,15 @@ from phios.services.visualizer import (
     compute_visual_bloom_diff_metrics,
     append_or_update_journal_state,
     add_visual_bloom_narrative_entry,
+    render_visual_bloom_constellation_html,
+    resolve_visual_bloom_link_ref,
+    normalize_visual_bloom_tags,
+    export_visual_bloom_constellation,
+    add_visual_bloom_constellation_entry,
+    load_visual_bloom_constellation,
+    list_visual_bloom_constellations,
+    create_visual_bloom_constellation,
+    add_visual_bloom_narrative_link,
     create_visual_bloom_narrative,
     export_visual_bloom_atlas,
     list_visual_bloom_narratives,
@@ -576,3 +585,60 @@ def test_narrative_bad_ref_handling(tmp_path):
     add_visual_bloom_narrative_entry(name="bad", journal_dir=tmp_path, session_ref="missing")
     with pytest.raises(VisualizerError, match="Replay session file not found"):
         export_visual_bloom_atlas(name="bad", output_dir=tmp_path / "atlas_bad", journal_dir=tmp_path)
+
+
+def test_normalize_visual_bloom_tags():
+    assert normalize_visual_bloom_tags("Focus,focus, phase-1 ") == ["focus", "phase-1"]
+
+
+def test_narrative_link_roundtrip_and_resolution(tmp_path):
+    create_visual_bloom_narrative(name="a", journal_dir=tmp_path, tags="alpha")
+    create_visual_bloom_narrative(name="b", journal_dir=tmp_path)
+    add_visual_bloom_narrative_link(
+        name="a",
+        link_type="narrative",
+        target_ref="b",
+        journal_dir=tmp_path,
+        label="related",
+        tags="cross",
+    )
+    doc = load_visual_bloom_narrative("a", journal_dir=tmp_path)
+    assert isinstance(doc.get("links"), list) and doc["links"][0]["target_ref"] == "b"
+    resolved = resolve_visual_bloom_link_ref(link_type="narrative", target_ref="b", journal_dir=tmp_path)
+    assert resolved["link_type"] == "narrative"
+
+
+def test_constellation_create_add_list_load_and_export(tmp_path):
+    left = create_visual_bloom_session(mode="snapshot", params={"seed": 1, "driftBand": "Watch", "coherenceC": 0.8, "goldenInf": 1.618, "frequency": 7.83, "particleCount": 1500, "noiseScale": 0.005}, refresh_seconds=None, output_path=tmp_path / "l.html", journal_dir=tmp_path)
+    append_or_update_journal_state(session_dir=left, params={"timestamp": 1, "stateTimestamp": "a", "seed": 1, "coherenceC": 0.8, "goldenInf": 1.618, "frequency": 7.83, "particleCount": 1500, "noiseScale": 0.005, "mode": "snapshot", "driftBand": "Watch"}, output_html=tmp_path / "l.html")
+    create_visual_bloom_narrative(name="n1", journal_dir=tmp_path)
+    save_visual_bloom_compare_set(name="pair", left_ref=f"{left.name}:0", right_ref=f"{left.name}:0", journal_dir=tmp_path, tags="delta")
+
+    create_visual_bloom_constellation(name="c1", journal_dir=tmp_path, title="Const", summary="Map", tags="field,theme")
+    add_visual_bloom_constellation_entry(name="c1", journal_dir=tmp_path, narrative_ref="n1", tags="narr")
+    add_visual_bloom_constellation_entry(name="c1", journal_dir=tmp_path, session_ref=f"{left.name}:0")
+    add_visual_bloom_constellation_entry(name="c1", journal_dir=tmp_path, compare_set="pair")
+
+    listed = list_visual_bloom_constellations(journal_dir=tmp_path)
+    assert listed and listed[0]["constellation_name"] == "c1"
+    loaded = load_visual_bloom_constellation("c1", journal_dir=tmp_path)
+    assert len(loaded["entries"]) == 3
+
+    out = export_visual_bloom_constellation(name="c1", output_dir=tmp_path / "const_out", journal_dir=tmp_path, with_integrity=True)
+    assert (out / "constellation_manifest.json").exists()
+    assert (out / "constellation_index.html").exists()
+    manifest = json.loads((out / "constellation_manifest.json").read_text(encoding="utf-8"))
+    assert manifest["integrity_mode"] == "sha256"
+    assert manifest["entry_count"] == 3
+
+
+def test_render_visual_bloom_constellation_html_marker():
+    html = render_visual_bloom_constellation_html({"constellation_name": "c", "entries": [], "links": []})
+    assert "__PHIOS_CONSTELLATION_MODEL_JSON__" not in html
+
+
+def test_constellation_bad_ref_handling(tmp_path):
+    create_visual_bloom_constellation(name="bad", journal_dir=tmp_path)
+    add_visual_bloom_constellation_entry(name="bad", journal_dir=tmp_path, narrative_ref="missing")
+    with pytest.raises(VisualizerError, match="Narrative not found"):
+        export_visual_bloom_constellation(name="bad", output_dir=tmp_path / "x", journal_dir=tmp_path)
