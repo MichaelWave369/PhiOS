@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>PhiOS Sonic Emergence Bloom</title>
+    <style>
+      html, body { margin: 0; padding: 0; background: #06080d; color: #d2d9e8; font-family: Inter, system-ui, sans-serif; }
+      #hud {
+        position: fixed; top: 12px; left: 12px; right: 12px; z-index: 9;
+        background: rgba(10, 12, 18, 0.66); border: 1px solid rgba(201, 168, 76, 0.35);
+        border-radius: 10px; padding: 10px 12px; backdrop-filter: blur(4px);
+      }
+      #hud .line { font-size: 12px; opacity: 0.92; margin: 2px 0; }
+      canvas { display: block; }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/p5@1.9.4/lib/p5.min.js"></script>
+  </head>
+  <body>
+    <div id="hud"></div>
+    <script>
+      const liveMode = __PHIOS_LIVE_ENABLED__;
+      const refreshMs = __PHIOS_REFRESH_MS__;
+      const refreshSecondsLabel = "__PHIOS_REFRESH_SECONDS__";
+      const paramsPath = "__PHIOS_PARAMS_PATH__";
+      const initialParams = __PHIOS_INITIAL_PARAMS_JSON__;
+
+      let params = { ...initialParams };
+      let pollStatus = liveMode ? "live" : (initialParams.mode || "snapshot");
+      let currentSeed = params.seed || 369369;
+      const particles = [];
+      const hud = document.getElementById("hud");
+      let GOLD = params.goldenInf || 1.618;
+
+      function buildParticles(targetCount) {
+        particles.length = 0;
+        const count = Math.max(120, Math.floor(targetCount || 1500));
+        for (let i = 0; i < count; i += 1) {
+          particles.push({
+            x: random(width),
+            y: random(height),
+            life: random(0.3, 1.0),
+          });
+        }
+      }
+
+      function applyParams(nextParams) {
+        if (!nextParams || typeof nextParams !== "object") {
+          return;
+        }
+
+        const nextSeed = Number.isFinite(Number(nextParams.seed)) ? Number(nextParams.seed) : currentSeed;
+        const prevCount = Math.floor(params.particleCount || 1500);
+        const nextCount = Math.floor(nextParams.particleCount || prevCount);
+
+        params = { ...params, ...nextParams };
+        GOLD = params.goldenInf || 1.618;
+
+        if (nextSeed !== currentSeed) {
+          currentSeed = nextSeed;
+          randomSeed(currentSeed);
+          noiseSeed(currentSeed);
+          buildParticles(nextCount);
+        } else if (Math.abs(nextCount - prevCount) > 80) {
+          buildParticles(nextCount);
+        }
+        renderHud();
+      }
+
+      async function refreshParams() {
+        if (!liveMode || !paramsPath) return;
+        const cacheBust = `${paramsPath}?t=${Date.now()}`;
+        try {
+          const res = await fetch(cacheBust, { cache: "no-store" });
+          if (!res.ok) {
+            pollStatus = `poll error (${res.status})`;
+            renderHud();
+            return;
+          }
+          const data = await res.json();
+          applyParams(data);
+          pollStatus = "live";
+        } catch (_err) {
+          pollStatus = "poll unavailable";
+          renderHud();
+        }
+      }
+
+      function setup() {
+        createCanvas(window.innerWidth, window.innerHeight);
+        pixelDensity(1);
+        noiseDetail(4, 0.5);
+        randomSeed(currentSeed);
+        noiseSeed(currentSeed);
+
+        buildParticles(params.particleCount || 1500);
+        renderHud();
+        background(6, 8, 13);
+
+        if (liveMode) {
+          setInterval(refreshParams, refreshMs);
+        }
+      }
+
+      function draw() {
+        background(6, 8, 13, 20);
+
+        const freq = params.frequency || 7.83;
+        const noiseScale = params.noiseScale || 0.005;
+        const speedBias = params.speedBias || 1.0;
+        const glowGain = params.glowGain || 1.0;
+        const trailStrength = params.trailStrength || 1.0;
+        const turbulenceBias = params.turbulenceBias || 1.0;
+        const paletteShift = params.paletteShift || 1.0;
+        const damping = params.damping || 1.0;
+        const audioGain = params.audioGain || 1.0;
+
+        const gain = map(params.coherenceC || 0.809, 0, 1, 0.8, 3.6) * speedBias * audioGain;
+        const alpha = map(params.coherenceC || 0.809, 0, 1, 30, 110) * trailStrength;
+        const hueBias = map(freq, 1, 40, 170, 240, true) * paletteShift;
+
+        for (const p of particles) {
+          const nx = p.x * noiseScale;
+          const ny = p.y * noiseScale;
+          const nt = frameCount * 0.003 * GOLD;
+          const angle = noise(nx, ny, nt) * TWO_PI * GOLD * turbulenceBias + sin(frameCount / (max(freq, 1) * 2));
+
+          const speed = (gain * p.life) / damping;
+          p.x += cos(angle) * speed;
+          p.y += sin(angle) * speed;
+
+          if (p.x < 0) p.x += width;
+          if (p.x > width) p.x -= width;
+          if (p.y < 0) p.y += height;
+          if (p.y > height) p.y -= height;
+
+          const glow = map(p.life, 0.3, 1, 1.0, 2.8) * glowGain;
+          stroke(hueBias + random(-8, 8), 130, 220, alpha);
+          strokeWeight(glow);
+          point(p.x, p.y);
+        }
+      }
+
+      function renderHud() {
+        hud.innerHTML = [
+          `<div class="line"><strong>Φ PhiOS Visual Bloom · Sonic Emergence</strong></div>`,
+          `<div class="line">seed: ${params.seed} · coherenceC: ${params.coherenceC} · frequency: ${params.frequency}</div>`,
+          `<div class="line">particleCount: ${params.particleCount} · noiseScale: ${params.noiseScale} · driftBand: ${params.driftBand}</div>`,
+          `<div class="line">mode: ${params.mode || (liveMode ? "live" : "snapshot")} · refresh: ${refreshSecondsLabel}s · state: ${pollStatus}</div>`,
+          `<div class="line">session: ${(params.sessionIdShort || "n/a")} · label: ${(params.sessionLabel || "n/a")} · at: ${(params.stateTimestamp || "n/a")}</div>`,
+          `<div class="line">preset: ${(params.preset || "none")} · lens: ${(params.lens || "none")} · audio: ${(params.audioStatus || "off")}</div>`,
+          `<div class="line">source: ${params.sourceLabel || "PhiOS Visual Bloom"}</div>`,
+        ].join("");
+      }
+
+      function windowResized() {
+        resizeCanvas(window.innerWidth, window.innerHeight);
+      }
+    </script>
+  </body>
+</html>
