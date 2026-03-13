@@ -2595,6 +2595,404 @@ def export_visual_bloom_field_library(
     return out
 
 
+def _shelves_root(journal_dir: Path | None = None) -> Path:
+    return _journal_root(journal_dir) / "shelves"
+
+
+def create_visual_bloom_shelf(
+    *,
+    name: str,
+    journal_dir: Path | None = None,
+    title: str | None = None,
+    summary: str | None = None,
+    tags: str | list[str] | None = None,
+    filters: dict[str, object] | None = None,
+) -> Path:
+    safe = _sanitize_collection(name)
+    root = _shelves_root(journal_dir)
+    root.mkdir(parents=True, exist_ok=True)
+    path = root / f"{safe}.json"
+    if path.exists():
+        raise VisualizerError(f"Shelf '{safe}' already exists")
+    now = _iso_now()
+    doc = {
+        "shelf_name": safe,
+        "created_at": now,
+        "updated_at": now,
+        "title": title or safe,
+        "summary": summary or "",
+        "tags": normalize_visual_bloom_tags(tags),
+        "filters": filters or {},
+        "items": [],
+        "artifact_refs": [],
+        "generated_artifact_paths": {},
+        "framing": {
+            "c_star_theoretical": C_STAR_THEORETICAL,
+            "bio_target": BIO_VACUUM_TARGET,
+            "bio_band_low": BIO_VACUUM_BAND_LOW,
+            "bio_band_high": BIO_VACUUM_BAND_HIGH,
+            "bio_status": BIO_VACUUM_STATUS,
+            "hunter_c_status": HUNTER_C_STATUS,
+            "curation_status": "interpretive_local_only",
+        },
+        "experimental": True,
+    }
+    path.write_text(json.dumps(doc, indent=2), encoding="utf-8")
+    return path
+
+
+def list_visual_bloom_shelves(*, journal_dir: Path | None = None) -> list[dict[str, object]]:
+    root = _shelves_root(journal_dir)
+    if not root.exists():
+        return []
+    out: list[dict[str, object]] = []
+    for pth in sorted(root.glob("*.json")):
+        doc = _safe_load_json(pth)
+        if not doc:
+            continue
+        items = doc.get("items")
+        out.append({
+            "shelf_name": doc.get("shelf_name", pth.stem),
+            "created_at": doc.get("created_at", ""),
+            "updated_at": doc.get("updated_at", ""),
+            "title": doc.get("title", ""),
+            "summary": doc.get("summary", ""),
+            "tags": doc.get("tags", []),
+            "item_count": len(items) if isinstance(items, list) else 0,
+        })
+    out.sort(key=lambda r: str(r.get("created_at", "")), reverse=True)
+    return out
+
+
+def load_visual_bloom_shelf(name: str, *, journal_dir: Path | None = None) -> dict[str, object]:
+    safe = _sanitize_collection(name)
+    path = _shelves_root(journal_dir) / f"{safe}.json"
+    doc = _safe_load_json(path)
+    if not doc:
+        raise VisualizerError(f"Shelf not found or invalid: {name}")
+    items_obj = doc.get("items")
+    doc["items"] = [r for r in items_obj if isinstance(r, dict)] if isinstance(items_obj, list) else []
+    if "framing" not in doc or not isinstance(doc.get("framing"), dict):
+        doc["framing"] = {
+            "c_star_theoretical": C_STAR_THEORETICAL,
+            "bio_target": BIO_VACUUM_TARGET,
+            "bio_band_low": BIO_VACUUM_BAND_LOW,
+            "bio_band_high": BIO_VACUUM_BAND_HIGH,
+            "bio_status": BIO_VACUUM_STATUS,
+            "hunter_c_status": HUNTER_C_STATUS,
+            "curation_status": "interpretive_local_only",
+        }
+    return doc
+
+
+def add_visual_bloom_shelf_item(
+    *,
+    name: str,
+    item_type: str,
+    artifact_ref: str,
+    journal_dir: Path | None = None,
+    title: str | None = None,
+    summary: str | None = None,
+    notes: str | None = None,
+    tags: str | list[str] | None = None,
+    sector_family: str | None = None,
+) -> Path:
+    if not artifact_ref.strip():
+        raise VisualizerError("Shelf item requires a non-empty --artifact-ref")
+    doc = load_visual_bloom_shelf(name, journal_dir=journal_dir)
+    safe = _sanitize_collection(name)
+    path = _shelves_root(journal_dir) / f"{safe}.json"
+    itype = _sanitize_collection(item_type)
+    allowed = {
+        "field_library", "dossier", "storyboard", "route_compare", "longitudinal", "insight_pack",
+        "atlas_gallery", "narrative", "constellation", "pathway", "atlas",
+    }
+    if itype not in allowed:
+        raise VisualizerError("Unsupported shelf item type")
+    rows_obj = doc.get("items")
+    rows = rows_obj if isinstance(rows_obj, list) else []
+    sec_summary = build_visual_bloom_sector_summary(metadata={"tags": normalize_visual_bloom_tags(tags)}, family=sector_family or "HG")
+    item = {
+        "item_id": f"i{len(rows):03d}",
+        "item_type": itype,
+        "title": title or itype,
+        "summary": summary or "",
+        "artifact_ref": artifact_ref,
+        "notes": notes or "",
+        "tags": normalize_visual_bloom_tags(tags),
+        "sector_overlay": sec_summary,
+        "diagnostics_ref": "",
+        "route_context": {},
+        "timeline_context": {},
+        "dossier_context": {},
+        "field_library_context": {},
+    }
+    rows.append(item)
+    doc["items"] = rows
+    refs_obj = doc.get("artifact_refs")
+    refs = refs_obj if isinstance(refs_obj, list) else []
+    refs.append({"type": itype, "ref": artifact_ref})
+    doc["artifact_refs"] = refs
+    doc["updated_at"] = _iso_now()
+    path.write_text(json.dumps(doc, indent=2), encoding="utf-8")
+    return path
+
+
+def build_visual_bloom_shelf_summary(*, items: list[dict[str, object]]) -> dict[str, object]:
+    item_type_counts: dict[str, int] = {}
+    dominant_sector_counts: dict[str, int] = {}
+    route_target_mode_counts: dict[str, int] = {}
+    tag_counts: dict[str, int] = {}
+    coverage = {
+        "field_library": 0,
+        "dossier": 0,
+        "storyboard": 0,
+        "diagnostics": 0,
+        "bio_metadata": 0,
+    }
+    for row in items:
+        itype = _sanitize_collection(str(row.get("item_type", "")))
+        if itype:
+            item_type_counts[itype] = item_type_counts.get(itype, 0) + 1
+            if itype in coverage:
+                coverage[itype] = coverage.get(itype, 0) + 1
+        so = row.get("sector_overlay")
+        sec = so if isinstance(so, dict) else {}
+        dom = _sanitize_collection(str(sec.get("dominant_sector", ""))) if sec.get("dominant_sector") else ""
+        if dom:
+            dominant_sector_counts[dom] = dominant_sector_counts.get(dom, 0) + 1
+        rc = row.get("route_context")
+        rcd = rc if isinstance(rc, dict) else {}
+        target = _sanitize_collection(str(rcd.get("target_mode", ""))) if rcd.get("target_mode") else ""
+        if target:
+            route_target_mode_counts[target] = route_target_mode_counts.get(target, 0) + 1
+        if row.get("diagnostics_ref"):
+            coverage["diagnostics"] = coverage.get("diagnostics", 0) + 1
+        if row.get("timeline_context") or row.get("dossier_context") or row.get("field_library_context"):
+            coverage["bio_metadata"] = coverage.get("bio_metadata", 0) + 1
+        tags_obj = row.get("tags")
+        tags = normalize_visual_bloom_tags(tags_obj if isinstance(tags_obj, (str, list)) else None)
+        for tag in tags:
+            tag_counts[tag] = tag_counts.get(tag, 0) + 1
+    return {
+        "summary_version": "v1",
+        "item_count": len(items),
+        "item_type_counts": item_type_counts,
+        "dominant_sector_counts": dominant_sector_counts,
+        "route_target_mode_counts": route_target_mode_counts,
+        "tag_counts": tag_counts,
+        "coverage": coverage,
+        "interpretive_note": "Shelf summary is deterministic local curation metadata and is not physics validation.",
+        "status": "experimental_shelf_summary",
+    }
+
+
+def build_visual_bloom_shelf_model(
+    *,
+    name: str,
+    journal_dir: Path | None = None,
+    filter_tags: str | None = None,
+    filter_sector: str | None = None,
+    filter_type: str | None = None,
+) -> dict[str, object]:
+    doc = load_visual_bloom_shelf(name, journal_dir=journal_dir)
+    items_obj = doc.get("items")
+    items = [i for i in items_obj if isinstance(i, dict)] if isinstance(items_obj, list) else []
+    model_filters = {
+        "tags": filter_tags or "",
+        "sector": filter_sector or "",
+        "type": filter_type or "",
+    }
+    filtered = filter_visual_bloom_catalog_entries(
+        entries=[{**i, "artifact_type": i.get("item_type", "")} for i in items],
+        filter_tags=filter_tags,
+        filter_sector=filter_sector,
+        filter_type=filter_type,
+    )
+    summary = build_visual_bloom_shelf_summary(items=items)
+    return {
+        **doc,
+        "filters": model_filters,
+        "items": items,
+        "filtered_items": filtered,
+        "shelf_summary": summary,
+        "generated_at": _iso_now(),
+        "experimental": True,
+    }
+
+
+def render_visual_bloom_shelf_html(model: dict[str, object]) -> str:
+    try:
+        template = resources.files("phios.templates").joinpath("sonic_shelf.html").read_text(encoding="utf-8")
+    except Exception as exc:
+        raise VisualizerError(f"Unable to load shelf template: {exc}") from exc
+    return template.replace("__PHIOS_SHELF_MODEL_JSON__", json.dumps(model, separators=(",", ":")))
+
+
+def export_visual_bloom_shelf(
+    *,
+    name: str,
+    output_dir: Path,
+    journal_dir: Path | None = None,
+    title: str | None = None,
+    filter_tags: str | None = None,
+    filter_sector: str | None = None,
+    filter_type: str | None = None,
+    with_integrity: bool = False,
+) -> Path:
+    out = output_dir.expanduser()
+    out.mkdir(parents=True, exist_ok=True)
+    model = build_visual_bloom_shelf_model(
+        name=name,
+        journal_dir=journal_dir,
+        filter_tags=filter_tags,
+        filter_sector=filter_sector,
+        filter_type=filter_type,
+    )
+    if title:
+        model["title"] = title
+    html = render_visual_bloom_shelf_html(model)
+    write_bloom_file(html, out / "shelf_index.html")
+    (out / "shelf.json").write_text(json.dumps(model, indent=2), encoding="utf-8")
+    items_dir = out / "items"
+    items_dir.mkdir(parents=True, exist_ok=True)
+    items_obj = model.get("items")
+    items = items_obj if isinstance(items_obj, list) else []
+    for idx, item in enumerate(items):
+        if isinstance(item, dict):
+            (items_dir / f"item_{idx:03d}.json").write_text(json.dumps(item, indent=2), encoding="utf-8")
+    summary = model.get("shelf_summary") if isinstance(model.get("shelf_summary"), dict) else {}
+    (out / "shelf_summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
+    (out / "sector_summary.json").write_text(json.dumps(summary.get("dominant_sector_counts", {}), indent=2), encoding="utf-8")
+    (out / "diagnostics_summary.json").write_text(json.dumps(summary.get("coverage", {}), indent=2), encoding="utf-8")
+    (out / "route_context_summary.json").write_text(json.dumps(summary.get("route_target_mode_counts", {}), indent=2), encoding="utf-8")
+    preview = augment_visual_bloom_preview_metadata(source="shelf")
+    (out / "preview_image_metadata.json").write_text(json.dumps(preview, indent=2), encoding="utf-8")
+    included = {
+        "index": "shelf_index.html",
+        "shelf": "shelf.json",
+        "shelf_summary": "shelf_summary.json",
+        "sector_summary": "sector_summary.json",
+        "diagnostics_summary": "diagnostics_summary.json",
+        "route_context_summary": "route_context_summary.json",
+        "preview": "preview_image_metadata.json",
+    }
+    hashes = compute_visual_bloom_bundle_hashes(out, included)
+    manifest = {
+        "manifest_version": "v1",
+        "shelf_version": "v1",
+        "type": "visual_bloom_shelf",
+        "shelf_name": model.get("shelf_name", name),
+        "generated_at": model.get("generated_at", _iso_now()),
+        "included_files": included,
+        "integrity_mode": "sha256" if with_integrity else "none",
+        "file_hashes_sha256": hashes if with_integrity else {},
+        "experimental": True,
+        "compatibility_version": "phase21+",
+        "compatibility_notes": "Additive schema; older artifacts remain supported with safe defaults.",
+    }
+    write_visual_bloom_bundle_manifest(manifest_path=out / "shelf_manifest.json", payload=manifest)
+    return out
+
+
+def build_visual_bloom_catalog_model(*, journal_dir: Path | None = None) -> dict[str, object]:
+    entries = build_visual_bloom_field_library_index(journal_dir=journal_dir)
+    for fl in list_visual_bloom_field_libraries(journal_dir=journal_dir):
+        lname = str(fl.get("library_name", ""))
+        if lname:
+            entries.append({
+                "artifact_type": "field_library",
+                "artifact_ref": str(_field_libraries_root(journal_dir) / f"{_sanitize_collection(lname)}.json"),
+                "title": fl.get("title", lname),
+                "name_ref": lname,
+                "collection": "field_libraries",
+                "tags": fl.get("tags", []),
+                "created_at": fl.get("created_at", ""),
+                "dominant_sector": "",
+                "sector_family": "",
+                "target_mode": "",
+                "heat_mode": "",
+                "has_bio": True,
+                "has_route_compare": True,
+                "has_diagnostics": False,
+            })
+    for sb in list_visual_bloom_storyboards(journal_dir=journal_dir):
+        if not isinstance(sb, dict):
+            continue
+        sb.setdefault("name_ref", sb.get("storyboard_name", ""))
+        sb.setdefault("collection", "storyboards")
+    entries.sort(key=lambda row: (str(row.get("created_at", "")), str(row.get("artifact_type", "")), str(row.get("title", ""))), reverse=True)
+    return {
+        "catalog_version": "v1",
+        "generated_at": _iso_now(),
+        "entry_count": len(entries),
+        "entries": entries,
+        "framing": {
+            "c_star_theoretical": C_STAR_THEORETICAL,
+            "bio_target": BIO_VACUUM_TARGET,
+            "bio_band_low": BIO_VACUUM_BAND_LOW,
+            "bio_band_high": BIO_VACUUM_BAND_HIGH,
+            "bio_status": BIO_VACUUM_STATUS,
+            "hunter_c_status": HUNTER_C_STATUS,
+            "curation_status": "interpretive_local_only",
+        },
+        "status": "experimental_catalog",
+    }
+
+
+def filter_visual_bloom_catalog_entries(
+    *,
+    entries: list[dict[str, object]],
+    filter_tags: str | None = None,
+    filter_sector: str | None = None,
+    filter_type: str | None = None,
+) -> list[dict[str, object]]:
+    tags_req = set(normalize_visual_bloom_tags(filter_tags)) if filter_tags else set()
+    sec_req = _sanitize_collection(filter_sector) if filter_sector else ""
+    type_req = _sanitize_collection(filter_type) if filter_type else ""
+    out: list[dict[str, object]] = []
+    for row in entries:
+        if not isinstance(row, dict):
+            continue
+        tags_row = set(normalize_visual_bloom_tags(row.get("tags") if isinstance(row.get("tags"), (str, list)) else None))
+        if tags_req and not tags_req.issubset(tags_row):
+            continue
+        dom = _sanitize_collection(str(row.get("dominant_sector", ""))) if row.get("dominant_sector") else ""
+        fam = _sanitize_collection(str(row.get("sector_family", ""))) if row.get("sector_family") else ""
+        if sec_req and sec_req not in {dom, fam}:
+            continue
+        rtype = _sanitize_collection(str(row.get("artifact_type", row.get("item_type", ""))))
+        if type_req and rtype != type_req:
+            continue
+        out.append(row)
+    out.sort(key=lambda r: (str(r.get("created_at", "")), str(r.get("title", ""))), reverse=True)
+    return out
+
+
+def group_visual_bloom_catalog_entries(*, entries: list[dict[str, object]], group_by: str | None = None) -> dict[str, list[dict[str, object]]]:
+    key = _sanitize_collection(group_by or "artifact_type")
+    allowed = {"artifact_type", "collection", "sector_family", "dominant_sector", "target_mode", "heat_mode", "has_bio", "has_diagnostics"}
+    if key not in allowed:
+        raise VisualizerError(f"Invalid catalog group field: {group_by}")
+    groups: dict[str, list[dict[str, object]]] = {}
+    for row in entries:
+        raw = row.get(key, "")
+        gk = _sanitize_collection(str(raw)) if raw not in {True, False} else ("yes" if raw else "no")
+        gk = gk or "unknown"
+        groups.setdefault(gk, []).append(row)
+    for gk in list(groups):
+        groups[gk].sort(key=lambda r: (str(r.get("created_at", "")), str(r.get("title", ""))), reverse=True)
+    return dict(sorted(groups.items(), key=lambda item: item[0]))
+
+
+def render_visual_bloom_catalog_html(model: dict[str, object]) -> str:
+    try:
+        template = resources.files("phios.templates").joinpath("sonic_catalog.html").read_text(encoding="utf-8")
+    except Exception as exc:
+        raise VisualizerError(f"Unable to load catalog template: {exc}") from exc
+    return template.replace("__PHIOS_CATALOG_MODEL_JSON__", json.dumps(model, separators=(",", ":")))
+
+
 def build_visual_bloom_route_timeline(*, model: dict[str, object]) -> dict[str, object]:
     sections_obj = model.get("sections")
     sections = [s for s in sections_obj if isinstance(s, dict)] if isinstance(sections_obj, list) else []
@@ -3380,6 +3778,15 @@ def build_visual_bloom_dashboard_model(*, journal_dir: Path | None = None, searc
     storyboards = list_visual_bloom_storyboards(journal_dir=journal_dir)[:10]
     dossiers = list_visual_bloom_dossiers(journal_dir=journal_dir)[:10]
     field_libraries = list_visual_bloom_field_libraries(journal_dir=journal_dir)[:10]
+    shelves = list_visual_bloom_shelves(journal_dir=journal_dir)[:10]
+    catalog = build_visual_bloom_catalog_model(journal_dir=journal_dir)
+    catalog_entries_obj = catalog.get("entries")
+    catalog_entries = [e for e in catalog_entries_obj if isinstance(e, dict)] if isinstance(catalog_entries_obj, list) else []
+    catalog_type_counts: dict[str, int] = {}
+    for row in catalog_entries:
+        at = _sanitize_collection(str(row.get("artifact_type", "")))
+        if at:
+            catalog_type_counts[at] = catalog_type_counts.get(at, 0) + 1
     timeline_entries: list[dict[str, object]] = []
     for row in storyboards[:3]:
         sname = str(row.get("storyboard_name", ""))
@@ -3407,6 +3814,13 @@ def build_visual_bloom_dashboard_model(*, journal_dir: Path | None = None, searc
         "recent_storyboards": storyboards,
         "recent_dossiers": dossiers,
         "recent_field_libraries": field_libraries,
+        "recent_shelves": shelves,
+        "recent_catalog_snapshots": [{
+            "generated_at": catalog.get("generated_at", ""),
+            "entry_count": catalog.get("entry_count", 0),
+            "status": catalog.get("status", "experimental_catalog"),
+        }],
+        "catalog_coverage_counts": catalog_type_counts,
         "recent_atlas_gallery_entries": gallery_entries[:10],
         "longitudinal_snapshot": {
             "series_count": longitudinal.get("series_count", 0),

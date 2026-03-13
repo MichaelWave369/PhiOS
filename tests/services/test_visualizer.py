@@ -87,6 +87,18 @@ from phios.services.visualizer import (
     build_visual_bloom_field_library_model,
     render_visual_bloom_field_library_html,
     export_visual_bloom_field_library,
+    create_visual_bloom_shelf,
+    list_visual_bloom_shelves,
+    load_visual_bloom_shelf,
+    add_visual_bloom_shelf_item,
+    build_visual_bloom_shelf_model,
+    build_visual_bloom_shelf_summary,
+    render_visual_bloom_shelf_html,
+    export_visual_bloom_shelf,
+    build_visual_bloom_catalog_model,
+    filter_visual_bloom_catalog_entries,
+    group_visual_bloom_catalog_entries,
+    render_visual_bloom_catalog_html,
     create_visual_bloom_narrative,
     export_visual_bloom_atlas,
     list_visual_bloom_narratives,
@@ -1031,3 +1043,62 @@ def test_phase20_field_library_crud_summary_and_export(tmp_path):
     out = export_visual_bloom_field_library(name="fl1", output_dir=tmp_path / "field_library", journal_dir=tmp_path, with_integrity=True)
     assert (out / "field_library_manifest.json").exists()
     assert (out / "field_library_summary.json").exists()
+
+
+def test_phase21_shelf_crud_summary_and_export(tmp_path):
+    create_visual_bloom_shelf(name="s1", journal_dir=tmp_path, title="Shelf 1", tags="focus")
+    add_visual_bloom_shelf_item(
+        name="s1",
+        item_type="field_library",
+        artifact_ref="/tmp/fl1",
+        journal_dir=tmp_path,
+        tags="focus",
+        sector_family="HG",
+    )
+    add_visual_bloom_shelf_item(
+        name="s1",
+        item_type="dossier",
+        artifact_ref="/tmp/d1",
+        journal_dir=tmp_path,
+        tags="focus",
+        sector_family="HB",
+    )
+    listed = list_visual_bloom_shelves(journal_dir=tmp_path)
+    assert listed and listed[0]["shelf_name"] == "s1"
+    loaded = load_visual_bloom_shelf("s1", journal_dir=tmp_path)
+    assert len(loaded["items"]) == 2
+
+    model = build_visual_bloom_shelf_model(name="s1", journal_dir=tmp_path, filter_type="dossier")
+    assert len(model["filtered_items"]) == 1
+    summary = build_visual_bloom_shelf_summary(items=model["items"])
+    assert summary["item_count"] == 2
+    html = render_visual_bloom_shelf_html(model)
+    assert "__PHIOS_SHELF_MODEL_JSON__" not in html
+
+    out = export_visual_bloom_shelf(name="s1", output_dir=tmp_path / "shelf", journal_dir=tmp_path, with_integrity=True)
+    assert (out / "shelf_manifest.json").exists()
+    assert (out / "shelf_summary.json").exists()
+
+
+def test_phase21_catalog_build_filter_group_and_render(tmp_path):
+    create_visual_bloom_storyboard(name="sb1", journal_dir=tmp_path, title="Storyboard 1", tags="focus")
+    create_visual_bloom_dossier(name="d1", journal_dir=tmp_path, title="Dossier 1", tags="focus")
+    create_visual_bloom_field_library(name="fl1", journal_dir=tmp_path, title="Library 1", tags="focus")
+
+    model = build_visual_bloom_catalog_model(journal_dir=tmp_path)
+    entries = model.get("entries", [])
+    assert isinstance(entries, list)
+    filtered = filter_visual_bloom_catalog_entries(entries=entries, filter_tags="focus")
+    assert len(filtered) >= 3
+    grouped = group_visual_bloom_catalog_entries(entries=filtered, group_by="artifact_type")
+    assert isinstance(grouped, dict)
+    render_model = {**model, "filtered_entries": filtered, "grouped_entries": grouped, "filters": {"group_by": "artifact_type"}}
+    html = render_visual_bloom_catalog_html(render_model)
+    assert "__PHIOS_CATALOG_MODEL_JSON__" not in html
+
+
+def test_phase21_dashboard_model_includes_shelf_and_catalog(tmp_path):
+    create_visual_bloom_shelf(name="s1", journal_dir=tmp_path)
+    model = build_visual_bloom_dashboard_model(journal_dir=tmp_path)
+    assert "recent_shelves" in model
+    assert "catalog_coverage_counts" in model
