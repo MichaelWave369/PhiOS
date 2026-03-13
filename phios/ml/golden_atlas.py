@@ -259,6 +259,22 @@ def compute_atlas_heat(
         edges = edges_obj if isinstance(edges_obj, dict) else {}
         return [float(len(edges.get(i, []))) for i in range(len(pts))]
 
+    if m == "geometry_balance":
+        target = [C_STAR_THEORETICAL] * len(pts[0])
+        return [1.0 / (1.0 + _l2(p, target)) for p in pts]
+    if m == "vacuum_proximity":
+        target = [BIO_VACUUM_TARGET] * len(pts[0])
+        return [1.0 / (1.0 + _l2(p, target)) for p in pts]
+    if m == "observer_entropy":
+        return [abs(p[-1] - p[0]) for p in pts]
+    if m == "collector_activity":
+        return [min(1.0, (p[2] + p[3]) / 2.0) for p in pts]
+    if m == "mirror_alignment":
+        return [1.0 - min(1.0, abs(p[1] - p[2])) for p in pts]
+    if m == "emotion_field":
+        target = [BIO_VACUUM_TARGET] * len(pts[0])
+        return [min(1.0, abs(p[0] - target[0]) * 10.0) for p in pts]
+
     if m == "bio_band_proximity":
         target = [BIO_VACUUM_TARGET] * len(pts[0])
     else:

@@ -42,6 +42,10 @@ from phios.services.visualizer import (
     benchmark_visual_bloom_recommendations,
     build_visual_bloom_atlas_model,
     render_visual_bloom_atlas_map_html,
+    build_visual_bloom_sector_summary,
+    build_visual_bloom_insight_pack_model,
+    render_visual_bloom_insight_pack_html,
+    export_visual_bloom_insight_pack,
     create_visual_bloom_narrative,
     export_visual_bloom_atlas,
     list_visual_bloom_narratives,
@@ -775,3 +779,27 @@ def test_atlas_model_and_render_marker(tmp_path):
     assert model["experimental"] is True
     html = render_visual_bloom_atlas_map_html(model)
     assert "__PHIOS_ATLAS_MAP_MODEL_JSON__" not in html
+
+
+
+def test_sector_summary_and_insight_pack_export(tmp_path):
+    session_dir = create_visual_bloom_session(
+        mode="snapshot",
+        params={"seed": 1, "driftBand": "Watch", "coherenceC": 0.81, "goldenInf": 1.618, "frequency": 7.83, "particleCount": 1500, "noiseScale": 0.005},
+        refresh_seconds=None,
+        output_path=tmp_path / "s.html",
+        journal_dir=tmp_path,
+    )
+    append_or_update_journal_state(session_dir=session_dir, params={"timestamp": 1, "stateTimestamp": "a", "seed": 1, "coherenceC": 0.81, "goldenInf": 1.618, "frequency": 7.83, "particleCount": 1500, "noiseScale": 0.005, "mode": "snapshot", "driftBand": "Watch"}, output_html=tmp_path / "s.html")
+    create_visual_bloom_pathway(name="ipath", journal_dir=tmp_path, title="Insight")
+    add_visual_bloom_pathway_entry(name="ipath", journal_dir=tmp_path, session_ref=f"{session_dir.name}:0")
+
+    sec = build_visual_bloom_sector_summary(metadata={"coherenceC": 0.81}, family="HG")
+    assert sec["status"] == "experimental_symbolic_ontology"
+
+    model = build_visual_bloom_insight_pack_model(pathway_name="ipath", journal_dir=tmp_path, include_atlas=True)
+    html = render_visual_bloom_insight_pack_html(model)
+    assert "__PHIOS_INSIGHT_PACK_MODEL_JSON__" not in html
+
+    out = export_visual_bloom_insight_pack(pathway_name="ipath", output_dir=tmp_path / "pack", journal_dir=tmp_path, include_atlas=True, with_integrity=True)
+    assert (out / "insight_pack_manifest.json").exists()

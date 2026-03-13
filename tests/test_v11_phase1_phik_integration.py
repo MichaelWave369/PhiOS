@@ -888,3 +888,17 @@ def test_view_mode_phase14_atlas_flags(monkeypatch, tmp_path):
     out, code = route_command(["view", "--atlas", "--atlas-target", "bio_band", "--atlas-max-l1-radius", "2", "--atlas-heat-mode", "bio_band_proximity", "--output", str(apath)])
     assert code == 0
     assert "atlas generated" in out
+
+
+
+def test_view_mode_phase15_sector_and_insight_pack_flags(monkeypatch, tmp_path):
+    monkeypatch.setattr("phios.shell.phi_commands.list_visual_bloom_sectors", lambda _fam=None: [{"sector_id": "geometry", "family": "HG"}])
+    out, code = route_command(["view", "--list-sectors", "--sector-family", "HG"])
+    assert code == 0
+    assert '"count": 1' in out
+
+    pdir = tmp_path / "pack"
+    monkeypatch.setattr("phios.shell.phi_commands.export_visual_bloom_insight_pack", lambda **_kwargs: pdir)
+    out, code = route_command(["view", "--export-insight-pack", "pathway1", str(pdir), "--insight-pack-title", "Pack", "--insight-pack-include-atlas", "--insight-pack-heat-mode", "geometry_balance"])
+    assert code == 0
+    assert "insight pack exported" in out

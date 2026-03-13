@@ -399,3 +399,45 @@ CLI additions:
 - `phi view --atlas --atlas-heat-mode target_proximity|path_density|connectivity|bio_band_proximity`
 
 Golden Atlas is experimental and optional local guidance only; it does not alter core PhiKernel truth logic.
+
+
+## Phase 15: Sector Ontology and Insight Packs
+
+Phase 15 introduces a formal **experimental sector ontology** derived from HG/HB equation scaffolds for observatory UI/analysis context.
+
+### Sector ontology (symbolic/interpretive)
+
+- Added `phios.core.sectors` with HG/HB family sector definitions and metadata.
+- This ontology is a symbolic observatory schema and is **not** an empirically validated physical law layer.
+
+### Sector-aware atlas and dashboard surfacing
+
+- Atlas heat modes now include sector-aware options:
+  - `geometry_balance`
+  - `vacuum_proximity`
+  - `observer_entropy`
+  - `collector_activity`
+  - `mirror_alignment`
+  - `emotion_field`
+- Dashboard includes sector summary panels based on available local metadata with graceful fallback.
+
+### Insight-pack export
+
+- New export flow:
+  - `phi view --export-insight-pack <pathway> <output-dir>`
+  - `--insight-pack-title <title>`
+  - `--insight-pack-include-atlas`
+  - `--insight-pack-heat-mode <mode>`
+- Insight packs are static/local bundles with pathway + branch context, sector summaries, recommendations, optional atlas summary, and framing metadata.
+
+### Sector CLI helpers
+
+- `phi view --list-sectors`
+- `phi view --list-sectors --sector-family HG`
+
+### Framing reminder
+
+- `C_STAR_THEORETICAL` remains theoretical.
+- `BIO_VACUUM_TARGET` and bio band remain experimental.
+- `HUNTER_C_STATUS` remains unconfirmed.
+- Sector ontology, atlas navigation, and insight packs are optional interpretive/operator layers and do not alter PhiKernel truth logic.

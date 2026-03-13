@@ -29,6 +29,11 @@ from phios.core.constants import (
     PHI,
 )
 from phios.ml.golden_kernels import golden_angular_rbf, golden_rbf
+from phios.core.sectors import (
+    dominant_sector,
+    infer_visual_bloom_sector_weights,
+    list_visual_bloom_sectors,
+)
 from phios.ml.golden_lattice import adaptive_golden_affinity, golden_lattice_kernel_l1
 from phios.ml.benchmark_recommendations import benchmark_recommendation_strategies
 from phios.ml.golden_atlas import (
@@ -1174,6 +1179,7 @@ def build_visual_bloom_atlas_model(
 
     heat = compute_atlas_heat(nodes, graph, target_point=target_point, mode=atlas_heat_mode)
     summary = build_golden_atlas_summary(nodes=nodes, graph=graph, path_result=path, heat=heat, target_mode=target_mode)
+    sector_weights = infer_visual_bloom_sector_weights({"coherenceC": target_point[0], "noiseScale": 0.005, "frequency": 7.83})
 
     raw_path = path.get("path")
     path_ids = raw_path if isinstance(raw_path, list) else []
@@ -1195,6 +1201,9 @@ def build_visual_bloom_atlas_model(
             "avg": (sum(heat) / len(heat)) if heat else 0.0,
         },
         "summary": summary,
+        "sector_family": "HG",
+        "sector_weights": sector_weights,
+        "dominant_sector": dominant_sector(sector_weights),
         "constants": {
             "c_star_theoretical": C_STAR_THEORETICAL,
             "bio_target": BIO_VACUUM_TARGET,
@@ -2023,12 +2032,27 @@ def search_visual_bloom_metadata(
     return results
 
 
+def build_visual_bloom_sector_summary(*, metadata: dict[str, object] | None = None, family: str = "HG") -> dict[str, object]:
+    md = metadata or {}
+    weights = infer_visual_bloom_sector_weights(md)
+    sectors = list_visual_bloom_sectors(family)
+    return {
+        "sector_family": family,
+        "dominant_sector": dominant_sector(weights),
+        "sector_weights": weights,
+        "available_sectors": sectors,
+        "status": "experimental_symbolic_ontology",
+    }
+
+
 def build_visual_bloom_dashboard_model(*, journal_dir: Path | None = None, search: str | None = None) -> dict[str, object]:
     sessions = list_visual_bloom_sessions(journal_dir=journal_dir)[:12]
     compares = list_visual_bloom_compare_sets(journal_dir=journal_dir)[:12]
     pathways = list_visual_bloom_pathways(journal_dir=journal_dir)[:12]
     constellations = list_visual_bloom_constellations(journal_dir=journal_dir)[:12]
     rows = search_visual_bloom_metadata(query=search or "", journal_dir=journal_dir) if search else []
+    first_session = sessions[0] if sessions else {}
+    sector_summary = build_visual_bloom_sector_summary(metadata=first_session if isinstance(first_session, dict) else {}, family="HG")
     top_ref = str(sessions[0].get("session_id", "")) if sessions else ""
     recommendations = build_visual_bloom_recommendations(target_ref=top_ref, journal_dir=journal_dir, strategy="golden_angular") if top_ref else []
     return {
@@ -2040,6 +2064,7 @@ def build_visual_bloom_dashboard_model(*, journal_dir: Path | None = None, searc
         "constellations": constellations,
         "results": rows,
         "recommendations": recommendations,
+        "sector_summary": sector_summary,
         "bio_banner": {
             "phi": PHI,
             "c_star_theoretical": C_STAR_THEORETICAL,
@@ -2119,6 +2144,7 @@ def export_visual_bloom_pathway(
         })
 
     recommendations = build_visual_bloom_recommendations(target_ref=str(pathway.get("pathway_name", name)), journal_dir=journal_dir, strategy="golden_angular")
+    sector_summary = build_visual_bloom_sector_summary(metadata=pathway if isinstance(pathway, dict) else {}, family="HG")
     branches_obj = pathway.get("branches")
     branches = branches_obj if isinstance(branches_obj, list) else []
     outgoing_by_step: dict[str, list[dict[str, object]]] = {}
@@ -2145,6 +2171,7 @@ def export_visual_bloom_pathway(
         "branches": branches,
         "branch_outgoing": outgoing_by_step,
         "recommendations": recommendations,
+        "sector_summary": sector_summary,
         "bio_context": pathway.get("bio_context", attach_visual_bloom_bio_metadata({}).get("bio", {})),
     }
     html = render_visual_bloom_pathway_html(model)
@@ -2176,6 +2203,112 @@ def export_visual_bloom_pathway(
     write_visual_bloom_bundle_manifest(manifest_path=out / "pathway_manifest.json", payload=manifest)
     return out
 
+
+
+def build_visual_bloom_insight_pack_model(
+    *,
+    pathway_name: str,
+    journal_dir: Path | None = None,
+    include_atlas: bool = False,
+    insight_pack_heat_mode: str = "target_proximity",
+    title: str | None = None,
+) -> dict[str, object]:
+    pathway = load_visual_bloom_pathway(pathway_name, journal_dir=journal_dir)
+    sector_summary = build_visual_bloom_sector_summary(metadata=pathway if isinstance(pathway, dict) else {}, family="HG")
+    recommendations = build_visual_bloom_recommendations(target_ref=str(pathway.get("pathway_name", pathway_name)), journal_dir=journal_dir, strategy="golden_angular")
+    atlas_summary: dict[str, object] = {}
+    if include_atlas:
+        atlas_model = build_visual_bloom_atlas_model(atlas_target="theoretical", atlas_heat_mode=insight_pack_heat_mode, journal_dir=journal_dir)
+        atlas_summary = {
+            "target_mode": atlas_model.get("target_mode", ""),
+            "route_length": atlas_model.get("route_length", 0),
+            "route_cost": atlas_model.get("route_cost", 0.0),
+            "heat_mode": atlas_model.get("heat_mode", insight_pack_heat_mode),
+            "heat_summary": atlas_model.get("heat_summary", {}),
+            "dominant_sector": atlas_model.get("dominant_sector", ""),
+        }
+    return {
+        "insight_pack_version": "v1",
+        "generated_at": _iso_now(),
+        "title": title or str(pathway.get("title", pathway_name)),
+        "pathway": pathway,
+        "sector_summary": sector_summary,
+        "recommendations": recommendations,
+        "atlas_summary": atlas_summary,
+        "bio_framing": {
+            "c_star_theoretical": C_STAR_THEORETICAL,
+            "bio_target": BIO_VACUUM_TARGET,
+            "bio_band_low": BIO_VACUUM_BAND_LOW,
+            "bio_band_high": BIO_VACUUM_BAND_HIGH,
+            "bio_status": BIO_VACUUM_STATUS,
+            "hunter_c_status": HUNTER_C_STATUS,
+        },
+        "experimental": True,
+    }
+
+
+def render_visual_bloom_insight_pack_html(model: dict[str, object]) -> str:
+    try:
+        template = resources.files("phios.templates").joinpath("sonic_insight_pack.html").read_text(encoding="utf-8")
+    except Exception as exc:
+        raise VisualizerError(f"Unable to load insight-pack template: {exc}") from exc
+    return template.replace("__PHIOS_INSIGHT_PACK_MODEL_JSON__", json.dumps(model, separators=(",", ":")))
+
+
+def export_visual_bloom_insight_pack(
+    *,
+    pathway_name: str,
+    output_dir: Path,
+    journal_dir: Path | None = None,
+    title: str | None = None,
+    include_atlas: bool = False,
+    heat_mode: str = "target_proximity",
+    with_integrity: bool = False,
+) -> Path:
+    out = output_dir.expanduser()
+    out.mkdir(parents=True, exist_ok=True)
+    model = build_visual_bloom_insight_pack_model(
+        pathway_name=pathway_name,
+        journal_dir=journal_dir,
+        include_atlas=include_atlas,
+        insight_pack_heat_mode=heat_mode,
+        title=title,
+    )
+    html = render_visual_bloom_insight_pack_html(model)
+    write_bloom_file(html, out / "insight_pack_index.html")
+    (out / "pathway.json").write_text(json.dumps(model.get("pathway", {}), indent=2), encoding="utf-8")
+    (out / "sector_summary.json").write_text(json.dumps(model.get("sector_summary", {}), indent=2), encoding="utf-8")
+    (out / "recommendations.json").write_text(json.dumps(model.get("recommendations", []), indent=2), encoding="utf-8")
+    if include_atlas:
+        (out / "atlas_summary.json").write_text(json.dumps(model.get("atlas_summary", {}), indent=2), encoding="utf-8")
+    preview = augment_visual_bloom_preview_metadata(source="insight-pack")
+    (out / "preview_image_metadata.json").write_text(json.dumps(preview, indent=2), encoding="utf-8")
+
+    included = {
+        "index": "insight_pack_index.html",
+        "pathway": "pathway.json",
+        "sector_summary": "sector_summary.json",
+        "recommendations": "recommendations.json",
+        "preview": "preview_image_metadata.json",
+    }
+    if include_atlas:
+        included["atlas_summary"] = "atlas_summary.json"
+    hashes = compute_visual_bloom_bundle_hashes(out, included)
+    manifest = {
+        "manifest_version": "v1",
+        "insight_pack_version": "v1",
+        "type": "visual_bloom_insight_pack",
+        "pathway_name": pathway_name,
+        "generated_at": model.get("generated_at", _iso_now()),
+        "included_files": included,
+        "integrity_mode": "sha256" if with_integrity else "none",
+        "file_hashes_sha256": hashes if with_integrity else {},
+        "experimental": True,
+        "compatibility_version": "phase15+",
+        "compatibility_notes": "Additive schema; older artifacts remain supported with safe defaults.",
+    }
+    write_visual_bloom_bundle_manifest(manifest_path=out / "insight_pack_manifest.json", payload=manifest)
+    return out
 
 
 def render_bloom_html(params: dict[str, object], *, live_mode: bool = False, refresh_seconds: float = 2.0, params_path: str = "") -> str:
