@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>PhiOS Insight Pack</title>
+  <style>
+    body{font-family:system-ui,sans-serif;background:#0c1224;color:#edf1ff;margin:0;padding:1rem}
+    .card{border:1px solid #334;background:#131d38;border-radius:10px;padding:.8rem;margin:.6rem 0}
+    .muted{color:#aeb8de} pre{white-space:pre-wrap;word-break:break-word;font-size:.85rem}
+  </style>
+</head>
+<body>
+<h1>Insight Pack (Experimental)</h1>
+<div id="app"></div>
+<script>
+const model = __PHIOS_INSIGHT_PACK_MODEL_JSON__;
+const app = document.getElementById('app');
+app.innerHTML = `
+<div class="card"><h2>Framing</h2><p class="muted">C* theoretical=${model.bio_framing.c_star_theoretical}; bio target=${model.bio_framing.bio_target} (${model.bio_framing.bio_status}); Hunter's C=${model.bio_framing.hunter_c_status}.</p></div>
+<div class="card"><h3>Pathway + Branch Context</h3><pre>${JSON.stringify({name:model.pathway.pathway_name, step_count:(model.pathway.steps||[]).length, branch_count:(model.pathway.branches||[]).length},null,2)}</pre></div>
+<div class="card"><h3>Sector Summary</h3><pre>${JSON.stringify(model.sector_summary,null,2)}</pre></div>
+<div class="card"><h3>Atlas Summary</h3><pre>${JSON.stringify(model.atlas_summary,null,2)}</pre></div>
+<div class="card"><h3>Recommendations</h3><pre>${JSON.stringify(model.recommendations,null,2)}</pre></div>
+`;
+</script>
+</body>
+</html>

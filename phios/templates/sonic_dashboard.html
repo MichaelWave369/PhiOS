@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>PhiOS Visual Bloom Dashboard</title>
+  <style>
+    body { font-family: system-ui, sans-serif; background:#0b1020; color:#e6ebff; margin:0; padding:1.2rem; }
+    .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:1rem; }
+    .card { border:1px solid #334; border-radius:10px; padding:0.9rem; background:#121a31; }
+    .muted { color:#a8b2d7; }
+    pre { white-space:pre-wrap; word-break:break-word; font-size:0.85rem; }
+  </style>
+</head>
+<body>
+  <h1>PhiOS Visual Bloom Dashboard</h1>
+  <div id="app"></div>
+<script>
+const model = __PHIOS_DASHBOARD_MODEL_JSON__;
+const app = document.getElementById('app');
+app.innerHTML = `
+<div class="card">
+  <h2>Scientific framing</h2>
+  <p class="muted">Theoretical C* = (1 + sqrt(5)) / 4 = ${model.bio_banner.c_star_theoretical} (${model.bio_banner.c_star_theoretical_trig_equiv}).</p>
+  <p class="muted">Bio target ${model.bio_banner.bio_target} is <b>${model.bio_banner.bio_status}</b>; Hunter's C is <b>${model.bio_banner.hunter_c_status}</b>; provenance: ${model.bio_banner.model_provenance}.</p>
+</div>
+<div class="grid">
+  <div class="card"><h3>Recent sessions</h3><pre>${JSON.stringify(model.sessions, null, 2)}</pre></div>
+  <div class="card"><h3>Recent compare sets</h3><pre>${JSON.stringify(model.compares, null, 2)}</pre></div>
+  <div class="card"><h3>Pathways</h3><pre>${JSON.stringify(model.pathways, null, 2)}</pre></div>
+  <div class="card"><h3>Constellations</h3><pre>${JSON.stringify(model.constellations, null, 2)}</pre></div>
+  <div class="card"><h3>Experimental recommendations</h3><pre>${JSON.stringify(model.recommendations, null, 2)}</pre></div>
+  <div class="card"><h3>Sector summary</h3><pre>${JSON.stringify(model.sector_summary, null, 2)}</pre></div>
+  <div class="card"><h3>Diagnostics snapshot</h3><pre>${JSON.stringify(model.diagnostics_snapshot, null, 2)}</pre></div>
+  <div class="card"><h3>Recent route compares</h3><pre>${JSON.stringify(model.recent_route_compares, null, 2)}</pre></div>
+  <div class="card"><h3>Search results</h3><pre>${JSON.stringify(model.results, null, 2)}</pre></div>
+</div>`;
+</script>
+</body>
+</html>
