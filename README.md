@@ -853,3 +853,60 @@ Phase 24 adds additive, static/local Curricula and Comparative Journey Ensembles
 ### Backward compatibility note
 
 Older study halls, thematic pathways, reading rooms, collection maps, field libraries, dossiers, storyboards, route-compare bundles, longitudinal summaries, insight packs, pathways, atlas exports, sessions, compare sets, narratives, constellations, shelves, and catalogs continue loading with safe defaults when curriculum/journey-ensemble metadata is absent.
+
+## Phase 25: Observatory Syllabi + Comparative Atlas Cohorts
+
+Phase 25 adds additive, static/local Syllabi and Comparative Atlas Cohorts above curricula and journey ensembles to support reusable program-level tracks and deterministic cross-sequence comparison.
+
+### Syllabus workflows
+
+- `phi view --create-syllabus <name>`
+- `phi view --browse-syllabi`
+- `phi view --load-syllabus <name>`
+- `phi view --add-to-syllabus <name> --section-type <type> --artifact-ref <ref>`
+- `phi view --export-syllabus <name> <output-dir>`
+- `--syllabus-title <title>`
+- `--syllabus-summary <summary>`
+- `--syllabus-tags <comma,separated>`
+
+### Comparative atlas cohort workflows
+
+- `phi view --create-atlas-cohort <name>`
+- `phi view --browse-atlas-cohorts`
+- `phi view --load-atlas-cohort <name>`
+- `phi view --export-atlas-cohort <name> <output-dir>`
+- `--atlas-cohort-tags <comma,separated>`
+- `--atlas-cohort-filter-tags <comma,separated>`
+- `--atlas-cohort-filter-sector <sector>`
+- `--atlas-cohort-filter-type <type>`
+- `--atlas-cohort-group-by <field>`
+
+### Syllabus export artifacts
+
+- `syllabus_manifest.json`
+- `syllabus_index.html`
+- `syllabus.json`
+- `modules/module_*.json`
+- `syllabus_summary.json`
+- optional sector/diagnostics/route-context summaries
+- preview metadata and optional integrity hashes
+
+### Atlas cohort export artifacts
+
+- `atlas_cohort_manifest.json`
+- `atlas_cohort_index.html`
+- `atlas_cohort.json`
+- `atlas_cohort_summary.json`
+- preview metadata and optional integrity hashes
+
+### Scientific framing reminder
+
+- Syllabi, atlas cohorts, curricula, journey ensembles, study halls, thematic pathways, reading rooms, collection maps, shelves, catalogs, and related curation artifacts are local observatory interpretation only.
+- `C_STAR_THEORETICAL = PHI / 2 = (1 + sqrt(5)) / 4` remains structural/theoretical framing.
+- `BIO_VACUUM_TARGET = 0.81055` and `[BIO_VACUUM_BAND_LOW, BIO_VACUUM_BAND_HIGH] = [0.807, 0.813]` remain experimental guidance.
+- `BIO_VACUUM_STATUS = "experimental"` and `HUNTER_C_STATUS = "unconfirmed"` remain explicit.
+- These layers do not alter PhiKernel truth logic.
+
+### Backward compatibility note
+
+Older curricula, journey ensembles, study halls, thematic pathways, reading rooms, collection maps, field libraries, dossiers, storyboards, route-compare bundles, longitudinal summaries, insight packs, pathways, atlas exports, sessions, compare sets, narratives, constellations, shelves, and catalogs continue loading with safe defaults when syllabus/atlas-cohort metadata is absent.

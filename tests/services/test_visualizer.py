@@ -153,6 +153,24 @@ from phios.services.visualizer import (
     build_visual_bloom_journey_ensemble_summary,
     render_visual_bloom_journey_ensemble_html,
     export_visual_bloom_journey_ensemble,
+    create_visual_bloom_syllabus,
+    list_visual_bloom_syllabi,
+    load_visual_bloom_syllabus,
+    add_visual_bloom_syllabus_module,
+    build_visual_bloom_syllabus_model,
+    build_visual_bloom_syllabus_summary,
+    render_visual_bloom_syllabus_html,
+    export_visual_bloom_syllabus,
+    create_visual_bloom_atlas_cohort,
+    list_visual_bloom_atlas_cohorts,
+    load_visual_bloom_atlas_cohort,
+    build_visual_bloom_atlas_cohort,
+    filter_visual_bloom_atlas_cohort_members,
+    group_visual_bloom_atlas_cohort_members,
+    build_visual_bloom_atlas_cohort_model,
+    build_visual_bloom_atlas_cohort_summary,
+    render_visual_bloom_atlas_cohort_html,
+    export_visual_bloom_atlas_cohort,
     create_visual_bloom_narrative,
     export_visual_bloom_atlas,
     list_visual_bloom_narratives,
@@ -1371,3 +1389,74 @@ def test_phase24_dashboard_model_includes_curricula_and_journey_ensembles(tmp_pa
     model = build_visual_bloom_dashboard_model(journal_dir=tmp_path)
     assert "recent_curricula" in model
     assert "recent_journey_ensembles" in model
+
+
+def test_phase25_syllabus_crud_summary_and_export(tmp_path):
+    create_visual_bloom_syllabus(name="sy1", journal_dir=tmp_path, title="SY", tags="focus")
+    add_visual_bloom_syllabus_module(
+        name="sy1",
+        module_type="curriculum",
+        artifact_ref="/tmp/cu",
+        journal_dir=tmp_path,
+        tags="focus",
+        sector_family="HG",
+    )
+    add_visual_bloom_syllabus_module(
+        name="sy1",
+        module_type="journey_ensemble",
+        artifact_ref="/tmp/je",
+        journal_dir=tmp_path,
+        tags="focus",
+        sector_family="HB",
+    )
+    listed = list_visual_bloom_syllabi(journal_dir=tmp_path)
+    assert listed and listed[0]["syllabus_name"] == "sy1"
+    loaded = load_visual_bloom_syllabus("sy1", journal_dir=tmp_path)
+    assert len(loaded["modules"]) == 2
+
+    model = build_visual_bloom_syllabus_model(name="sy1", journal_dir=tmp_path, filter_type="curriculum")
+    assert len(model["filtered_modules"]) == 1
+    summary = build_visual_bloom_syllabus_summary(modules=model["modules"])
+    assert summary["module_count"] == 2
+    html = render_visual_bloom_syllabus_html(model)
+    assert "__PHIOS_SYLLABUS_MODEL_JSON__" not in html
+
+    out = export_visual_bloom_syllabus(name="sy1", output_dir=tmp_path / "sy", journal_dir=tmp_path, with_integrity=True)
+    assert (out / "syllabus_manifest.json").exists()
+    assert (out / "syllabus_summary.json").exists()
+
+
+def test_phase25_atlas_cohort_build_summary_and_export(tmp_path):
+    create_visual_bloom_storyboard(name="sb5", journal_dir=tmp_path, title="SB", tags="focus")
+    create_visual_bloom_dossier(name="d5", journal_dir=tmp_path, title="D", tags="focus")
+    create_visual_bloom_field_library(name="fl5", journal_dir=tmp_path, title="FL", tags="focus")
+    create_visual_bloom_atlas_cohort(name="ac1", journal_dir=tmp_path, title="AC", tags="focus")
+
+    listed = list_visual_bloom_atlas_cohorts(journal_dir=tmp_path)
+    assert listed and listed[0]["atlas_cohort_name"] == "ac1"
+    loaded = load_visual_bloom_atlas_cohort("ac1", journal_dir=tmp_path)
+    assert "members" in loaded
+
+    built = build_visual_bloom_atlas_cohort(journal_dir=tmp_path)
+    members = built["members"]
+    filtered = filter_visual_bloom_atlas_cohort_members(members=members, filter_tags="focus")
+    grouped = group_visual_bloom_atlas_cohort_members(members=filtered, group_by="artifact_type")
+    assert isinstance(grouped, dict)
+    summary = build_visual_bloom_atlas_cohort_summary(members=filtered)
+    assert "member_count" in summary
+
+    model = build_visual_bloom_atlas_cohort_model(name="ac1", journal_dir=tmp_path, filter_tags="focus")
+    html = render_visual_bloom_atlas_cohort_html(model)
+    assert "__PHIOS_ATLAS_COHORT_MODEL_JSON__" not in html
+
+    out = export_visual_bloom_atlas_cohort(name="ac1", output_dir=tmp_path / "ac", journal_dir=tmp_path, with_integrity=True)
+    assert (out / "atlas_cohort_manifest.json").exists()
+    assert (out / "atlas_cohort_summary.json").exists()
+
+
+def test_phase25_dashboard_model_includes_syllabi_and_atlas_cohorts(tmp_path):
+    create_visual_bloom_syllabus(name="sy1", journal_dir=tmp_path)
+    create_visual_bloom_atlas_cohort(name="ac1", journal_dir=tmp_path)
+    model = build_visual_bloom_dashboard_model(journal_dir=tmp_path)
+    assert "recent_syllabi" in model
+    assert "recent_atlas_cohorts" in model

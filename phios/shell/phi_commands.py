@@ -145,6 +145,15 @@ from phios.services.visualizer import (
     list_visual_bloom_journey_ensembles,
     build_visual_bloom_journey_ensemble_model,
     export_visual_bloom_journey_ensemble,
+    create_visual_bloom_syllabus,
+    list_visual_bloom_syllabi,
+    load_visual_bloom_syllabus,
+    add_visual_bloom_syllabus_module,
+    export_visual_bloom_syllabus,
+    create_visual_bloom_atlas_cohort,
+    list_visual_bloom_atlas_cohorts,
+    build_visual_bloom_atlas_cohort_model,
+    export_visual_bloom_atlas_cohort,
     write_bloom_file,
 )
 from phios.core.lt_engine import compute_lt
@@ -736,7 +745,7 @@ def cmd_bio(args: list[str], session: object | None = None) -> str:
 
 
 def cmd_view(args: list[str], session: object | None = None) -> str:
-    usage = "Usage: view --mode sonic [--live] [--refresh-seconds <float>] [--duration <seconds>] [--output <path.html>] [--journal] [--journal-dir <path>] [--label <name>] [--collection <name>] [--replay <session_id|session.json[:idx]>] [--state-idx <n>] [--next-state|--prev-state] [--compare <left_ref> <right_ref>] [--export-report <path.json>] [--export-bundle <dir>] [--with-integrity] [--bundle-label <name>] [--save-compare <name>] [--load-compare <name>] [--browse-compares] [--gallery] [--search <text>] [--filter-mode <mode>] [--filter-preset <name>] [--filter-lens <name>] [--filter-audio <on|off>] [--filter-label <text>] [--filter-session <id>] [--create-narrative <name>] [--narrative-title <text>] [--narrative-summary <text>] [--browse-narratives] [--load-narrative <name>] [--add-to-narrative <name> --session <ref>|--compare <left> <right>|--compare-set <name>] [--link-narrative <name> --link-type <type> --target-ref <ref>] [--entry-title <text>] [--entry-note <text>] [--export-atlas <name> <output-dir>] [--create-constellation <name>] [--constellation-title <text>] [--constellation-summary <text>] [--browse-constellations] [--load-constellation <name>] [--add-to-constellation <name> --narrative <ref>|--session <ref>|--compare-set <name>|--compare <left> <right>] [--export-constellation <name> <output-dir>] [--create-pathway <name>] [--browse-pathways] [--load-pathway <name>] [--add-to-pathway <name> --session <ref>|--compare <left> <right>|--narrative <name>|--atlas <path>|--constellation <name>] [--pathway-title <title>] [--pathway-summary <summary>] [--step-title <title>] [--step-note <note>] [--export-pathway <name> <output-dir>] [--link-pathway-step <pathway> --from-step <id> --to-step <id>] [--branch-label <label>] [--recommend-for <ref>] [--recommend-strategy <name>] [--benchmark-recommendations] [--atlas] [--atlas-target theoretical|bio_band|node] [--atlas-start-ref <ref>] [--atlas-node <idx>] [--atlas-max-l1-radius <int>] [--atlas-heat-mode <mode>] [--atlas-gallery] [--list-sectors] [--sector-family HG|HB] [--export-insight-pack <pathway> <output-dir>] [--insight-pack-title <title>] [--insight-pack-include-atlas] [--insight-pack-heat-mode <mode>] [--branch-replay <pathway>] [--export-route-compare <start-ref> <output-dir>] [--route-compare-title <title>] [--route-compare-heat-mode <mode>] [--route-compare-include-sector-overlays] [--show-strategy-diagnostics <ref>] [--create-storyboard <name>] [--browse-storyboards] [--load-storyboard <name>] [--add-to-storyboard <name>] [--section-type <type>] [--artifact-ref <ref>] [--storyboard-title <title>] [--storyboard-summary <summary>] [--storyboard-tags <comma,separated>] [--storyboard-filter-tags <comma,separated>] [--storyboard-filter-sector <sector>] [--storyboard-filter-type <type>] [--export-storyboard <name> <output-dir>] [--export-longitudinal-summary <output-dir>] [--longitudinal-title <title>] [--longitudinal-filter-tags <comma,separated>] [--longitudinal-filter-sector <sector>] [--longitudinal-filter-target <theoretical|bio_band|node>] [--create-dossier <name>] [--browse-dossiers] [--load-dossier <name>] [--add-to-dossier <name>] [--dossier-title <title>] [--dossier-summary <summary>] [--dossier-tags <comma,separated>] [--dossier-filter-tags <comma,separated>] [--dossier-filter-sector <sector>] [--dossier-filter-type <type>] [--dossier-filter-target <target>] [--export-dossier <name> <output-dir>] [--create-field-library <name>] [--browse-field-libraries] [--load-field-library <name>] [--add-to-field-library <name>] [--field-library-title <title>] [--field-library-summary <summary>] [--field-library-tags <comma,separated>] [--field-library-filter-tags <comma,separated>] [--field-library-filter-sector <sector>] [--field-library-filter-type <type>] [--field-library-filter-target <target>] [--export-field-library <name> <output-dir>] [--create-shelf <name>] [--browse-shelves] [--load-shelf <name>] [--add-to-shelf <name>] [--shelf-title <title>] [--shelf-summary <summary>] [--shelf-tags <comma,separated>] [--shelf-filter-tags <comma,separated>] [--shelf-filter-sector <sector>] [--shelf-filter-type <type>] [--export-shelf <name> <output-dir>] [--browse-catalog] [--catalog-filter-tags <comma,separated>] [--catalog-filter-sector <sector>] [--catalog-filter-type <type>] [--catalog-group-by <field>] [--create-reading-room <name>] [--browse-reading-rooms] [--load-reading-room <name>] [--add-to-reading-room <name>] [--reading-room-title <title>] [--reading-room-summary <summary>] [--reading-room-tags <comma,separated>] [--export-reading-room <name> <output-dir>] [--create-collection-map <name>] [--browse-collection-maps] [--load-collection-map <name>] [--collection-map-tags <comma,separated>] [--collection-map-filter-tags <comma,separated>] [--collection-map-filter-sector <sector>] [--collection-map-filter-type <type>] [--collection-map-group-by <field>] [--export-collection-map <name> <output-dir>] [--create-study-hall <name>] [--browse-study-halls] [--load-study-hall <name>] [--add-to-study-hall <name>] [--study-hall-title <title>] [--study-hall-summary <summary>] [--study-hall-tags <comma,separated>] [--export-study-hall <name> <output-dir>] [--create-thematic-pathway <name>] [--browse-thematic-pathways] [--load-thematic-pathway <name>] [--thematic-pathway-tags <comma,separated>] [--thematic-pathway-filter-tags <comma,separated>] [--thematic-pathway-filter-sector <sector>] [--thematic-pathway-filter-type <type>] [--thematic-pathway-group-by <field>] [--export-thematic-pathway <name> <output-dir>] [--create-curriculum <name>] [--browse-curricula] [--load-curriculum <name>] [--add-to-curriculum <name>] [--curriculum-title <title>] [--curriculum-summary <summary>] [--curriculum-tags <comma,separated>] [--export-curriculum <name> <output-dir>] [--create-journey-ensemble <name>] [--browse-journey-ensembles] [--load-journey-ensemble <name>] [--journey-ensemble-tags <comma,separated>] [--journey-ensemble-filter-tags <comma,separated>] [--journey-ensemble-filter-sector <sector>] [--journey-ensemble-filter-type <type>] [--journey-ensemble-group-by <field>] [--export-journey-ensemble <name> <output-dir>] [--dashboard] [--search <query>] [--search-tags <comma,separated>] [--search-type <session|compare|narrative|atlas|constellation|pathway>] [--search-bio <experimental|available|near-target>] [--tags <comma,separated,tags>] [--browse] [--browse-collections] [--browse-collection <name>] [--preset <name>] [--lens <name>] [--audio-reactive]"
+    usage = "Usage: view --mode sonic [--live] [--refresh-seconds <float>] [--duration <seconds>] [--output <path.html>] [--journal] [--journal-dir <path>] [--label <name>] [--collection <name>] [--replay <session_id|session.json[:idx]>] [--state-idx <n>] [--next-state|--prev-state] [--compare <left_ref> <right_ref>] [--export-report <path.json>] [--export-bundle <dir>] [--with-integrity] [--bundle-label <name>] [--save-compare <name>] [--load-compare <name>] [--browse-compares] [--gallery] [--search <text>] [--filter-mode <mode>] [--filter-preset <name>] [--filter-lens <name>] [--filter-audio <on|off>] [--filter-label <text>] [--filter-session <id>] [--create-narrative <name>] [--narrative-title <text>] [--narrative-summary <text>] [--browse-narratives] [--load-narrative <name>] [--add-to-narrative <name> --session <ref>|--compare <left> <right>|--compare-set <name>] [--link-narrative <name> --link-type <type> --target-ref <ref>] [--entry-title <text>] [--entry-note <text>] [--export-atlas <name> <output-dir>] [--create-constellation <name>] [--constellation-title <text>] [--constellation-summary <text>] [--browse-constellations] [--load-constellation <name>] [--add-to-constellation <name> --narrative <ref>|--session <ref>|--compare-set <name>|--compare <left> <right>] [--export-constellation <name> <output-dir>] [--create-pathway <name>] [--browse-pathways] [--load-pathway <name>] [--add-to-pathway <name> --session <ref>|--compare <left> <right>|--narrative <name>|--atlas <path>|--constellation <name>] [--pathway-title <title>] [--pathway-summary <summary>] [--step-title <title>] [--step-note <note>] [--export-pathway <name> <output-dir>] [--link-pathway-step <pathway> --from-step <id> --to-step <id>] [--branch-label <label>] [--recommend-for <ref>] [--recommend-strategy <name>] [--benchmark-recommendations] [--atlas] [--atlas-target theoretical|bio_band|node] [--atlas-start-ref <ref>] [--atlas-node <idx>] [--atlas-max-l1-radius <int>] [--atlas-heat-mode <mode>] [--atlas-gallery] [--list-sectors] [--sector-family HG|HB] [--export-insight-pack <pathway> <output-dir>] [--insight-pack-title <title>] [--insight-pack-include-atlas] [--insight-pack-heat-mode <mode>] [--branch-replay <pathway>] [--export-route-compare <start-ref> <output-dir>] [--route-compare-title <title>] [--route-compare-heat-mode <mode>] [--route-compare-include-sector-overlays] [--show-strategy-diagnostics <ref>] [--create-storyboard <name>] [--browse-storyboards] [--load-storyboard <name>] [--add-to-storyboard <name>] [--section-type <type>] [--artifact-ref <ref>] [--storyboard-title <title>] [--storyboard-summary <summary>] [--storyboard-tags <comma,separated>] [--storyboard-filter-tags <comma,separated>] [--storyboard-filter-sector <sector>] [--storyboard-filter-type <type>] [--export-storyboard <name> <output-dir>] [--export-longitudinal-summary <output-dir>] [--longitudinal-title <title>] [--longitudinal-filter-tags <comma,separated>] [--longitudinal-filter-sector <sector>] [--longitudinal-filter-target <theoretical|bio_band|node>] [--create-dossier <name>] [--browse-dossiers] [--load-dossier <name>] [--add-to-dossier <name>] [--dossier-title <title>] [--dossier-summary <summary>] [--dossier-tags <comma,separated>] [--dossier-filter-tags <comma,separated>] [--dossier-filter-sector <sector>] [--dossier-filter-type <type>] [--dossier-filter-target <target>] [--export-dossier <name> <output-dir>] [--create-field-library <name>] [--browse-field-libraries] [--load-field-library <name>] [--add-to-field-library <name>] [--field-library-title <title>] [--field-library-summary <summary>] [--field-library-tags <comma,separated>] [--field-library-filter-tags <comma,separated>] [--field-library-filter-sector <sector>] [--field-library-filter-type <type>] [--field-library-filter-target <target>] [--export-field-library <name> <output-dir>] [--create-shelf <name>] [--browse-shelves] [--load-shelf <name>] [--add-to-shelf <name>] [--shelf-title <title>] [--shelf-summary <summary>] [--shelf-tags <comma,separated>] [--shelf-filter-tags <comma,separated>] [--shelf-filter-sector <sector>] [--shelf-filter-type <type>] [--export-shelf <name> <output-dir>] [--browse-catalog] [--catalog-filter-tags <comma,separated>] [--catalog-filter-sector <sector>] [--catalog-filter-type <type>] [--catalog-group-by <field>] [--create-reading-room <name>] [--browse-reading-rooms] [--load-reading-room <name>] [--add-to-reading-room <name>] [--reading-room-title <title>] [--reading-room-summary <summary>] [--reading-room-tags <comma,separated>] [--export-reading-room <name> <output-dir>] [--create-collection-map <name>] [--browse-collection-maps] [--load-collection-map <name>] [--collection-map-tags <comma,separated>] [--collection-map-filter-tags <comma,separated>] [--collection-map-filter-sector <sector>] [--collection-map-filter-type <type>] [--collection-map-group-by <field>] [--export-collection-map <name> <output-dir>] [--create-study-hall <name>] [--browse-study-halls] [--load-study-hall <name>] [--add-to-study-hall <name>] [--study-hall-title <title>] [--study-hall-summary <summary>] [--study-hall-tags <comma,separated>] [--export-study-hall <name> <output-dir>] [--create-thematic-pathway <name>] [--browse-thematic-pathways] [--load-thematic-pathway <name>] [--thematic-pathway-tags <comma,separated>] [--thematic-pathway-filter-tags <comma,separated>] [--thematic-pathway-filter-sector <sector>] [--thematic-pathway-filter-type <type>] [--thematic-pathway-group-by <field>] [--export-thematic-pathway <name> <output-dir>] [--create-curriculum <name>] [--browse-curricula] [--load-curriculum <name>] [--add-to-curriculum <name>] [--curriculum-title <title>] [--curriculum-summary <summary>] [--curriculum-tags <comma,separated>] [--export-curriculum <name> <output-dir>] [--create-journey-ensemble <name>] [--browse-journey-ensembles] [--load-journey-ensemble <name>] [--journey-ensemble-tags <comma,separated>] [--journey-ensemble-filter-tags <comma,separated>] [--journey-ensemble-filter-sector <sector>] [--journey-ensemble-filter-type <type>] [--journey-ensemble-group-by <field>] [--export-journey-ensemble <name> <output-dir>] [--create-syllabus <name>] [--browse-syllabi] [--load-syllabus <name>] [--add-to-syllabus <name>] [--syllabus-title <title>] [--syllabus-summary <summary>] [--syllabus-tags <comma,separated>] [--export-syllabus <name> <output-dir>] [--create-atlas-cohort <name>] [--browse-atlas-cohorts] [--load-atlas-cohort <name>] [--atlas-cohort-tags <comma,separated>] [--atlas-cohort-filter-tags <comma,separated>] [--atlas-cohort-filter-sector <sector>] [--atlas-cohort-filter-type <type>] [--atlas-cohort-group-by <field>] [--export-atlas-cohort <name> <output-dir>] [--dashboard] [--search <query>] [--search-tags <comma,separated>] [--search-type <session|compare|narrative|atlas|constellation|pathway>] [--search-bio <experimental|available|near-target>] [--tags <comma,separated,tags>] [--browse] [--browse-collections] [--browse-collection <name>] [--preset <name>] [--lens <name>] [--audio-reactive]"
     if "--help" in args or "-h" in args:
         return usage
 
@@ -1211,6 +1220,83 @@ def cmd_view(args: list[str], session: object | None = None) -> str:
                 filter_sector=_extract_flag_value(args, "--journey-ensemble-filter-sector"),
                 filter_type=_extract_flag_value(args, "--journey-ensemble-filter-type"),
                 group_by=_extract_flag_value(args, "--journey-ensemble-group-by") or "artifact_type",
+            )
+        except VisualizerError as exc:
+            return str(exc)
+        return json.dumps(model, indent=2)
+
+    if "--browse-syllabi" in args:
+        rows = list_visual_bloom_syllabi(journal_dir=journal_dir)
+        return json.dumps({"syllabi": rows, "count": len(rows)}, indent=2)
+
+    create_syllabus = _extract_flag_value(args, "--create-syllabus")
+    if create_syllabus:
+        try:
+            path = create_visual_bloom_syllabus(
+                name=create_syllabus,
+                journal_dir=journal_dir,
+                title=_extract_flag_value(args, "--syllabus-title"),
+                summary=_extract_flag_value(args, "--syllabus-summary"),
+                tags=_extract_flag_value(args, "--syllabus-tags") or _extract_flag_value(args, "--tags"),
+            )
+        except VisualizerError as exc:
+            return str(exc)
+        return f"Visual bloom syllabus created: {path}"
+
+    load_syllabus = _extract_flag_value(args, "--load-syllabus")
+    if load_syllabus:
+        try:
+            model = load_visual_bloom_syllabus(load_syllabus, journal_dir=journal_dir)
+        except VisualizerError as exc:
+            return str(exc)
+        return json.dumps(model, indent=2)
+
+    add_syllabus = _extract_flag_value(args, "--add-to-syllabus")
+    if add_syllabus:
+        try:
+            out = add_visual_bloom_syllabus_module(
+                name=add_syllabus,
+                module_type=_extract_flag_value(args, "--section-type") or "curriculum",
+                artifact_ref=_extract_flag_value(args, "--artifact-ref") or "",
+                journal_dir=journal_dir,
+                title=_extract_flag_value(args, "--entry-title") or _extract_flag_value(args, "--syllabus-title"),
+                summary=_extract_flag_value(args, "--syllabus-summary"),
+                notes=_extract_flag_value(args, "--entry-note"),
+                tags=_extract_flag_value(args, "--syllabus-tags") or _extract_flag_value(args, "--tags"),
+                sector_family=_extract_flag_value(args, "--sector-family"),
+            )
+        except VisualizerError as exc:
+            return str(exc)
+        return f"Visual bloom syllabus updated: {out}"
+
+    if "--browse-atlas-cohorts" in args:
+        rows = list_visual_bloom_atlas_cohorts(journal_dir=journal_dir)
+        return json.dumps({"atlas_cohorts": rows, "count": len(rows)}, indent=2)
+
+    create_cohort = _extract_flag_value(args, "--create-atlas-cohort")
+    if create_cohort:
+        try:
+            path = create_visual_bloom_atlas_cohort(
+                name=create_cohort,
+                journal_dir=journal_dir,
+                title=_extract_flag_value(args, "--entry-title"),
+                summary=_extract_flag_value(args, "--entry-note"),
+                tags=_extract_flag_value(args, "--atlas-cohort-tags") or _extract_flag_value(args, "--tags"),
+            )
+        except VisualizerError as exc:
+            return str(exc)
+        return f"Visual bloom atlas cohort created: {path}"
+
+    load_cohort = _extract_flag_value(args, "--load-atlas-cohort")
+    if load_cohort:
+        try:
+            model = build_visual_bloom_atlas_cohort_model(
+                name=load_cohort,
+                journal_dir=journal_dir,
+                filter_tags=_extract_flag_value(args, "--atlas-cohort-filter-tags"),
+                filter_sector=_extract_flag_value(args, "--atlas-cohort-filter-sector"),
+                filter_type=_extract_flag_value(args, "--atlas-cohort-filter-type"),
+                group_by=_extract_flag_value(args, "--atlas-cohort-group-by") or "artifact_type",
             )
         except VisualizerError as exc:
             return str(exc)
@@ -1741,6 +1827,49 @@ def cmd_view(args: list[str], session: object | None = None) -> str:
         except (VisualizerError, ValueError) as exc:
             return str(exc)
         return f"Visual bloom journey ensemble exported: {out}"
+
+    if "--export-syllabus" in args:
+        idx = args.index("--export-syllabus")
+        if idx + 2 >= len(args):
+            return usage
+        sname = args[idx + 1]
+        outdir = Path(args[idx + 2]).expanduser()
+        try:
+            out = export_visual_bloom_syllabus(
+                name=sname,
+                output_dir=outdir,
+                journal_dir=journal_dir,
+                title=_extract_flag_value(args, "--syllabus-title"),
+                filter_tags=_extract_flag_value(args, "--shelf-filter-tags"),
+                filter_sector=_extract_flag_value(args, "--shelf-filter-sector"),
+                filter_type=_extract_flag_value(args, "--shelf-filter-type"),
+                with_integrity="--with-integrity" in args,
+            )
+        except (VisualizerError, ValueError) as exc:
+            return str(exc)
+        return f"Visual bloom syllabus exported: {out}"
+
+    if "--export-atlas-cohort" in args:
+        idx = args.index("--export-atlas-cohort")
+        if idx + 2 >= len(args):
+            return usage
+        cname = args[idx + 1]
+        outdir = Path(args[idx + 2]).expanduser()
+        try:
+            out = export_visual_bloom_atlas_cohort(
+                name=cname,
+                output_dir=outdir,
+                journal_dir=journal_dir,
+                title=_extract_flag_value(args, "--entry-title"),
+                filter_tags=_extract_flag_value(args, "--atlas-cohort-filter-tags"),
+                filter_sector=_extract_flag_value(args, "--atlas-cohort-filter-sector"),
+                filter_type=_extract_flag_value(args, "--atlas-cohort-filter-type"),
+                group_by=_extract_flag_value(args, "--atlas-cohort-group-by") or "artifact_type",
+                with_integrity="--with-integrity" in args,
+            )
+        except (VisualizerError, ValueError) as exc:
+            return str(exc)
+        return f"Visual bloom atlas cohort exported: {out}"
 
     if "--dashboard" in args:
         generated = launch_visual_bloom_dashboard(

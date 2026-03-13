@@ -1215,3 +1215,54 @@ def test_view_mode_phase24_curriculum_and_journey_ensemble_flags(monkeypatch, tm
     out, code = route_command(["view", "--export-journey-ensemble", "je1", str(je_out)])
     assert code == 0
     assert "journey ensemble exported" in out
+
+
+def test_view_mode_phase25_syllabus_and_atlas_cohort_flags(monkeypatch, tmp_path):
+    sy = tmp_path / "sy.json"
+    monkeypatch.setattr("phios.shell.phi_commands.create_visual_bloom_syllabus", lambda **_kwargs: sy)
+    out, code = route_command(["view", "--create-syllabus", "sy1", "--syllabus-title", "Syllabus"])
+    assert code == 0
+    assert "syllabus created" in out
+
+    monkeypatch.setattr("phios.shell.phi_commands.list_visual_bloom_syllabi", lambda **_kwargs: [{"syllabus_name": "sy1"}])
+    out, code = route_command(["view", "--browse-syllabi"])
+    assert code == 0
+    assert '"count": 1' in out
+
+    monkeypatch.setattr("phios.shell.phi_commands.load_visual_bloom_syllabus", lambda *_args, **_kwargs: {"syllabus_name": "sy1", "modules": []})
+    out, code = route_command(["view", "--load-syllabus", "sy1"])
+    assert code == 0
+    assert "syllabus_name" in out
+
+    monkeypatch.setattr("phios.shell.phi_commands.add_visual_bloom_syllabus_module", lambda **_kwargs: sy)
+    out, code = route_command(["view", "--add-to-syllabus", "sy1", "--section-type", "curriculum", "--artifact-ref", "/tmp/cu"])
+    assert code == 0
+    assert "syllabus updated" in out
+
+    sy_out = tmp_path / "sy"
+    monkeypatch.setattr("phios.shell.phi_commands.export_visual_bloom_syllabus", lambda **_kwargs: sy_out)
+    out, code = route_command(["view", "--export-syllabus", "sy1", str(sy_out)])
+    assert code == 0
+    assert "syllabus exported" in out
+
+    ac = tmp_path / "ac.json"
+    monkeypatch.setattr("phios.shell.phi_commands.create_visual_bloom_atlas_cohort", lambda **_kwargs: ac)
+    out, code = route_command(["view", "--create-atlas-cohort", "ac1", "--atlas-cohort-tags", "focus"])
+    assert code == 0
+    assert "atlas cohort created" in out
+
+    monkeypatch.setattr("phios.shell.phi_commands.list_visual_bloom_atlas_cohorts", lambda **_kwargs: [{"atlas_cohort_name": "ac1"}])
+    out, code = route_command(["view", "--browse-atlas-cohorts"])
+    assert code == 0
+    assert '"count": 1' in out
+
+    monkeypatch.setattr("phios.shell.phi_commands.build_visual_bloom_atlas_cohort_model", lambda **_kwargs: {"atlas_cohort_name": "ac1", "members": []})
+    out, code = route_command(["view", "--load-atlas-cohort", "ac1"])
+    assert code == 0
+    assert "atlas_cohort_name" in out
+
+    ac_out = tmp_path / "ac"
+    monkeypatch.setattr("phios.shell.phi_commands.export_visual_bloom_atlas_cohort", lambda **_kwargs: ac_out)
+    out, code = route_command(["view", "--export-atlas-cohort", "ac1", str(ac_out)])
+    assert code == 0
+    assert "atlas cohort exported" in out
