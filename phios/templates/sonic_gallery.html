@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>PhiOS Visual Bloom Gallery</title>
+    <style>
+      body { margin: 0; font-family: Inter, system-ui, sans-serif; background: #05070c; color: #dfe7f4; }
+      .wrap { padding: 16px; }
+      .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
+      .card { border: 1px solid rgba(201,168,76,0.35); border-radius: 10px; background: rgba(10,12,18,0.72); padding: 10px; }
+      .title { font-size: 13px; font-weight: 700; margin-bottom: 4px; }
+      .line { font-size: 12px; opacity: 0.9; margin: 2px 0; }
+      h2 { margin: 8px 0; }
+    </style>
+  </head>
+  <body>
+    <div class="wrap" id="app"></div>
+    <script>
+      const model = __PHIOS_GALLERY_MODEL_JSON__;
+      const app = document.getElementById("app");
+      const sessions = model.sessions || [];
+      const compares = model.compare_sets || [];
+
+      function cardSession(s) {
+        return `<div class="card">
+          <div class="title">${s.session_id || "session"}</div>
+          <div class="line">label: ${s.label || ""}</div>
+          <div class="line">collection: ${s.collection || ""}</div>
+          <div class="line">mode: ${s.mode || ""}</div>
+          <div class="line">preset/lens: ${(s.preset||"none")}/${(s.lens||"none")}</div>
+          <div class="line">audio: ${s.audio || "off"}</div>
+          <div class="line">created: ${s.created_at || ""}</div>
+          <div class="line">updated: ${s.updated_at || ""}</div>
+          <div class="line">latest: ${s.latest_timestamp || ""}</div>
+        </div>`;
+      }
+
+      function cardCompare(c) {
+        return `<div class="card">
+          <div class="title">${c.name || "compare"}</div>
+          <div class="line">label: ${c.label || ""}</div>
+          <div class="line">left: ${c.left_ref || ""}</div>
+          <div class="line">right: ${c.right_ref || ""}</div>
+          <div class="line">created: ${c.created_at || ""}</div>
+          <div class="line">report: ${c.latest_report_path || ""}</div>
+        </div>`;
+      }
+
+      app.innerHTML = `
+        <h2>Φ Visual Bloom Gallery</h2>
+        <div class="line">generated: ${model.generated_at || ""} · collection: ${model.collection || "all"} · sessions: ${model.session_count || 0} · compare sets: ${model.compare_set_count || 0}</div>
+        <h2>Sessions</h2>
+        <div class="grid">${sessions.map(cardSession).join("")}</div>
+        <h2>Saved Compare Sets</h2>
+        <div class="grid">${compares.map(cardCompare).join("")}</div>
+      `;
+    </script>
+  </body>
+</html>
