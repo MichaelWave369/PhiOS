@@ -33,6 +33,14 @@ def list_mcp_prompts(registry: object) -> list[str]:
     return [str(item) for item in prompts]
 
 
+def list_mcp_session_resources(registry: object) -> list[str]:
+    return [uri for uri in list_mcp_resources(registry) if uri.startswith("phios://sessions/")]
+
+
+def list_mcp_archive_resources(registry: object) -> list[str]:
+    return [uri for uri in list_mcp_resources(registry) if uri.startswith("phios://archive/")]
+
+
 def build_mcp_discovery_payload(registry: object) -> dict[str, object]:
     """Build stable discovery payload from registry + policy state."""
 
@@ -60,6 +68,8 @@ def build_mcp_discovery_payload(registry: object) -> dict[str, object]:
         },
         "resolved_capabilities": sorted(allowed_caps),
         "resources": resource_list,
+        "session_resources": list_mcp_session_resources(registry),
+        "archive_resources": list_mcp_archive_resources(registry),
         "tools": tool_list,
         "prompts": prompt_list,
         "resource_counts": len(resource_list),

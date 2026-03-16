@@ -91,6 +91,15 @@ Resources:
 - `phios://observatory/field_libraries/index`
 - `phios://observatory/dossiers/index`
 - `phios://observatory/storyboards/index`
+- `phios://archive/journey_ensembles/index`
+- `phios://archive/curricula/index`
+- `phios://archive/longitudinal/index`
+- `phios://archive/route_compares/index`
+- `phios://archive/atlas/index`
+- `phios://archive/pathways/index`
+- `phios://sessions/recent_reports`
+- `phios://sessions/recent_checkins`
+- `phios://sessions/current`
 
 Tools:
 - `phi_status`
@@ -103,6 +112,8 @@ Tools:
 - `phi_atlas_summary`
 - `phi_discovery`
 - `phi_browse_observatory`
+- `phi_archive_summary`
+- `phi_session_summary`
 
 Prompt:
 - `field_guidance`
@@ -131,6 +142,12 @@ Phase 6 additions:
 - New read-only observatory browsing resources for index-style navigation (storyboards, dossiers, field libraries, shelves, reading rooms, study halls).
 - New bounded browse tool: `phi_browse_observatory` synthesizing index surfaces for ergonomic client browsing.
 - Discovery payloads now include profile and resolved capability posture details (`profile`, `resolved_capabilities`, `resource_counts`, `tool_counts`, `prompt_counts`).
+
+Phase 7 additions:
+- Session-oriented read resources: `phios://sessions/current`, `phios://sessions/recent_checkins`, `phios://sessions/recent_reports`.
+- Richer archive browsing resources for pathways/atlas/route-compares/longitudinal/curricula/journey-ensembles.
+- New read-safe synthesis tools: `phi_session_summary` and `phi_archive_summary`.
+- Deeper runtime-gated client integration prep coverage for session/archive discovery→resource→tool paths where SDK runtime is available.
 
 Framing discipline is preserved in MCP outputs and prompts:
 - `C*` is treated as theoretical.

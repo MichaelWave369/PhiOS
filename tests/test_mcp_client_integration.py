@@ -80,3 +80,24 @@ def test_mcp_client_harness_profile_path_if_available(monkeypatch):
 
     assert ClientSession is not None
     assert stdio_client is not None
+
+
+
+def test_mcp_client_harness_phase7_path_if_available(monkeypatch):
+    """Runtime-gated path for future end-to-end phase7 client checks."""
+
+    _ = pytest.importorskip("mcp", reason="mcp SDK not installed in this runtime")
+    monkeypatch.setenv("PHIOS_MCP_PROFILE", "observer")
+
+    try:
+        from mcp.client.session import ClientSession  # type: ignore
+        from mcp.client.stdio import stdio_client  # type: ignore
+    except Exception:
+        pytest.skip("mcp client stdio/session modules unavailable in this runtime")
+
+    # Future expansion point:
+    # - discover resources/tools
+    # - read phios://sessions/current and phios://archive/pathways/index
+    # - call phi_session_summary and validate structured payload
+    assert ClientSession is not None
+    assert stdio_client is not None

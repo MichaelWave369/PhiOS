@@ -1,4 +1,4 @@
-"""MCP tools for PhiOS Phase 1-6."""
+"""MCP tools for PhiOS Phase 1-7."""
 
 from .ask import run_phi_ask
 from .discovery import run_phi_discovery
@@ -11,6 +11,7 @@ from .observatory import (
     run_phi_browse_observatory,
 )
 from .pulse import run_phi_pulse_once
+from .session_archive import run_phi_archive_summary, run_phi_session_summary
 from .status import run_phi_status
 
 __all__ = [
@@ -24,4 +25,6 @@ __all__ = [
     "run_phi_storyboard_summary",
     "run_phi_atlas_summary",
     "run_phi_browse_observatory",
+    "run_phi_session_summary",
+    "run_phi_archive_summary",
 ]

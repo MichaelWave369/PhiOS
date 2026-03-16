@@ -1,5 +1,13 @@
-"""Read-only MCP resources for PhiOS Phase 1/2/3/4/5/6."""
+"""Read-only MCP resources for PhiOS Phase 1/2/3/4/5/6/7."""
 
+from .archive import (
+    read_archive_atlas_index_resource,
+    read_archive_curricula_index_resource,
+    read_archive_journey_ensembles_index_resource,
+    read_archive_longitudinal_index_resource,
+    read_archive_pathways_index_resource,
+    read_archive_route_compares_index_resource,
+)
 from .coherence_lt import read_coherence_lt_resource
 from .discovery import read_mcp_discovery_resource
 from .field_state import read_field_state_resource
@@ -22,6 +30,11 @@ from .observatory import (
     read_observatory_storyboards_index_resource,
     read_observatory_study_halls_index_resource,
 )
+from .sessions import (
+    read_sessions_current_resource,
+    read_sessions_recent_checkins_resource,
+    read_sessions_recent_reports_resource,
+)
 from .status import read_system_status_resource
 
 __all__ = [
@@ -43,5 +56,14 @@ __all__ = [
     "read_observatory_shelves_index_resource",
     "read_observatory_reading_rooms_index_resource",
     "read_observatory_study_halls_index_resource",
+    "read_sessions_current_resource",
+    "read_sessions_recent_checkins_resource",
+    "read_sessions_recent_reports_resource",
+    "read_archive_pathways_index_resource",
+    "read_archive_atlas_index_resource",
+    "read_archive_route_compares_index_resource",
+    "read_archive_longitudinal_index_resource",
+    "read_archive_curricula_index_resource",
+    "read_archive_journey_ensembles_index_resource",
     "read_mcp_discovery_resource",
 ]

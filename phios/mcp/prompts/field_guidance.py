@@ -56,6 +56,19 @@ def build_field_guidance_prompt(adapter: PhiKernelCLIAdapter) -> str:
             "phios://mcp/discovery",
             "phi_discovery",
         ],
+        "session_resources": [
+            "phios://sessions/current",
+            "phios://sessions/recent_checkins",
+            "phios://sessions/recent_reports",
+        ],
+        "archive_resources": [
+            "phios://archive/pathways/index",
+            "phios://archive/atlas/index",
+            "phios://archive/route_compares/index",
+            "phios://archive/longitudinal/index",
+            "phios://archive/curricula/index",
+            "phios://archive/journey_ensembles/index",
+        ],
         "framing": {
             "theoretical_C_star": "Treat C* as a theoretical attractor.",
             "experimental_bio_vacuum_target": (

@@ -1,4 +1,4 @@
-"""PhiOS MCP server (Phase 1-6).
+"""PhiOS MCP server (Phase 1-7).
 
 This module provides a stable stdio MCP server surface over existing PhiOS services.
 """
@@ -10,6 +10,14 @@ from typing import Any
 
 from phios.adapters.phik import PhiKernelCLIAdapter
 from phios.mcp.prompts.field_guidance import build_field_guidance_prompt
+from phios.mcp.resources.archive import (
+    read_archive_atlas_index_resource,
+    read_archive_curricula_index_resource,
+    read_archive_journey_ensembles_index_resource,
+    read_archive_longitudinal_index_resource,
+    read_archive_pathways_index_resource,
+    read_archive_route_compares_index_resource,
+)
 from phios.mcp.resources.coherence_lt import read_coherence_lt_resource
 from phios.mcp.resources.discovery import read_mcp_discovery_resource
 from phios.mcp.resources.field_state import read_field_state_resource
@@ -32,6 +40,11 @@ from phios.mcp.resources.observatory import (
     read_observatory_reading_rooms_index_resource,
     read_observatory_study_halls_index_resource,
 )
+from phios.mcp.resources.sessions import (
+    read_sessions_current_resource,
+    read_sessions_recent_checkins_resource,
+    read_sessions_recent_reports_resource,
+)
 from phios.mcp.resources.status import read_system_status_resource
 from phios.mcp.tools.ask import run_phi_ask
 from phios.mcp.tools.discovery import run_phi_discovery
@@ -44,6 +57,7 @@ from phios.mcp.tools.observatory import (
     run_phi_browse_observatory,
 )
 from phios.mcp.tools.pulse import run_phi_pulse_once
+from phios.mcp.tools.session_archive import run_phi_archive_summary, run_phi_session_summary
 from phios.mcp.tools.status import run_phi_status
 
 
@@ -78,6 +92,15 @@ def mcp_surface_registry() -> McpSurfaceRegistry:
             "phios://observatory/shelves/index",
             "phios://observatory/reading_rooms/index",
             "phios://observatory/study_halls/index",
+            "phios://sessions/current",
+            "phios://sessions/recent_checkins",
+            "phios://sessions/recent_reports",
+            "phios://archive/pathways/index",
+            "phios://archive/atlas/index",
+            "phios://archive/route_compares/index",
+            "phios://archive/longitudinal/index",
+            "phios://archive/curricula/index",
+            "phios://archive/journey_ensembles/index",
         ),
         tools=(
             "phi_status",
@@ -90,6 +113,8 @@ def mcp_surface_registry() -> McpSurfaceRegistry:
             "phi_atlas_summary",
             "phi_discovery",
             "phi_browse_observatory",
+            "phi_session_summary",
+            "phi_archive_summary",
         ),
         prompts=("field_guidance",),
     )
@@ -194,6 +219,42 @@ def create_mcp_server(adapter: PhiKernelCLIAdapter | None = None) -> Any:
     def resource_observatory_study_halls_index() -> dict[str, object]:
         return _safe_call(read_observatory_study_halls_index_resource)
 
+    @server.resource("phios://sessions/current", mime_type="application/json")
+    def resource_sessions_current() -> dict[str, object]:
+        return _safe_call(read_sessions_current_resource, kernel_adapter)
+
+    @server.resource("phios://sessions/recent_checkins", mime_type="application/json")
+    def resource_sessions_recent_checkins() -> dict[str, object]:
+        return _safe_call(read_sessions_recent_checkins_resource)
+
+    @server.resource("phios://sessions/recent_reports", mime_type="application/json")
+    def resource_sessions_recent_reports() -> dict[str, object]:
+        return _safe_call(read_sessions_recent_reports_resource)
+
+    @server.resource("phios://archive/pathways/index", mime_type="application/json")
+    def resource_archive_pathways_index() -> dict[str, object]:
+        return _safe_call(read_archive_pathways_index_resource)
+
+    @server.resource("phios://archive/atlas/index", mime_type="application/json")
+    def resource_archive_atlas_index() -> dict[str, object]:
+        return _safe_call(read_archive_atlas_index_resource)
+
+    @server.resource("phios://archive/route_compares/index", mime_type="application/json")
+    def resource_archive_route_compares_index() -> dict[str, object]:
+        return _safe_call(read_archive_route_compares_index_resource)
+
+    @server.resource("phios://archive/longitudinal/index", mime_type="application/json")
+    def resource_archive_longitudinal_index() -> dict[str, object]:
+        return _safe_call(read_archive_longitudinal_index_resource)
+
+    @server.resource("phios://archive/curricula/index", mime_type="application/json")
+    def resource_archive_curricula_index() -> dict[str, object]:
+        return _safe_call(read_archive_curricula_index_resource)
+
+    @server.resource("phios://archive/journey_ensembles/index", mime_type="application/json")
+    def resource_archive_journey_ensembles_index() -> dict[str, object]:
+        return _safe_call(read_archive_journey_ensembles_index_resource)
+
     @server.tool(name="phi_status")
     def tool_phi_status() -> dict[str, object]:
         return _safe_call(run_phi_status, kernel_adapter)
@@ -242,6 +303,14 @@ def create_mcp_server(adapter: PhiKernelCLIAdapter | None = None) -> Any:
     @server.tool(name="phi_browse_observatory")
     def tool_phi_browse_observatory() -> dict[str, object]:
         return _safe_call(run_phi_browse_observatory)
+
+    @server.tool(name="phi_session_summary")
+    def tool_phi_session_summary() -> dict[str, object]:
+        return _safe_call(run_phi_session_summary, kernel_adapter)
+
+    @server.tool(name="phi_archive_summary")
+    def tool_phi_archive_summary() -> dict[str, object]:
+        return _safe_call(run_phi_archive_summary)
 
     @server.prompt(name="field_guidance")
     def prompt_field_guidance() -> str:
