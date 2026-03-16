@@ -58,6 +58,176 @@ phi ask "How should I begin?"
 phi sovereign export ./phi_snapshot.json
 ```
 
+
+## MCP interface (Phase 1 + Phase 2)
+
+PhiOS exposes an MCP interface layer over existing PhiOS/PhiKernel capabilities.
+This is additive interface work only; it does not replace runtime internals.
+**PhiKernel remains source of truth** for status, field, anchor, capsules, and pulse behavior.
+
+Run the stdio MCP server:
+
+```bash
+phi-mcp
+```
+
+Resources:
+- `phios://field/state`
+- `phios://coherence/lt`
+- `phios://system/status`
+- `phios://mcp/discovery`
+- `phios://history/recent_capsules`
+- `phios://history/recent_sessions`
+- `phios://history/recent_field_snapshots`
+- `phios://observatory/index`
+- `phios://observatory/dashboard`
+- `phios://observatory/atlas_gallery`
+- `phios://observatory/storyboards/recent`
+- `phios://observatory/dossiers/recent`
+- `phios://observatory/field_libraries/recent`
+- `phios://observatory/study_halls/index`
+- `phios://observatory/reading_rooms/index`
+- `phios://observatory/shelves/index`
+- `phios://observatory/field_libraries/index`
+- `phios://observatory/dossiers/index`
+- `phios://observatory/storyboards/index`
+- `phios://archive/journey_ensembles/index`
+- `phios://browse/libraries`
+- `phios://browse/learning_paths`
+- `phios://browse/collections`
+- `phios://browse/programs`
+- `phios://browse/comparative`
+- `phios://collections/field_libraries/rollup`
+- `phios://collections/shelves/rollup`
+- `phios://collections/reading_rooms/rollup`
+- `phios://collections/study_halls/rollup`
+- `phios://collections/curricula/rollup`
+- `phios://collections/journey_ensembles/rollup`
+- `phios://programs/curricula/rollup`
+- `phios://programs/study_halls/rollup`
+- `phios://programs/thematic_pathways/rollup`
+- `phios://programs/syllabi/rollup`
+- `phios://programs/journey_ensembles/rollup`
+- `phios://browse/curricula`
+- `phios://browse/cohorts`
+- `phios://browse/learning_tracks`
+- `phios://capstones/syllabi/rollup`
+- `phios://capstones/atlas_cohorts/rollup`
+- `phios://capstones/field_libraries/rollup_family`
+- `phios://capstones/dossiers/rollup_family`
+- `phios://capstones/storyboards/rollup_family`
+- `phios://browse/capstones`
+- `phios://browse/collections_family`
+- `phios://browse/learning_programs`
+- `phios://browse/comparative_learning`
+- `phios://browse/study_tracks`
+- `phios://browse/learning`
+- `phios://browse/archive`
+- `phios://browse/sessions`
+- `phios://browse/observatory`
+- `phios://browse/recent`
+- `phios://browse/overview`
+- `phios://archive/curricula/index`
+- `phios://archive/longitudinal/index`
+- `phios://archive/route_compares/index`
+- `phios://archive/atlas/index`
+- `phios://archive/pathways/index`
+- `phios://sessions/recent_reports`
+- `phios://sessions/recent_checkins`
+- `phios://sessions/current`
+
+Tools:
+- `phi_status`
+- `phi_ask`
+- `phi_pulse_once`
+- `phi_observatory_summary`
+- `phi_recent_activity`
+- `phi_library_summary`
+- `phi_storyboard_summary`
+- `phi_atlas_summary`
+- `phi_discovery`
+- `phi_browse_observatory`
+- `phi_archive_summary`
+- `phi_session_summary`
+- `phi_collection_summary`
+- `phi_program_summary`
+- `phi_curation_summary`
+- `phi_capstone_summary`
+- `phi_catalog_summary`
+
+Prompt:
+- `field_guidance`
+
+Phase 2 additions:
+- Schema versioning on MCP payloads via top-level `schema_version` plus `resource_version`/`tool_version` where applicable.
+- Default-safe pulse capability gating for `phi_pulse_once`; enable explicitly with `PHIOS_MCP_ALLOW_PULSE=true`.
+- Read-only history resources from grounded local/adapter data with sensible recent limits.
+
+Phase 3 additions:
+- Richer read-only observatory resources for dashboard/gallery/storyboard/dossier/field-library discovery and summaries.
+- Observatory resources are additive interface surfaces for local observatory artifacts; they are non-truth-bearing and do not replace PhiKernel truth logic.
+
+Phase 4 additions:
+- Optional lightweight capability scopes via `PHIOS_MCP_CAPABILITIES` (for example: `read_state,read_history,read_observatory,prompt_guidance,pulse_once`).
+- New read-safe summary tools: `phi_observatory_summary`, `phi_recent_activity`, and `phi_library_summary`.
+- Capability gating remains local/lightweight for now (not a full identity/auth platform).
+
+Phase 5 additions:
+- Client-facing discovery surfaces: `phios://mcp/discovery` and `phi_discovery` (registry + capability/policy posture).
+- Additional bounded summary tools: `phi_storyboard_summary` and `phi_atlas_summary`.
+- Real-client harness prep tests included; full SDK-client handshake assertions run only when MCP client runtime modules are available in CI/runtime.
+
+Phase 6 additions:
+- Optional lightweight client profile presets via `PHIOS_MCP_PROFILE` (`read_only`, `observer`, `operator`, `developer`) resolved into capability scopes.
+- New read-only observatory browsing resources for index-style navigation (storyboards, dossiers, field libraries, shelves, reading rooms, study halls).
+- New bounded browse tool: `phi_browse_observatory` synthesizing index surfaces for ergonomic client browsing.
+- Discovery payloads now include profile and resolved capability posture details (`profile`, `resolved_capabilities`, `resource_counts`, `tool_counts`, `prompt_counts`).
+
+Phase 7 additions:
+- Session-oriented read resources: `phios://sessions/current`, `phios://sessions/recent_checkins`, `phios://sessions/recent_reports`.
+- Richer archive browsing resources for pathways/atlas/route-compares/longitudinal/curricula/journey-ensembles.
+- New read-safe synthesis tools: `phi_session_summary` and `phi_archive_summary`.
+- Deeper runtime-gated client integration prep coverage for session/archive discovery→resource→tool paths where SDK runtime is available.
+
+Phase 8 additions:
+- Stable deterministic browse presets (`overview`, `recent`, `observatory`, `sessions`, `archive`, `learning`, `libraries`) exposed in discovery metadata and read-only browse resources.
+- Richer archive navigation rollups in `phi_archive_summary` and grouped discovery fields (`browse_presets`, `resource_groups`, `tool_groups`, `archive_rollups`).
+- Preset-aware browse/summary parameters for deterministic client browsing (`preset`, `artifact_family`, `limit`, `include_counts`, `include_rollups`).
+- Deeper runtime-gated client integration prep notes for discovery → preset browse → resource read → tool invoke flows when SDK runtime is available.
+
+Phase 9 additions:
+- Stable collection/library rollup resources for `field_libraries`, `shelves`, `reading_rooms`, `study_halls`, `curricula`, and `journey_ensembles` under `phios://collections/*/rollup`.
+- Richer learning-oriented browse presets/resources (`learning_paths`, `collections`, `programs`, `comparative`) with deterministic payload structure and grounded local data only.
+- New bounded synthesis tool `phi_collection_summary` for collection/library rollup aggregation with schema markers and generated timestamps.
+- Discovery now includes collection and learning coverage metadata (`collection_rollups`, `learning_presets`, `collection_groups`, `browse_surface_counts`) for easier client navigation.
+- Runtime-gated Phase 9 client-path test hook added for discovery → preset browse → rollup read → archive read → tool invoke flow expansion when SDK runtime allows.
+
+Phase 10 additions:
+- Stable program/learning rollup resources under `phios://programs/*/rollup` for curricula, study halls, thematic pathways, syllabi, and journey ensembles.
+- New deterministic program-level browse presets/resources (`curricula`, `cohorts`, `learning_tracks`) exposed through the existing browse preset surface.
+- New bounded read-only summary tools `phi_program_summary` and `phi_curation_summary` for grounded program/collection synthesis without speculative recommendations.
+- Discovery now includes program coverage metadata (`program_rollups`, `learning_groups`, `program_surface_counts`) in addition to existing profile/capability posture fields.
+- Runtime-gated Phase 10 client-path test hook added for discovery → browse preset → collection rollup → program rollup → summary tool invoke flow expansion when SDK runtime allows.
+
+Phase 11 additions:
+- Stable capstone/collection-family rollups under `phios://capstones/*` for syllabi, atlas cohorts, field-library families, dossier families, and storyboard families.
+- Richer deterministic learning browse families (`capstones`, `collections_family`, `learning_programs`, `comparative_learning`, `study_tracks`) via stable browse preset surfaces.
+- New bounded read-only synthesis tool `phi_capstone_summary` for capstone/family rollup aggregation grounded in local metadata only.
+- Discovery now includes capstone/family visibility and counts (`capstone_rollups`, `collection_family_rollups`, `learning_browse_families`, `capstone_surface_counts`).
+- Broader runtime-gated Phase 11 client-path hook added for discovery → browse preset → rollup reads → summary invocation flow expansion when SDK runtime allows.
+
+Phase 12 additions:
+- Stable archive-wide catalog resources for learning/capstones/programs/collections under `phios://catalogs/*` with deterministic read-only schema-marked payloads.
+- Richer observatory-family and learning-family browse groups (`observatory_families`, `learning_families`, `collection_families`, `capstone_families`, `archive_families`) via browse preset resources.
+- New bounded read-only summary tool `phi_catalog_summary` for catalog synthesis grounded only in local catalog metadata.
+- Discovery now includes catalog/family visibility fields (`catalog_resources`, `observatory_family_groups`, `catalog_surface_counts`, `browse_family_groups`).
+- Broader runtime-gated Phase 12 client-path hook added for discovery → family browse → catalog/rollup reads → summary invocation flow expansion when SDK runtime allows.
+
+Framing discipline is preserved in MCP outputs and prompts:
+- `C*` is treated as theoretical.
+- bio-vacuum targets are experimental.
+- Hunter's C remains unconfirmed.
+
 ## First Day with PhiOS
 
 ```bash
