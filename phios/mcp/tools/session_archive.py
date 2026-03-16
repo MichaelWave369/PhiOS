@@ -1,4 +1,4 @@
-"""Session/archive read-safe summary tools for MCP Phase 7/8/8."""
+"""Session/archive/read-safe summary tools for MCP phases."""
 
 from __future__ import annotations
 
@@ -20,6 +20,12 @@ from phios.mcp.resources.capstones import (
     read_capstones_field_libraries_rollup_family_resource,
     read_capstones_storyboards_rollup_family_resource,
     read_capstones_syllabi_rollup_resource,
+)
+from phios.mcp.resources.catalogs import (
+    read_catalog_capstones_resource,
+    read_catalog_collections_resource,
+    read_catalog_learning_resource,
+    read_catalog_programs_resource,
 )
 from phios.mcp.resources.collections import (
     read_curricula_rollup_resource,
@@ -49,8 +55,6 @@ def _utc_now_iso() -> str:
 
 
 def run_phi_session_summary(adapter: PhiKernelCLIAdapter) -> dict[str, object]:
-    """Return bounded summary of current/recent session-oriented read data."""
-
     decision = is_capability_allowed(CAP_READ_HISTORY)
     if not decision.allowed:
         return with_tool_schema(denied_capability_payload(decision=decision, error_code="SESSION_SUMMARY_NOT_PERMITTED"))
@@ -58,7 +62,6 @@ def run_phi_session_summary(adapter: PhiKernelCLIAdapter) -> dict[str, object]:
     current = read_sessions_current_resource(adapter)
     checkins = read_sessions_recent_checkins_resource(limit=10)
     reports = read_sessions_recent_reports_resource(limit=10)
-
     return with_tool_schema(
         {
             "ok": True,
@@ -79,14 +82,7 @@ def run_phi_session_summary(adapter: PhiKernelCLIAdapter) -> dict[str, object]:
     )
 
 
-def run_phi_archive_summary(
-    *,
-    preset: str = "overview",
-    limit: int = 10,
-    include_rollups: bool = True,
-) -> dict[str, object]:
-    """Return bounded summary over archive browsing read-only resources."""
-
+def run_phi_archive_summary(*, preset: str = "overview", limit: int = 10, include_rollups: bool = True) -> dict[str, object]:
     decision = is_capability_allowed(CAP_READ_HISTORY)
     if not decision.allowed:
         return with_tool_schema(denied_capability_payload(decision=decision, error_code="ARCHIVE_SUMMARY_NOT_PERMITTED"))
@@ -108,20 +104,6 @@ def run_phi_archive_summary(
         "longitudinal_count": longitudinal.get("count", 0) if isinstance(longitudinal, dict) else 0,
     }
 
-    rollups = {
-        "family_counts": {
-            "pathways": summary["pathway_count"],
-            "atlas": summary["atlas_count"],
-            "learning": summary["curricula_count"] + summary["journey_ensemble_count"],
-            "comparisons": summary["route_compare_count"],
-            "longitudinal": summary["longitudinal_count"],
-        },
-        "availability": {
-            "route_compares_available": summary["route_compare_count"] > 0,
-            "longitudinal_available": summary["longitudinal_count"] > 0,
-        },
-    }
-
     payload: dict[str, object] = {
         "ok": True,
         "allowed": decision.allowed,
@@ -140,14 +122,23 @@ def run_phi_archive_summary(
         "longitudinal": longitudinal,
     }
     if include_rollups:
-        payload["rollups"] = rollups
-
+        payload["rollups"] = {
+            "family_counts": {
+                "pathways": summary["pathway_count"],
+                "atlas": summary["atlas_count"],
+                "learning": summary["curricula_count"] + summary["journey_ensemble_count"],
+                "comparisons": summary["route_compare_count"],
+                "longitudinal": summary["longitudinal_count"],
+            },
+            "availability": {
+                "route_compares_available": summary["route_compare_count"] > 0,
+                "longitudinal_available": summary["longitudinal_count"] > 0,
+            },
+        }
     return with_tool_schema(payload)
 
 
 def run_phi_collection_summary() -> dict[str, object]:
-    """Return bounded synthesis across stable collection/library rollup resources."""
-
     decision = is_capability_allowed(CAP_READ_HISTORY)
     if not decision.allowed:
         return with_tool_schema(denied_capability_payload(decision=decision, error_code="COLLECTION_SUMMARY_NOT_PERMITTED"))
@@ -159,9 +150,7 @@ def run_phi_collection_summary() -> dict[str, object]:
     curricula = read_curricula_rollup_resource()
     journey_ensembles = read_journey_ensembles_rollup_resource()
 
-    rollups = [field_libraries, shelves, reading_rooms, study_halls, curricula, journey_ensembles]
-    total_items = sum(int(r.get("count", 0)) for r in rollups if isinstance(r, dict))
-
+    total_items = sum(int(r.get("count", 0)) for r in (field_libraries, shelves, reading_rooms, study_halls, curricula, journey_ensembles))
     return with_tool_schema(
         {
             "ok": True,
@@ -171,7 +160,7 @@ def run_phi_collection_summary() -> dict[str, object]:
             "policy_source": decision.policy_source,
             "generated_at": _utc_now_iso(),
             "summary": {
-                "rollup_count": len(rollups),
+                "rollup_count": 6,
                 "total_collection_items": total_items,
                 "learning_family_items": int(curricula.get("count", 0)) + int(journey_ensembles.get("count", 0)),
                 "library_family_items": int(field_libraries.get("count", 0)) + int(shelves.get("count", 0)) + int(reading_rooms.get("count", 0)) + int(study_halls.get("count", 0)),
@@ -189,8 +178,6 @@ def run_phi_collection_summary() -> dict[str, object]:
 
 
 def run_phi_program_summary() -> dict[str, object]:
-    """Return bounded synthesis over program/learning rollup resources."""
-
     decision = is_capability_allowed(CAP_READ_HISTORY)
     if not decision.allowed:
         return with_tool_schema(denied_capability_payload(decision=decision, error_code="PROGRAM_SUMMARY_NOT_PERMITTED"))
@@ -228,10 +215,7 @@ def run_phi_program_summary() -> dict[str, object]:
     )
 
 
-
 def run_phi_capstone_summary() -> dict[str, object]:
-    """Return bounded synthesis across capstone/collection-family rollup resources."""
-
     decision = is_capability_allowed(CAP_READ_HISTORY)
     if not decision.allowed:
         return with_tool_schema(denied_capability_payload(decision=decision, error_code="CAPSTONE_SUMMARY_NOT_PERMITTED"))
@@ -241,11 +225,7 @@ def run_phi_capstone_summary() -> dict[str, object]:
     field_libraries_family = read_capstones_field_libraries_rollup_family_resource()
     dossiers_family = read_capstones_dossiers_rollup_family_resource()
     storyboards_family = read_capstones_storyboards_rollup_family_resource()
-
-    total_items = sum(
-        int(item.get("count", 0))
-        for item in (syllabi, atlas_cohorts, field_libraries_family, dossiers_family, storyboards_family)
-    )
+    total_items = sum(int(item.get("count", 0)) for item in (syllabi, atlas_cohorts, field_libraries_family, dossiers_family, storyboards_family))
 
     return with_tool_schema(
         {
@@ -272,9 +252,8 @@ def run_phi_capstone_summary() -> dict[str, object]:
         }
     )
 
-def run_phi_curation_summary() -> dict[str, object]:
-    """Return bounded read-only curation summary across collections/programs."""
 
+def run_phi_curation_summary() -> dict[str, object]:
     decision = is_capability_allowed(CAP_READ_HISTORY)
     if not decision.allowed:
         return with_tool_schema(denied_capability_payload(decision=decision, error_code="CURATION_SUMMARY_NOT_PERMITTED"))
@@ -282,23 +261,13 @@ def run_phi_curation_summary() -> dict[str, object]:
     collection_summary = run_phi_collection_summary()
     program_summary = run_phi_program_summary()
     capstone_summary = run_phi_capstone_summary()
-
     collection_total = int(collection_summary.get("summary", {}).get("total_collection_items", 0)) if isinstance(collection_summary, dict) else 0
-    program_total = 0
     capstone_total = int(capstone_summary.get("summary", {}).get("total_capstone_items", 0)) if isinstance(capstone_summary, dict) else 0
+    program_total = 0
     if isinstance(program_summary, dict):
         summary_obj = program_summary.get("summary", {})
         if isinstance(summary_obj, dict):
-            program_total = sum(
-                int(summary_obj.get(key, 0))
-                for key in (
-                    "curricula_count",
-                    "study_halls_count",
-                    "thematic_pathways_count",
-                    "syllabi_count",
-                    "journey_ensembles_count",
-                )
-            )
+            program_total = sum(int(summary_obj.get(k, 0)) for k in ("curricula_count", "study_halls_count", "thematic_pathways_count", "syllabi_count", "journey_ensembles_count"))
 
     return with_tool_schema(
         {
@@ -311,11 +280,48 @@ def run_phi_curation_summary() -> dict[str, object]:
             "summary": {
                 "collection_total": collection_total,
                 "program_total": program_total,
-                "combined_total": collection_total + program_total + capstone_total,
                 "capstone_total": capstone_total,
+                "combined_total": collection_total + program_total + capstone_total,
             },
             "collection_summary": collection_summary,
             "program_summary": program_summary,
             "capstone_summary": capstone_summary,
+        }
+    )
+
+
+def run_phi_catalog_summary() -> dict[str, object]:
+    decision = is_capability_allowed(CAP_READ_HISTORY)
+    if not decision.allowed:
+        return with_tool_schema(denied_capability_payload(decision=decision, error_code="CATALOG_SUMMARY_NOT_PERMITTED"))
+
+    learning = read_catalog_learning_resource()
+    capstones = read_catalog_capstones_resource()
+    programs = read_catalog_programs_resource()
+    collections = read_catalog_collections_resource()
+    total = sum(int(item.get("count", 0)) for item in (learning, capstones, programs, collections))
+
+    return with_tool_schema(
+        {
+            "ok": True,
+            "allowed": decision.allowed,
+            "reason": decision.reason,
+            "capability_scope": decision.capability_scope,
+            "policy_source": decision.policy_source,
+            "generated_at": _utc_now_iso(),
+            "summary": {
+                "catalog_count": 4,
+                "total_items": total,
+                "learning_count": int(learning.get("count", 0)),
+                "capstones_count": int(capstones.get("count", 0)),
+                "programs_count": int(programs.get("count", 0)),
+                "collections_count": int(collections.get("count", 0)),
+            },
+            "catalogs": {
+                "learning": learning,
+                "capstones": capstones,
+                "programs": programs,
+                "collections": collections,
+            },
         }
     )

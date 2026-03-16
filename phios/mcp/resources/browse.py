@@ -1,4 +1,4 @@
-"""Preset browse resources for Phase 8 (read-only)."""
+"""Preset browse resources for MCP (read-only)."""
 
 from __future__ import annotations
 
@@ -19,6 +19,12 @@ from phios.mcp.resources.capstones import (
     read_capstones_field_libraries_rollup_family_resource,
     read_capstones_storyboards_rollup_family_resource,
     read_capstones_syllabi_rollup_resource,
+)
+from phios.mcp.resources.catalogs import (
+    read_catalog_capstones_resource,
+    read_catalog_collections_resource,
+    read_catalog_learning_resource,
+    read_catalog_programs_resource,
 )
 from phios.mcp.resources.collections import (
     read_curricula_rollup_resource,
@@ -189,6 +195,38 @@ def read_browse_preset_resource(preset: str) -> dict[str, object]:
             "study_halls_rollup": read_programs_study_halls_rollup_resource(),
             "thematic_pathways_rollup": read_programs_thematic_pathways_rollup_resource(),
             "journey_ensembles_rollup": read_programs_journey_ensembles_rollup_resource(),
+        }
+    elif name == "observatory_families":
+        views = {
+            "storyboards_index": read_observatory_storyboards_index_resource(limit=15),
+            "study_halls_index": read_observatory_study_halls_index_resource(limit=15),
+            "field_libraries_index": read_observatory_field_libraries_index_resource(limit=15),
+        }
+    elif name == "learning_families":
+        views = {
+            "learning_catalog": read_catalog_learning_resource(),
+            "curricula_rollup": read_programs_curricula_rollup_resource(),
+            "thematic_pathways_rollup": read_programs_thematic_pathways_rollup_resource(),
+        }
+    elif name == "collection_families":
+        views = {
+            "collections_catalog": read_catalog_collections_resource(),
+            "field_libraries_rollup": read_field_libraries_rollup_resource(),
+            "shelves_rollup": read_shelves_rollup_resource(),
+            "reading_rooms_rollup": read_reading_rooms_rollup_resource(),
+        }
+    elif name == "capstone_families":
+        views = {
+            "capstones_catalog": read_catalog_capstones_resource(),
+            "syllabi_rollup": read_capstones_syllabi_rollup_resource(),
+            "atlas_cohorts_rollup": read_capstones_atlas_cohorts_rollup_resource(),
+        }
+    elif name == "archive_families":
+        views = {
+            "programs_catalog": read_catalog_programs_resource(),
+            "pathways": read_archive_pathways_index_resource(limit=15),
+            "route_compares": read_archive_route_compares_index_resource(limit=15),
+            "longitudinal": read_archive_longitudinal_index_resource(),
         }
 
     return with_resource_schema(

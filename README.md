@@ -153,6 +153,7 @@ Tools:
 - `phi_program_summary`
 - `phi_curation_summary`
 - `phi_capstone_summary`
+- `phi_catalog_summary`
 
 Prompt:
 - `field_guidance`
@@ -214,6 +215,13 @@ Phase 11 additions:
 - New bounded read-only synthesis tool `phi_capstone_summary` for capstone/family rollup aggregation grounded in local metadata only.
 - Discovery now includes capstone/family visibility and counts (`capstone_rollups`, `collection_family_rollups`, `learning_browse_families`, `capstone_surface_counts`).
 - Broader runtime-gated Phase 11 client-path hook added for discovery → browse preset → rollup reads → summary invocation flow expansion when SDK runtime allows.
+
+Phase 12 additions:
+- Stable archive-wide catalog resources for learning/capstones/programs/collections under `phios://catalogs/*` with deterministic read-only schema-marked payloads.
+- Richer observatory-family and learning-family browse groups (`observatory_families`, `learning_families`, `collection_families`, `capstone_families`, `archive_families`) via browse preset resources.
+- New bounded read-only summary tool `phi_catalog_summary` for catalog synthesis grounded only in local catalog metadata.
+- Discovery now includes catalog/family visibility fields (`catalog_resources`, `observatory_family_groups`, `catalog_surface_counts`, `browse_family_groups`).
+- Broader runtime-gated Phase 12 client-path hook added for discovery → family browse → catalog/rollup reads → summary invocation flow expansion when SDK runtime allows.
 
 Framing discipline is preserved in MCP outputs and prompts:
 - `C*` is treated as theoretical.

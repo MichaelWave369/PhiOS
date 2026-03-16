@@ -12,6 +12,12 @@ from phios.mcp.policy import (
     denied_capability_payload,
     is_capability_allowed,
 )
+from phios.mcp.resources.catalogs import (
+    read_catalog_capstones_resource,
+    read_catalog_collections_resource,
+    read_catalog_learning_resource,
+    read_catalog_programs_resource,
+)
 from phios.mcp.resources.history import (
     read_recent_capsules_resource,
     read_recent_field_snapshots_resource,
@@ -222,6 +228,9 @@ def run_phi_browse_observatory(
     limit: int = 20,
     include_counts: bool = True,
     include_rollups: bool = True,
+    family_group: str | None = None,
+    catalog: str | None = None,
+    include_catalog_counts: bool = False,
 ) -> dict[str, object]:
     """Browse richer observatory index surfaces in one bounded response."""
 
@@ -269,6 +278,29 @@ def run_phi_browse_observatory(
         fam = artifact_family.strip().lower()
         views = {k: v for k, v in views.items() if fam in k}
 
+    if family_group:
+        group = family_group.strip().lower()
+        group_map = {
+            "observatory": {"storyboards_index", "dossiers_index"},
+            "libraries": {"field_libraries_index", "shelves_index", "reading_rooms_index"},
+            "learning": {"storyboards_index", "study_halls_index"},
+        }
+        allowed = group_map.get(group, set())
+        if allowed:
+            views = {k: v for k, v in views.items() if k in allowed}
+
+    catalog_payload: dict[str, object] = {}
+    if catalog:
+        cat = catalog.strip().lower()
+        if cat == "learning":
+            catalog_payload = {"learning": read_catalog_learning_resource()}
+        elif cat == "capstones":
+            catalog_payload = {"capstones": read_catalog_capstones_resource()}
+        elif cat == "programs":
+            catalog_payload = {"programs": read_catalog_programs_resource()}
+        elif cat == "collections":
+            catalog_payload = {"collections": read_catalog_collections_resource()}
+
     summary = {
         "storyboards": storyboards.get("count", 0) if isinstance(storyboards, dict) else 0,
         "dossiers": dossiers.get("count", 0) if isinstance(dossiers, dict) else 0,
@@ -287,11 +319,17 @@ def run_phi_browse_observatory(
         "generated_at": _utc_now_iso(),
         "preset": preset_norm,
         "artifact_family": artifact_family or "",
+        "family_group": family_group or "",
+        "catalog": catalog or "",
         "limit": safe_limit,
         "views": views,
     }
     if include_counts:
         payload["summary"] = summary
+    if catalog_payload:
+        payload["catalogs"] = catalog_payload
+    if include_catalog_counts and catalog_payload:
+        payload["catalog_counts"] = {k: int(v.get("count", 0)) for k, v in catalog_payload.items() if isinstance(v, dict)}
     if include_rollups:
         payload["rollups"] = {
             "family_counts": {

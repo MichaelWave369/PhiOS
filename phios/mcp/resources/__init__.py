@@ -1,4 +1,4 @@
-"""Read-only MCP resources for PhiOS Phase 1/2/3/4/5/6/7/8."""
+"""Read-only MCP resources for PhiOS Phase 1-12."""
 
 from .archive import (
     read_archive_atlas_index_resource,
@@ -16,6 +16,12 @@ from .capstones import (
     read_capstones_storyboards_rollup_family_resource,
     read_capstones_syllabi_rollup_resource,
 )
+from .catalogs import (
+    read_catalog_capstones_resource,
+    read_catalog_collections_resource,
+    read_catalog_learning_resource,
+    read_catalog_programs_resource,
+)
 from .coherence_lt import read_coherence_lt_resource
 from .collections import (
     read_curricula_rollup_resource,
@@ -32,26 +38,26 @@ from .history import (
     read_recent_field_snapshots_resource,
     read_recent_sessions_resource,
 )
+from .observatory import (
+    read_observatory_atlas_gallery_resource,
+    read_observatory_dashboard_resource,
+    read_observatory_dossiers_index_resource,
+    read_observatory_field_libraries_index_resource,
+    read_observatory_index_resource,
+    read_observatory_reading_rooms_index_resource,
+    read_observatory_recent_dossiers_resource,
+    read_observatory_recent_field_libraries_resource,
+    read_observatory_recent_storyboards_resource,
+    read_observatory_shelves_index_resource,
+    read_observatory_storyboards_index_resource,
+    read_observatory_study_halls_index_resource,
+)
 from .programs import (
     read_programs_curricula_rollup_resource,
     read_programs_journey_ensembles_rollup_resource,
     read_programs_study_halls_rollup_resource,
     read_programs_syllabi_rollup_resource,
     read_programs_thematic_pathways_rollup_resource,
-)
-from .observatory import (
-    read_observatory_atlas_gallery_resource,
-    read_observatory_dashboard_resource,
-    read_observatory_index_resource,
-    read_observatory_recent_dossiers_resource,
-    read_observatory_recent_field_libraries_resource,
-    read_observatory_recent_storyboards_resource,
-    read_observatory_dossiers_index_resource,
-    read_observatory_field_libraries_index_resource,
-    read_observatory_reading_rooms_index_resource,
-    read_observatory_shelves_index_resource,
-    read_observatory_storyboards_index_resource,
-    read_observatory_study_halls_index_resource,
 )
 from .sessions import (
     read_sessions_current_resource,
@@ -106,4 +112,8 @@ __all__ = [
     "read_capstones_field_libraries_rollup_family_resource",
     "read_capstones_dossiers_rollup_family_resource",
     "read_capstones_storyboards_rollup_family_resource",
+    "read_catalog_learning_resource",
+    "read_catalog_capstones_resource",
+    "read_catalog_programs_resource",
+    "read_catalog_collections_resource",
 ]

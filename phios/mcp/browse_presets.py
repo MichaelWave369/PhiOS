@@ -179,6 +179,56 @@ BROWSE_PRESETS: dict[str, dict[str, object]] = {
         ],
         "tools": ["phi_program_summary", "phi_capstone_summary"],
     },
+    "observatory_families": {
+        "description": "Grouped observatory-family navigation surface.",
+        "resources": [
+            "phios://browse/observatory_families",
+            "phios://observatory/storyboards/index",
+            "phios://observatory/dossiers/index",
+            "phios://observatory/field_libraries/index",
+        ],
+        "tools": ["phi_browse_observatory", "phi_observatory_summary"],
+    },
+    "learning_families": {
+        "description": "Grouped learning family navigation across catalogs/programs.",
+        "resources": [
+            "phios://browse/learning_families",
+            "phios://catalogs/learning",
+            "phios://programs/curricula/rollup",
+            "phios://programs/thematic_pathways/rollup",
+        ],
+        "tools": ["phi_program_summary", "phi_catalog_summary"],
+    },
+    "collection_families": {
+        "description": "Grouped collection family browsing using rollups and catalogs.",
+        "resources": [
+            "phios://browse/collection_families",
+            "phios://catalogs/collections",
+            "phios://collections/field_libraries/rollup",
+            "phios://collections/shelves/rollup",
+        ],
+        "tools": ["phi_collection_summary", "phi_catalog_summary"],
+    },
+    "capstone_families": {
+        "description": "Grouped capstone family browsing using capstone catalog surfaces.",
+        "resources": [
+            "phios://browse/capstone_families",
+            "phios://catalogs/capstones",
+            "phios://capstones/syllabi/rollup",
+            "phios://capstones/atlas_cohorts/rollup",
+        ],
+        "tools": ["phi_capstone_summary", "phi_catalog_summary"],
+    },
+    "archive_families": {
+        "description": "Grouped archive-family browsing with archive indexes and catalogs.",
+        "resources": [
+            "phios://browse/archive_families",
+            "phios://catalogs/programs",
+            "phios://archive/pathways/index",
+            "phios://archive/route_compares/index",
+        ],
+        "tools": ["phi_archive_summary", "phi_catalog_summary"],
+    },
     "libraries": {
         "description": "Library/shelf/reading-room focused observatory view.",
         "resources": [

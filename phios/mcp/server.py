@@ -1,4 +1,4 @@
-"""PhiOS MCP server (Phase 1-11).
+"""PhiOS MCP server (Phase 1-12).
 
 This module provides a stable stdio MCP server surface over existing PhiOS services.
 """
@@ -25,6 +25,12 @@ from phios.mcp.resources.capstones import (
     read_capstones_field_libraries_rollup_family_resource,
     read_capstones_storyboards_rollup_family_resource,
     read_capstones_syllabi_rollup_resource,
+)
+from phios.mcp.resources.catalogs import (
+    read_catalog_capstones_resource,
+    read_catalog_collections_resource,
+    read_catalog_learning_resource,
+    read_catalog_programs_resource,
 )
 from phios.mcp.resources.coherence_lt import read_coherence_lt_resource
 from phios.mcp.resources.collections import (
@@ -83,6 +89,7 @@ from phios.mcp.tools.pulse import run_phi_pulse_once
 from phios.mcp.tools.session_archive import (
     run_phi_archive_summary,
     run_phi_capstone_summary,
+    run_phi_catalog_summary,
     run_phi_collection_summary,
     run_phi_curation_summary,
     run_phi_program_summary,
@@ -166,6 +173,15 @@ def mcp_surface_registry() -> McpSurfaceRegistry:
             "phios://browse/learning_programs",
             "phios://browse/comparative_learning",
             "phios://browse/study_tracks",
+            "phios://catalogs/learning",
+            "phios://catalogs/capstones",
+            "phios://catalogs/programs",
+            "phios://catalogs/collections",
+            "phios://browse/observatory_families",
+            "phios://browse/learning_families",
+            "phios://browse/collection_families",
+            "phios://browse/capstone_families",
+            "phios://browse/archive_families",
         ),
         tools=(
             "phi_status",
@@ -184,6 +200,7 @@ def mcp_surface_registry() -> McpSurfaceRegistry:
             "phi_program_summary",
             "phi_curation_summary",
             "phi_capstone_summary",
+            "phi_catalog_summary",
         ),
         prompts=("field_guidance",),
     )
@@ -402,6 +419,26 @@ def create_mcp_server(adapter: PhiKernelCLIAdapter | None = None) -> Any:
     def resource_browse_study_tracks() -> dict[str, object]:
         return _safe_call(read_browse_preset_resource, "study_tracks")
 
+    @server.resource("phios://browse/observatory_families", mime_type="application/json")
+    def resource_browse_observatory_families() -> dict[str, object]:
+        return _safe_call(read_browse_preset_resource, "observatory_families")
+
+    @server.resource("phios://browse/learning_families", mime_type="application/json")
+    def resource_browse_learning_families() -> dict[str, object]:
+        return _safe_call(read_browse_preset_resource, "learning_families")
+
+    @server.resource("phios://browse/collection_families", mime_type="application/json")
+    def resource_browse_collection_families() -> dict[str, object]:
+        return _safe_call(read_browse_preset_resource, "collection_families")
+
+    @server.resource("phios://browse/capstone_families", mime_type="application/json")
+    def resource_browse_capstone_families() -> dict[str, object]:
+        return _safe_call(read_browse_preset_resource, "capstone_families")
+
+    @server.resource("phios://browse/archive_families", mime_type="application/json")
+    def resource_browse_archive_families() -> dict[str, object]:
+        return _safe_call(read_browse_preset_resource, "archive_families")
+
     @server.resource("phios://collections/field_libraries/rollup", mime_type="application/json")
     def resource_collections_field_libraries_rollup() -> dict[str, object]:
         return _safe_call(read_field_libraries_rollup_resource)
@@ -466,6 +503,22 @@ def create_mcp_server(adapter: PhiKernelCLIAdapter | None = None) -> Any:
     def resource_capstones_storyboards_rollup_family() -> dict[str, object]:
         return _safe_call(read_capstones_storyboards_rollup_family_resource)
 
+    @server.resource("phios://catalogs/learning", mime_type="application/json")
+    def resource_catalog_learning() -> dict[str, object]:
+        return _safe_call(read_catalog_learning_resource)
+
+    @server.resource("phios://catalogs/capstones", mime_type="application/json")
+    def resource_catalog_capstones() -> dict[str, object]:
+        return _safe_call(read_catalog_capstones_resource)
+
+    @server.resource("phios://catalogs/programs", mime_type="application/json")
+    def resource_catalog_programs() -> dict[str, object]:
+        return _safe_call(read_catalog_programs_resource)
+
+    @server.resource("phios://catalogs/collections", mime_type="application/json")
+    def resource_catalog_collections() -> dict[str, object]:
+        return _safe_call(read_catalog_collections_resource)
+
     @server.tool(name="phi_status")
     def tool_phi_status() -> dict[str, object]:
         return _safe_call(run_phi_status, kernel_adapter)
@@ -518,6 +571,9 @@ def create_mcp_server(adapter: PhiKernelCLIAdapter | None = None) -> Any:
         limit: int = 20,
         include_counts: bool = True,
         include_rollups: bool = True,
+        family_group: str | None = None,
+        catalog: str | None = None,
+        include_catalog_counts: bool = False,
     ) -> dict[str, object]:
         return _safe_call(
             run_phi_browse_observatory,
@@ -526,6 +582,9 @@ def create_mcp_server(adapter: PhiKernelCLIAdapter | None = None) -> Any:
             limit=limit,
             include_counts=include_counts,
             include_rollups=include_rollups,
+            family_group=family_group,
+            catalog=catalog,
+            include_catalog_counts=include_catalog_counts,
         )
 
     @server.tool(name="phi_session_summary")
@@ -543,6 +602,9 @@ def create_mcp_server(adapter: PhiKernelCLIAdapter | None = None) -> Any:
             preset=preset,
             limit=limit,
             include_rollups=include_rollups,
+            family_group=family_group,
+            catalog=catalog,
+            include_catalog_counts=include_catalog_counts,
         )
 
     @server.tool(name="phi_collection_summary")
@@ -560,6 +622,10 @@ def create_mcp_server(adapter: PhiKernelCLIAdapter | None = None) -> Any:
     @server.tool(name="phi_capstone_summary")
     def tool_phi_capstone_summary() -> dict[str, object]:
         return _safe_call(run_phi_capstone_summary)
+
+    @server.tool(name="phi_catalog_summary")
+    def tool_phi_catalog_summary() -> dict[str, object]:
+        return _safe_call(run_phi_catalog_summary)
 
     @server.prompt(name="field_guidance")
     def prompt_field_guidance() -> str:
