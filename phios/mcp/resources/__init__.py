@@ -1,6 +1,7 @@
-"""Read-only MCP resources for PhiOS Phase 1/2/3."""
+"""Read-only MCP resources for PhiOS Phase 1/2/3/4/5."""
 
 from .coherence_lt import read_coherence_lt_resource
+from .discovery import read_mcp_discovery_resource
 from .field_state import read_field_state_resource
 from .history import (
     read_recent_capsules_resource,
@@ -30,4 +31,5 @@ __all__ = [
     "read_observatory_recent_storyboards_resource",
     "read_observatory_recent_dossiers_resource",
     "read_observatory_recent_field_libraries_resource",
+    "read_mcp_discovery_resource",
 ]

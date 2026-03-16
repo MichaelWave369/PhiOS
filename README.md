@@ -75,6 +75,7 @@ Resources:
 - `phios://field/state`
 - `phios://coherence/lt`
 - `phios://system/status`
+- `phios://mcp/discovery`
 - `phios://history/recent_capsules`
 - `phios://history/recent_sessions`
 - `phios://history/recent_field_snapshots`
@@ -92,6 +93,9 @@ Tools:
 - `phi_observatory_summary`
 - `phi_recent_activity`
 - `phi_library_summary`
+- `phi_storyboard_summary`
+- `phi_atlas_summary`
+- `phi_discovery`
 
 Prompt:
 - `field_guidance`
@@ -109,6 +113,11 @@ Phase 4 additions:
 - Optional lightweight capability scopes via `PHIOS_MCP_CAPABILITIES` (for example: `read_state,read_history,read_observatory,prompt_guidance,pulse_once`).
 - New read-safe summary tools: `phi_observatory_summary`, `phi_recent_activity`, and `phi_library_summary`.
 - Capability gating remains local/lightweight for now (not a full identity/auth platform).
+
+Phase 5 additions:
+- Client-facing discovery surfaces: `phios://mcp/discovery` and `phi_discovery` (registry + capability/policy posture).
+- Additional bounded summary tools: `phi_storyboard_summary` and `phi_atlas_summary`.
+- Real-client harness prep tests included; full SDK-client handshake assertions run only when MCP client runtime modules are available in CI/runtime.
 
 Framing discipline is preserved in MCP outputs and prompts:
 - `C*` is treated as theoretical.

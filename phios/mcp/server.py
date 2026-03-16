@@ -1,4 +1,4 @@
-"""PhiOS MCP server (Phase 1-4).
+"""PhiOS MCP server (Phase 1-5).
 
 This module provides a stable stdio MCP server surface over existing PhiOS services.
 """
@@ -11,6 +11,7 @@ from typing import Any
 from phios.adapters.phik import PhiKernelCLIAdapter
 from phios.mcp.prompts.field_guidance import build_field_guidance_prompt
 from phios.mcp.resources.coherence_lt import read_coherence_lt_resource
+from phios.mcp.resources.discovery import read_mcp_discovery_resource
 from phios.mcp.resources.field_state import read_field_state_resource
 from phios.mcp.resources.history import (
     read_recent_capsules_resource,
@@ -27,10 +28,13 @@ from phios.mcp.resources.observatory import (
 )
 from phios.mcp.resources.status import read_system_status_resource
 from phios.mcp.tools.ask import run_phi_ask
+from phios.mcp.tools.discovery import run_phi_discovery
 from phios.mcp.tools.observatory import (
+    run_phi_atlas_summary,
     run_phi_library_summary,
     run_phi_observatory_summary,
     run_phi_recent_activity,
+    run_phi_storyboard_summary,
 )
 from phios.mcp.tools.pulse import run_phi_pulse_once
 from phios.mcp.tools.status import run_phi_status
@@ -51,6 +55,7 @@ def mcp_surface_registry() -> McpSurfaceRegistry:
             "phios://field/state",
             "phios://coherence/lt",
             "phios://system/status",
+            "phios://mcp/discovery",
             "phios://history/recent_capsules",
             "phios://history/recent_sessions",
             "phios://history/recent_field_snapshots",
@@ -68,6 +73,9 @@ def mcp_surface_registry() -> McpSurfaceRegistry:
             "phi_observatory_summary",
             "phi_recent_activity",
             "phi_library_summary",
+            "phi_storyboard_summary",
+            "phi_atlas_summary",
+            "phi_discovery",
         ),
         prompts=("field_guidance",),
     )
@@ -93,6 +101,11 @@ def create_mcp_server(adapter: PhiKernelCLIAdapter | None = None) -> Any:
 
     kernel_adapter = adapter or PhiKernelCLIAdapter()
     server = FastMCP("PhiOS")
+
+
+    @server.resource("phios://mcp/discovery", mime_type="application/json")
+    def resource_mcp_discovery() -> dict[str, object]:
+        return _safe_call(read_mcp_discovery_resource, mcp_surface_registry())
 
     @server.resource("phios://field/state", mime_type="application/json")
     def resource_field_state() -> dict[str, object]:
@@ -173,6 +186,19 @@ def create_mcp_server(adapter: PhiKernelCLIAdapter | None = None) -> Any:
     @server.tool(name="phi_library_summary")
     def tool_phi_library_summary() -> dict[str, object]:
         return _safe_call(run_phi_library_summary)
+
+
+    @server.tool(name="phi_storyboard_summary")
+    def tool_phi_storyboard_summary() -> dict[str, object]:
+        return _safe_call(run_phi_storyboard_summary)
+
+    @server.tool(name="phi_atlas_summary")
+    def tool_phi_atlas_summary() -> dict[str, object]:
+        return _safe_call(run_phi_atlas_summary)
+
+    @server.tool(name="phi_discovery")
+    def tool_phi_discovery() -> dict[str, object]:
+        return _safe_call(run_phi_discovery, mcp_surface_registry())
 
     @server.prompt(name="field_guidance")
     def prompt_field_guidance() -> str:

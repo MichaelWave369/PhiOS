@@ -1,4 +1,4 @@
-"""Read-safe observatory summary MCP tools (Phase 4)."""
+"""Read-safe observatory summary MCP tools (Phase 4/5)."""
 
 from __future__ import annotations
 
@@ -57,8 +57,8 @@ def run_phi_observatory_summary() -> dict[str, object]:
             "policy_source": decision.policy_source,
             "generated_at": _utc_now_iso(),
             "summary": {
-                "dashboard_sessions": dashboard.get("summary", {}).get("session_count", 0),
-                "atlas_entries": atlas.get("summary", {}).get("entry_count", 0),
+                "dashboard_sessions": dashboard.get("summary", {}).get("session_count", 0) if isinstance(dashboard, dict) else 0,
+                "atlas_entries": atlas.get("summary", {}).get("entry_count", 0) if isinstance(atlas, dict) else 0,
                 "recent_storyboards": storyboards.get("count", 0),
                 "recent_dossiers": dossiers.get("count", 0),
                 "recent_field_libraries": field_libraries.get("count", 0),
@@ -147,5 +147,62 @@ def run_phi_library_summary() -> dict[str, object]:
                 "recent_reading_rooms": dashboard_dict.get("recent_reading_rooms", []),
                 "recent_study_halls": dashboard_dict.get("recent_study_halls", []),
             },
+        }
+    )
+
+
+
+def run_phi_storyboard_summary() -> dict[str, object]:
+    """Return a bounded summary of recent storyboard artifacts."""
+
+    decision = is_capability_allowed(CAP_READ_OBSERVATORY)
+    if not decision.allowed:
+        return _gated_denial(decision, "STORYBOARD_SUMMARY_NOT_PERMITTED")
+
+    storyboards = read_observatory_recent_storyboards_resource(limit=20)
+    rows = storyboards.get("storyboards", []) if isinstance(storyboards, dict) else []
+    safe_rows = rows if isinstance(rows, list) else []
+
+    return with_tool_schema(
+        {
+            "ok": True,
+            "allowed": decision.allowed,
+            "reason": decision.reason,
+            "capability_scope": decision.capability_scope,
+            "policy_source": decision.policy_source,
+            "generated_at": _utc_now_iso(),
+            "summary": {
+                "storyboard_count": storyboards.get("count", 0) if isinstance(storyboards, dict) else 0,
+                "non_empty_sections": sum(1 for row in safe_rows if isinstance(row, dict) and int(row.get("section_count", 0) or 0) > 0),
+            },
+            "recent_storyboards": storyboards,
+        }
+    )
+
+
+def run_phi_atlas_summary() -> dict[str, object]:
+    """Return a bounded summary of atlas gallery state."""
+
+    decision = is_capability_allowed(CAP_READ_OBSERVATORY)
+    if not decision.allowed:
+        return _gated_denial(decision, "ATLAS_SUMMARY_NOT_PERMITTED")
+
+    atlas = read_observatory_atlas_gallery_resource()
+    atlas_dict = atlas if isinstance(atlas, dict) else {}
+    atlas_payload = atlas_dict.get("atlas_gallery", {}) if isinstance(atlas_dict.get("atlas_gallery", {}), dict) else {}
+
+    return with_tool_schema(
+        {
+            "ok": True,
+            "allowed": decision.allowed,
+            "reason": decision.reason,
+            "capability_scope": decision.capability_scope,
+            "policy_source": decision.policy_source,
+            "generated_at": _utc_now_iso(),
+            "summary": {
+                "entry_count": atlas_dict.get("summary", {}).get("entry_count", 0) if isinstance(atlas_dict.get("summary", {}), dict) else 0,
+                "gallery_version": atlas_payload.get("gallery_version", ""),
+            },
+            "atlas_gallery": atlas,
         }
     )

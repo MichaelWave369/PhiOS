@@ -40,6 +40,12 @@ def build_field_guidance_prompt(adapter: PhiKernelCLIAdapter) -> str:
             "phi_observatory_summary",
             "phi_recent_activity",
             "phi_library_summary",
+            "phi_storyboard_summary",
+            "phi_atlas_summary",
+        ],
+        "discovery_surfaces": [
+            "phios://mcp/discovery",
+            "phi_discovery",
         ],
         "framing": {
             "theoretical_C_star": "Treat C* as a theoretical attractor.",
