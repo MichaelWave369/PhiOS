@@ -21,7 +21,7 @@ classifiers = [
   "Topic :: Software Development :: Libraries",
   "Topic :: System :: Shells",
 ]
-dependencies = ["psutil>=5.9.0"]
+dependencies = ["psutil>=5.9.0", "mcp>=1.0"]
 
 [project.urls]
 Homepage = "https://github.com/MichaelWave369/PhiOS"
@@ -40,9 +40,10 @@ dev = [
 
 [project.scripts]
 phi = "phios.shell.phi_session:main"
+phi-mcp = "phios.mcp.server:main"
 
 [tool.setuptools]
-packages = ["phios", "phios.shell", "phios.core", "phios.display", "phios.desktop", "phios.adapters", "phios.services", "phios.templates", "phios.ml"]
+packages = ["phios", "phios.shell", "phios.core", "phios.display", "phios.desktop", "phios.adapters", "phios.services", "phios.templates", "phios.ml", "phios.mcp", "phios.mcp.resources", "phios.mcp.tools", "phios.mcp.prompts"]
 
 [tool.setuptools.dynamic]
 version = {attr = "phios.__version__"}
