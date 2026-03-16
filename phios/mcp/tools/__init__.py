@@ -1,6 +1,13 @@
 """MCP tools for PhiOS Phase 1-15."""
 
 from .ask import run_phi_ask
+from .cognitive_arch import run_phi_recommend_cognitive_arch
+from .agents import (
+    run_phi_agent_status,
+    run_phi_dispatch_agents,
+    run_phi_kill_agent,
+    run_phi_list_agents,
+)
 from .discovery import (
     run_phi_discovery,
     run_phi_discovery_dashboard_summary,
@@ -48,4 +55,9 @@ __all__ = [
     "run_phi_collection_summary",
     "run_phi_program_summary",
     "run_phi_curation_summary",
+    "run_phi_dispatch_agents",
+    "run_phi_list_agents",
+    "run_phi_agent_status",
+    "run_phi_kill_agent",
+    "run_phi_recommend_cognitive_arch",
 ]
