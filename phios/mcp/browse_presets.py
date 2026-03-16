@@ -63,6 +63,45 @@ BROWSE_PRESETS: dict[str, dict[str, object]] = {
         ],
         "tools": ["phi_archive_summary", "phi_library_summary"],
     },
+    "learning_paths": {
+        "description": "Learning-path focused view across curricula/journeys/study halls.",
+        "resources": [
+            "phios://browse/learning_paths",
+            "phios://archive/curricula/index",
+            "phios://archive/journey_ensembles/index",
+            "phios://collections/curricula/rollup",
+        ],
+        "tools": ["phi_archive_summary", "phi_collection_summary"],
+    },
+    "collections": {
+        "description": "Collection/library rollup browsing view.",
+        "resources": [
+            "phios://browse/collections",
+            "phios://collections/field_libraries/rollup",
+            "phios://collections/shelves/rollup",
+            "phios://collections/reading_rooms/rollup",
+        ],
+        "tools": ["phi_collection_summary", "phi_library_summary"],
+    },
+    "programs": {
+        "description": "Program-like learning surfaces (curricula, study halls, reading rooms).",
+        "resources": [
+            "phios://browse/programs",
+            "phios://collections/curricula/rollup",
+            "phios://collections/study_halls/rollup",
+            "phios://collections/reading_rooms/rollup",
+        ],
+        "tools": ["phi_collection_summary", "phi_archive_summary"],
+    },
+    "comparative": {
+        "description": "Comparative/archive diagnostics view with route and longitudinal context.",
+        "resources": [
+            "phios://browse/comparative",
+            "phios://archive/route_compares/index",
+            "phios://archive/longitudinal/index",
+        ],
+        "tools": ["phi_archive_summary", "phi_atlas_summary"],
+    },
     "libraries": {
         "description": "Library/shelf/reading-room focused observatory view.",
         "resources": [

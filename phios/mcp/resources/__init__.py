@@ -10,6 +10,14 @@ from .archive import (
 )
 from .browse import read_browse_preset_resource
 from .coherence_lt import read_coherence_lt_resource
+from .collections import (
+    read_curricula_rollup_resource,
+    read_field_libraries_rollup_resource,
+    read_journey_ensembles_rollup_resource,
+    read_reading_rooms_rollup_resource,
+    read_shelves_rollup_resource,
+    read_study_halls_rollup_resource,
+)
 from .discovery import read_mcp_discovery_resource
 from .field_state import read_field_state_resource
 from .history import (

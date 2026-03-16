@@ -93,6 +93,16 @@ Resources:
 - `phios://observatory/storyboards/index`
 - `phios://archive/journey_ensembles/index`
 - `phios://browse/libraries`
+- `phios://browse/learning_paths`
+- `phios://browse/collections`
+- `phios://browse/programs`
+- `phios://browse/comparative`
+- `phios://collections/field_libraries/rollup`
+- `phios://collections/shelves/rollup`
+- `phios://collections/reading_rooms/rollup`
+- `phios://collections/study_halls/rollup`
+- `phios://collections/curricula/rollup`
+- `phios://collections/journey_ensembles/rollup`
 - `phios://browse/learning`
 - `phios://browse/archive`
 - `phios://browse/sessions`
@@ -121,6 +131,7 @@ Tools:
 - `phi_browse_observatory`
 - `phi_archive_summary`
 - `phi_session_summary`
+- `phi_collection_summary`
 
 Prompt:
 - `field_guidance`
@@ -161,6 +172,13 @@ Phase 8 additions:
 - Richer archive navigation rollups in `phi_archive_summary` and grouped discovery fields (`browse_presets`, `resource_groups`, `tool_groups`, `archive_rollups`).
 - Preset-aware browse/summary parameters for deterministic client browsing (`preset`, `artifact_family`, `limit`, `include_counts`, `include_rollups`).
 - Deeper runtime-gated client integration prep notes for discovery → preset browse → resource read → tool invoke flows when SDK runtime is available.
+
+Phase 9 additions:
+- Stable collection/library rollup resources for `field_libraries`, `shelves`, `reading_rooms`, `study_halls`, `curricula`, and `journey_ensembles` under `phios://collections/*/rollup`.
+- Richer learning-oriented browse presets/resources (`learning_paths`, `collections`, `programs`, `comparative`) with deterministic payload structure and grounded local data only.
+- New bounded synthesis tool `phi_collection_summary` for collection/library rollup aggregation with schema markers and generated timestamps.
+- Discovery now includes collection and learning coverage metadata (`collection_rollups`, `learning_presets`, `collection_groups`, `browse_surface_counts`) for easier client navigation.
+- Runtime-gated Phase 9 client-path test hook added for discovery → preset browse → rollup read → archive read → tool invoke flow expansion when SDK runtime allows.
 
 Framing discipline is preserved in MCP outputs and prompts:
 - `C*` is treated as theoretical.

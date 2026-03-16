@@ -14,6 +14,14 @@ from phios.mcp.resources.archive import (
     read_archive_pathways_index_resource,
     read_archive_route_compares_index_resource,
 )
+from phios.mcp.resources.collections import (
+    read_curricula_rollup_resource,
+    read_field_libraries_rollup_resource,
+    read_journey_ensembles_rollup_resource,
+    read_reading_rooms_rollup_resource,
+    read_shelves_rollup_resource,
+    read_study_halls_rollup_resource,
+)
 from phios.mcp.resources.sessions import (
     read_sessions_current_resource,
     read_sessions_recent_checkins_resource,
@@ -121,3 +129,46 @@ def run_phi_archive_summary(
         payload["rollups"] = rollups
 
     return with_tool_schema(payload)
+
+
+def run_phi_collection_summary() -> dict[str, object]:
+    """Return bounded synthesis across stable collection/library rollup resources."""
+
+    decision = is_capability_allowed(CAP_READ_HISTORY)
+    if not decision.allowed:
+        return with_tool_schema(denied_capability_payload(decision=decision, error_code="COLLECTION_SUMMARY_NOT_PERMITTED"))
+
+    field_libraries = read_field_libraries_rollup_resource()
+    shelves = read_shelves_rollup_resource()
+    reading_rooms = read_reading_rooms_rollup_resource()
+    study_halls = read_study_halls_rollup_resource()
+    curricula = read_curricula_rollup_resource()
+    journey_ensembles = read_journey_ensembles_rollup_resource()
+
+    rollups = [field_libraries, shelves, reading_rooms, study_halls, curricula, journey_ensembles]
+    total_items = sum(int(r.get("count", 0)) for r in rollups if isinstance(r, dict))
+
+    return with_tool_schema(
+        {
+            "ok": True,
+            "allowed": decision.allowed,
+            "reason": decision.reason,
+            "capability_scope": decision.capability_scope,
+            "policy_source": decision.policy_source,
+            "generated_at": _utc_now_iso(),
+            "summary": {
+                "rollup_count": len(rollups),
+                "total_collection_items": total_items,
+                "learning_family_items": int(curricula.get("count", 0)) + int(journey_ensembles.get("count", 0)),
+                "library_family_items": int(field_libraries.get("count", 0)) + int(shelves.get("count", 0)) + int(reading_rooms.get("count", 0)) + int(study_halls.get("count", 0)),
+            },
+            "rollups": {
+                "field_libraries": field_libraries,
+                "shelves": shelves,
+                "reading_rooms": reading_rooms,
+                "study_halls": study_halls,
+                "curricula": curricula,
+                "journey_ensembles": journey_ensembles,
+            },
+        }
+    )

@@ -9,8 +9,17 @@ from phios.mcp.resources.archive import (
     read_archive_atlas_index_resource,
     read_archive_curricula_index_resource,
     read_archive_journey_ensembles_index_resource,
+    read_archive_longitudinal_index_resource,
     read_archive_pathways_index_resource,
     read_archive_route_compares_index_resource,
+)
+from phios.mcp.resources.collections import (
+    read_curricula_rollup_resource,
+    read_field_libraries_rollup_resource,
+    read_journey_ensembles_rollup_resource,
+    read_reading_rooms_rollup_resource,
+    read_shelves_rollup_resource,
+    read_study_halls_rollup_resource,
 )
 from phios.mcp.resources.history import read_recent_field_snapshots_resource, read_recent_sessions_resource
 from phios.mcp.resources.observatory import (
@@ -89,6 +98,33 @@ def read_browse_preset_resource(preset: str) -> dict[str, object]:
             "field_libraries": read_observatory_field_libraries_index_resource(limit=15),
             "shelves": read_observatory_shelves_index_resource(limit=15),
             "reading_rooms": read_observatory_reading_rooms_index_resource(limit=15),
+        }
+    elif name == "learning_paths":
+        views = {
+            "curricula": read_archive_curricula_index_resource(limit=15),
+            "journey_ensembles": read_archive_journey_ensembles_index_resource(limit=15),
+            "study_halls": read_observatory_study_halls_index_resource(limit=15),
+            "curricula_rollup": read_curricula_rollup_resource(),
+            "journey_ensembles_rollup": read_journey_ensembles_rollup_resource(),
+        }
+    elif name == "collections":
+        views = {
+            "field_libraries_rollup": read_field_libraries_rollup_resource(),
+            "shelves_rollup": read_shelves_rollup_resource(),
+            "reading_rooms_rollup": read_reading_rooms_rollup_resource(),
+            "study_halls_rollup": read_study_halls_rollup_resource(),
+        }
+    elif name == "programs":
+        views = {
+            "curricula_rollup": read_curricula_rollup_resource(),
+            "study_halls_rollup": read_study_halls_rollup_resource(),
+            "reading_rooms_rollup": read_reading_rooms_rollup_resource(),
+        }
+    elif name == "comparative":
+        views = {
+            "route_compares": read_archive_route_compares_index_resource(limit=15),
+            "longitudinal": read_archive_longitudinal_index_resource(),
+            "atlas": read_archive_atlas_index_resource(limit=15),
         }
 
     return with_resource_schema(

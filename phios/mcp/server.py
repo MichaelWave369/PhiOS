@@ -20,6 +20,14 @@ from phios.mcp.resources.archive import (
 )
 from phios.mcp.resources.browse import read_browse_preset_resource
 from phios.mcp.resources.coherence_lt import read_coherence_lt_resource
+from phios.mcp.resources.collections import (
+    read_curricula_rollup_resource,
+    read_field_libraries_rollup_resource,
+    read_journey_ensembles_rollup_resource,
+    read_reading_rooms_rollup_resource,
+    read_shelves_rollup_resource,
+    read_study_halls_rollup_resource,
+)
 from phios.mcp.resources.discovery import read_mcp_discovery_resource
 from phios.mcp.resources.field_state import read_field_state_resource
 from phios.mcp.resources.history import (
@@ -58,7 +66,7 @@ from phios.mcp.tools.observatory import (
     run_phi_browse_observatory,
 )
 from phios.mcp.tools.pulse import run_phi_pulse_once
-from phios.mcp.tools.session_archive import run_phi_archive_summary, run_phi_session_summary
+from phios.mcp.tools.session_archive import run_phi_archive_summary, run_phi_collection_summary, run_phi_session_summary
 from phios.mcp.tools.status import run_phi_status
 
 
@@ -109,6 +117,16 @@ def mcp_surface_registry() -> McpSurfaceRegistry:
             "phios://browse/archive",
             "phios://browse/learning",
             "phios://browse/libraries",
+            "phios://browse/learning_paths",
+            "phios://browse/collections",
+            "phios://browse/programs",
+            "phios://browse/comparative",
+            "phios://collections/field_libraries/rollup",
+            "phios://collections/shelves/rollup",
+            "phios://collections/reading_rooms/rollup",
+            "phios://collections/study_halls/rollup",
+            "phios://collections/curricula/rollup",
+            "phios://collections/journey_ensembles/rollup",
         ),
         tools=(
             "phi_status",
@@ -123,6 +141,7 @@ def mcp_surface_registry() -> McpSurfaceRegistry:
             "phi_browse_observatory",
             "phi_session_summary",
             "phi_archive_summary",
+            "phi_collection_summary",
         ),
         prompts=("field_guidance",),
     )
@@ -291,6 +310,48 @@ def create_mcp_server(adapter: PhiKernelCLIAdapter | None = None) -> Any:
     def resource_browse_libraries() -> dict[str, object]:
         return _safe_call(read_browse_preset_resource, "libraries")
 
+
+
+    @server.resource("phios://browse/learning_paths", mime_type="application/json")
+    def resource_browse_learning_paths() -> dict[str, object]:
+        return _safe_call(read_browse_preset_resource, "learning_paths")
+
+    @server.resource("phios://browse/collections", mime_type="application/json")
+    def resource_browse_collections() -> dict[str, object]:
+        return _safe_call(read_browse_preset_resource, "collections")
+
+    @server.resource("phios://browse/programs", mime_type="application/json")
+    def resource_browse_programs() -> dict[str, object]:
+        return _safe_call(read_browse_preset_resource, "programs")
+
+    @server.resource("phios://browse/comparative", mime_type="application/json")
+    def resource_browse_comparative() -> dict[str, object]:
+        return _safe_call(read_browse_preset_resource, "comparative")
+
+    @server.resource("phios://collections/field_libraries/rollup", mime_type="application/json")
+    def resource_collections_field_libraries_rollup() -> dict[str, object]:
+        return _safe_call(read_field_libraries_rollup_resource)
+
+    @server.resource("phios://collections/shelves/rollup", mime_type="application/json")
+    def resource_collections_shelves_rollup() -> dict[str, object]:
+        return _safe_call(read_shelves_rollup_resource)
+
+    @server.resource("phios://collections/reading_rooms/rollup", mime_type="application/json")
+    def resource_collections_reading_rooms_rollup() -> dict[str, object]:
+        return _safe_call(read_reading_rooms_rollup_resource)
+
+    @server.resource("phios://collections/study_halls/rollup", mime_type="application/json")
+    def resource_collections_study_halls_rollup() -> dict[str, object]:
+        return _safe_call(read_study_halls_rollup_resource)
+
+    @server.resource("phios://collections/curricula/rollup", mime_type="application/json")
+    def resource_collections_curricula_rollup() -> dict[str, object]:
+        return _safe_call(read_curricula_rollup_resource)
+
+    @server.resource("phios://collections/journey_ensembles/rollup", mime_type="application/json")
+    def resource_collections_journey_ensembles_rollup() -> dict[str, object]:
+        return _safe_call(read_journey_ensembles_rollup_resource)
+
     @server.tool(name="phi_status")
     def tool_phi_status() -> dict[str, object]:
         return _safe_call(run_phi_status, kernel_adapter)
@@ -369,6 +430,10 @@ def create_mcp_server(adapter: PhiKernelCLIAdapter | None = None) -> Any:
             limit=limit,
             include_rollups=include_rollups,
         )
+
+    @server.tool(name="phi_collection_summary")
+    def tool_phi_collection_summary() -> dict[str, object]:
+        return _safe_call(run_phi_collection_summary)
 
     @server.prompt(name="field_guidance")
     def prompt_field_guidance() -> str:
