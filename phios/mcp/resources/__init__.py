@@ -111,6 +111,11 @@ from .reviews import (
     read_review_panel_resource,
     read_reviews_recent_resource,
 )
+from .figure_fitness import (
+    read_figures_fitness_resource,
+    read_figure_fitness_detail_resource,
+    read_figure_recommendation_resource,
+)
 
 __all__ = [
     "read_field_state_resource",
@@ -199,4 +204,7 @@ __all__ = [
     "read_debate_session_resource",
     "read_reviews_recent_resource",
     "read_review_panel_resource",
+    "read_figures_fitness_resource",
+    "read_figure_fitness_detail_resource",
+    "read_figure_recommendation_resource",
 ]

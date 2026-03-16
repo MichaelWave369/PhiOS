@@ -85,6 +85,11 @@ from phios.services.review_gate import (
     evaluate_review_coherence_gate,
     persist_review_outcome,
 )
+from phios.services.figure_fitness import (
+    build_figure_fitness_report,
+    recommend_figure_for_task,
+    summarize_figure_fitness_landscape,
+)
 from phios.services.visualizer import (
     VALID_LENSES,
     VALID_PRESETS,
@@ -412,7 +417,7 @@ def cmd_help(_: list[str], session: object | None = None) -> str:
             "  build [iso|status|clean]",
             "  notify [test|status|history]",
             "  dispatch <task> [--field-guided] [--arch <name>] [--review-panel] [--coherence-gate <float>] [--dry-run] [--stream]",
-            "  agents [list|status <id>|kill <id> --yes|log <id>]",
+            "  agents [list|status <id>|kill <id> --yes|log <id>|figures [--top <n>] [--sector <name>]|evolve [--top <n>] [--sector <name>] [--task-key <key>] [--skill <skill>] [--min-coherence <v>]]",
             "  recommend-arch [--json]      Show field-guided cognitive architecture recommendation",
             "  recommend-atoms [--json]     Show sector-to-atom cognitive override recommendation",
             "  debate gate --session-id <id> --round <n> --positions <json> [--threshold <float>] [--persist] [--json]",
@@ -2803,7 +2808,50 @@ def cmd_agents(args: list[str], session: object | None = None) -> str:
             return "Usage: agents log <run_id>"
         return json.dumps({"run_id": args[1], "events": stream_agent_run_events(args[1])}, indent=2)
 
-    return "Usage: agents [list|status <run_id>|kill <run_id> --yes|log <run_id>]"
+    if action == "figures":
+        top_raw = _arg_value(args, "--top")
+        sector = _arg_value(args, "--sector")
+        try:
+            top = int(top_raw) if top_raw else 10
+        except ValueError:
+            return "--top must be an integer"
+        return json.dumps(build_figure_fitness_report(sector=sector, top=top), indent=2)
+
+    if action == "evolve":
+        top_raw = _arg_value(args, "--top")
+        sector = _arg_value(args, "--sector")
+        task_key = _arg_value(args, "--task-key") or "agent_evolution"
+        required_skill = _arg_value(args, "--skill")
+        min_coherence_raw = _arg_value(args, "--min-coherence")
+        try:
+            top = int(top_raw) if top_raw else 10
+        except ValueError:
+            return "--top must be an integer"
+        min_coherence = None
+        if min_coherence_raw is not None:
+            try:
+                min_coherence = float(min_coherence_raw)
+            except ValueError:
+                return "--min-coherence must be float"
+        landscape = summarize_figure_fitness_landscape(top=top, sector=sector)
+        recommendation = recommend_figure_for_task(
+            task_key=task_key,
+            sector=sector,
+            required_skill=required_skill,
+            min_coherence=min_coherence,
+        )
+        return json.dumps(
+            {
+                "ok": True,
+                "advisory_only": True,
+                "landscape": landscape,
+                "recommendation": recommendation,
+                "experimental": True,
+            },
+            indent=2,
+        )
+
+    return "Usage: agents [list|status <run_id>|kill <run_id> --yes|log <run_id>|figures [--top <n>] [--sector <name>]|evolve [--top <n>] [--sector <name>] [--task-key <key>] [--skill <skill>] [--min-coherence <v>]]"
 
 
 def cmd_recommend_arch(args: list[str], session: object | None = None) -> str:

@@ -178,6 +178,9 @@ Resources:
 - `phios://reviews/recent`
 - `phios://reviews/{panel_id}`
 - `phios://cognition/atoms`
+- `phios://figures/fitness`
+- `phios://figures/fitness/{figure}`
+- `phios://figures/recommendation/{task_key}`
 
 Tools:
 - `phi_status`
@@ -209,6 +212,9 @@ Tools:
 - `phi_debate_coherence_gate`
 - `phi_review_coherence_gate`
 - `phi_recommend_cognitive_atoms`
+- `phi_record_figure_outcome`
+- `phi_figure_fitness_report`
+- `phi_recommend_figure_for_task`
 
 Prompt:
 - `field_guidance`
@@ -344,6 +350,24 @@ Phase 21 additions (Issue #81 sector-to-atom cognitive overrides):
   - `emotion_field` -> `communication_style`
 - Optional additive integration: the Issue #76 cognitive-architecture tool/resource now include `atom_recommendation` metadata.
 - This remains additive, read-only, experimental, and advisory; PhiKernel remains source of truth.
+
+Phase 22 additions (Issue #80 living cognitive ecosystem figure fitness):
+- New shell figure fitness commands:
+  - `phi agents figures`
+  - `phi agents figures --top <n>`
+  - `phi agents figures --sector <sector>`
+  - `phi agents evolve [--top <n>] [--sector <sector>] [--task-key <key>] [--skill <skill>] [--min-coherence <v>]`
+- New MCP tools:
+  - `phi_record_figure_outcome` (capability-gated write)
+  - `phi_figure_fitness_report` (read-only)
+  - `phi_recommend_figure_for_task` (read-only)
+- New read-only MCP resources:
+  - `phios://figures/fitness`
+  - `phios://figures/fitness/{figure}`
+  - `phios://figures/recommendation/{task_key}`
+- Storage model is local-first and inspectable under `~/.phios/journal/visual_bloom/narratives/figure_fitness_records.json` with append-only-like `figure_outcomes` entries.
+- Deterministic report metrics include `grade_success_rate`, `avg_merge_time_minutes`, `avg_coherence`, `redispatch_rate`, and `close_rate`.
+- This remains additive and experimental; write path is explicitly capability-gated (`figure_fitness_write`), and recommendations are advisory only.
 
 Phase 11 additions:
 - Stable capstone/collection-family rollups under `phios://capstones/*` for syllabi, atlas cohorts, field-library families, dossier families, and storyboard families.

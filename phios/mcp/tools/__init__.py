@@ -6,6 +6,11 @@ from .cognitive_arch import run_phi_recommend_cognitive_arch
 from .cognitive_atoms import run_phi_recommend_cognitive_atoms
 from .debate import phi_debate_coherence_gate
 from .review import phi_review_coherence_gate
+from .figure_fitness import (
+    phi_record_figure_outcome,
+    phi_figure_fitness_report,
+    phi_recommend_figure_for_task,
+)
 from .agents import (
     run_phi_agent_status,
     run_phi_dispatch_agents,
@@ -68,4 +73,7 @@ __all__ = [
     "phi_store_deliberation",
     "phi_debate_coherence_gate",
     "phi_review_coherence_gate",
+    "phi_record_figure_outcome",
+    "phi_figure_fitness_report",
+    "phi_recommend_figure_for_task",
 ]

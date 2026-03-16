@@ -121,6 +121,11 @@ from phios.mcp.resources.reviews import (
     read_review_panel_resource,
     read_reviews_recent_resource,
 )
+from phios.mcp.resources.figure_fitness import (
+    read_figures_fitness_resource,
+    read_figure_fitness_detail_resource,
+    read_figure_recommendation_resource,
+)
 from phios.mcp.tools.agent_memory import phi_store_deliberation
 from phios.mcp.tools.agents import (
     run_phi_agent_status,
@@ -134,6 +139,11 @@ from phios.mcp.tools.cognitive_atoms import run_phi_recommend_cognitive_atoms
 from phios.mcp.tools.discovery import run_phi_discovery, run_phi_discovery_dashboard_summary, run_phi_navigation_console_summary
 from phios.mcp.tools.debate import phi_debate_coherence_gate
 from phios.mcp.tools.review import phi_review_coherence_gate
+from phios.mcp.tools.figure_fitness import (
+    phi_record_figure_outcome,
+    phi_figure_fitness_report,
+    phi_recommend_figure_for_task,
+)
 from phios.mcp.tools.observatory import (
     run_phi_atlas_summary,
     run_phi_library_summary,
@@ -274,6 +284,9 @@ def mcp_surface_registry() -> McpSurfaceRegistry:
             "phios://debates/{session_id}",
             "phios://reviews/recent",
             "phios://reviews/{panel_id}",
+            "phios://figures/fitness",
+            "phios://figures/fitness/{figure}",
+            "phios://figures/recommendation/{task_key}",
         ),
         tools=(
             "phi_status",
@@ -305,6 +318,9 @@ def mcp_surface_registry() -> McpSurfaceRegistry:
             "phi_store_deliberation",
             "phi_debate_coherence_gate",
             "phi_review_coherence_gate",
+            "phi_record_figure_outcome",
+            "phi_figure_fitness_report",
+            "phi_recommend_figure_for_task",
         ),
         prompts=("field_guidance",),
     )
@@ -759,6 +775,18 @@ def create_mcp_server(adapter: PhiKernelCLIAdapter | None = None) -> Any:
     def resource_review_panel(panel_id: str, pr_number: int | None = None) -> dict[str, object]:
         return _safe_call(read_review_panel_resource, panel_id, pr_number)
 
+    @server.resource("phios://figures/fitness", mime_type="application/json")
+    def resource_figures_fitness(top: int = 10, sector: str | None = None) -> dict[str, object]:
+        return _safe_call(read_figures_fitness_resource, top, sector)
+
+    @server.resource("phios://figures/fitness/{figure}", mime_type="application/json")
+    def resource_figure_fitness_detail(figure: str, top: int = 20) -> dict[str, object]:
+        return _safe_call(read_figure_fitness_detail_resource, figure, top)
+
+    @server.resource("phios://figures/recommendation/{task_key}", mime_type="application/json")
+    def resource_figure_recommendation(task_key: str, sector: str | None = None) -> dict[str, object]:
+        return _safe_call(read_figure_recommendation_resource, task_key, sector)
+
     @server.tool(name="phi_status")
     def tool_phi_status() -> dict[str, object]:
         return _safe_call(run_phi_status, kernel_adapter)
@@ -1009,6 +1037,56 @@ def create_mcp_server(adapter: PhiKernelCLIAdapter | None = None) -> Any:
             panel_id=panel_id,
             mediator_summary=mediator_summary,
             persist=persist,
+        )
+
+    @server.tool(name="phi_record_figure_outcome")
+    def tool_phi_record_figure_outcome(
+        figure: str,
+        skills: list[str],
+        run_id: str,
+        pr_grade: str,
+        merge_time_minutes: float,
+        redispatch_count: int,
+        issue_closed: bool,
+        coherence_at_completion: float,
+        sector_at_dispatch: str,
+        timestamp: str | None = None,
+    ) -> dict[str, object]:
+        return _safe_call(
+            phi_record_figure_outcome,
+            figure=figure,
+            skills=skills,
+            run_id=run_id,
+            pr_grade=pr_grade,
+            merge_time_minutes=merge_time_minutes,
+            redispatch_count=redispatch_count,
+            issue_closed=issue_closed,
+            coherence_at_completion=coherence_at_completion,
+            sector_at_dispatch=sector_at_dispatch,
+            timestamp=timestamp,
+        )
+
+    @server.tool(name="phi_figure_fitness_report")
+    def tool_phi_figure_fitness_report(
+        figure: str | None = None,
+        sector: str | None = None,
+        top: int = 10,
+    ) -> dict[str, object]:
+        return _safe_call(phi_figure_fitness_report, figure=figure, sector=sector, top=top)
+
+    @server.tool(name="phi_recommend_figure_for_task")
+    def tool_phi_recommend_figure_for_task(
+        task_key: str,
+        sector: str | None = None,
+        required_skill: str | None = None,
+        min_coherence: float | None = None,
+    ) -> dict[str, object]:
+        return _safe_call(
+            phi_recommend_figure_for_task,
+            task_key=task_key,
+            sector=sector,
+            required_skill=required_skill,
+            min_coherence=min_coherence,
         )
 
     @server.prompt(name="field_guidance")
