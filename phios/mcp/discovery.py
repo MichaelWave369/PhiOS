@@ -81,6 +81,13 @@ def list_mcp_browse_families(registry: object) -> list[str]:
 def list_mcp_learning_maps(registry: object) -> list[str]:
     return [uri for uri in list_mcp_resources(registry) if uri.startswith("phios://maps/")]
 
+def list_mcp_dashboard_resources(registry: object) -> list[str]:
+    return [uri for uri in list_mcp_resources(registry) if uri.startswith("phios://dashboards/")]
+
+
+def list_mcp_family_resources(registry: object) -> list[str]:
+    return [uri for uri in list_mcp_resources(registry) if uri.startswith("phios://families/")]
+
 
 def list_mcp_dashboard_resources(registry: object) -> list[str]:
     return [uri for uri in list_mcp_resources(registry) if uri.startswith("phios://dashboards/")]
@@ -191,6 +198,8 @@ def build_mcp_discovery_payload(registry: object) -> dict[str, object]:
             "program_families",
         }
     ]
+
+    learning_map_names = [uri.split("/")[-1] for uri in learning_maps]
 
     return {
         "schema_version": MCP_SCHEMA_VERSION,
