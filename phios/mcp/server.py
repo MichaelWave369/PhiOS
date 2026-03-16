@@ -1,4 +1,4 @@
-"""PhiOS MCP server (Phase 1-12).
+"""PhiOS MCP server (Phase 1-13).
 
 This module provides a stable stdio MCP server surface over existing PhiOS services.
 """
@@ -48,6 +48,12 @@ from phios.mcp.resources.history import (
     read_recent_field_snapshots_resource,
     read_recent_sessions_resource,
 )
+from phios.mcp.resources.maps import (
+    read_capstones_map_resource,
+    read_collections_map_resource,
+    read_learning_map_resource,
+    read_programs_map_resource,
+)
 from phios.mcp.resources.observatory import (
     read_observatory_atlas_gallery_resource,
     read_observatory_dashboard_resource,
@@ -90,6 +96,7 @@ from phios.mcp.tools.session_archive import (
     run_phi_archive_summary,
     run_phi_capstone_summary,
     run_phi_catalog_summary,
+    run_phi_learning_map_summary,
     run_phi_collection_summary,
     run_phi_curation_summary,
     run_phi_program_summary,
@@ -177,6 +184,14 @@ def mcp_surface_registry() -> McpSurfaceRegistry:
             "phios://catalogs/capstones",
             "phios://catalogs/programs",
             "phios://catalogs/collections",
+            "phios://maps/learning",
+            "phios://maps/capstones",
+            "phios://maps/programs",
+            "phios://maps/collections",
+            "phios://browse/archive_groups",
+            "phios://browse/learning_maps",
+            "phios://browse/cross_catalog",
+            "phios://browse/program_families",
             "phios://browse/observatory_families",
             "phios://browse/learning_families",
             "phios://browse/collection_families",
@@ -201,6 +216,7 @@ def mcp_surface_registry() -> McpSurfaceRegistry:
             "phi_curation_summary",
             "phi_capstone_summary",
             "phi_catalog_summary",
+            "phi_learning_map_summary",
         ),
         prompts=("field_guidance",),
     )
@@ -439,6 +455,22 @@ def create_mcp_server(adapter: PhiKernelCLIAdapter | None = None) -> Any:
     def resource_browse_archive_families() -> dict[str, object]:
         return _safe_call(read_browse_preset_resource, "archive_families")
 
+    @server.resource("phios://browse/archive_groups", mime_type="application/json")
+    def resource_browse_archive_groups() -> dict[str, object]:
+        return _safe_call(read_browse_preset_resource, "archive_groups")
+
+    @server.resource("phios://browse/learning_maps", mime_type="application/json")
+    def resource_browse_learning_maps() -> dict[str, object]:
+        return _safe_call(read_browse_preset_resource, "learning_maps")
+
+    @server.resource("phios://browse/cross_catalog", mime_type="application/json")
+    def resource_browse_cross_catalog() -> dict[str, object]:
+        return _safe_call(read_browse_preset_resource, "cross_catalog")
+
+    @server.resource("phios://browse/program_families", mime_type="application/json")
+    def resource_browse_program_families() -> dict[str, object]:
+        return _safe_call(read_browse_preset_resource, "program_families")
+
     @server.resource("phios://collections/field_libraries/rollup", mime_type="application/json")
     def resource_collections_field_libraries_rollup() -> dict[str, object]:
         return _safe_call(read_field_libraries_rollup_resource)
@@ -519,6 +551,22 @@ def create_mcp_server(adapter: PhiKernelCLIAdapter | None = None) -> Any:
     def resource_catalog_collections() -> dict[str, object]:
         return _safe_call(read_catalog_collections_resource)
 
+    @server.resource("phios://maps/learning", mime_type="application/json")
+    def resource_map_learning() -> dict[str, object]:
+        return _safe_call(read_learning_map_resource)
+
+    @server.resource("phios://maps/capstones", mime_type="application/json")
+    def resource_map_capstones() -> dict[str, object]:
+        return _safe_call(read_capstones_map_resource)
+
+    @server.resource("phios://maps/programs", mime_type="application/json")
+    def resource_map_programs() -> dict[str, object]:
+        return _safe_call(read_programs_map_resource)
+
+    @server.resource("phios://maps/collections", mime_type="application/json")
+    def resource_map_collections() -> dict[str, object]:
+        return _safe_call(read_collections_map_resource)
+
     @server.tool(name="phi_status")
     def tool_phi_status() -> dict[str, object]:
         return _safe_call(run_phi_status, kernel_adapter)
@@ -574,6 +622,9 @@ def create_mcp_server(adapter: PhiKernelCLIAdapter | None = None) -> Any:
         family_group: str | None = None,
         catalog: str | None = None,
         include_catalog_counts: bool = False,
+        learning_map: str | None = None,
+        cross_catalog: bool = False,
+        include_map_counts: bool = False,
     ) -> dict[str, object]:
         return _safe_call(
             run_phi_browse_observatory,
@@ -585,6 +636,9 @@ def create_mcp_server(adapter: PhiKernelCLIAdapter | None = None) -> Any:
             family_group=family_group,
             catalog=catalog,
             include_catalog_counts=include_catalog_counts,
+            learning_map=learning_map,
+            cross_catalog=cross_catalog,
+            include_map_counts=include_map_counts,
         )
 
     @server.tool(name="phi_session_summary")
@@ -602,9 +656,6 @@ def create_mcp_server(adapter: PhiKernelCLIAdapter | None = None) -> Any:
             preset=preset,
             limit=limit,
             include_rollups=include_rollups,
-            family_group=family_group,
-            catalog=catalog,
-            include_catalog_counts=include_catalog_counts,
         )
 
     @server.tool(name="phi_collection_summary")
@@ -626,6 +677,10 @@ def create_mcp_server(adapter: PhiKernelCLIAdapter | None = None) -> Any:
     @server.tool(name="phi_catalog_summary")
     def tool_phi_catalog_summary() -> dict[str, object]:
         return _safe_call(run_phi_catalog_summary)
+
+    @server.tool(name="phi_learning_map_summary")
+    def tool_phi_learning_map_summary(include_map_counts: bool = True) -> dict[str, object]:
+        return _safe_call(run_phi_learning_map_summary, include_map_counts=include_map_counts)
 
     @server.prompt(name="field_guidance")
     def prompt_field_guidance() -> str:

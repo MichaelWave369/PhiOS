@@ -35,6 +35,12 @@ from phios.mcp.resources.collections import (
     read_study_halls_rollup_resource,
 )
 from phios.mcp.resources.history import read_recent_field_snapshots_resource, read_recent_sessions_resource
+from phios.mcp.resources.maps import (
+    read_capstones_map_resource,
+    read_collections_map_resource,
+    read_learning_map_resource,
+    read_programs_map_resource,
+)
 from phios.mcp.resources.observatory import (
     read_observatory_dashboard_resource,
     read_observatory_field_libraries_index_resource,
@@ -227,6 +233,33 @@ def read_browse_preset_resource(preset: str) -> dict[str, object]:
             "pathways": read_archive_pathways_index_resource(limit=15),
             "route_compares": read_archive_route_compares_index_resource(limit=15),
             "longitudinal": read_archive_longitudinal_index_resource(),
+        }
+    elif name == "archive_groups":
+        views = {
+            "archive_families": read_browse_preset_resource("archive_families"),
+            "programs_catalog": read_catalog_programs_resource(),
+            "programs_map": read_programs_map_resource(),
+        }
+    elif name == "learning_maps":
+        views = {
+            "learning_map": read_learning_map_resource(),
+            "capstones_map": read_capstones_map_resource(),
+            "programs_map": read_programs_map_resource(),
+            "collections_map": read_collections_map_resource(),
+        }
+    elif name == "cross_catalog":
+        views = {
+            "learning_catalog": read_catalog_learning_resource(),
+            "capstones_catalog": read_catalog_capstones_resource(),
+            "programs_catalog": read_catalog_programs_resource(),
+            "collections_catalog": read_catalog_collections_resource(),
+            "learning_map": read_learning_map_resource(),
+        }
+    elif name == "program_families":
+        views = {
+            "curricula_rollup": read_programs_curricula_rollup_resource(),
+            "thematic_pathways_rollup": read_programs_thematic_pathways_rollup_resource(),
+            "programs_map": read_programs_map_resource(),
         }
 
     return with_resource_schema(

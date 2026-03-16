@@ -121,6 +121,23 @@ Resources:
 - `phios://browse/learning_programs`
 - `phios://browse/comparative_learning`
 - `phios://browse/study_tracks`
+- `phios://catalogs/learning`
+- `phios://catalogs/capstones`
+- `phios://catalogs/programs`
+- `phios://catalogs/collections`
+- `phios://maps/learning`
+- `phios://maps/capstones`
+- `phios://maps/programs`
+- `phios://maps/collections`
+- `phios://browse/observatory_families`
+- `phios://browse/learning_families`
+- `phios://browse/collection_families`
+- `phios://browse/capstone_families`
+- `phios://browse/archive_families`
+- `phios://browse/archive_groups`
+- `phios://browse/learning_maps`
+- `phios://browse/cross_catalog`
+- `phios://browse/program_families`
 - `phios://browse/learning`
 - `phios://browse/archive`
 - `phios://browse/sessions`
@@ -154,6 +171,7 @@ Tools:
 - `phi_curation_summary`
 - `phi_capstone_summary`
 - `phi_catalog_summary`
+- `phi_learning_map_summary`
 
 Prompt:
 - `field_guidance`
@@ -222,6 +240,13 @@ Phase 12 additions:
 - New bounded read-only summary tool `phi_catalog_summary` for catalog synthesis grounded only in local catalog metadata.
 - Discovery now includes catalog/family visibility fields (`catalog_resources`, `observatory_family_groups`, `catalog_surface_counts`, `browse_family_groups`).
 - Broader runtime-gated Phase 12 client-path hook added for discovery → family browse → catalog/rollup reads → summary invocation flow expansion when SDK runtime allows.
+
+Phase 13 additions:
+- Stable cross-catalog learning map resources under `phios://maps/*` (`learning`, `capstones`, `programs`, `collections`) with deterministic metadata-driven relationships and schema markers.
+- Richer archive-family discovery and browse surfaces via additional grouped browse presets/resources (`archive_groups`, `learning_maps`, `cross_catalog`, `program_families`).
+- New bounded read-only summary tool `phi_learning_map_summary` for cross-catalog map synthesis grounded strictly in local metadata.
+- Discovery now includes cross-catalog/learning-map visibility (`learning_maps`, `archive_family_groups`, `cross_catalog_groups`, `map_surface_counts`).
+- Broader runtime-gated Phase 13 client-path hook added for discovery → family browse → rollup/catalog/map reads → bounded summary flow expansion when SDK runtime allows.
 
 Framing discipline is preserved in MCP outputs and prompts:
 - `C*` is treated as theoretical.

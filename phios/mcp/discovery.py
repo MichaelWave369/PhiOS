@@ -64,8 +64,12 @@ def list_mcp_catalog_resources(registry: object) -> list[str]:
 
 
 def list_mcp_browse_families(registry: object) -> list[str]:
-    family_names = {"observatory_families", "learning_families", "collection_families", "capstone_families", "archive_families"}
+    family_names = {"observatory_families", "learning_families", "collection_families", "capstone_families", "archive_families", "archive_groups", "learning_maps", "cross_catalog", "program_families"}
     return [uri for uri in list_mcp_browse_resources(registry) if uri.split("/")[-1] in family_names]
+
+
+def list_mcp_learning_maps(registry: object) -> list[str]:
+    return [uri for uri in list_mcp_resources(registry) if uri.startswith("phios://maps/")]
 
 
 def build_mcp_discovery_payload(registry: object) -> dict[str, object]:
@@ -86,11 +90,12 @@ def build_mcp_discovery_payload(registry: object) -> dict[str, object]:
     capstone_rollups = list_mcp_capstone_rollups(registry)
     catalog_resources = list_mcp_catalog_resources(registry)
     browse_families = list_mcp_browse_families(registry)
+    learning_maps = list_mcp_learning_maps(registry)
 
     tool_groups = {
         "core": [t for t in tool_list if t in {"phi_status", "phi_ask", "phi_pulse_once", "phi_discovery"}],
         "observatory": [t for t in tool_list if "observatory" in t or t in {"phi_storyboard_summary", "phi_atlas_summary", "phi_library_summary"}],
-        "session_archive": [t for t in tool_list if t in {"phi_session_summary", "phi_archive_summary", "phi_collection_summary", "phi_program_summary", "phi_curation_summary", "phi_capstone_summary", "phi_catalog_summary"}],
+        "session_archive": [t for t in tool_list if t in {"phi_session_summary", "phi_archive_summary", "phi_collection_summary", "phi_program_summary", "phi_curation_summary", "phi_capstone_summary", "phi_catalog_summary", "phi_learning_map_summary"}],
     }
 
     archive_rollups = {
@@ -124,6 +129,7 @@ def build_mcp_discovery_payload(registry: object) -> dict[str, object]:
         "program_rollups": program_rollups,
         "capstone_rollups": capstone_rollups,
         "catalog_resources": catalog_resources,
+        "learning_maps": learning_maps,
         "resource_groups": {
             "sessions": session_resources,
             "archive": archive_resources,
@@ -137,7 +143,7 @@ def build_mcp_discovery_payload(registry: object) -> dict[str, object]:
             "supported": list_mcp_browse_presets(),
             "definitions": BROWSE_PRESETS,
         },
-        "learning_presets": [p for p in list_mcp_browse_presets() if p in {"learning", "learning_paths", "programs", "collections", "curricula", "cohorts", "learning_tracks", "capstones", "collections_family", "learning_programs", "comparative_learning", "study_tracks", "observatory_families", "learning_families", "collection_families", "capstone_families", "archive_families"}],
+        "learning_presets": [p for p in list_mcp_browse_presets() if p in {"learning", "learning_paths", "programs", "collections", "curricula", "cohorts", "learning_tracks", "capstones", "collections_family", "learning_programs", "comparative_learning", "study_tracks", "observatory_families", "learning_families", "collection_families", "capstone_families", "archive_families", "archive_groups", "learning_maps", "cross_catalog", "program_families"}],
         "collection_groups": {
             "libraries": [uri for uri in collection_rollups if any(k in uri for k in ("field_libraries", "shelves", "reading_rooms", "study_halls"))],
             "learning": [uri for uri in collection_rollups if any(k in uri for k in ("curricula", "journey_ensembles"))],
@@ -148,7 +154,7 @@ def build_mcp_discovery_payload(registry: object) -> dict[str, object]:
             "program_rollups": len(program_rollups),
             "capstone_rollups": len(capstone_rollups),
             "catalog_resources": len(catalog_resources),
-            "learning_presets": len([p for p in list_mcp_browse_presets() if p in {"learning", "learning_paths", "programs", "collections", "curricula", "cohorts", "learning_tracks", "capstones", "collections_family", "learning_programs", "comparative_learning", "study_tracks", "observatory_families", "learning_families", "collection_families", "capstone_families", "archive_families"}]),
+            "learning_presets": len([p for p in list_mcp_browse_presets() if p in {"learning", "learning_paths", "programs", "collections", "curricula", "cohorts", "learning_tracks", "capstones", "collections_family", "learning_programs", "comparative_learning", "study_tracks", "observatory_families", "learning_families", "collection_families", "capstone_families", "archive_families", "archive_groups", "learning_maps", "cross_catalog", "program_families"}]),
         },
         "learning_groups": {
             "programs": program_rollups,
@@ -161,12 +167,24 @@ def build_mcp_discovery_payload(registry: object) -> dict[str, object]:
             "browse_families": browse_families,
             "observatory_resources": observatory_resources,
         },
+        "archive_family_groups": {
+            "archive_resources": archive_resources,
+            "browse_families": [uri for uri in browse_families if "archive" in uri],
+            "learning_maps": learning_maps,
+        },
+        "cross_catalog_groups": {
+            "catalog_resources": catalog_resources,
+            "learning_maps": learning_maps,
+            "collection_rollups": collection_rollups,
+            "program_rollups": program_rollups,
+            "capstone_rollups": capstone_rollups,
+        },
         "browse_family_groups": {
             "family_resources": browse_families,
             "family_count": len(browse_families),
         },
         "collection_family_rollups": [uri for uri in capstone_rollups if "rollup_family" in uri],
-        "learning_browse_families": [p for p in list_mcp_browse_presets() if p in {"learning", "learning_paths", "learning_tracks", "learning_programs", "capstones", "collections_family", "comparative_learning", "study_tracks"}],
+        "learning_browse_families": [p for p in list_mcp_browse_presets() if p in {"learning", "learning_paths", "learning_tracks", "learning_programs", "capstones", "collections_family", "comparative_learning", "study_tracks", "archive_groups", "learning_maps", "cross_catalog", "program_families"}],
         "program_surface_counts": {
             "program_rollups": len(program_rollups),
             "capstone_rollups": len(capstone_rollups),
@@ -183,6 +201,10 @@ def build_mcp_discovery_payload(registry: object) -> dict[str, object]:
             "catalog_resources": len(catalog_resources),
             "browse_families": len(browse_families),
             "catalog_tools": len([t for t in tool_list if t in {"phi_catalog_summary"}]),
+        },
+        "map_surface_counts": {
+            "learning_maps": len(learning_maps),
+            "map_tools": len([t for t in tool_list if t in {"phi_learning_map_summary"}]),
         },
         "archive_rollups": archive_rollups,
         "resource_counts": len(resource_list),

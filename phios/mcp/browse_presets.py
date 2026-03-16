@@ -229,6 +229,47 @@ BROWSE_PRESETS: dict[str, dict[str, object]] = {
         ],
         "tools": ["phi_archive_summary", "phi_catalog_summary"],
     },
+    "archive_groups": {
+        "description": "Grouped archive-family navigation including map and catalog context.",
+        "resources": [
+            "phios://browse/archive_groups",
+            "phios://browse/archive_families",
+            "phios://catalogs/programs",
+            "phios://maps/programs",
+        ],
+        "tools": ["phi_archive_summary", "phi_learning_map_summary"],
+    },
+    "learning_maps": {
+        "description": "Cross-catalog learning map browsing surface.",
+        "resources": [
+            "phios://browse/learning_maps",
+            "phios://maps/learning",
+            "phios://maps/capstones",
+            "phios://maps/programs",
+        ],
+        "tools": ["phi_learning_map_summary", "phi_catalog_summary"],
+    },
+    "cross_catalog": {
+        "description": "Cross-catalog family navigation across learning/program/capstone/collection surfaces.",
+        "resources": [
+            "phios://browse/cross_catalog",
+            "phios://catalogs/learning",
+            "phios://catalogs/capstones",
+            "phios://catalogs/programs",
+            "phios://catalogs/collections",
+        ],
+        "tools": ["phi_catalog_summary", "phi_learning_map_summary"],
+    },
+    "program_families": {
+        "description": "Program-family browse view with rollups and maps.",
+        "resources": [
+            "phios://browse/program_families",
+            "phios://programs/curricula/rollup",
+            "phios://programs/thematic_pathways/rollup",
+            "phios://maps/programs",
+        ],
+        "tools": ["phi_program_summary", "phi_learning_map_summary"],
+    },
     "libraries": {
         "description": "Library/shelf/reading-room focused observatory view.",
         "resources": [

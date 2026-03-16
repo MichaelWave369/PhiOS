@@ -23,6 +23,12 @@ from phios.mcp.resources.history import (
     read_recent_field_snapshots_resource,
     read_recent_sessions_resource,
 )
+from phios.mcp.resources.maps import (
+    read_capstones_map_resource,
+    read_collections_map_resource,
+    read_learning_map_resource,
+    read_programs_map_resource,
+)
 from phios.mcp.resources.observatory import (
     read_observatory_atlas_gallery_resource,
     read_observatory_dashboard_resource,
@@ -231,6 +237,9 @@ def run_phi_browse_observatory(
     family_group: str | None = None,
     catalog: str | None = None,
     include_catalog_counts: bool = False,
+    learning_map: str | None = None,
+    cross_catalog: bool = False,
+    include_map_counts: bool = False,
 ) -> dict[str, object]:
     """Browse richer observatory index surfaces in one bounded response."""
 
@@ -301,6 +310,26 @@ def run_phi_browse_observatory(
         elif cat == "collections":
             catalog_payload = {"collections": read_catalog_collections_resource()}
 
+    map_payload: dict[str, object] = {}
+    if learning_map:
+        map_name = learning_map.strip().lower()
+        if map_name == "learning":
+            map_payload = {"learning": read_learning_map_resource()}
+        elif map_name == "capstones":
+            map_payload = {"capstones": read_capstones_map_resource()}
+        elif map_name == "programs":
+            map_payload = {"programs": read_programs_map_resource()}
+        elif map_name == "collections":
+            map_payload = {"collections": read_collections_map_resource()}
+
+    if cross_catalog and not map_payload:
+        map_payload = {
+            "learning": read_learning_map_resource(),
+            "capstones": read_capstones_map_resource(),
+            "programs": read_programs_map_resource(),
+            "collections": read_collections_map_resource(),
+        }
+
     summary = {
         "storyboards": storyboards.get("count", 0) if isinstance(storyboards, dict) else 0,
         "dossiers": dossiers.get("count", 0) if isinstance(dossiers, dict) else 0,
@@ -321,6 +350,8 @@ def run_phi_browse_observatory(
         "artifact_family": artifact_family or "",
         "family_group": family_group or "",
         "catalog": catalog or "",
+        "learning_map": learning_map or "",
+        "cross_catalog": bool(cross_catalog),
         "limit": safe_limit,
         "views": views,
     }
@@ -330,6 +361,10 @@ def run_phi_browse_observatory(
         payload["catalogs"] = catalog_payload
     if include_catalog_counts and catalog_payload:
         payload["catalog_counts"] = {k: int(v.get("count", 0)) for k, v in catalog_payload.items() if isinstance(v, dict)}
+    if map_payload:
+        payload["maps"] = map_payload
+    if include_map_counts and map_payload:
+        payload["map_counts"] = {k: int(v.get("count", 0)) for k, v in map_payload.items() if isinstance(v, dict)}
     if include_rollups:
         payload["rollups"] = {
             "family_counts": {

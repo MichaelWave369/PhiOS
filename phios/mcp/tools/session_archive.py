@@ -35,6 +35,12 @@ from phios.mcp.resources.collections import (
     read_shelves_rollup_resource,
     read_study_halls_rollup_resource,
 )
+from phios.mcp.resources.maps import (
+    read_capstones_map_resource,
+    read_collections_map_resource,
+    read_learning_map_resource,
+    read_programs_map_resource,
+)
 from phios.mcp.resources.programs import (
     read_programs_curricula_rollup_resource,
     read_programs_journey_ensembles_rollup_resource,
@@ -325,3 +331,42 @@ def run_phi_catalog_summary() -> dict[str, object]:
             },
         }
     )
+
+
+def run_phi_learning_map_summary(*, include_map_counts: bool = True) -> dict[str, object]:
+    decision = is_capability_allowed(CAP_READ_HISTORY)
+    if not decision.allowed:
+        return with_tool_schema(denied_capability_payload(decision=decision, error_code="LEARNING_MAP_SUMMARY_NOT_PERMITTED"))
+
+    learning_map = read_learning_map_resource()
+    capstones_map = read_capstones_map_resource()
+    programs_map = read_programs_map_resource()
+    collections_map = read_collections_map_resource()
+
+    payload: dict[str, object] = {
+        "ok": True,
+        "allowed": decision.allowed,
+        "reason": decision.reason,
+        "capability_scope": decision.capability_scope,
+        "policy_source": decision.policy_source,
+        "generated_at": _utc_now_iso(),
+        "maps": {
+            "learning": learning_map,
+            "capstones": capstones_map,
+            "programs": programs_map,
+            "collections": collections_map,
+        },
+    }
+    if include_map_counts:
+        payload["summary"] = {
+            "map_count": 4,
+            "learning_count": int(learning_map.get("count", 0)),
+            "capstones_count": int(capstones_map.get("count", 0)),
+            "programs_count": int(programs_map.get("count", 0)),
+            "collections_count": int(collections_map.get("count", 0)),
+            "combined_count": int(learning_map.get("count", 0))
+            + int(capstones_map.get("count", 0))
+            + int(programs_map.get("count", 0))
+            + int(collections_map.get("count", 0)),
+        }
+    return with_tool_schema(payload)

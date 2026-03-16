@@ -1,4 +1,4 @@
-"""Read-only MCP resources for PhiOS Phase 1-12."""
+"""Read-only MCP resources for PhiOS Phase 1-13."""
 
 from .archive import (
     read_archive_atlas_index_resource,
@@ -37,6 +37,12 @@ from .history import (
     read_recent_capsules_resource,
     read_recent_field_snapshots_resource,
     read_recent_sessions_resource,
+)
+from .maps import (
+    read_capstones_map_resource,
+    read_collections_map_resource,
+    read_learning_map_resource,
+    read_programs_map_resource,
 )
 from .observatory import (
     read_observatory_atlas_gallery_resource,
@@ -116,4 +122,8 @@ __all__ = [
     "read_catalog_capstones_resource",
     "read_catalog_programs_resource",
     "read_catalog_collections_resource",
+    "read_learning_map_resource",
+    "read_capstones_map_resource",
+    "read_programs_map_resource",
+    "read_collections_map_resource",
 ]
