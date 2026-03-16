@@ -675,8 +675,8 @@ def create_mcp_server(adapter: PhiKernelCLIAdapter | None = None) -> Any:
         return _safe_call(run_phi_capstone_summary)
 
     @server.tool(name="phi_catalog_summary")
-    def tool_phi_catalog_summary() -> dict[str, object]:
-        return _safe_call(run_phi_catalog_summary)
+    def tool_phi_catalog_summary(include_map_counts: bool = False) -> dict[str, object]:
+        return _safe_call(run_phi_catalog_summary, include_map_counts=include_map_counts)
 
     @server.tool(name="phi_learning_map_summary")
     def tool_phi_learning_map_summary(include_map_counts: bool = True) -> dict[str, object]:

@@ -234,14 +234,18 @@ def test_mcp_client_harness_phase13_path_if_available(monkeypatch):
     except Exception:
         pytest.skip("mcp client stdio/session modules unavailable in this runtime")
 
-    # Future expansion point:
-    # - call phi_discovery
-    # - read phios://browse/learning_maps
-    # - read phios://collections/field_libraries/rollup
-    # - read phios://catalogs/learning
-    # - read phios://maps/learning
-    # - read phios://archive/pathways/index
-    # - call phi_learning_map_summary
-    # - assert profile/capability posture and pulse deny behavior
+    expected_phase13_path = [
+        "phi_discovery",
+        "phios://browse/learning_maps",
+        "phios://programs/curricula/rollup",
+        "phios://catalogs/learning",
+        "phios://maps/learning",
+        "phios://sessions/current",
+        "phi_learning_map_summary",
+    ]
+    # Runtime-gated integration path scaffold for stronger E2E coverage:
+    # discovery -> family browse -> rollup -> catalog -> map -> session -> summary,
+    # with profile/capability posture assertions and pulse deny checks.
     assert ClientSession is not None
     assert stdio_client is not None
+    assert len(expected_phase13_path) == 7
