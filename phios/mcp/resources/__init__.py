@@ -1,4 +1,4 @@
-"""Read-only MCP resources for PhiOS Phase 1-14."""
+"""Read-only MCP resources for PhiOS Phase 1-15."""
 
 from .archive import (
     read_archive_atlas_index_resource,
@@ -31,12 +31,26 @@ from .collections import (
     read_shelves_rollup_resource,
     read_study_halls_rollup_resource,
 )
-from .discovery import read_mcp_discovery_resource
+from .consoles import (
+    read_consoles_archive_resource,
+    read_consoles_capstones_resource,
+    read_consoles_learning_resource,
+    read_consoles_navigation_resource,
+)
 from .dashboards import (
     read_dashboards_archive_resource,
     read_dashboards_capstones_resource,
     read_dashboards_discovery_resource,
     read_dashboards_learning_resource,
+)
+from .discovery import read_mcp_discovery_resource
+from .families import (
+    read_families_capstones_resource,
+    read_families_dashboard_capstones_resource,
+    read_families_dashboard_learning_resource,
+    read_families_dashboard_overview_resource,
+    read_families_learning_resource,
+    read_families_overview_resource,
 )
 from .field_state import read_field_state_resource
 from .history import (
@@ -144,4 +158,18 @@ __all__ = [
     "read_capstones_map_resource",
     "read_programs_map_resource",
     "read_collections_map_resource",
+    "read_dashboards_discovery_resource",
+    "read_dashboards_archive_resource",
+    "read_dashboards_learning_resource",
+    "read_dashboards_capstones_resource",
+    "read_families_overview_resource",
+    "read_families_learning_resource",
+    "read_families_capstones_resource",
+    "read_families_dashboard_overview_resource",
+    "read_families_dashboard_learning_resource",
+    "read_families_dashboard_capstones_resource",
+    "read_consoles_navigation_resource",
+    "read_consoles_archive_resource",
+    "read_consoles_learning_resource",
+    "read_consoles_capstones_resource",
 ]

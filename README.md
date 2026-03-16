@@ -136,6 +136,13 @@ Resources:
 - `phios://families/overview`
 - `phios://families/learning`
 - `phios://families/capstones`
+- `phios://families/dashboard_overview`
+- `phios://families/dashboard_learning`
+- `phios://families/dashboard_capstones`
+- `phios://consoles/navigation`
+- `phios://consoles/archive`
+- `phios://consoles/learning`
+- `phios://consoles/capstones`
 - `phios://browse/observatory_families`
 - `phios://browse/learning_families`
 - `phios://browse/collection_families`
@@ -171,6 +178,7 @@ Tools:
 - `phi_atlas_summary`
 - `phi_discovery`
 - `phi_discovery_dashboard_summary`
+- `phi_navigation_console_summary`
 - `phi_browse_observatory`
 - `phi_archive_summary`
 - `phi_session_summary`
@@ -266,6 +274,16 @@ Phase 14 additions:
 - Discovery now includes dashboard/family visibility fields (`dashboard_resources`, `family_resources`, `family_navigation_groups`, `dashboard_surface_counts`) for easier client routing.
 - Runtime-gated SDK-backed client harness coverage is expanded toward discovery → family browse → rollup → catalog → map → dashboard → session/archive → bounded summary flow, with pulse deny posture assertions where runtime support is available.
 - All dashboard/browse/summary surfaces remain additive and non-truth-bearing; PhiKernel remains source of truth.
+
+
+Phase 15 additions:
+- Stable archive-wide navigation console resources under `phios://consoles/*` (`navigation`, `archive`, `learning`, `capstones`) with deterministic read-only metadata summaries over existing dashboards/families/maps.
+- Richer family dashboard summary resources under `phios://families/*` (`dashboard_overview`, `dashboard_learning`, `dashboard_capstones`) to clarify relationships across families, catalogs, maps, and dashboards.
+- New bounded read-only synthesis tool `phi_navigation_console_summary` for console-level client routing summaries grounded only in existing MCP metadata/resources.
+- Additive enhancements to `phi_discovery_dashboard_summary` with optional `family_dashboard` and `include_family_dashboard_counts` arguments.
+- Discovery now includes Phase 15 console/family-dashboard visibility (`console_resources`, `family_dashboard_resources`, `console_surface_counts`, `family_dashboard_counts`) for clearer deterministic client routing.
+- Runtime-gated SDK-backed client harness coverage is expanded toward discovery → family browse → rollup → catalog → map → dashboard → console → session/archive → bounded summary flow, with pulse deny posture assertions where runtime support is available.
+- All console/dashboard/summary surfaces remain additive and non-truth-bearing; PhiKernel remains source of truth.
 
 Framing discipline is preserved in MCP outputs and prompts:
 - `C*` is treated as theoretical.

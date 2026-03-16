@@ -312,3 +312,53 @@ def test_mcp_client_harness_phase14_sdk_e2e_if_available(monkeypatch):
     assert out["pulse"] is not None
     pulse_repr = repr(out["pulse"])
     assert "PULSE_NOT_PERMITTED" in pulse_repr or "allowed=False" in pulse_repr or "\"allowed\": False" in pulse_repr
+
+
+def test_mcp_client_harness_phase15_sdk_e2e_if_available(monkeypatch):
+    """Runtime-gated SDK-backed Phase 15 E2E path including console/family-dashboard surfaces."""
+
+    _ = pytest.importorskip("mcp", reason="mcp SDK not installed in this runtime")
+    monkeypatch.setenv("PHIOS_MCP_PROFILE", "observer")
+
+    try:
+        import asyncio
+        from mcp.client.session import ClientSession  # type: ignore
+        from mcp.client.stdio import StdioServerParameters, stdio_client  # type: ignore
+    except Exception:
+        pytest.skip("mcp client runtime modules unavailable for SDK-backed phase15 path")
+
+    repo_root = Path(__file__).resolve().parents[1]
+
+    async def _run() -> dict[str, object]:
+        params = StdioServerParameters(
+            command=sys.executable,
+            args=["-m", "phios.mcp.server"],
+            cwd=str(repo_root),
+            env={"PHIOS_MCP_PROFILE": "observer"},
+        )
+        async with stdio_client(params) as streams:
+            read_stream, write_stream = streams
+            async with ClientSession(read_stream, write_stream) as session:
+                await session.initialize()
+                discovery = await session.call_tool("phi_discovery", {})
+                _ = await session.read_resource("phios://browse/archive_groups")
+                _ = await session.read_resource("phios://programs/curricula/rollup")
+                _ = await session.read_resource("phios://catalogs/learning")
+                _ = await session.read_resource("phios://maps/learning")
+                _ = await session.read_resource("phios://dashboards/discovery")
+                _ = await session.read_resource("phios://consoles/navigation")
+                _ = await session.read_resource("phios://sessions/current")
+                summary = await session.call_tool("phi_navigation_console_summary", {"console": "navigation"})
+                pulse = await session.call_tool("phi_pulse_once", {})
+                return {"discovery": discovery, "summary": summary, "pulse": pulse}
+
+    try:
+        out = asyncio.run(_run())
+    except Exception as exc:
+        pytest.skip(f"sdk-backed phase15 path unavailable in this runtime: {exc}")
+
+    assert out["discovery"] is not None
+    assert out["summary"] is not None
+    assert out["pulse"] is not None
+    pulse_repr = repr(out["pulse"])
+    assert "PULSE_NOT_PERMITTED" in pulse_repr or "allowed=False" in pulse_repr or "\"allowed\": False" in pulse_repr

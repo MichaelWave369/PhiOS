@@ -1,7 +1,11 @@
-"""MCP tools for PhiOS Phase 1-14."""
+"""MCP tools for PhiOS Phase 1-15."""
 
 from .ask import run_phi_ask
-from .discovery import run_phi_discovery, run_phi_discovery_dashboard_summary
+from .discovery import (
+    run_phi_discovery,
+    run_phi_discovery_dashboard_summary,
+    run_phi_navigation_console_summary,
+)
 from .observatory import (
     run_phi_atlas_summary,
     run_phi_library_summary,
@@ -29,6 +33,7 @@ __all__ = [
     "run_phi_pulse_once",
     "run_phi_discovery",
     "run_phi_discovery_dashboard_summary",
+    "run_phi_navigation_console_summary",
     "run_phi_observatory_summary",
     "run_phi_recent_activity",
     "run_phi_library_summary",

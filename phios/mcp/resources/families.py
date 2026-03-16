@@ -1,4 +1,4 @@
-"""Family navigation summary MCP resources (Phase 14, read-only)."""
+"""Family navigation summary MCP resources (Phase 14-15, read-only)."""
 
 from __future__ import annotations
 
@@ -10,6 +10,11 @@ from phios.mcp.resources.catalogs import (
     read_catalog_collections_resource,
     read_catalog_learning_resource,
     read_catalog_programs_resource,
+)
+from phios.mcp.resources.dashboards import (
+    read_dashboards_archive_resource,
+    read_dashboards_capstones_resource,
+    read_dashboards_learning_resource,
 )
 from phios.mcp.resources.maps import (
     read_capstones_map_resource,
@@ -175,4 +180,65 @@ def read_families_capstones_resource() -> dict[str, object]:
             "source": "phios.mcp.resources.families.capstones",
             "read_only": True,
         }
+    )
+
+
+def _family_dashboard_payload(*, family_dashboard: str, base_family: dict[str, object], dashboard: dict[str, object], related: dict[str, object]) -> dict[str, object]:
+    return with_resource_schema(
+        {
+            "generated_at": _utc_now_iso(),
+            "family_dashboard": family_dashboard,
+            "count": _to_int(_as_dict(base_family).get("count")),
+            "surface_groups": {
+                "family": base_family,
+                "dashboard": dashboard,
+                "related": related,
+            },
+            "family_counts": _as_dict(base_family).get("family_counts", {}),
+            "catalog_counts": _as_dict(base_family).get("catalog_counts", {}),
+            "map_counts": _as_dict(base_family).get("map_counts", {}),
+            "dashboard_counts": {
+                "selected_dashboard_count": _to_int(_as_dict(dashboard).get("count")),
+                "related_dashboard_count": _to_int(_as_dict(related).get("count")),
+            },
+            "recent_titles": _titles(base_family, dashboard),
+            "tag_coverage": sorted(
+                {
+                    tag
+                    for payload in (base_family, dashboard)
+                    for tag in _as_dict(payload).get("tag_coverage", [])
+                    if isinstance(tag, str)
+                }
+            ),
+            "availability_flags": _as_dict(base_family).get("availability_flags", {}),
+            "source": f"phios.mcp.resources.families.{family_dashboard}",
+            "read_only": True,
+        }
+    )
+
+
+def read_families_dashboard_overview_resource() -> dict[str, object]:
+    return _family_dashboard_payload(
+        family_dashboard="dashboard_overview",
+        base_family=read_families_overview_resource(),
+        dashboard=read_dashboards_archive_resource(),
+        related=read_dashboards_learning_resource(),
+    )
+
+
+def read_families_dashboard_learning_resource() -> dict[str, object]:
+    return _family_dashboard_payload(
+        family_dashboard="dashboard_learning",
+        base_family=read_families_learning_resource(),
+        dashboard=read_dashboards_learning_resource(),
+        related=read_dashboards_archive_resource(),
+    )
+
+
+def read_families_dashboard_capstones_resource() -> dict[str, object]:
+    return _family_dashboard_payload(
+        family_dashboard="dashboard_capstones",
+        base_family=read_families_capstones_resource(),
+        dashboard=read_dashboards_capstones_resource(),
+        related=read_dashboards_archive_resource(),
     )
