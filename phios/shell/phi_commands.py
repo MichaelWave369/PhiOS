@@ -71,6 +71,11 @@ from phios.services.agent_memory import (
     list_recent_agent_deliberations,
     store_agent_deliberation,
 )
+from phios.services.debate_arena import (
+    build_debate_context,
+    evaluate_debate_coherence_gate,
+    persist_debate_outcome,
+)
 from phios.services.visualizer import (
     VALID_LENSES,
     VALID_PRESETS,
@@ -400,6 +405,7 @@ def cmd_help(_: list[str], session: object | None = None) -> str:
             "  dispatch <task> [--field-guided] [--arch <name>] [--review-panel] [--coherence-gate <float>] [--dry-run] [--stream]",
             "  agents [list|status <id>|kill <id> --yes|log <id>]",
             "  recommend-arch [--json]      Show field-guided cognitive architecture recommendation",
+            "  debate gate --session-id <id> --round <n> --positions <json> [--threshold <float>] [--persist] [--json]",
             "  exit                        Exit REPL",
         ]
     )
@@ -2817,6 +2823,74 @@ def cmd_recommend_arch(args: list[str], session: object | None = None) -> str:
     )
 
 
+def cmd_debate(args: list[str], session: object | None = None) -> str:
+    action = args[0] if args else "gate"
+    if action != "gate":
+        return "Usage: debate gate --session-id <id> --round <n> --positions <json> [--threshold <float>] [--persist] [--json]"
+
+    session_id = _arg_value(args, "--session-id") or ""
+    round_raw = _arg_value(args, "--round") or "1"
+    positions_raw = _arg_value(args, "--positions") or "[]"
+    threshold_raw = _arg_value(args, "--threshold")
+    persist = "--persist" in args
+
+    if not session_id:
+        return "Usage: debate gate --session-id <id> --round <n> --positions <json> [--threshold <float>] [--persist] [--json]"
+
+    try:
+        round_idx = int(round_raw)
+    except ValueError:
+        return "--round must be an integer"
+
+    try:
+        positions_obj = json.loads(positions_raw)
+    except Exception:
+        return "--positions must be valid JSON list"
+    if not isinstance(positions_obj, list):
+        return "--positions must be a JSON list"
+
+    threshold = None
+    if threshold_raw is not None:
+        try:
+            threshold = float(threshold_raw)
+        except ValueError:
+            return "--threshold must be float"
+
+    adapter = PhiKernelCLIAdapter()
+    positions = [p for p in positions_obj if isinstance(p, dict)]
+    context = build_debate_context(
+        adapter=adapter,
+        session_id=session_id,
+        round_index=round_idx,
+        positions=positions,
+        threshold=threshold,
+    )
+    result = evaluate_debate_coherence_gate(context)
+    payload: dict[str, object] = {
+        "ok": True,
+        "session_id": session_id,
+        "result": result,
+        "position_summary": context.get("position_summary", {}),
+        "experimental": True,
+    }
+    if persist:
+        payload["persistence"] = persist_debate_outcome(session_id=session_id, gate_result=result, positions=positions)
+
+    if "--json" in args:
+        return json.dumps(payload, indent=2)
+    return "\n".join(
+        [
+            "Debate coherence gate",
+            f"session: {session_id}",
+            f"round: {result.get('round', round_idx)}",
+            f"action: {result.get('action', 'continue')}",
+            f"coherence: {float(result.get('coherence', 0.0)):.3f}",
+            f"threshold: {float(result.get('threshold', 0.0)):.3f}",
+            f"reason: {result.get('reason', '')}",
+        ]
+    )
+
+
 def cmd_dashboard(args: list[str], session: object | None = None) -> str:
     PhiDashboard(announcer=NETWORK_ANNOUNCER, discovery=NETWORK_DISCOVERY).run()
     return "Dashboard closed"
@@ -3044,5 +3118,6 @@ COMMANDS: dict[str, CommandHandler] = {
     "dispatch": cmd_dispatch,
     "agents": cmd_agents,
     "recommend-arch": cmd_recommend_arch,
+    "debate": cmd_debate,
     "build": cmd_build,
 }

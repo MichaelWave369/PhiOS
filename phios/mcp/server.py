@@ -53,6 +53,10 @@ from phios.mcp.resources.collections import (
     read_study_halls_rollup_resource,
 )
 from phios.mcp.resources.discovery import read_mcp_discovery_resource
+from phios.mcp.resources.debates import (
+    read_debate_session_resource,
+    read_debates_recent_resource,
+)
 from phios.mcp.resources.consoles import (
     read_consoles_archive_resource,
     read_consoles_capstones_resource,
@@ -122,6 +126,7 @@ from phios.mcp.tools.agents import (
 from phios.mcp.tools.ask import run_phi_ask
 from phios.mcp.tools.cognitive_arch import run_phi_recommend_cognitive_arch
 from phios.mcp.tools.discovery import run_phi_discovery, run_phi_discovery_dashboard_summary, run_phi_navigation_console_summary
+from phios.mcp.tools.debate import phi_debate_coherence_gate
 from phios.mcp.tools.observatory import (
     run_phi_atlas_summary,
     run_phi_library_summary,
@@ -257,6 +262,8 @@ def mcp_surface_registry() -> McpSurfaceRegistry:
             "phios://agents/memory/{topic}",
             "phios://agents/memory/{topic}/coherence",
             "phios://agents/deliberations/recent",
+            "phios://debates/recent",
+            "phios://debates/{session_id}",
         ),
         tools=(
             "phi_status",
@@ -285,6 +292,7 @@ def mcp_surface_registry() -> McpSurfaceRegistry:
             "phi_agent_status",
             "phi_kill_agent",
             "phi_store_deliberation",
+            "phi_debate_coherence_gate",
         ),
         prompts=("field_guidance",),
     )
@@ -719,6 +727,14 @@ def create_mcp_server(adapter: PhiKernelCLIAdapter | None = None) -> Any:
     def resource_agent_deliberations_recent(limit: int = 10) -> dict[str, object]:
         return _safe_call(read_recent_agent_deliberations_resource, limit)
 
+    @server.resource("phios://debates/recent", mime_type="application/json")
+    def resource_debates_recent(limit: int = 10) -> dict[str, object]:
+        return _safe_call(read_debates_recent_resource, limit)
+
+    @server.resource("phios://debates/{session_id}", mime_type="application/json")
+    def resource_debate_session(session_id: str) -> dict[str, object]:
+        return _safe_call(read_debate_session_resource, session_id)
+
     @server.tool(name="phi_status")
     def tool_phi_status() -> dict[str, object]:
         return _safe_call(run_phi_status, kernel_adapter)
@@ -925,6 +941,24 @@ def create_mcp_server(adapter: PhiKernelCLIAdapter | None = None) -> Any:
             tags=tags,
             run_id=run_id,
             recommendation=recommendation,
+        )
+
+    @server.tool(name="phi_debate_coherence_gate")
+    def tool_phi_debate_coherence_gate(
+        session_id: str,
+        round: int,
+        positions: list[dict[str, object]],
+        threshold: float | None = None,
+        persist: bool = False,
+    ) -> dict[str, object]:
+        return _safe_call(
+            phi_debate_coherence_gate,
+            kernel_adapter,
+            session_id=session_id,
+            round=round,
+            positions=positions,
+            threshold=threshold,
+            persist=persist,
         )
 
     @server.prompt(name="field_guidance")

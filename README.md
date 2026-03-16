@@ -173,6 +173,8 @@ Resources:
 - `phios://agents/memory/{topic}`
 - `phios://agents/memory/{topic}/coherence`
 - `phios://agents/deliberations/recent`
+- `phios://debates/recent`
+- `phios://debates/{session_id}`
 
 Tools:
 - `phi_status`
@@ -201,6 +203,7 @@ Tools:
 - `phi_agent_status`
 - `phi_kill_agent`
 - `phi_store_deliberation`
+- `phi_debate_coherence_gate`
 
 Prompt:
 - `field_guidance`
@@ -282,10 +285,26 @@ Phase 17 additions (Issue #76 field-guided cognitive architecture selection):
   - `AC_PHIOS_FIELD_WEIGHT`
 
 Phase 18 additions (Issue #77 observatory-backed agent long-term memory):
+Phase 19 additions (Issue #75 cognitive debate arena coherence gate):
+- New MCP debate gate tool: `phi_debate_coherence_gate(session_id, round, positions, threshold, persist)`.
+- New read-only MCP debate resources:
+  - `phios://debates/recent`
+  - `phios://debates/{session_id}`
+- New shell command:
+  - `phi debate gate --session-id <id> --round <n> --positions <json> [--threshold <float>] [--persist] [--json]`
+- Convergence model:
+  - `converged` when current coherence crosses threshold (default near `C*_theoretical`)
+  - `deadlock` when coherence remains below threshold with low recent trace span after multiple rounds
+  - otherwise `continue`
+- Optional additive observatory persistence (`--persist` / tool `persist=true`) stores debate outcome, dissent, and coherence trace in agent memory narratives.
+- This remains additive/experimental and non-truth-bearing; PhiKernel remains source of truth.
+
 - New read-only MCP memory resources:
   - `phios://agents/memory/{topic}`
   - `phios://agents/memory/{topic}/coherence`
   - `phios://agents/deliberations/recent`
+- `phios://debates/recent`
+- `phios://debates/{session_id}`
 - New MCP write-like tool (capability-gated): `phi_store_deliberation`.
 - New shell memory read/write surfaces:
   - `phi memory topic <topic>`

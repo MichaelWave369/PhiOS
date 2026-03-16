@@ -55,6 +55,10 @@ from .dashboards import (
     read_dashboards_learning_resource,
 )
 from .discovery import read_mcp_discovery_resource
+from .debates import (
+    read_debate_session_resource,
+    read_debates_recent_resource,
+)
 from .families import (
     read_families_capstones_resource,
     read_families_dashboard_capstones_resource,
@@ -185,4 +189,6 @@ __all__ = [
     "read_agent_memory_topic_resource",
     "read_agent_memory_coherence_resource",
     "read_recent_agent_deliberations_resource",
+    "read_debates_recent_resource",
+    "read_debate_session_resource",
 ]
