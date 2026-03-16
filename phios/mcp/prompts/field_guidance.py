@@ -36,6 +36,11 @@ def build_field_guidance_prompt(adapter: PhiKernelCLIAdapter) -> str:
             "phios://observatory/dossiers/recent",
             "phios://observatory/field_libraries/recent",
         ],
+        "observatory_summary_tools": [
+            "phi_observatory_summary",
+            "phi_recent_activity",
+            "phi_library_summary",
+        ],
         "framing": {
             "theoretical_C_star": "Treat C* as a theoretical attractor.",
             "experimental_bio_vacuum_target": (

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from phios.adapters.phik import PhiKernelCLIAdapter
 from phios.core.phik_service import run_pulse_once
-from phios.mcp.policy import evaluate_pulse_policy
+from phios.mcp.policy import denied_capability_payload, evaluate_pulse_policy
 from phios.mcp.schema import with_tool_schema
 
 
@@ -24,17 +24,7 @@ def run_phi_pulse_once(
     decision = evaluate_pulse_policy()
     if not decision.allowed:
         return with_tool_schema(
-            {
-                "ok": False,
-                "allowed": decision.allowed,
-                "reason": decision.reason,
-                "capability_scope": decision.capability_scope,
-                "policy_source": decision.policy_source,
-                "error": {
-                    "code": "PULSE_NOT_PERMITTED",
-                    "message": decision.reason,
-                },
-            }
+            denied_capability_payload(decision=decision, error_code="PULSE_NOT_PERMITTED")
         )
 
     pulse = run_pulse_once(adapter, checkpoint=checkpoint, passphrase=passphrase)

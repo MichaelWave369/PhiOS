@@ -89,6 +89,9 @@ Tools:
 - `phi_status`
 - `phi_ask`
 - `phi_pulse_once`
+- `phi_observatory_summary`
+- `phi_recent_activity`
+- `phi_library_summary`
 
 Prompt:
 - `field_guidance`
@@ -101,6 +104,11 @@ Phase 2 additions:
 Phase 3 additions:
 - Richer read-only observatory resources for dashboard/gallery/storyboard/dossier/field-library discovery and summaries.
 - Observatory resources are additive interface surfaces for local observatory artifacts; they are non-truth-bearing and do not replace PhiKernel truth logic.
+
+Phase 4 additions:
+- Optional lightweight capability scopes via `PHIOS_MCP_CAPABILITIES` (for example: `read_state,read_history,read_observatory,prompt_guidance,pulse_once`).
+- New read-safe summary tools: `phi_observatory_summary`, `phi_recent_activity`, and `phi_library_summary`.
+- Capability gating remains local/lightweight for now (not a full identity/auth platform).
 
 Framing discipline is preserved in MCP outputs and prompts:
 - `C*` is treated as theoretical.
