@@ -5,6 +5,7 @@ from __future__ import annotations
 from phios.adapters.phik import PhiKernelCLIAdapter
 from phios.core.lt_engine import compute_lt
 from phios.core.phik_service import build_coherence_report, build_status_report
+from phios.mcp.schema import with_tool_schema
 
 
 def run_phi_status(adapter: PhiKernelCLIAdapter) -> dict[str, object]:
@@ -16,8 +17,8 @@ def run_phi_status(adapter: PhiKernelCLIAdapter) -> dict[str, object]:
     - ``lt``: output from ``compute_lt``
     """
 
-    return {
+    return with_tool_schema({
         "status": build_status_report(adapter),
         "coherence": build_coherence_report(adapter),
         "lt": compute_lt(),
-    }
+    })

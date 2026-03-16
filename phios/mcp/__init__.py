@@ -1,4 +1,4 @@
-"""Phase 1 MCP interface layer for PhiOS.
+"""Phase 1/2 MCP interface layer for PhiOS.
 
 This package exposes existing PhiOS/PhiKernel-backed read and action surfaces via MCP.
 PhiKernel remains source of truth for runtime state.

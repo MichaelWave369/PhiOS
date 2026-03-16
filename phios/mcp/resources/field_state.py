@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from phios.adapters.phik import PhiKernelCLIAdapter
 from phios.core.phik_service import build_coherence_report
+from phios.mcp.schema import with_resource_schema
 
 
 def read_field_state_resource(adapter: PhiKernelCLIAdapter) -> dict[str, object]:
@@ -16,4 +17,4 @@ def read_field_state_resource(adapter: PhiKernelCLIAdapter) -> dict[str, object]
     Additional source fields are preserved when available via ``phik_field``.
     """
 
-    return build_coherence_report(adapter)
+    return with_resource_schema(build_coherence_report(adapter))

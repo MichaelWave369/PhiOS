@@ -1,6 +1,6 @@
-"""PhiOS MCP server (Phase 1).
+"""PhiOS MCP server (Phase 1/2).
 
-This module provides a minimal stdio MCP server surface:
+This module provides a stable stdio MCP server surface:
 - resources: phios://field/state, phios://coherence/lt, phios://system/status
 - tools: phi_status, phi_ask, phi_pulse_once
 - prompt: field_guidance
@@ -16,6 +16,11 @@ from phios.mcp.prompts.field_guidance import build_field_guidance_prompt
 from phios.mcp.resources.coherence_lt import read_coherence_lt_resource
 from phios.mcp.resources.field_state import read_field_state_resource
 from phios.mcp.resources.status import read_system_status_resource
+from phios.mcp.resources.history import (
+    read_recent_capsules_resource,
+    read_recent_field_snapshots_resource,
+    read_recent_sessions_resource,
+)
 from phios.mcp.tools.ask import run_phi_ask
 from phios.mcp.tools.pulse import run_phi_pulse_once
 from phios.mcp.tools.status import run_phi_status
@@ -36,6 +41,9 @@ def phase1_registry() -> Phase1Registry:
             "phios://field/state",
             "phios://coherence/lt",
             "phios://system/status",
+            "phios://history/recent_capsules",
+            "phios://history/recent_sessions",
+            "phios://history/recent_field_snapshots",
         ),
         tools=("phi_status", "phi_ask", "phi_pulse_once"),
         prompts=("field_guidance",),
@@ -71,6 +79,19 @@ def create_mcp_server(adapter: PhiKernelCLIAdapter | None = None) -> Any:
     @server.resource("phios://system/status", mime_type="application/json")
     def resource_system_status() -> dict[str, object]:
         return _safe_call(read_system_status_resource, kernel_adapter)
+
+
+    @server.resource("phios://history/recent_capsules", mime_type="application/json")
+    def resource_recent_capsules() -> dict[str, object]:
+        return _safe_call(read_recent_capsules_resource, kernel_adapter)
+
+    @server.resource("phios://history/recent_sessions", mime_type="application/json")
+    def resource_recent_sessions() -> dict[str, object]:
+        return _safe_call(read_recent_sessions_resource)
+
+    @server.resource("phios://history/recent_field_snapshots", mime_type="application/json")
+    def resource_recent_field_snapshots() -> dict[str, object]:
+        return _safe_call(read_recent_field_snapshots_resource)
 
     @server.tool(name="phi_status")
     def tool_phi_status() -> dict[str, object]:

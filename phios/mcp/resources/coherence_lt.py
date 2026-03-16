@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from phios.core.lt_engine import compute_lt
+from phios.core.lt_engine import LtResultDict, compute_lt
+from phios.mcp.schema import with_resource_schema
 
 
 def read_coherence_lt_resource() -> dict[str, object]:
@@ -11,6 +12,10 @@ def read_coherence_lt_resource() -> dict[str, object]:
     Stable JSON shape (minimum fields):
     ``lt``, ``system_lt``, ``blended_lt`` (optional), ``components``,
     ``phb_contribution``.
+
+    Note: ``compute_lt`` returns ``LtResultDict``; we normalize to a plain ``dict``
+    for MCP JSON payload consistency and mypy compatibility.
     """
 
-    return compute_lt()
+    payload: LtResultDict = compute_lt()
+    return with_resource_schema(dict(payload))

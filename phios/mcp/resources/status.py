@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from phios.adapters.phik import PhiKernelCLIAdapter
 from phios.core.phik_service import build_status_report
+from phios.mcp.schema import with_resource_schema
 
 
 def read_system_status_resource(adapter: PhiKernelCLIAdapter) -> dict[str, object]:
@@ -16,4 +17,4 @@ def read_system_status_resource(adapter: PhiKernelCLIAdapter) -> dict[str, objec
     Additional source fields are preserved under ``phik_status``.
     """
 
-    return build_status_report(adapter)
+    return with_resource_schema(build_status_report(adapter))

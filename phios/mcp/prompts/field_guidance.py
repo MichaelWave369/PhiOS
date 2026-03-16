@@ -7,6 +7,7 @@ import json
 from phios.adapters.phik import PhiKernelCLIAdapter
 from phios.core.lt_engine import compute_lt
 from phios.core.phik_service import build_coherence_report, build_status_report
+from phios.mcp.schema import MCP_SCHEMA_VERSION, PROMPT_VERSION
 
 
 def build_field_guidance_prompt(adapter: PhiKernelCLIAdapter) -> str:
@@ -22,6 +23,8 @@ def build_field_guidance_prompt(adapter: PhiKernelCLIAdapter) -> str:
     lt = compute_lt()
 
     payload = {
+        "schema_version": MCP_SCHEMA_VERSION,
+        "prompt_version": PROMPT_VERSION,
         "status": status,
         "coherence": coherence,
         "lt": lt,
