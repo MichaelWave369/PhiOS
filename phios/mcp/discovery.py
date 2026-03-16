@@ -104,6 +104,8 @@ def build_mcp_discovery_payload(registry: object) -> dict[str, object]:
         "archive_available": len(archive_resources) > 0,
     }
 
+    learning_map_names = [uri.split("/")[-1] for uri in learning_maps]
+
     return {
         "schema_version": MCP_SCHEMA_VERSION,
         "generated_at": _utc_now_iso(),
@@ -171,6 +173,11 @@ def build_mcp_discovery_payload(registry: object) -> dict[str, object]:
             "archive_resources": archive_resources,
             "browse_families": [uri for uri in browse_families if "archive" in uri],
             "learning_maps": learning_maps,
+            "counts": {
+                "archive_resources": len(archive_resources),
+                "archive_browse_families": len([uri for uri in browse_families if "archive" in uri]),
+                "learning_maps": len(learning_maps),
+            },
         },
         "cross_catalog_groups": {
             "catalog_resources": catalog_resources,
@@ -178,6 +185,13 @@ def build_mcp_discovery_payload(registry: object) -> dict[str, object]:
             "collection_rollups": collection_rollups,
             "program_rollups": program_rollups,
             "capstone_rollups": capstone_rollups,
+            "counts": {
+                "catalog_resources": len(catalog_resources),
+                "learning_maps": len(learning_maps),
+                "collection_rollups": len(collection_rollups),
+                "program_rollups": len(program_rollups),
+                "capstone_rollups": len(capstone_rollups),
+            },
         },
         "browse_family_groups": {
             "family_resources": browse_families,
@@ -205,6 +219,8 @@ def build_mcp_discovery_payload(registry: object) -> dict[str, object]:
         "map_surface_counts": {
             "learning_maps": len(learning_maps),
             "map_tools": len([t for t in tool_list if t in {"phi_learning_map_summary"}]),
+            "named_maps": learning_map_names,
+            "archive_group_surfaces": len([uri for uri in browse_families if any(k in uri for k in ("archive", "cross_catalog", "program_families", "learning_maps"))]),
         },
         "archive_rollups": archive_rollups,
         "resource_counts": len(resource_list),
