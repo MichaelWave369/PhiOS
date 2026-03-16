@@ -23,6 +23,12 @@ from phios.mcp.resources.observatory import (
     read_observatory_recent_dossiers_resource,
     read_observatory_recent_field_libraries_resource,
     read_observatory_recent_storyboards_resource,
+    read_observatory_storyboards_index_resource,
+    read_observatory_dossiers_index_resource,
+    read_observatory_field_libraries_index_resource,
+    read_observatory_shelves_index_resource,
+    read_observatory_reading_rooms_index_resource,
+    read_observatory_study_halls_index_resource,
 )
 from phios.mcp.schema import with_tool_schema
 
@@ -204,5 +210,46 @@ def run_phi_atlas_summary() -> dict[str, object]:
                 "gallery_version": atlas_payload.get("gallery_version", ""),
             },
             "atlas_gallery": atlas,
+        }
+    )
+
+
+
+def run_phi_browse_observatory() -> dict[str, object]:
+    """Browse richer observatory index surfaces in one bounded response."""
+
+    decision = is_capability_allowed(CAP_READ_OBSERVATORY)
+    if not decision.allowed:
+        return _gated_denial(decision, "BROWSE_OBSERVATORY_NOT_PERMITTED")
+
+    storyboards = read_observatory_storyboards_index_resource(limit=20)
+    dossiers = read_observatory_dossiers_index_resource(limit=20)
+    libraries = read_observatory_field_libraries_index_resource(limit=20)
+    shelves = read_observatory_shelves_index_resource(limit=20)
+    reading_rooms = read_observatory_reading_rooms_index_resource(limit=20)
+    study_halls = read_observatory_study_halls_index_resource(limit=20)
+
+    return with_tool_schema(
+        {
+            "ok": True,
+            "allowed": decision.allowed,
+            "reason": decision.reason,
+            "capability_scope": decision.capability_scope,
+            "policy_source": decision.policy_source,
+            "generated_at": _utc_now_iso(),
+            "summary": {
+                "storyboards": storyboards.get("count", 0) if isinstance(storyboards, dict) else 0,
+                "dossiers": dossiers.get("count", 0) if isinstance(dossiers, dict) else 0,
+                "field_libraries": libraries.get("count", 0) if isinstance(libraries, dict) else 0,
+                "shelves": shelves.get("count", 0) if isinstance(shelves, dict) else 0,
+                "reading_rooms": reading_rooms.get("count", 0) if isinstance(reading_rooms, dict) else 0,
+                "study_halls": study_halls.get("count", 0) if isinstance(study_halls, dict) else 0,
+            },
+            "storyboards_index": storyboards,
+            "dossiers_index": dossiers,
+            "field_libraries_index": libraries,
+            "shelves_index": shelves,
+            "reading_rooms_index": reading_rooms,
+            "study_halls_index": study_halls,
         }
     )

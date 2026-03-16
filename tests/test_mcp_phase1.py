@@ -89,6 +89,7 @@ def test_tool_phi_pulse_once_argument_handling(monkeypatch):
         return {"ok": True}
 
     monkeypatch.setenv("PHIOS_MCP_ALLOW_PULSE", "true")
+    monkeypatch.setenv("PHIOS_MCP_CAPABILITIES", "pulse_once")
     monkeypatch.setattr("phios.mcp.tools.pulse.run_pulse_once", fake_pulse)
     data = run_phi_pulse_once(adapter, checkpoint="./cp.json", passphrase="change-me")
     assert data["ok"] is True

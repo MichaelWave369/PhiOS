@@ -11,7 +11,11 @@ from phios.services.visualizer import (
     build_visual_bloom_dashboard_model,
     build_visual_bloom_field_library_index,
     list_visual_bloom_dossiers,
+    list_visual_bloom_field_libraries,
+    list_visual_bloom_reading_rooms,
+    list_visual_bloom_shelves,
     list_visual_bloom_storyboards,
+    list_visual_bloom_study_halls,
 )
 
 
@@ -56,6 +60,12 @@ def read_observatory_index_resource() -> dict[str, object]:
             "kind": "field_libraries",
             "description": "Recent field library index entries.",
         },
+        {"uri": "phios://observatory/storyboards/index", "kind": "storyboards_index", "description": "Storyboard index rows."},
+        {"uri": "phios://observatory/dossiers/index", "kind": "dossiers_index", "description": "Dossier index rows."},
+        {"uri": "phios://observatory/field_libraries/index", "kind": "field_libraries_index", "description": "Field library index rows."},
+        {"uri": "phios://observatory/shelves/index", "kind": "shelves_index", "description": "Shelf index rows."},
+        {"uri": "phios://observatory/reading_rooms/index", "kind": "reading_rooms_index", "description": "Reading room index rows."},
+        {"uri": "phios://observatory/study_halls/index", "kind": "study_halls_index", "description": "Study hall index rows."},
     ]
     return with_resource_schema(
         {
@@ -169,3 +179,106 @@ def read_observatory_recent_field_libraries_resource(
             "read_only": True,
         }
     )
+
+
+
+def read_observatory_storyboards_index_resource(
+    *,
+    journal_dir: Path | None = None,
+    limit: int = _MAX_RECENT,
+) -> dict[str, object]:
+    rows = list_visual_bloom_storyboards(journal_dir=journal_dir)
+    capped = rows[: max(0, int(limit))]
+    return with_resource_schema({
+        "generated_at": _utc_now_iso(),
+        "count": len(capped),
+        "limit": max(0, int(limit)),
+        "index": capped,
+        "source": "phios.services.visualizer.list_visual_bloom_storyboards",
+        "read_only": True,
+    })
+
+
+def read_observatory_dossiers_index_resource(
+    *,
+    journal_dir: Path | None = None,
+    limit: int = _MAX_RECENT,
+) -> dict[str, object]:
+    rows = list_visual_bloom_dossiers(journal_dir=journal_dir)
+    capped = rows[: max(0, int(limit))]
+    return with_resource_schema({
+        "generated_at": _utc_now_iso(),
+        "count": len(capped),
+        "limit": max(0, int(limit)),
+        "index": capped,
+        "source": "phios.services.visualizer.list_visual_bloom_dossiers",
+        "read_only": True,
+    })
+
+
+def read_observatory_field_libraries_index_resource(
+    *,
+    journal_dir: Path | None = None,
+    limit: int = _MAX_RECENT,
+) -> dict[str, object]:
+    rows = list_visual_bloom_field_libraries(journal_dir=journal_dir)
+    capped = rows[: max(0, int(limit))]
+    return with_resource_schema({
+        "generated_at": _utc_now_iso(),
+        "count": len(capped),
+        "limit": max(0, int(limit)),
+        "index": capped,
+        "source": "phios.services.visualizer.list_visual_bloom_field_libraries",
+        "read_only": True,
+    })
+
+
+def read_observatory_shelves_index_resource(
+    *,
+    journal_dir: Path | None = None,
+    limit: int = _MAX_RECENT,
+) -> dict[str, object]:
+    rows = list_visual_bloom_shelves(journal_dir=journal_dir)
+    capped = rows[: max(0, int(limit))]
+    return with_resource_schema({
+        "generated_at": _utc_now_iso(),
+        "count": len(capped),
+        "limit": max(0, int(limit)),
+        "index": capped,
+        "source": "phios.services.visualizer.list_visual_bloom_shelves",
+        "read_only": True,
+    })
+
+
+def read_observatory_reading_rooms_index_resource(
+    *,
+    journal_dir: Path | None = None,
+    limit: int = _MAX_RECENT,
+) -> dict[str, object]:
+    rows = list_visual_bloom_reading_rooms(journal_dir=journal_dir)
+    capped = rows[: max(0, int(limit))]
+    return with_resource_schema({
+        "generated_at": _utc_now_iso(),
+        "count": len(capped),
+        "limit": max(0, int(limit)),
+        "index": capped,
+        "source": "phios.services.visualizer.list_visual_bloom_reading_rooms",
+        "read_only": True,
+    })
+
+
+def read_observatory_study_halls_index_resource(
+    *,
+    journal_dir: Path | None = None,
+    limit: int = _MAX_RECENT,
+) -> dict[str, object]:
+    rows = list_visual_bloom_study_halls(journal_dir=journal_dir)
+    capped = rows[: max(0, int(limit))]
+    return with_resource_schema({
+        "generated_at": _utc_now_iso(),
+        "count": len(capped),
+        "limit": max(0, int(limit)),
+        "index": capped,
+        "source": "phios.services.visualizer.list_visual_bloom_study_halls",
+        "read_only": True,
+    })

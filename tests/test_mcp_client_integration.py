@@ -45,3 +45,38 @@ def test_mcp_stdio_process_starts_and_is_harness_ready():
     finally:
         proc.terminate()
         proc.wait(timeout=5)
+
+
+
+def test_mcp_client_harness_discovery_path_if_available():
+    """Runtime-gated integration prep for discovery/resource/tool client paths."""
+
+    _ = pytest.importorskip("mcp", reason="mcp SDK not installed in this runtime")
+
+    try:
+        from mcp.client.session import ClientSession  # type: ignore
+        from mcp.client.stdio import stdio_client  # type: ignore
+    except Exception:
+        pytest.skip("mcp client stdio/session modules unavailable in this runtime")
+
+    # Placeholder assertion for CI expansion: when stdio client harness is available,
+    # this path is where tests should call resources/read tool methods end-to-end.
+    assert ClientSession is not None
+    assert stdio_client is not None
+
+
+
+def test_mcp_client_harness_profile_path_if_available(monkeypatch):
+    """Runtime-gated path for future profile-aware client assertions."""
+
+    _ = pytest.importorskip("mcp", reason="mcp SDK not installed in this runtime")
+    monkeypatch.setenv("PHIOS_MCP_PROFILE", "observer")
+
+    try:
+        from mcp.client.session import ClientSession  # type: ignore
+        from mcp.client.stdio import stdio_client  # type: ignore
+    except Exception:
+        pytest.skip("mcp client stdio/session modules unavailable in this runtime")
+
+    assert ClientSession is not None
+    assert stdio_client is not None

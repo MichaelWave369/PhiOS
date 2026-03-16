@@ -85,6 +85,12 @@ Resources:
 - `phios://observatory/storyboards/recent`
 - `phios://observatory/dossiers/recent`
 - `phios://observatory/field_libraries/recent`
+- `phios://observatory/study_halls/index`
+- `phios://observatory/reading_rooms/index`
+- `phios://observatory/shelves/index`
+- `phios://observatory/field_libraries/index`
+- `phios://observatory/dossiers/index`
+- `phios://observatory/storyboards/index`
 
 Tools:
 - `phi_status`
@@ -96,6 +102,7 @@ Tools:
 - `phi_storyboard_summary`
 - `phi_atlas_summary`
 - `phi_discovery`
+- `phi_browse_observatory`
 
 Prompt:
 - `field_guidance`
@@ -118,6 +125,12 @@ Phase 5 additions:
 - Client-facing discovery surfaces: `phios://mcp/discovery` and `phi_discovery` (registry + capability/policy posture).
 - Additional bounded summary tools: `phi_storyboard_summary` and `phi_atlas_summary`.
 - Real-client harness prep tests included; full SDK-client handshake assertions run only when MCP client runtime modules are available in CI/runtime.
+
+Phase 6 additions:
+- Optional lightweight client profile presets via `PHIOS_MCP_PROFILE` (`read_only`, `observer`, `operator`, `developer`) resolved into capability scopes.
+- New read-only observatory browsing resources for index-style navigation (storyboards, dossiers, field libraries, shelves, reading rooms, study halls).
+- New bounded browse tool: `phi_browse_observatory` synthesizing index surfaces for ergonomic client browsing.
+- Discovery payloads now include profile and resolved capability posture details (`profile`, `resolved_capabilities`, `resource_counts`, `tool_counts`, `prompt_counts`).
 
 Framing discipline is preserved in MCP outputs and prompts:
 - `C*` is treated as theoretical.

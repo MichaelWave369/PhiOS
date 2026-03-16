@@ -4,7 +4,13 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from phios.mcp.policy import CAP_PULSE_ONCE, evaluate_pulse_policy, resolve_mcp_capabilities
+from phios.mcp.policy import (
+    ALL_CAPABILITIES,
+    evaluate_pulse_policy,
+    list_mcp_profiles,
+    resolve_mcp_capabilities,
+    resolve_mcp_profile,
+)
 from phios.mcp.schema import MCP_SCHEMA_VERSION
 
 
@@ -32,6 +38,7 @@ def build_mcp_discovery_payload(registry: object) -> dict[str, object]:
 
     allowed_caps, policy_source = resolve_mcp_capabilities()
     pulse = evaluate_pulse_policy()
+    profile = resolve_mcp_profile()
     resource_list = list_mcp_resources(registry)
     tool_list = list_mcp_tools(registry)
     prompt_list = list_mcp_prompts(registry)
@@ -39,33 +46,25 @@ def build_mcp_discovery_payload(registry: object) -> dict[str, object]:
     return {
         "schema_version": MCP_SCHEMA_VERSION,
         "generated_at": _utc_now_iso(),
+        "profile": profile or "none",
+        "supported_profiles": list_mcp_profiles(),
         "policy_source": policy_source,
         "capabilities": {
             "allowed": sorted(allowed_caps),
-            "denied": sorted([
-                "read_state",
-                "read_history",
-                "read_observatory",
-                "prompt_guidance",
-                CAP_PULSE_ONCE,
-            ] if not allowed_caps else [
-                cap for cap in [
-                    "read_state",
-                    "read_history",
-                    "read_observatory",
-                    "prompt_guidance",
-                    CAP_PULSE_ONCE,
-                ] if cap not in allowed_caps
-            ]),
+            "denied": sorted([cap for cap in ALL_CAPABILITIES if cap not in allowed_caps]),
             "pulse": {
                 "enabled": pulse.allowed,
                 "reason": pulse.reason,
                 "policy_source": pulse.policy_source,
             },
         },
+        "resolved_capabilities": sorted(allowed_caps),
         "resources": resource_list,
         "tools": tool_list,
         "prompts": prompt_list,
+        "resource_counts": len(resource_list),
+        "tool_counts": len(tool_list),
+        "prompt_counts": len(prompt_list),
         "summary": {
             "resource_count": len(resource_list),
             "tool_count": len(tool_list),

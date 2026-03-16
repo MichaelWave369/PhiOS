@@ -65,6 +65,7 @@ def test_pulse_policy_gating_denied_by_default(monkeypatch):
 def test_pulse_policy_gating_allowed(monkeypatch):
     adapter = DummyAdapter()
     monkeypatch.setenv("PHIOS_MCP_ALLOW_PULSE", "true")
+    monkeypatch.setenv("PHIOS_MCP_CAPABILITIES", "pulse_once")
     monkeypatch.setattr("phios.mcp.tools.pulse.run_pulse_once", lambda _a, **_kw: {"field_action": "stabilize"})
     data = run_phi_pulse_once(adapter, checkpoint="cp.json", passphrase="pw")
     assert data["ok"] is True

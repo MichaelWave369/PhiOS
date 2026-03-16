@@ -12,6 +12,26 @@ CAP_READ_OBSERVATORY = "read_observatory"
 CAP_PROMPT_GUIDANCE = "prompt_guidance"
 CAP_PULSE_ONCE = "pulse_once"
 
+ALL_CAPABILITIES = {
+    CAP_READ_STATE,
+    CAP_READ_HISTORY,
+    CAP_READ_OBSERVATORY,
+    CAP_PROMPT_GUIDANCE,
+    CAP_PULSE_ONCE,
+}
+
+PROFILE_READ_ONLY = "read_only"
+PROFILE_OBSERVER = "observer"
+PROFILE_OPERATOR = "operator"
+PROFILE_DEVELOPER = "developer"
+
+PROFILE_CAPABILITY_PRESETS: dict[str, set[str]] = {
+    PROFILE_READ_ONLY: {CAP_READ_STATE, CAP_READ_HISTORY, CAP_READ_OBSERVATORY},
+    PROFILE_OBSERVER: {CAP_READ_STATE, CAP_READ_HISTORY, CAP_READ_OBSERVATORY, CAP_PROMPT_GUIDANCE},
+    PROFILE_OPERATOR: {CAP_READ_STATE, CAP_READ_HISTORY, CAP_READ_OBSERVATORY, CAP_PROMPT_GUIDANCE, CAP_PULSE_ONCE},
+    PROFILE_DEVELOPER: {CAP_READ_STATE, CAP_READ_HISTORY, CAP_READ_OBSERVATORY, CAP_PROMPT_GUIDANCE, CAP_PULSE_ONCE},
+}
+
 
 @dataclass(frozen=True, slots=True)
 class CapabilityDecision:
@@ -27,19 +47,47 @@ def _is_truthy(value: str | None) -> bool:
     return value.strip().lower() in {"1", "true", "yes", "on", "allow", "enabled"}
 
 
+def resolve_mcp_profile() -> str | None:
+    """Resolve optional profile name from local config."""
+
+    raw = os.getenv("PHIOS_MCP_PROFILE")
+    if not raw:
+        return None
+    profile = raw.strip().lower()
+    return profile if profile in PROFILE_CAPABILITY_PRESETS else None
+
+
+def list_mcp_profiles() -> list[str]:
+    """List supported lightweight MCP profile names."""
+
+    return sorted(PROFILE_CAPABILITY_PRESETS.keys())
+
+
+def resolve_profile_capabilities(profile: str | None) -> set[str]:
+    """Resolve capabilities from an optional profile preset."""
+
+    if not profile:
+        return set()
+    return set(PROFILE_CAPABILITY_PRESETS.get(profile, set()))
+
+
 def resolve_mcp_capabilities() -> tuple[set[str], str]:
     """Resolve allowed MCP capability scopes from lightweight local policy.
 
-    `PHIOS_MCP_CAPABILITIES` can be a comma-separated list, e.g.
-    `read_state,read_history,read_observatory,prompt_guidance,pulse_once`.
-
-    Default-safe behavior permits read/prompt scopes and denies pulse mutation scope.
+    Precedence:
+    1) explicit `PHIOS_MCP_CAPABILITIES` (comma-separated)
+    2) optional profile preset via `PHIOS_MCP_PROFILE`
+    3) default-safe read/prompt set
     """
 
     raw = os.getenv("PHIOS_MCP_CAPABILITIES")
     if raw and raw.strip():
         parsed = {token.strip() for token in raw.split(",") if token.strip()}
         return parsed, "env:PHIOS_MCP_CAPABILITIES"
+
+    profile = resolve_mcp_profile()
+    if profile:
+        return resolve_profile_capabilities(profile), f"env:PHIOS_MCP_PROFILE:{profile}"
 
     return {
         CAP_READ_STATE,
@@ -73,7 +121,7 @@ def evaluate_pulse_policy() -> CapabilityDecision:
     """Evaluate if MCP pulse action is allowed.
 
     Pulse remains explicitly gated by `PHIOS_MCP_ALLOW_PULSE=true`.
-    If explicit capability scopes are configured, `pulse_once` must also be present.
+    If explicit capability scopes/profile are configured, `pulse_once` must also be present.
     """
 
     env_value = os.getenv("PHIOS_MCP_ALLOW_PULSE")
@@ -85,28 +133,20 @@ def evaluate_pulse_policy() -> CapabilityDecision:
             policy_source="default-safe",
         )
 
-    scopes_raw = os.getenv("PHIOS_MCP_CAPABILITIES")
-    if scopes_raw and scopes_raw.strip():
-        cap = is_capability_allowed(CAP_PULSE_ONCE)
-        if not cap.allowed:
-            return CapabilityDecision(
-                allowed=False,
-                reason="Pulse denied: capability scope 'pulse_once' missing from PHIOS_MCP_CAPABILITIES.",
-                capability_scope=CAP_PULSE_ONCE,
-                policy_source=cap.policy_source,
-            )
+    cap = is_capability_allowed(CAP_PULSE_ONCE)
+    if not cap.allowed:
         return CapabilityDecision(
-            allowed=True,
-            reason="Pulse allowed by explicit capability scope + local policy toggle.",
+            allowed=False,
+            reason="Pulse denied: capability scope 'pulse_once' is not enabled.",
             capability_scope=CAP_PULSE_ONCE,
-            policy_source="env:PHIOS_MCP_ALLOW_PULSE+" + cap.policy_source,
+            policy_source=cap.policy_source,
         )
 
     return CapabilityDecision(
         allowed=True,
-        reason="Pulse allowed by local policy toggle.",
+        reason="Pulse allowed by capability scope + local policy toggle.",
         capability_scope=CAP_PULSE_ONCE,
-        policy_source="env:PHIOS_MCP_ALLOW_PULSE",
+        policy_source="env:PHIOS_MCP_ALLOW_PULSE+" + cap.policy_source,
     )
 
 

@@ -35,6 +35,13 @@ def build_field_guidance_prompt(adapter: PhiKernelCLIAdapter) -> str:
             "phios://observatory/storyboards/recent",
             "phios://observatory/dossiers/recent",
             "phios://observatory/field_libraries/recent",
+            "phios://observatory/storyboards/index",
+            "phios://observatory/dossiers/index",
+            "phios://observatory/field_libraries/index",
+            "phios://observatory/shelves/index",
+            "phios://observatory/reading_rooms/index",
+            "phios://observatory/study_halls/index",
+            "phios://mcp/discovery",
         ],
         "observatory_summary_tools": [
             "phi_observatory_summary",
@@ -42,6 +49,8 @@ def build_field_guidance_prompt(adapter: PhiKernelCLIAdapter) -> str:
             "phi_library_summary",
             "phi_storyboard_summary",
             "phi_atlas_summary",
+            "phi_discovery",
+            "phi_browse_observatory",
         ],
         "discovery_surfaces": [
             "phios://mcp/discovery",

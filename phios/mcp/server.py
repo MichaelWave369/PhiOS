@@ -1,4 +1,4 @@
-"""PhiOS MCP server (Phase 1-5).
+"""PhiOS MCP server (Phase 1-6).
 
 This module provides a stable stdio MCP server surface over existing PhiOS services.
 """
@@ -25,6 +25,12 @@ from phios.mcp.resources.observatory import (
     read_observatory_recent_dossiers_resource,
     read_observatory_recent_field_libraries_resource,
     read_observatory_recent_storyboards_resource,
+    read_observatory_storyboards_index_resource,
+    read_observatory_dossiers_index_resource,
+    read_observatory_field_libraries_index_resource,
+    read_observatory_shelves_index_resource,
+    read_observatory_reading_rooms_index_resource,
+    read_observatory_study_halls_index_resource,
 )
 from phios.mcp.resources.status import read_system_status_resource
 from phios.mcp.tools.ask import run_phi_ask
@@ -35,6 +41,7 @@ from phios.mcp.tools.observatory import (
     run_phi_observatory_summary,
     run_phi_recent_activity,
     run_phi_storyboard_summary,
+    run_phi_browse_observatory,
 )
 from phios.mcp.tools.pulse import run_phi_pulse_once
 from phios.mcp.tools.status import run_phi_status
@@ -65,6 +72,12 @@ def mcp_surface_registry() -> McpSurfaceRegistry:
             "phios://observatory/storyboards/recent",
             "phios://observatory/dossiers/recent",
             "phios://observatory/field_libraries/recent",
+            "phios://observatory/storyboards/index",
+            "phios://observatory/dossiers/index",
+            "phios://observatory/field_libraries/index",
+            "phios://observatory/shelves/index",
+            "phios://observatory/reading_rooms/index",
+            "phios://observatory/study_halls/index",
         ),
         tools=(
             "phi_status",
@@ -76,6 +89,7 @@ def mcp_surface_registry() -> McpSurfaceRegistry:
             "phi_storyboard_summary",
             "phi_atlas_summary",
             "phi_discovery",
+            "phi_browse_observatory",
         ),
         prompts=("field_guidance",),
     )
@@ -155,6 +169,31 @@ def create_mcp_server(adapter: PhiKernelCLIAdapter | None = None) -> Any:
     def resource_observatory_field_libraries_recent() -> dict[str, object]:
         return _safe_call(read_observatory_recent_field_libraries_resource)
 
+
+    @server.resource("phios://observatory/storyboards/index", mime_type="application/json")
+    def resource_observatory_storyboards_index() -> dict[str, object]:
+        return _safe_call(read_observatory_storyboards_index_resource)
+
+    @server.resource("phios://observatory/dossiers/index", mime_type="application/json")
+    def resource_observatory_dossiers_index() -> dict[str, object]:
+        return _safe_call(read_observatory_dossiers_index_resource)
+
+    @server.resource("phios://observatory/field_libraries/index", mime_type="application/json")
+    def resource_observatory_field_libraries_index() -> dict[str, object]:
+        return _safe_call(read_observatory_field_libraries_index_resource)
+
+    @server.resource("phios://observatory/shelves/index", mime_type="application/json")
+    def resource_observatory_shelves_index() -> dict[str, object]:
+        return _safe_call(read_observatory_shelves_index_resource)
+
+    @server.resource("phios://observatory/reading_rooms/index", mime_type="application/json")
+    def resource_observatory_reading_rooms_index() -> dict[str, object]:
+        return _safe_call(read_observatory_reading_rooms_index_resource)
+
+    @server.resource("phios://observatory/study_halls/index", mime_type="application/json")
+    def resource_observatory_study_halls_index() -> dict[str, object]:
+        return _safe_call(read_observatory_study_halls_index_resource)
+
     @server.tool(name="phi_status")
     def tool_phi_status() -> dict[str, object]:
         return _safe_call(run_phi_status, kernel_adapter)
@@ -199,6 +238,10 @@ def create_mcp_server(adapter: PhiKernelCLIAdapter | None = None) -> Any:
     @server.tool(name="phi_discovery")
     def tool_phi_discovery() -> dict[str, object]:
         return _safe_call(run_phi_discovery, mcp_surface_registry())
+
+    @server.tool(name="phi_browse_observatory")
+    def tool_phi_browse_observatory() -> dict[str, object]:
+        return _safe_call(run_phi_browse_observatory)
 
     @server.prompt(name="field_guidance")
     def prompt_field_guidance() -> str:

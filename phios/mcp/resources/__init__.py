@@ -1,4 +1,4 @@
-"""Read-only MCP resources for PhiOS Phase 1/2/3/4/5."""
+"""Read-only MCP resources for PhiOS Phase 1/2/3/4/5/6."""
 
 from .coherence_lt import read_coherence_lt_resource
 from .discovery import read_mcp_discovery_resource
@@ -15,6 +15,12 @@ from .observatory import (
     read_observatory_recent_dossiers_resource,
     read_observatory_recent_field_libraries_resource,
     read_observatory_recent_storyboards_resource,
+    read_observatory_dossiers_index_resource,
+    read_observatory_field_libraries_index_resource,
+    read_observatory_reading_rooms_index_resource,
+    read_observatory_shelves_index_resource,
+    read_observatory_storyboards_index_resource,
+    read_observatory_study_halls_index_resource,
 )
 from .status import read_system_status_resource
 
@@ -31,5 +37,11 @@ __all__ = [
     "read_observatory_recent_storyboards_resource",
     "read_observatory_recent_dossiers_resource",
     "read_observatory_recent_field_libraries_resource",
+    "read_observatory_storyboards_index_resource",
+    "read_observatory_dossiers_index_resource",
+    "read_observatory_field_libraries_index_resource",
+    "read_observatory_shelves_index_resource",
+    "read_observatory_reading_rooms_index_resource",
+    "read_observatory_study_halls_index_resource",
     "read_mcp_discovery_resource",
 ]
