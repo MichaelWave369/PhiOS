@@ -74,6 +74,7 @@ phi-mcp
 Resources:
 - `phios://field/state`
 - `phios://coherence/lt`
+- `phios://cognition/recommendation`
 - `phios://system/status`
 - `phios://mcp/discovery`
 - `phios://history/recent_capsules`
@@ -166,10 +167,26 @@ Resources:
 - `phios://sessions/recent_reports`
 - `phios://sessions/recent_checkins`
 - `phios://sessions/current`
+- `phios://agents/active`
+- `phios://agents/{run_id}`
+- `phios://agents/{run_id}/events`
+- `phios://agents/memory/{topic}`
+- `phios://agents/memory/{topic}/coherence`
+- `phios://agents/deliberations/recent`
+- `phios://debates/recent`
+- `phios://debates/{session_id}`
+- `phios://reviews/recent`
+- `phios://reviews/{panel_id}`
+- `phios://cognition/atoms`
+- `phios://figures/fitness`
+- `phios://figures/fitness/{figure}`
+- `phios://figures/recommendation/{task_key}`
+- `phios://dispatch/graph/last`
 
 Tools:
 - `phi_status`
 - `phi_ask`
+- `phi_recommend_cognitive_arch`
 - `phi_pulse_once`
 - `phi_observatory_summary`
 - `phi_recent_activity`
@@ -188,6 +205,18 @@ Tools:
 - `phi_capstone_summary`
 - `phi_catalog_summary`
 - `phi_learning_map_summary`
+- `phi_dispatch_agents`
+- `phi_list_agents`
+- `phi_agent_status`
+- `phi_kill_agent`
+- `phi_store_deliberation`
+- `phi_debate_coherence_gate`
+- `phi_review_coherence_gate`
+- `phi_recommend_cognitive_atoms`
+- `phi_record_figure_outcome`
+- `phi_figure_fitness_report`
+- `phi_recommend_figure_for_task`
+- `phi_optimize_dispatch_graph`
 
 Prompt:
 - `field_guidance`
@@ -202,7 +231,7 @@ Phase 3 additions:
 - Observatory resources are additive interface surfaces for local observatory artifacts; they are non-truth-bearing and do not replace PhiKernel truth logic.
 
 Phase 4 additions:
-- Optional lightweight capability scopes via `PHIOS_MCP_CAPABILITIES` (for example: `read_state,read_history,read_observatory,prompt_guidance,pulse_once`).
+- Optional lightweight capability scopes via `PHIOS_MCP_CAPABILITIES` (for example: `read_state,read_history,read_observatory,prompt_guidance,pulse_once,agent_dispatch,agent_kill,agent_memory_write`).
 - New read-safe summary tools: `phi_observatory_summary`, `phi_recent_activity`, and `phi_library_summary`.
 - Capability gating remains local/lightweight for now (not a full identity/auth platform).
 
@@ -242,6 +271,122 @@ Phase 10 additions:
 - New bounded read-only summary tools `phi_program_summary` and `phi_curation_summary` for grounded program/collection synthesis without speculative recommendations.
 - Discovery now includes program coverage metadata (`program_rollups`, `learning_groups`, `program_surface_counts`) in addition to existing profile/capability posture fields.
 - Runtime-gated Phase 10 client-path test hook added for discovery → browse preset → collection rollup → program rollup → summary tool invoke flow expansion when SDK runtime allows.
+
+
+Phase 16 additions (Issue #79 experimental AgentCeption conductor):
+- New shell orchestration commands: `phi dispatch "<task>"` and `phi agents [list|status|kill|log]`.
+- New MCP tools for dispatch lifecycle orchestration: `phi_dispatch_agents`, `phi_list_agents`, `phi_agent_status`, `phi_kill_agent`.
+- New read-only MCP resources for active runs and run traces: `phios://agents/active`, `phios://agents/{run_id}`, `phios://agents/{run_id}/events`.
+- Dispatch/kill actions are explicitly capability gated (`agent_dispatch`, `agent_kill`) with structured deny payloads.
+- Integration remains additive/experimental: PhiOS is shell + observatory orchestrator, PhiKernel remains runtime truth source, and AgentCeption is treated as an external planning/dispatch engine.
+- Scientific framing remains explicit: C* is theoretical, bio-vacuum targets are experimental, and Hunter's C is unconfirmed.
+- Environment toggles for integration:
+  - `PHIOS_AGENTCEPTION_ENABLED=true|false`
+  - `PHIOS_AGENTCEPTION_BASE_URL=http://127.0.0.1:8787`
+  - optional `PHIOS_AGENTCEPTION_TOKEN`
+
+
+Phase 17 additions (Issue #76 field-guided cognitive architecture selection):
+- New read-only advisory shell command: `phi recommend-arch` (or `phi recommend-arch --json`).
+- New MCP read-only advisory tool: `phi_recommend_cognitive_arch`.
+- New MCP read-only resource: `phios://cognition/recommendation`.
+- Recommendation output is deterministic and explainable (`figure`, `archetype`, `reason`, `confidence`, signals, candidate scores).
+- This recommendation is an additive experimental prior for orchestration only, not a PhiKernel truth mutation.
+- Scientific framing remains explicit: `C*` is theoretical, bio-vacuum target is experimental, and Hunter's C remains unconfirmed.
+- AgentCeption interoperability notes (opt-in on AgentCeption side):
+  - `AC_PHIOS_ENDPOINT`
+  - `AC_PHIOS_FIELD_WEIGHT`
+
+Phase 18 additions (Issue #77 observatory-backed agent long-term memory):
+- New read-only MCP memory resources:
+  - `phios://agents/memory/{topic}`
+  - `phios://agents/memory/{topic}/coherence`
+  - `phios://agents/deliberations/recent`
+- New MCP write-like tool (capability-gated): `phi_store_deliberation`.
+- New shell memory read/write surfaces:
+  - `phi memory topic <topic>`
+  - `phi memory coherence <topic>`
+  - `phi memory recent`
+  - `phi memory store <topic> ... --yes` (gated)
+- Storage model is local-first and observatory-backed via narrative artifacts (`~/.phios/journal/visual_bloom/narratives/agent_memory_<topic>.json`) with additive `agent_deliberations` entries.
+- This is additive experimental archive memory, not a truth-layer mutation; PhiKernel remains source of truth.
+
+Phase 19 additions (Issue #75 cognitive debate arena coherence gate):
+- New MCP debate gate tool: `phi_debate_coherence_gate(session_id, round, positions, threshold, persist)`.
+- New read-only MCP debate resources:
+  - `phios://debates/recent`
+  - `phios://debates/{session_id}`
+- New shell command:
+  - `phi debate gate --session-id <id> --round <n> --positions <json> [--threshold <float>] [--persist] [--json]`
+- Convergence model:
+  - `converged` when current coherence crosses threshold (default near `C*_theoretical`)
+  - `deadlock` when coherence remains below threshold with low recent trace span after multiple rounds
+  - otherwise `continue`
+- Optional additive observatory persistence (`--persist` / tool `persist=true`) stores debate outcome, dissent, and coherence trace in agent memory narratives.
+- This remains additive/experimental and non-truth-bearing; PhiKernel remains source of truth.
+
+Phase 20 additions (Issue #78 adversarial architecture review coherence gate):
+- New MCP tool: `phi_review_coherence_gate(round, reviewer_grades, reviewer_critiques, pr_number, panel_id, mediator_summary, persist)`.
+- New read-only MCP resources:
+  - `phios://reviews/recent`
+  - `phios://reviews/{panel_id}`
+- New shell command:
+  - `phi review gate --round <n> --reviewer-grades <json> --reviewer-critiques <json> [--panel-id <id>] [--pr-number <n>] [--mediator-summary <text>] [--persist] [--json]`
+- Deterministic gate semantics:
+  - `converged` when coherence is strong and grade spread is narrow
+  - `mediate` when disagreement/critique pressure remains high (or coherence plateaus with unresolved spread)
+  - `continue` otherwise
+- Optional persistence (`persist`) writes additive review outcomes/dissent/coherence traces into existing observatory-backed agent-memory narratives.
+- This is additive and experimental; PhiKernel remains source of truth and coherence is used as an oracle signal only.
+
+Phase 21 additions (Issue #81 sector-to-atom cognitive overrides):
+- New read-only shell command: `phi recommend-atoms` (or `phi recommend-atoms --json`).
+- New MCP read-only tool: `phi_recommend_cognitive_atoms`.
+- New MCP read-only resource: `phios://cognition/atoms`.
+- Deterministic sector-to-atom mapping rules convert sector signals into atom overrides:
+  - `geometry_balance` -> `epistemic_style`
+  - `vacuum_proximity` -> `creativity_level`
+  - `observer_entropy` -> `uncertainty_handling` and `error_posture`
+  - `collector_activity` -> `cognitive_rhythm`
+  - `mirror_alignment` -> `collaboration_posture`
+  - `emotion_field` -> `communication_style`
+- Optional additive integration: the Issue #76 cognitive-architecture tool/resource now include `atom_recommendation` metadata.
+- This remains additive, read-only, experimental, and advisory; PhiKernel remains source of truth.
+
+Phase 22 additions (Issue #80 living cognitive ecosystem figure fitness):
+- New shell figure fitness commands:
+  - `phi agents figures`
+  - `phi agents figures --top <n>`
+  - `phi agents figures --sector <sector>`
+  - `phi agents evolve [--top <n>] [--sector <sector>] [--task-key <key>] [--skill <skill>] [--min-coherence <v>]`
+- New MCP tools:
+  - `phi_record_figure_outcome` (capability-gated write)
+  - `phi_figure_fitness_report` (read-only)
+  - `phi_recommend_figure_for_task` (read-only)
+- New read-only MCP resources:
+  - `phios://figures/fitness`
+  - `phios://figures/fitness/{figure}`
+  - `phios://figures/recommendation/{task_key}`
+- `phios://dispatch/graph/last`
+- Storage model is local-first and inspectable under `~/.phios/journal/visual_bloom/narratives/figure_fitness_records.json` with append-only-like `figure_outcomes` entries.
+- Deterministic report metrics include `grade_success_rate`, `avg_merge_time_minutes`, `avg_coherence`, `redispatch_rate`, and `close_rate`.
+- This remains additive and experimental; write path is explicitly capability-gated (`figure_fitness_write`), and recommendations are advisory only.
+
+Phase 23 additions (Issue #82 golden lattice dependency navigator):
+- New deterministic dispatch-graph optimizer service: `phios/services/dispatch_graph.py`.
+- New shell command:
+  - `phi dispatch optimize --graph <json> [--json]`
+- New MCP read-only tool:
+  - `phi_optimize_dispatch_graph`
+- New read-only MCP resource:
+  - `phios://dispatch/graph/last`
+- Graph model supports node fields such as: `id`, `label`, `dependencies`, `estimated_cost`, `sector`, `skills`, `figure`, `atom_overrides`, and `priority`.
+- Deterministic optimization rules:
+  - dependency correctness via topological ordering first
+  - ready-node ranking by depth(desc), priority(desc), estimated_cost(asc), id(asc)
+  - parallel wave construction for dependency-safe batching
+  - bottleneck detection by fan-out
+- The optimizer remains additive, experimental, and advisory; no autonomous execution.
 
 Phase 11 additions:
 - Stable capstone/collection-family rollups under `phios://capstones/*` for syllabi, atlas cohorts, field-library families, dossier families, and storyboard families.
