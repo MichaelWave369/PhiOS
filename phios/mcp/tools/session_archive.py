@@ -319,7 +319,7 @@ def run_phi_curation_summary() -> dict[str, object]:
     )
 
 
-def run_phi_catalog_summary() -> dict[str, object]:
+def run_phi_catalog_summary(*, include_map_counts: bool = False) -> dict[str, object]:
     decision = is_capability_allowed(CAP_READ_HISTORY)
     if not decision.allowed:
         return with_tool_schema(denied_capability_payload(decision=decision, error_code="CATALOG_SUMMARY_NOT_PERMITTED"))
@@ -330,30 +330,40 @@ def run_phi_catalog_summary() -> dict[str, object]:
     collections = read_catalog_collections_resource()
     total = sum(_dict_int(item, "count") for item in (learning, capstones, programs, collections))
 
-    return with_tool_schema(
-        {
-            "ok": True,
-            "allowed": decision.allowed,
-            "reason": decision.reason,
-            "capability_scope": decision.capability_scope,
-            "policy_source": decision.policy_source,
-            "generated_at": _utc_now_iso(),
-            "summary": {
-                "catalog_count": 4,
-                "total_items": total,
-                "learning_count": _dict_int(learning, "count"),
-                "capstones_count": _dict_int(capstones, "count"),
-                "programs_count": _dict_int(programs, "count"),
-                "collections_count": _dict_int(collections, "count"),
-            },
-            "catalogs": {
-                "learning": learning,
-                "capstones": capstones,
-                "programs": programs,
-                "collections": collections,
-            },
+    payload: dict[str, object] = {
+        "ok": True,
+        "allowed": decision.allowed,
+        "reason": decision.reason,
+        "capability_scope": decision.capability_scope,
+        "policy_source": decision.policy_source,
+        "generated_at": _utc_now_iso(),
+        "summary": {
+            "catalog_count": 4,
+            "total_items": total,
+            "learning_count": _dict_int(learning, "count"),
+            "capstones_count": _dict_int(capstones, "count"),
+            "programs_count": _dict_int(programs, "count"),
+            "collections_count": _dict_int(collections, "count"),
+        },
+        "catalogs": {
+            "learning": learning,
+            "capstones": capstones,
+            "programs": programs,
+            "collections": collections,
+        },
+    }
+    if include_map_counts:
+        learning_map = read_learning_map_resource()
+        capstones_map = read_capstones_map_resource()
+        programs_map = read_programs_map_resource()
+        collections_map = read_collections_map_resource()
+        payload["map_counts"] = {
+            "learning": _dict_int(learning_map, "count"),
+            "capstones": _dict_int(capstones_map, "count"),
+            "programs": _dict_int(programs_map, "count"),
+            "collections": _dict_int(collections_map, "count"),
         }
-    )
+    return with_tool_schema(payload)
 
 
 def run_phi_learning_map_summary(*, include_map_counts: bool = True) -> dict[str, object]:
