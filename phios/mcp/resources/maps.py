@@ -17,6 +17,31 @@ def _utc_now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+def _to_int(value: object, default: int = 0) -> int:
+    if isinstance(value, bool):
+        return int(value)
+    if isinstance(value, int):
+        return value
+    if isinstance(value, float):
+        return int(value)
+    if isinstance(value, (str, bytes, bytearray)):
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            return default
+    return default
+
+
+def _as_dict(value: object) -> dict[str, object]:
+    return value if isinstance(value, dict) else {}
+
+
+def _as_str_list(value: object) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    return [item for item in value if isinstance(item, str)]
+
+
 def _build_learning_map(*, map_name: str, primary_catalog: str, linked_catalogs: list[str]) -> dict[str, object]:
     catalogs = {
         "learning": read_catalog_learning_resource(),
@@ -39,8 +64,8 @@ def _build_learning_map(*, map_name: str, primary_catalog: str, linked_catalogs:
             continue
         for family, count in (payload.get("artifact_family_counts", {}) or {}).items():
             if isinstance(family, str):
-                family_counts[family] = family_counts.get(family, 0) + int(count or 0)
-                artifact_family_counts[family] = artifact_family_counts.get(family, 0) + int(count or 0)
+                family_counts[family] = family_counts.get(family, 0) + _to_int(count)
+                artifact_family_counts[family] = artifact_family_counts.get(family, 0) + _to_int(count)
 
         tags = payload.get("tag_coverage", [])
         if isinstance(tags, list):
@@ -52,7 +77,7 @@ def _build_learning_map(*, map_name: str, primary_catalog: str, linked_catalogs:
         if isinstance(sectors, dict):
             for sector, value in sectors.items():
                 if isinstance(sector, str):
-                    dominant_sector_counts[sector] = dominant_sector_counts.get(sector, 0) + int(value or 0)
+                    dominant_sector_counts[sector] = dominant_sector_counts.get(sector, 0) + _to_int(value)
 
         titles = payload.get("recent_titles", [])
         if isinstance(titles, list):
@@ -61,17 +86,17 @@ def _build_learning_map(*, map_name: str, primary_catalog: str, linked_catalogs:
                     recent_titles.append(title)
 
     availability = {
-        "route": any(bool((catalogs[name].get("availability", {}) or {}).get("route")) for name in [primary_catalog, *linked_catalogs] if isinstance(catalogs[name], dict)),
-        "longitudinal": any(bool((catalogs[name].get("availability", {}) or {}).get("longitudinal")) for name in [primary_catalog, *linked_catalogs] if isinstance(catalogs[name], dict)),
-        "diagnostics": any(bool((catalogs[name].get("availability", {}) or {}).get("diagnostics")) for name in [primary_catalog, *linked_catalogs] if isinstance(catalogs[name], dict)),
+        "route": any(bool(_as_dict(_as_dict(catalogs[name]).get("availability", {})).get("route")) for name in [primary_catalog, *linked_catalogs]),
+        "longitudinal": any(bool(_as_dict(_as_dict(catalogs[name]).get("availability", {})).get("longitudinal")) for name in [primary_catalog, *linked_catalogs]),
+        "diagnostics": any(bool(_as_dict(_as_dict(catalogs[name]).get("availability", {})).get("diagnostics")) for name in [primary_catalog, *linked_catalogs]),
     }
 
     return with_resource_schema(
         {
             "generated_at": _utc_now_iso(),
             "map": map_name,
-            "count": int(primary.get("count", 0)) if isinstance(primary, dict) else 0,
-            "families": list((primary.get("families", []) if isinstance(primary, dict) else [])),
+            "count": _to_int(_as_dict(primary).get("count", 0)),
+            "families": _as_str_list(_as_dict(primary).get("families", [])),
             "linked_catalogs": linked_catalogs,
             "family_counts": family_counts,
             "tag_coverage": sorted(tag_coverage),

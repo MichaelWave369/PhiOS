@@ -49,6 +49,34 @@ def _utc_now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+def _to_int(value: object, default: int = 0) -> int:
+    if isinstance(value, bool):
+        return int(value)
+    if isinstance(value, int):
+        return value
+    if isinstance(value, float):
+        return int(value)
+    if isinstance(value, (str, bytes, bytearray)):
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            return default
+    return default
+
+
+def _as_dict(value: object) -> dict[str, object]:
+    return value if isinstance(value, dict) else {}
+
+
+def _dict_int(mapping: object, key: str, default: int = 0) -> int:
+    return _to_int(_as_dict(mapping).get(key, default), default)
+
+
+def _dict_list(mapping: object, key: str) -> list[object]:
+    value = _as_dict(mapping).get(key, [])
+    return value if isinstance(value, list) else []
+
+
 def _gated_denial(decision: CapabilityDecision, code: str) -> dict[str, object]:
     return with_tool_schema(denied_capability_payload(decision=decision, error_code=code))
 
@@ -75,11 +103,11 @@ def run_phi_observatory_summary() -> dict[str, object]:
             "policy_source": decision.policy_source,
             "generated_at": _utc_now_iso(),
             "summary": {
-                "dashboard_sessions": dashboard.get("summary", {}).get("session_count", 0) if isinstance(dashboard, dict) else 0,
-                "atlas_entries": atlas.get("summary", {}).get("entry_count", 0) if isinstance(atlas, dict) else 0,
-                "recent_storyboards": storyboards.get("count", 0),
-                "recent_dossiers": dossiers.get("count", 0),
-                "recent_field_libraries": field_libraries.get("count", 0),
+                "dashboard_sessions": _dict_int(_as_dict(dashboard).get("summary", {}), "session_count"),
+                "atlas_entries": _dict_int(_as_dict(atlas).get("summary", {}), "entry_count"),
+                "recent_storyboards": _dict_int(storyboards, "count"),
+                "recent_dossiers": _dict_int(dossiers, "count"),
+                "recent_field_libraries": _dict_int(field_libraries, "count"),
             },
             "dashboard": dashboard,
             "atlas_gallery": atlas,
@@ -112,11 +140,11 @@ def run_phi_recent_activity(adapter: PhiKernelCLIAdapter) -> dict[str, object]:
             "policy_source": decision.policy_source,
             "generated_at": _utc_now_iso(),
             "summary": {
-                "capsule_count": capsules.get("count", 0),
-                "session_count": sessions.get("count", 0),
-                "field_snapshot_count": field_snapshots.get("count", 0),
-                "storyboard_count": recent_storyboards.get("count", 0),
-                "dossier_count": recent_dossiers.get("count", 0),
+                "capsule_count": _dict_int(capsules, "count"),
+                "session_count": _dict_int(sessions, "count"),
+                "field_snapshot_count": _dict_int(field_snapshots, "count"),
+                "storyboard_count": _dict_int(recent_storyboards, "count"),
+                "dossier_count": _dict_int(recent_dossiers, "count"),
             },
             "recent_capsules": capsules,
             "recent_sessions": sessions,
@@ -136,7 +164,7 @@ def run_phi_library_summary() -> dict[str, object]:
 
     dashboard = read_observatory_dashboard_resource()
     field_libraries = read_observatory_recent_field_libraries_resource(limit=20)
-    dashboard_payload = dashboard.get("dashboard", {})
+    dashboard_payload = _as_dict(dashboard).get("dashboard", {})
     dashboard_dict = dashboard_payload if isinstance(dashboard_payload, dict) else {}
 
     return with_tool_schema(
@@ -148,22 +176,16 @@ def run_phi_library_summary() -> dict[str, object]:
             "policy_source": decision.policy_source,
             "generated_at": _utc_now_iso(),
             "summary": {
-                "field_library_count": field_libraries.get("count", 0),
-                "recent_shelves_count": len(dashboard_dict.get("recent_shelves", []))
-                if isinstance(dashboard_dict.get("recent_shelves"), list)
-                else 0,
-                "recent_reading_rooms_count": len(dashboard_dict.get("recent_reading_rooms", []))
-                if isinstance(dashboard_dict.get("recent_reading_rooms"), list)
-                else 0,
-                "recent_study_halls_count": len(dashboard_dict.get("recent_study_halls", []))
-                if isinstance(dashboard_dict.get("recent_study_halls"), list)
-                else 0,
+                "field_library_count": _dict_int(field_libraries, "count"),
+                "recent_shelves_count": len(_dict_list(dashboard_dict, "recent_shelves")),
+                "recent_reading_rooms_count": len(_dict_list(dashboard_dict, "recent_reading_rooms")),
+                "recent_study_halls_count": len(_dict_list(dashboard_dict, "recent_study_halls")),
             },
             "field_libraries": field_libraries,
             "library_context": {
-                "recent_shelves": dashboard_dict.get("recent_shelves", []),
-                "recent_reading_rooms": dashboard_dict.get("recent_reading_rooms", []),
-                "recent_study_halls": dashboard_dict.get("recent_study_halls", []),
+                "recent_shelves": _dict_list(dashboard_dict, "recent_shelves"),
+                "recent_reading_rooms": _dict_list(dashboard_dict, "recent_reading_rooms"),
+                "recent_study_halls": _dict_list(dashboard_dict, "recent_study_halls"),
             },
         }
     )
@@ -178,7 +200,7 @@ def run_phi_storyboard_summary() -> dict[str, object]:
         return _gated_denial(decision, "STORYBOARD_SUMMARY_NOT_PERMITTED")
 
     storyboards = read_observatory_recent_storyboards_resource(limit=20)
-    rows = storyboards.get("storyboards", []) if isinstance(storyboards, dict) else []
+    rows = _as_dict(storyboards).get("storyboards", [])
     safe_rows = rows if isinstance(rows, list) else []
 
     return with_tool_schema(
@@ -190,8 +212,8 @@ def run_phi_storyboard_summary() -> dict[str, object]:
             "policy_source": decision.policy_source,
             "generated_at": _utc_now_iso(),
             "summary": {
-                "storyboard_count": storyboards.get("count", 0) if isinstance(storyboards, dict) else 0,
-                "non_empty_sections": sum(1 for row in safe_rows if isinstance(row, dict) and int(row.get("section_count", 0) or 0) > 0),
+                "storyboard_count": _dict_int(storyboards, "count"),
+                "non_empty_sections": sum(1 for row in safe_rows if isinstance(row, dict) and _to_int(row.get("section_count", 0)) > 0),
             },
             "recent_storyboards": storyboards,
         }
@@ -207,7 +229,7 @@ def run_phi_atlas_summary() -> dict[str, object]:
 
     atlas = read_observatory_atlas_gallery_resource()
     atlas_dict = atlas if isinstance(atlas, dict) else {}
-    atlas_payload = atlas_dict.get("atlas_gallery", {}) if isinstance(atlas_dict.get("atlas_gallery", {}), dict) else {}
+    atlas_payload = _as_dict(atlas_dict.get("atlas_gallery", {}))
 
     return with_tool_schema(
         {
@@ -218,7 +240,7 @@ def run_phi_atlas_summary() -> dict[str, object]:
             "policy_source": decision.policy_source,
             "generated_at": _utc_now_iso(),
             "summary": {
-                "entry_count": atlas_dict.get("summary", {}).get("entry_count", 0) if isinstance(atlas_dict.get("summary", {}), dict) else 0,
+                "entry_count": _dict_int(atlas_dict.get("summary", {}), "entry_count"),
                 "gallery_version": atlas_payload.get("gallery_version", ""),
             },
             "atlas_gallery": atlas,
@@ -247,7 +269,7 @@ def run_phi_browse_observatory(
     if not decision.allowed:
         return _gated_denial(decision, "BROWSE_OBSERVATORY_NOT_PERMITTED")
 
-    safe_limit = max(0, int(limit))
+    safe_limit = max(0, _to_int(limit))
     storyboards = read_observatory_storyboards_index_resource(limit=safe_limit)
     dossiers = read_observatory_dossiers_index_resource(limit=safe_limit)
     libraries = read_observatory_field_libraries_index_resource(limit=safe_limit)
@@ -331,12 +353,12 @@ def run_phi_browse_observatory(
         }
 
     summary = {
-        "storyboards": storyboards.get("count", 0) if isinstance(storyboards, dict) else 0,
-        "dossiers": dossiers.get("count", 0) if isinstance(dossiers, dict) else 0,
-        "field_libraries": libraries.get("count", 0) if isinstance(libraries, dict) else 0,
-        "shelves": shelves.get("count", 0) if isinstance(shelves, dict) else 0,
-        "reading_rooms": reading_rooms.get("count", 0) if isinstance(reading_rooms, dict) else 0,
-        "study_halls": study_halls.get("count", 0) if isinstance(study_halls, dict) else 0,
+        "storyboards": _dict_int(storyboards, "count"),
+        "dossiers": _dict_int(dossiers, "count"),
+        "field_libraries": _dict_int(libraries, "count"),
+        "shelves": _dict_int(shelves, "count"),
+        "reading_rooms": _dict_int(reading_rooms, "count"),
+        "study_halls": _dict_int(study_halls, "count"),
     }
 
     payload: dict[str, object] = {
@@ -360,11 +382,11 @@ def run_phi_browse_observatory(
     if catalog_payload:
         payload["catalogs"] = catalog_payload
     if include_catalog_counts and catalog_payload:
-        payload["catalog_counts"] = {k: int(v.get("count", 0)) for k, v in catalog_payload.items() if isinstance(v, dict)}
+        payload["catalog_counts"] = {k: _dict_int(v, "count") for k, v in catalog_payload.items()}
     if map_payload:
         payload["maps"] = map_payload
     if include_map_counts and map_payload:
-        payload["map_counts"] = {k: int(v.get("count", 0)) for k, v in map_payload.items() if isinstance(v, dict)}
+        payload["map_counts"] = {k: _dict_int(v, "count") for k, v in map_payload.items()}
     if include_rollups:
         payload["rollups"] = {
             "family_counts": {
