@@ -3,6 +3,7 @@
 from .ask import run_phi_ask
 from .agent_memory import phi_store_deliberation
 from .cognitive_arch import run_phi_recommend_cognitive_arch
+from .cognitive_atoms import run_phi_recommend_cognitive_atoms
 from .debate import phi_debate_coherence_gate
 from .review import phi_review_coherence_gate
 from .agents import (
@@ -63,6 +64,7 @@ __all__ = [
     "run_phi_agent_status",
     "run_phi_kill_agent",
     "run_phi_recommend_cognitive_arch",
+    "run_phi_recommend_cognitive_atoms",
     "phi_store_deliberation",
     "phi_debate_coherence_gate",
     "phi_review_coherence_gate",

@@ -65,6 +65,10 @@ from phios.services.cognitive_arch import (
     build_cognitive_arch_context,
     recommend_cognitive_architecture,
 )
+from phios.services.cognitive_atoms import (
+    build_sector_atom_context,
+    recommend_cognitive_atom_overrides,
+)
 from phios.services.agent_memory import (
     get_agent_memory,
     get_agent_memory_coherence,
@@ -410,6 +414,7 @@ def cmd_help(_: list[str], session: object | None = None) -> str:
             "  dispatch <task> [--field-guided] [--arch <name>] [--review-panel] [--coherence-gate <float>] [--dry-run] [--stream]",
             "  agents [list|status <id>|kill <id> --yes|log <id>]",
             "  recommend-arch [--json]      Show field-guided cognitive architecture recommendation",
+            "  recommend-atoms [--json]     Show sector-to-atom cognitive override recommendation",
             "  debate gate --session-id <id> --round <n> --positions <json> [--threshold <float>] [--persist] [--json]",
             "  review gate --round <n> --reviewer-grades <json> --reviewer-critiques <json> [--panel-id <id>] [--pr-number <n>] [--mediator-summary <text>] [--persist] [--json]",
             "  exit                        Exit REPL",
@@ -2829,6 +2834,38 @@ def cmd_recommend_arch(args: list[str], session: object | None = None) -> str:
     )
 
 
+def cmd_recommend_atoms(args: list[str], session: object | None = None) -> str:
+    adapter = PhiKernelCLIAdapter()
+    context = build_sector_atom_context(adapter)
+    recommendation = recommend_cognitive_atom_overrides(adapter)
+
+    payload = {
+        "ok": True,
+        "read_only": True,
+        "experimental": True,
+        "recommendation": recommendation,
+        "context": context,
+    }
+    if "--json" in args:
+        return json.dumps(payload, indent=2)
+
+    atom_overrides = recommendation.get("atom_overrides", {})
+    return "\n".join(
+        [
+            "Sector-to-atom cognitive override recommendation",
+            f"confidence: {float(recommendation.get('confidence', 0.0)):.3f}",
+            f"epistemic_style: {atom_overrides.get('epistemic_style', 'n/a')}",
+            f"creativity_level: {atom_overrides.get('creativity_level', 'n/a')}",
+            f"uncertainty_handling: {atom_overrides.get('uncertainty_handling', 'n/a')}",
+            f"error_posture: {atom_overrides.get('error_posture', 'n/a')}",
+            f"cognitive_rhythm: {atom_overrides.get('cognitive_rhythm', 'n/a')}",
+            f"collaboration_posture: {atom_overrides.get('collaboration_posture', 'n/a')}",
+            f"communication_style: {atom_overrides.get('communication_style', 'n/a')}",
+            "framing: C* theoretical; bio-vacuum target experimental; Hunter's C unconfirmed.",
+        ]
+    )
+
+
 def cmd_debate(args: list[str], session: object | None = None) -> str:
     action = args[0] if args else "gate"
     if action != "gate":
@@ -3208,6 +3245,7 @@ COMMANDS: dict[str, CommandHandler] = {
     "dispatch": cmd_dispatch,
     "agents": cmd_agents,
     "recommend-arch": cmd_recommend_arch,
+    "recommend-atoms": cmd_recommend_atoms,
     "debate": cmd_debate,
     "review": cmd_review,
     "build": cmd_build,

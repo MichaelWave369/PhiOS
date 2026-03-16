@@ -177,6 +177,7 @@ Resources:
 - `phios://debates/{session_id}`
 - `phios://reviews/recent`
 - `phios://reviews/{panel_id}`
+- `phios://cognition/atoms`
 
 Tools:
 - `phi_status`
@@ -207,6 +208,7 @@ Tools:
 - `phi_store_deliberation`
 - `phi_debate_coherence_gate`
 - `phi_review_coherence_gate`
+- `phi_recommend_cognitive_atoms`
 
 Prompt:
 - `field_guidance`
@@ -328,6 +330,20 @@ Phase 20 additions (Issue #78 adversarial architecture review coherence gate):
   - `continue` otherwise
 - Optional persistence (`persist`) writes additive review outcomes/dissent/coherence traces into existing observatory-backed agent-memory narratives.
 - This is additive and experimental; PhiKernel remains source of truth and coherence is used as an oracle signal only.
+
+Phase 21 additions (Issue #81 sector-to-atom cognitive overrides):
+- New read-only shell command: `phi recommend-atoms` (or `phi recommend-atoms --json`).
+- New MCP read-only tool: `phi_recommend_cognitive_atoms`.
+- New MCP read-only resource: `phios://cognition/atoms`.
+- Deterministic sector-to-atom mapping rules convert sector signals into atom overrides:
+  - `geometry_balance` -> `epistemic_style`
+  - `vacuum_proximity` -> `creativity_level`
+  - `observer_entropy` -> `uncertainty_handling` and `error_posture`
+  - `collector_activity` -> `cognitive_rhythm`
+  - `mirror_alignment` -> `collaboration_posture`
+  - `emotion_field` -> `communication_style`
+- Optional additive integration: the Issue #76 cognitive-architecture tool/resource now include `atom_recommendation` metadata.
+- This remains additive, read-only, experimental, and advisory; PhiKernel remains source of truth.
 
 Phase 11 additions:
 - Stable capstone/collection-family rollups under `phios://capstones/*` for syllabi, atlas cohorts, field-library families, dossier families, and storyboard families.

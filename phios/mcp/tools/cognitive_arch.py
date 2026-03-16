@@ -8,6 +8,7 @@ from phios.adapters.phik import PhiKernelCLIAdapter
 from phios.mcp.policy import CAP_READ_STATE, denied_capability_payload, is_capability_allowed
 from phios.mcp.schema import with_tool_schema
 from phios.services.cognitive_arch import build_cognitive_arch_context, recommend_cognitive_architecture
+from phios.services.cognitive_atoms import recommend_cognitive_atom_overrides
 
 
 def _utc_now_iso() -> str:
@@ -25,12 +26,14 @@ def run_phi_recommend_cognitive_arch(adapter: PhiKernelCLIAdapter) -> dict[str, 
 
     context = build_cognitive_arch_context(adapter)
     recommendation = recommend_cognitive_architecture(context)
+    atom_recommendation = recommend_cognitive_atom_overrides(adapter)
     return with_tool_schema(
         {
             "ok": True,
             "read_only": True,
             "generated_at": _utc_now_iso(),
             "recommendation": recommendation,
+            "atom_recommendation": atom_recommendation,
             "context": context,
             "allowed": decision.allowed,
             "reason": decision.reason,
