@@ -10,6 +10,16 @@ from typing import Any
 
 from phios.adapters.phik import PhiKernelCLIAdapter
 from phios.mcp.prompts.field_guidance import build_field_guidance_prompt
+from phios.mcp.resources.agent_memory import (
+    read_agent_memory_coherence_resource,
+    read_agent_memory_topic_resource,
+    read_recent_agent_deliberations_resource,
+)
+from phios.mcp.resources.agents import (
+    read_agent_run_events_resource,
+    read_agent_run_resource,
+    read_agents_active_resource,
+)
 from phios.mcp.resources.archive import (
     read_archive_atlas_index_resource,
     read_archive_curricula_index_resource,
@@ -33,6 +43,7 @@ from phios.mcp.resources.catalogs import (
     read_catalog_programs_resource,
 )
 from phios.mcp.resources.coherence_lt import read_coherence_lt_resource
+from phios.mcp.resources.cognitive_arch import read_cognition_recommendation_resource
 from phios.mcp.resources.collections import (
     read_curricula_rollup_resource,
     read_field_libraries_rollup_resource,
@@ -42,6 +53,10 @@ from phios.mcp.resources.collections import (
     read_study_halls_rollup_resource,
 )
 from phios.mcp.resources.discovery import read_mcp_discovery_resource
+from phios.mcp.resources.debates import (
+    read_debate_session_resource,
+    read_debates_recent_resource,
+)
 from phios.mcp.resources.consoles import (
     read_consoles_archive_resource,
     read_consoles_capstones_resource,
@@ -101,8 +116,17 @@ from phios.mcp.resources.sessions import (
     read_sessions_recent_reports_resource,
 )
 from phios.mcp.resources.status import read_system_status_resource
+from phios.mcp.tools.agent_memory import phi_store_deliberation
+from phios.mcp.tools.agents import (
+    run_phi_agent_status,
+    run_phi_dispatch_agents,
+    run_phi_kill_agent,
+    run_phi_list_agents,
+)
 from phios.mcp.tools.ask import run_phi_ask
+from phios.mcp.tools.cognitive_arch import run_phi_recommend_cognitive_arch
 from phios.mcp.tools.discovery import run_phi_discovery, run_phi_discovery_dashboard_summary, run_phi_navigation_console_summary
+from phios.mcp.tools.debate import phi_debate_coherence_gate
 from phios.mcp.tools.observatory import (
     run_phi_atlas_summary,
     run_phi_library_summary,
@@ -139,6 +163,7 @@ def mcp_surface_registry() -> McpSurfaceRegistry:
         resources=(
             "phios://field/state",
             "phios://coherence/lt",
+            "phios://cognition/recommendation",
             "phios://system/status",
             "phios://mcp/discovery",
             "phios://history/recent_capsules",
@@ -231,10 +256,19 @@ def mcp_surface_registry() -> McpSurfaceRegistry:
             "phios://browse/collection_families",
             "phios://browse/capstone_families",
             "phios://browse/archive_families",
+            "phios://agents/active",
+            "phios://agents/{run_id}",
+            "phios://agents/{run_id}/events",
+            "phios://agents/memory/{topic}",
+            "phios://agents/memory/{topic}/coherence",
+            "phios://agents/deliberations/recent",
+            "phios://debates/recent",
+            "phios://debates/{session_id}",
         ),
         tools=(
             "phi_status",
             "phi_ask",
+            "phi_recommend_cognitive_arch",
             "phi_pulse_once",
             "phi_observatory_summary",
             "phi_recent_activity",
@@ -253,6 +287,12 @@ def mcp_surface_registry() -> McpSurfaceRegistry:
             "phi_capstone_summary",
             "phi_catalog_summary",
             "phi_learning_map_summary",
+            "phi_dispatch_agents",
+            "phi_list_agents",
+            "phi_agent_status",
+            "phi_kill_agent",
+            "phi_store_deliberation",
+            "phi_debate_coherence_gate",
         ),
         prompts=("field_guidance",),
     )
@@ -291,6 +331,10 @@ def create_mcp_server(adapter: PhiKernelCLIAdapter | None = None) -> Any:
     @server.resource("phios://coherence/lt", mime_type="application/json")
     def resource_coherence_lt() -> dict[str, object]:
         return _safe_call(read_coherence_lt_resource)
+
+    @server.resource("phios://cognition/recommendation", mime_type="application/json")
+    def resource_cognition_recommendation() -> dict[str, object]:
+        return _safe_call(read_cognition_recommendation_resource, kernel_adapter)
 
     @server.resource("phios://system/status", mime_type="application/json")
     def resource_system_status() -> dict[str, object]:
@@ -659,9 +703,45 @@ def create_mcp_server(adapter: PhiKernelCLIAdapter | None = None) -> Any:
     def resource_consoles_capstones() -> dict[str, object]:
         return _safe_call(read_consoles_capstones_resource, mcp_surface_registry())
 
+    @server.resource("phios://agents/active", mime_type="application/json")
+    def resource_agents_active() -> dict[str, object]:
+        return _safe_call(read_agents_active_resource)
+
+    @server.resource("phios://agents/{run_id}", mime_type="application/json")
+    def resource_agent_run(run_id: str) -> dict[str, object]:
+        return _safe_call(read_agent_run_resource, run_id)
+
+    @server.resource("phios://agents/{run_id}/events", mime_type="application/json")
+    def resource_agent_run_events(run_id: str) -> dict[str, object]:
+        return _safe_call(read_agent_run_events_resource, run_id)
+
+    @server.resource("phios://agents/memory/{topic}", mime_type="application/json")
+    def resource_agent_memory_topic(topic: str) -> dict[str, object]:
+        return _safe_call(read_agent_memory_topic_resource, topic)
+
+    @server.resource("phios://agents/memory/{topic}/coherence", mime_type="application/json")
+    def resource_agent_memory_coherence(topic: str) -> dict[str, object]:
+        return _safe_call(read_agent_memory_coherence_resource, topic)
+
+    @server.resource("phios://agents/deliberations/recent", mime_type="application/json")
+    def resource_agent_deliberations_recent(limit: int = 10) -> dict[str, object]:
+        return _safe_call(read_recent_agent_deliberations_resource, limit)
+
+    @server.resource("phios://debates/recent", mime_type="application/json")
+    def resource_debates_recent(limit: int = 10) -> dict[str, object]:
+        return _safe_call(read_debates_recent_resource, limit)
+
+    @server.resource("phios://debates/{session_id}", mime_type="application/json")
+    def resource_debate_session(session_id: str) -> dict[str, object]:
+        return _safe_call(read_debate_session_resource, session_id)
+
     @server.tool(name="phi_status")
     def tool_phi_status() -> dict[str, object]:
         return _safe_call(run_phi_status, kernel_adapter)
+
+    @server.tool(name="phi_recommend_cognitive_arch")
+    def tool_phi_recommend_cognitive_arch() -> dict[str, object]:
+        return _safe_call(run_phi_recommend_cognitive_arch, kernel_adapter)
 
     @server.tool(name="phi_ask")
     def tool_phi_ask(prompt: str) -> dict[str, object]:
@@ -805,6 +885,81 @@ def create_mcp_server(adapter: PhiKernelCLIAdapter | None = None) -> Any:
     @server.tool(name="phi_learning_map_summary")
     def tool_phi_learning_map_summary(include_map_counts: bool = True) -> dict[str, object]:
         return _safe_call(run_phi_learning_map_summary, include_map_counts=include_map_counts)
+
+    @server.tool(name="phi_dispatch_agents")
+    def tool_phi_dispatch_agents(
+        task: str,
+        field_guided: bool = False,
+        dry_run: bool = False,
+        coherence_gate: float | None = None,
+        arch: str | None = None,
+        review_panel: bool = False,
+        stream: bool = False,
+    ) -> dict[str, object]:
+        return _safe_call(
+            run_phi_dispatch_agents,
+            kernel_adapter,
+            task=task,
+            field_guided=field_guided,
+            dry_run=dry_run,
+            coherence_gate=coherence_gate,
+            arch=arch,
+            review_panel=review_panel,
+            stream=stream,
+        )
+
+    @server.tool(name="phi_list_agents")
+    def tool_phi_list_agents() -> dict[str, object]:
+        return _safe_call(run_phi_list_agents)
+
+    @server.tool(name="phi_agent_status")
+    def tool_phi_agent_status(run_id: str) -> dict[str, object]:
+        return _safe_call(run_phi_agent_status, run_id=run_id)
+
+    @server.tool(name="phi_kill_agent")
+    def tool_phi_kill_agent(run_id: str) -> dict[str, object]:
+        return _safe_call(run_phi_kill_agent, run_id=run_id)
+
+    @server.tool(name="phi_store_deliberation")
+    def tool_phi_store_deliberation(
+        topic: str,
+        positions: list[dict[str, object]],
+        outcome: str,
+        winning_figure: str,
+        coherence_trace: list[float],
+        tags: list[str] | None = None,
+        run_id: str | None = None,
+        recommendation: dict[str, object] | None = None,
+    ) -> dict[str, object]:
+        return _safe_call(
+            phi_store_deliberation,
+            topic=topic,
+            positions=positions,
+            outcome=outcome,
+            winning_figure=winning_figure,
+            coherence_trace=coherence_trace,
+            tags=tags,
+            run_id=run_id,
+            recommendation=recommendation,
+        )
+
+    @server.tool(name="phi_debate_coherence_gate")
+    def tool_phi_debate_coherence_gate(
+        session_id: str,
+        round: int,
+        positions: list[dict[str, object]],
+        threshold: float | None = None,
+        persist: bool = False,
+    ) -> dict[str, object]:
+        return _safe_call(
+            phi_debate_coherence_gate,
+            kernel_adapter,
+            session_id=session_id,
+            round=round,
+            positions=positions,
+            threshold=threshold,
+            persist=persist,
+        )
 
     @server.prompt(name="field_guidance")
     def prompt_field_guidance() -> str:
