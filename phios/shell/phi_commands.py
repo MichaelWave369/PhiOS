@@ -76,6 +76,11 @@ from phios.services.debate_arena import (
     evaluate_debate_coherence_gate,
     persist_debate_outcome,
 )
+from phios.services.review_gate import (
+    build_review_context,
+    evaluate_review_coherence_gate,
+    persist_review_outcome,
+)
 from phios.services.visualizer import (
     VALID_LENSES,
     VALID_PRESETS,
@@ -406,6 +411,7 @@ def cmd_help(_: list[str], session: object | None = None) -> str:
             "  agents [list|status <id>|kill <id> --yes|log <id>]",
             "  recommend-arch [--json]      Show field-guided cognitive architecture recommendation",
             "  debate gate --session-id <id> --round <n> --positions <json> [--threshold <float>] [--persist] [--json]",
+            "  review gate --round <n> --reviewer-grades <json> --reviewer-critiques <json> [--panel-id <id>] [--pr-number <n>] [--mediator-summary <text>] [--persist] [--json]",
             "  exit                        Exit REPL",
         ]
     )
@@ -2891,6 +2897,90 @@ def cmd_debate(args: list[str], session: object | None = None) -> str:
     )
 
 
+def cmd_review(args: list[str], session: object | None = None) -> str:
+    action = args[0] if args else "gate"
+    if action != "gate":
+        return "Usage: review gate --round <n> --reviewer-grades <json> --reviewer-critiques <json> [--panel-id <id>] [--pr-number <n>] [--mediator-summary <text>] [--persist] [--json]"
+
+    round_raw = _arg_value(args, "--round") or "1"
+    grades_raw = _arg_value(args, "--reviewer-grades") or "[]"
+    critiques_raw = _arg_value(args, "--reviewer-critiques") or "[]"
+    panel_id = _arg_value(args, "--panel-id") or "default"
+    pr_raw = _arg_value(args, "--pr-number")
+    mediator_summary = _arg_value(args, "--mediator-summary")
+    persist = "--persist" in args
+
+    try:
+        round_idx = int(round_raw)
+    except ValueError:
+        return "--round must be an integer"
+
+    try:
+        grades_obj = json.loads(grades_raw)
+    except Exception:
+        return "--reviewer-grades must be valid JSON list"
+    try:
+        critiques_obj = json.loads(critiques_raw)
+    except Exception:
+        return "--reviewer-critiques must be valid JSON list"
+
+    if not isinstance(grades_obj, list):
+        return "--reviewer-grades must be JSON list"
+    if not isinstance(critiques_obj, list):
+        return "--reviewer-critiques must be JSON list"
+
+    pr_number = None
+    if pr_raw is not None:
+        try:
+            pr_number = int(pr_raw)
+        except ValueError:
+            return "--pr-number must be an integer"
+
+    adapter = PhiKernelCLIAdapter()
+    grades = [g for g in grades_obj if isinstance(g, dict)]
+    critiques = [str(c) for c in critiques_obj if isinstance(c, str)]
+    context = build_review_context(
+        adapter=adapter,
+        round_index=round_idx,
+        reviewer_grades=grades,
+        reviewer_critiques=critiques,
+        panel_id=panel_id,
+        pr_number=pr_number,
+    )
+    result = evaluate_review_coherence_gate(context)
+    payload: dict[str, object] = {
+        "ok": True,
+        "panel_id": panel_id,
+        "pr_number": pr_number,
+        "result": result,
+        "grade_summary": context.get("grade_summary", {}),
+        "experimental": True,
+    }
+    if persist:
+        payload["persistence"] = persist_review_outcome(
+            panel_id=panel_id,
+            pr_number=pr_number,
+            gate_result=result,
+            reviewer_grades=grades,
+            reviewer_critiques=critiques,
+            mediator_summary=mediator_summary,
+        )
+
+    if "--json" in args:
+        return json.dumps(payload, indent=2)
+
+    return "\n".join(
+        [
+            "Review coherence gate",
+            f"panel: {panel_id}",
+            f"round: {result.get('round', round_idx)}",
+            f"action: {result.get('action', 'continue')}",
+            f"coherence: {float(result.get('coherence', 0.0)):.3f}",
+            f"reason: {result.get('reason', '')}",
+        ]
+    )
+
+
 def cmd_dashboard(args: list[str], session: object | None = None) -> str:
     PhiDashboard(announcer=NETWORK_ANNOUNCER, discovery=NETWORK_DISCOVERY).run()
     return "Dashboard closed"
@@ -3119,5 +3209,6 @@ COMMANDS: dict[str, CommandHandler] = {
     "agents": cmd_agents,
     "recommend-arch": cmd_recommend_arch,
     "debate": cmd_debate,
+    "review": cmd_review,
     "build": cmd_build,
 }

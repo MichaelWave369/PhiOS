@@ -175,6 +175,8 @@ Resources:
 - `phios://agents/deliberations/recent`
 - `phios://debates/recent`
 - `phios://debates/{session_id}`
+- `phios://reviews/recent`
+- `phios://reviews/{panel_id}`
 
 Tools:
 - `phi_status`
@@ -204,6 +206,7 @@ Tools:
 - `phi_kill_agent`
 - `phi_store_deliberation`
 - `phi_debate_coherence_gate`
+- `phi_review_coherence_gate`
 
 Prompt:
 - `field_guidance`
@@ -285,6 +288,19 @@ Phase 17 additions (Issue #76 field-guided cognitive architecture selection):
   - `AC_PHIOS_FIELD_WEIGHT`
 
 Phase 18 additions (Issue #77 observatory-backed agent long-term memory):
+- New read-only MCP memory resources:
+  - `phios://agents/memory/{topic}`
+  - `phios://agents/memory/{topic}/coherence`
+  - `phios://agents/deliberations/recent`
+- New MCP write-like tool (capability-gated): `phi_store_deliberation`.
+- New shell memory read/write surfaces:
+  - `phi memory topic <topic>`
+  - `phi memory coherence <topic>`
+  - `phi memory recent`
+  - `phi memory store <topic> ... --yes` (gated)
+- Storage model is local-first and observatory-backed via narrative artifacts (`~/.phios/journal/visual_bloom/narratives/agent_memory_<topic>.json`) with additive `agent_deliberations` entries.
+- This is additive experimental archive memory, not a truth-layer mutation; PhiKernel remains source of truth.
+
 Phase 19 additions (Issue #75 cognitive debate arena coherence gate):
 - New MCP debate gate tool: `phi_debate_coherence_gate(session_id, round, positions, threshold, persist)`.
 - New read-only MCP debate resources:
@@ -299,20 +315,19 @@ Phase 19 additions (Issue #75 cognitive debate arena coherence gate):
 - Optional additive observatory persistence (`--persist` / tool `persist=true`) stores debate outcome, dissent, and coherence trace in agent memory narratives.
 - This remains additive/experimental and non-truth-bearing; PhiKernel remains source of truth.
 
-- New read-only MCP memory resources:
-  - `phios://agents/memory/{topic}`
-  - `phios://agents/memory/{topic}/coherence`
-  - `phios://agents/deliberations/recent`
-- `phios://debates/recent`
-- `phios://debates/{session_id}`
-- New MCP write-like tool (capability-gated): `phi_store_deliberation`.
-- New shell memory read/write surfaces:
-  - `phi memory topic <topic>`
-  - `phi memory coherence <topic>`
-  - `phi memory recent`
-  - `phi memory store <topic> ... --yes` (gated)
-- Storage model is local-first and observatory-backed via narrative artifacts (`~/.phios/journal/visual_bloom/narratives/agent_memory_<topic>.json`) with additive `agent_deliberations` entries.
-- This is additive experimental archive memory, not a truth-layer mutation; PhiKernel remains source of truth.
+Phase 20 additions (Issue #78 adversarial architecture review coherence gate):
+- New MCP tool: `phi_review_coherence_gate(round, reviewer_grades, reviewer_critiques, pr_number, panel_id, mediator_summary, persist)`.
+- New read-only MCP resources:
+  - `phios://reviews/recent`
+  - `phios://reviews/{panel_id}`
+- New shell command:
+  - `phi review gate --round <n> --reviewer-grades <json> --reviewer-critiques <json> [--panel-id <id>] [--pr-number <n>] [--mediator-summary <text>] [--persist] [--json]`
+- Deterministic gate semantics:
+  - `converged` when coherence is strong and grade spread is narrow
+  - `mediate` when disagreement/critique pressure remains high (or coherence plateaus with unresolved spread)
+  - `continue` otherwise
+- Optional persistence (`persist`) writes additive review outcomes/dissent/coherence traces into existing observatory-backed agent-memory narratives.
+- This is additive and experimental; PhiKernel remains source of truth and coherence is used as an oracle signal only.
 
 Phase 11 additions:
 - Stable capstone/collection-family rollups under `phios://capstones/*` for syllabi, atlas cohorts, field-library families, dossier families, and storyboard families.

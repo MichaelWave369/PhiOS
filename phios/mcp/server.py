@@ -116,6 +116,10 @@ from phios.mcp.resources.sessions import (
     read_sessions_recent_reports_resource,
 )
 from phios.mcp.resources.status import read_system_status_resource
+from phios.mcp.resources.reviews import (
+    read_review_panel_resource,
+    read_reviews_recent_resource,
+)
 from phios.mcp.tools.agent_memory import phi_store_deliberation
 from phios.mcp.tools.agents import (
     run_phi_agent_status,
@@ -127,6 +131,7 @@ from phios.mcp.tools.ask import run_phi_ask
 from phios.mcp.tools.cognitive_arch import run_phi_recommend_cognitive_arch
 from phios.mcp.tools.discovery import run_phi_discovery, run_phi_discovery_dashboard_summary, run_phi_navigation_console_summary
 from phios.mcp.tools.debate import phi_debate_coherence_gate
+from phios.mcp.tools.review import phi_review_coherence_gate
 from phios.mcp.tools.observatory import (
     run_phi_atlas_summary,
     run_phi_library_summary,
@@ -264,6 +269,8 @@ def mcp_surface_registry() -> McpSurfaceRegistry:
             "phios://agents/deliberations/recent",
             "phios://debates/recent",
             "phios://debates/{session_id}",
+            "phios://reviews/recent",
+            "phios://reviews/{panel_id}",
         ),
         tools=(
             "phi_status",
@@ -293,6 +300,7 @@ def mcp_surface_registry() -> McpSurfaceRegistry:
             "phi_kill_agent",
             "phi_store_deliberation",
             "phi_debate_coherence_gate",
+            "phi_review_coherence_gate",
         ),
         prompts=("field_guidance",),
     )
@@ -735,6 +743,14 @@ def create_mcp_server(adapter: PhiKernelCLIAdapter | None = None) -> Any:
     def resource_debate_session(session_id: str) -> dict[str, object]:
         return _safe_call(read_debate_session_resource, session_id)
 
+    @server.resource("phios://reviews/recent", mime_type="application/json")
+    def resource_reviews_recent(limit: int = 10) -> dict[str, object]:
+        return _safe_call(read_reviews_recent_resource, limit)
+
+    @server.resource("phios://reviews/{panel_id}", mime_type="application/json")
+    def resource_review_panel(panel_id: str, pr_number: int | None = None) -> dict[str, object]:
+        return _safe_call(read_review_panel_resource, panel_id, pr_number)
+
     @server.tool(name="phi_status")
     def tool_phi_status() -> dict[str, object]:
         return _safe_call(run_phi_status, kernel_adapter)
@@ -958,6 +974,28 @@ def create_mcp_server(adapter: PhiKernelCLIAdapter | None = None) -> Any:
             round=round,
             positions=positions,
             threshold=threshold,
+            persist=persist,
+        )
+
+    @server.tool(name="phi_review_coherence_gate")
+    def tool_phi_review_coherence_gate(
+        round: int,
+        reviewer_grades: list[dict[str, object]],
+        reviewer_critiques: list[str],
+        pr_number: int | None = None,
+        panel_id: str = "default",
+        mediator_summary: str | None = None,
+        persist: bool = False,
+    ) -> dict[str, object]:
+        return _safe_call(
+            phi_review_coherence_gate,
+            kernel_adapter,
+            round=round,
+            reviewer_grades=reviewer_grades,
+            reviewer_critiques=reviewer_critiques,
+            pr_number=pr_number,
+            panel_id=panel_id,
+            mediator_summary=mediator_summary,
             persist=persist,
         )
 

@@ -106,6 +106,10 @@ from .sessions import (
     read_sessions_recent_reports_resource,
 )
 from .status import read_system_status_resource
+from .reviews import (
+    read_review_panel_resource,
+    read_reviews_recent_resource,
+)
 
 __all__ = [
     "read_field_state_resource",
@@ -191,4 +195,6 @@ __all__ = [
     "read_recent_agent_deliberations_resource",
     "read_debates_recent_resource",
     "read_debate_session_resource",
+    "read_reviews_recent_resource",
+    "read_review_panel_resource",
 ]

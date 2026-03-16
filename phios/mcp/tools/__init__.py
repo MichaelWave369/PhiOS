@@ -4,6 +4,7 @@ from .ask import run_phi_ask
 from .agent_memory import phi_store_deliberation
 from .cognitive_arch import run_phi_recommend_cognitive_arch
 from .debate import phi_debate_coherence_gate
+from .review import phi_review_coherence_gate
 from .agents import (
     run_phi_agent_status,
     run_phi_dispatch_agents,
@@ -64,4 +65,5 @@ __all__ = [
     "run_phi_recommend_cognitive_arch",
     "phi_store_deliberation",
     "phi_debate_coherence_gate",
+    "phi_review_coherence_gate",
 ]
