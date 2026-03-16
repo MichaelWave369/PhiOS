@@ -129,6 +129,13 @@ Resources:
 - `phios://maps/capstones`
 - `phios://maps/programs`
 - `phios://maps/collections`
+- `phios://dashboards/discovery`
+- `phios://dashboards/archive`
+- `phios://dashboards/learning`
+- `phios://dashboards/capstones`
+- `phios://families/overview`
+- `phios://families/learning`
+- `phios://families/capstones`
 - `phios://browse/observatory_families`
 - `phios://browse/learning_families`
 - `phios://browse/collection_families`
@@ -163,6 +170,7 @@ Tools:
 - `phi_storyboard_summary`
 - `phi_atlas_summary`
 - `phi_discovery`
+- `phi_discovery_dashboard_summary`
 - `phi_browse_observatory`
 - `phi_archive_summary`
 - `phi_session_summary`
@@ -249,6 +257,15 @@ Phase 13 additions:
 - Discovery now includes cross-catalog/learning-map visibility (`learning_maps`, `archive_family_groups`, `cross_catalog_groups`, `map_surface_counts`) plus grouped counts for easier deterministic client routing.
 - Broader runtime-gated Phase 13 client-path hook added for discovery → family browse → rollup/catalog/map reads → session/archive reads → bounded summary flow expansion when SDK runtime allows.
 - All map/browse/summary surfaces are additive and non-truth-bearing; PhiKernel remains source of truth.
+
+
+Phase 14 additions:
+- Stable archive-wide dashboard resources under `phios://dashboards/*` (`discovery`, `archive`, `learning`, `capstones`) with deterministic read-only metadata summaries.
+- Stable family navigation resources under `phios://families/*` (`overview`, `learning`, `capstones`) for cross-surface relationship orientation across collections/programs/capstones/catalogs/maps.
+- New bounded read-only synthesis tool `phi_discovery_dashboard_summary` for dashboard/family synthesis from existing MCP metadata only.
+- Discovery now includes dashboard/family visibility fields (`dashboard_resources`, `family_resources`, `family_navigation_groups`, `dashboard_surface_counts`) for easier client routing.
+- Runtime-gated SDK-backed client harness coverage is expanded toward discovery → family browse → rollup → catalog → map → dashboard → session/archive → bounded summary flow, with pulse deny posture assertions where runtime support is available.
+- All dashboard/browse/summary surfaces remain additive and non-truth-bearing; PhiKernel remains source of truth.
 
 Framing discipline is preserved in MCP outputs and prompts:
 - `C*` is treated as theoretical.

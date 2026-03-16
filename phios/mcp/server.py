@@ -42,6 +42,17 @@ from phios.mcp.resources.collections import (
     read_study_halls_rollup_resource,
 )
 from phios.mcp.resources.discovery import read_mcp_discovery_resource
+from phios.mcp.resources.dashboards import (
+    read_dashboards_archive_resource,
+    read_dashboards_capstones_resource,
+    read_dashboards_discovery_resource,
+    read_dashboards_learning_resource,
+)
+from phios.mcp.resources.families import (
+    read_families_capstones_resource,
+    read_families_learning_resource,
+    read_families_overview_resource,
+)
 from phios.mcp.resources.field_state import read_field_state_resource
 from phios.mcp.resources.history import (
     read_recent_capsules_resource,
@@ -82,7 +93,7 @@ from phios.mcp.resources.sessions import (
 )
 from phios.mcp.resources.status import read_system_status_resource
 from phios.mcp.tools.ask import run_phi_ask
-from phios.mcp.tools.discovery import run_phi_discovery
+from phios.mcp.tools.discovery import run_phi_discovery, run_phi_discovery_dashboard_summary
 from phios.mcp.tools.observatory import (
     run_phi_atlas_summary,
     run_phi_library_summary,
@@ -188,6 +199,13 @@ def mcp_surface_registry() -> McpSurfaceRegistry:
             "phios://maps/capstones",
             "phios://maps/programs",
             "phios://maps/collections",
+            "phios://dashboards/discovery",
+            "phios://dashboards/archive",
+            "phios://dashboards/learning",
+            "phios://dashboards/capstones",
+            "phios://families/overview",
+            "phios://families/learning",
+            "phios://families/capstones",
             "phios://browse/archive_groups",
             "phios://browse/learning_maps",
             "phios://browse/cross_catalog",
@@ -208,6 +226,7 @@ def mcp_surface_registry() -> McpSurfaceRegistry:
             "phi_storyboard_summary",
             "phi_atlas_summary",
             "phi_discovery",
+            "phi_discovery_dashboard_summary",
             "phi_browse_observatory",
             "phi_session_summary",
             "phi_archive_summary",
@@ -567,6 +586,34 @@ def create_mcp_server(adapter: PhiKernelCLIAdapter | None = None) -> Any:
     def resource_map_collections() -> dict[str, object]:
         return _safe_call(read_collections_map_resource)
 
+    @server.resource("phios://dashboards/discovery", mime_type="application/json")
+    def resource_dashboards_discovery() -> dict[str, object]:
+        return _safe_call(read_dashboards_discovery_resource, mcp_surface_registry())
+
+    @server.resource("phios://dashboards/archive", mime_type="application/json")
+    def resource_dashboards_archive() -> dict[str, object]:
+        return _safe_call(read_dashboards_archive_resource)
+
+    @server.resource("phios://dashboards/learning", mime_type="application/json")
+    def resource_dashboards_learning() -> dict[str, object]:
+        return _safe_call(read_dashboards_learning_resource)
+
+    @server.resource("phios://dashboards/capstones", mime_type="application/json")
+    def resource_dashboards_capstones() -> dict[str, object]:
+        return _safe_call(read_dashboards_capstones_resource)
+
+    @server.resource("phios://families/overview", mime_type="application/json")
+    def resource_families_overview() -> dict[str, object]:
+        return _safe_call(read_families_overview_resource)
+
+    @server.resource("phios://families/learning", mime_type="application/json")
+    def resource_families_learning() -> dict[str, object]:
+        return _safe_call(read_families_learning_resource)
+
+    @server.resource("phios://families/capstones", mime_type="application/json")
+    def resource_families_capstones() -> dict[str, object]:
+        return _safe_call(read_families_capstones_resource)
+
     @server.tool(name="phi_status")
     def tool_phi_status() -> dict[str, object]:
         return _safe_call(run_phi_status, kernel_adapter)
@@ -611,6 +658,20 @@ def create_mcp_server(adapter: PhiKernelCLIAdapter | None = None) -> Any:
     @server.tool(name="phi_discovery")
     def tool_phi_discovery() -> dict[str, object]:
         return _safe_call(run_phi_discovery, mcp_surface_registry())
+
+    @server.tool(name="phi_discovery_dashboard_summary")
+    def tool_phi_discovery_dashboard_summary(
+        dashboard: str = "discovery",
+        include_dashboard_counts: bool = True,
+        include_family_counts: bool = True,
+    ) -> dict[str, object]:
+        return _safe_call(
+            run_phi_discovery_dashboard_summary,
+            mcp_surface_registry(),
+            dashboard=dashboard,
+            include_dashboard_counts=include_dashboard_counts,
+            include_family_counts=include_family_counts,
+        )
 
     @server.tool(name="phi_browse_observatory")
     def tool_phi_browse_observatory(
