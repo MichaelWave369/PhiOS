@@ -1,4 +1,4 @@
-"""Read-only MCP resources for PhiOS Phase 1/2/3/4/5/6/7."""
+"""Read-only MCP resources for PhiOS Phase 1/2/3/4/5/6/7/8."""
 
 from .archive import (
     read_archive_atlas_index_resource,
@@ -8,6 +8,7 @@ from .archive import (
     read_archive_pathways_index_resource,
     read_archive_route_compares_index_resource,
 )
+from .browse import read_browse_preset_resource
 from .coherence_lt import read_coherence_lt_resource
 from .discovery import read_mcp_discovery_resource
 from .field_state import read_field_state_resource
@@ -66,4 +67,5 @@ __all__ = [
     "read_archive_curricula_index_resource",
     "read_archive_journey_ensembles_index_resource",
     "read_mcp_discovery_resource",
+    "read_browse_preset_resource",
 ]

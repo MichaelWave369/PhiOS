@@ -1,4 +1,4 @@
-"""MCP tools for PhiOS Phase 1-7."""
+"""MCP tools for PhiOS Phase 1-8."""
 
 from .ask import run_phi_ask
 from .discovery import run_phi_discovery

@@ -1,4 +1,4 @@
-"""Read-safe observatory summary MCP tools (Phase 4/5)."""
+"""Read-safe observatory summary MCP tools (Phase 4/5/6/7/8)."""
 
 from __future__ import annotations
 
@@ -215,41 +215,91 @@ def run_phi_atlas_summary() -> dict[str, object]:
 
 
 
-def run_phi_browse_observatory() -> dict[str, object]:
+def run_phi_browse_observatory(
+    *,
+    preset: str = "overview",
+    artifact_family: str | None = None,
+    limit: int = 20,
+    include_counts: bool = True,
+    include_rollups: bool = True,
+) -> dict[str, object]:
     """Browse richer observatory index surfaces in one bounded response."""
 
     decision = is_capability_allowed(CAP_READ_OBSERVATORY)
     if not decision.allowed:
         return _gated_denial(decision, "BROWSE_OBSERVATORY_NOT_PERMITTED")
 
-    storyboards = read_observatory_storyboards_index_resource(limit=20)
-    dossiers = read_observatory_dossiers_index_resource(limit=20)
-    libraries = read_observatory_field_libraries_index_resource(limit=20)
-    shelves = read_observatory_shelves_index_resource(limit=20)
-    reading_rooms = read_observatory_reading_rooms_index_resource(limit=20)
-    study_halls = read_observatory_study_halls_index_resource(limit=20)
+    safe_limit = max(0, int(limit))
+    storyboards = read_observatory_storyboards_index_resource(limit=safe_limit)
+    dossiers = read_observatory_dossiers_index_resource(limit=safe_limit)
+    libraries = read_observatory_field_libraries_index_resource(limit=safe_limit)
+    shelves = read_observatory_shelves_index_resource(limit=safe_limit)
+    reading_rooms = read_observatory_reading_rooms_index_resource(limit=safe_limit)
+    study_halls = read_observatory_study_halls_index_resource(limit=safe_limit)
 
-    return with_tool_schema(
-        {
-            "ok": True,
-            "allowed": decision.allowed,
-            "reason": decision.reason,
-            "capability_scope": decision.capability_scope,
-            "policy_source": decision.policy_source,
-            "generated_at": _utc_now_iso(),
-            "summary": {
-                "storyboards": storyboards.get("count", 0) if isinstance(storyboards, dict) else 0,
-                "dossiers": dossiers.get("count", 0) if isinstance(dossiers, dict) else 0,
-                "field_libraries": libraries.get("count", 0) if isinstance(libraries, dict) else 0,
-                "shelves": shelves.get("count", 0) if isinstance(shelves, dict) else 0,
-                "reading_rooms": reading_rooms.get("count", 0) if isinstance(reading_rooms, dict) else 0,
-                "study_halls": study_halls.get("count", 0) if isinstance(study_halls, dict) else 0,
-            },
-            "storyboards_index": storyboards,
-            "dossiers_index": dossiers,
+    views: dict[str, object] = {
+        "storyboards_index": storyboards,
+        "dossiers_index": dossiers,
+        "field_libraries_index": libraries,
+        "shelves_index": shelves,
+        "reading_rooms_index": reading_rooms,
+        "study_halls_index": study_halls,
+    }
+
+    preset_norm = (preset or "").strip().lower() or "overview"
+    if preset_norm == "libraries":
+        views = {
             "field_libraries_index": libraries,
             "shelves_index": shelves,
             "reading_rooms_index": reading_rooms,
-            "study_halls_index": study_halls,
         }
-    )
+    elif preset_norm == "learning":
+        views = {
+            "storyboards_index": storyboards,
+            "study_halls_index": study_halls,
+            "dossiers_index": dossiers,
+        }
+    elif preset_norm == "recent":
+        views = {
+            "storyboards_index": storyboards,
+            "dossiers_index": dossiers,
+        }
+
+    if artifact_family:
+        fam = artifact_family.strip().lower()
+        views = {k: v for k, v in views.items() if fam in k}
+
+    summary = {
+        "storyboards": storyboards.get("count", 0) if isinstance(storyboards, dict) else 0,
+        "dossiers": dossiers.get("count", 0) if isinstance(dossiers, dict) else 0,
+        "field_libraries": libraries.get("count", 0) if isinstance(libraries, dict) else 0,
+        "shelves": shelves.get("count", 0) if isinstance(shelves, dict) else 0,
+        "reading_rooms": reading_rooms.get("count", 0) if isinstance(reading_rooms, dict) else 0,
+        "study_halls": study_halls.get("count", 0) if isinstance(study_halls, dict) else 0,
+    }
+
+    payload: dict[str, object] = {
+        "ok": True,
+        "allowed": decision.allowed,
+        "reason": decision.reason,
+        "capability_scope": decision.capability_scope,
+        "policy_source": decision.policy_source,
+        "generated_at": _utc_now_iso(),
+        "preset": preset_norm,
+        "artifact_family": artifact_family or "",
+        "limit": safe_limit,
+        "views": views,
+    }
+    if include_counts:
+        payload["summary"] = summary
+    if include_rollups:
+        payload["rollups"] = {
+            "family_counts": {
+                "narrative": summary["storyboards"] + summary["dossiers"],
+                "library": summary["field_libraries"] + summary["shelves"] + summary["reading_rooms"],
+                "learning": summary["study_halls"],
+            }
+        }
+
+    return with_tool_schema(payload)
+

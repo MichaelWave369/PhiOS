@@ -92,6 +92,13 @@ Resources:
 - `phios://observatory/dossiers/index`
 - `phios://observatory/storyboards/index`
 - `phios://archive/journey_ensembles/index`
+- `phios://browse/libraries`
+- `phios://browse/learning`
+- `phios://browse/archive`
+- `phios://browse/sessions`
+- `phios://browse/observatory`
+- `phios://browse/recent`
+- `phios://browse/overview`
 - `phios://archive/curricula/index`
 - `phios://archive/longitudinal/index`
 - `phios://archive/route_compares/index`
@@ -148,6 +155,12 @@ Phase 7 additions:
 - Richer archive browsing resources for pathways/atlas/route-compares/longitudinal/curricula/journey-ensembles.
 - New read-safe synthesis tools: `phi_session_summary` and `phi_archive_summary`.
 - Deeper runtime-gated client integration prep coverage for session/archive discovery→resource→tool paths where SDK runtime is available.
+
+Phase 8 additions:
+- Stable deterministic browse presets (`overview`, `recent`, `observatory`, `sessions`, `archive`, `learning`, `libraries`) exposed in discovery metadata and read-only browse resources.
+- Richer archive navigation rollups in `phi_archive_summary` and grouped discovery fields (`browse_presets`, `resource_groups`, `tool_groups`, `archive_rollups`).
+- Preset-aware browse/summary parameters for deterministic client browsing (`preset`, `artifact_family`, `limit`, `include_counts`, `include_rollups`).
+- Deeper runtime-gated client integration prep notes for discovery → preset browse → resource read → tool invoke flows when SDK runtime is available.
 
 Framing discipline is preserved in MCP outputs and prompts:
 - `C*` is treated as theoretical.

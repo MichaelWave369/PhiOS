@@ -1,4 +1,4 @@
-"""PhiOS MCP server (Phase 1-7).
+"""PhiOS MCP server (Phase 1-8).
 
 This module provides a stable stdio MCP server surface over existing PhiOS services.
 """
@@ -18,6 +18,7 @@ from phios.mcp.resources.archive import (
     read_archive_pathways_index_resource,
     read_archive_route_compares_index_resource,
 )
+from phios.mcp.resources.browse import read_browse_preset_resource
 from phios.mcp.resources.coherence_lt import read_coherence_lt_resource
 from phios.mcp.resources.discovery import read_mcp_discovery_resource
 from phios.mcp.resources.field_state import read_field_state_resource
@@ -101,6 +102,13 @@ def mcp_surface_registry() -> McpSurfaceRegistry:
             "phios://archive/longitudinal/index",
             "phios://archive/curricula/index",
             "phios://archive/journey_ensembles/index",
+            "phios://browse/overview",
+            "phios://browse/recent",
+            "phios://browse/observatory",
+            "phios://browse/sessions",
+            "phios://browse/archive",
+            "phios://browse/learning",
+            "phios://browse/libraries",
         ),
         tools=(
             "phi_status",
@@ -255,6 +263,34 @@ def create_mcp_server(adapter: PhiKernelCLIAdapter | None = None) -> Any:
     def resource_archive_journey_ensembles_index() -> dict[str, object]:
         return _safe_call(read_archive_journey_ensembles_index_resource)
 
+    @server.resource("phios://browse/overview", mime_type="application/json")
+    def resource_browse_overview() -> dict[str, object]:
+        return _safe_call(read_browse_preset_resource, "overview")
+
+    @server.resource("phios://browse/recent", mime_type="application/json")
+    def resource_browse_recent() -> dict[str, object]:
+        return _safe_call(read_browse_preset_resource, "recent")
+
+    @server.resource("phios://browse/observatory", mime_type="application/json")
+    def resource_browse_observatory() -> dict[str, object]:
+        return _safe_call(read_browse_preset_resource, "observatory")
+
+    @server.resource("phios://browse/sessions", mime_type="application/json")
+    def resource_browse_sessions() -> dict[str, object]:
+        return _safe_call(read_browse_preset_resource, "sessions")
+
+    @server.resource("phios://browse/archive", mime_type="application/json")
+    def resource_browse_archive() -> dict[str, object]:
+        return _safe_call(read_browse_preset_resource, "archive")
+
+    @server.resource("phios://browse/learning", mime_type="application/json")
+    def resource_browse_learning() -> dict[str, object]:
+        return _safe_call(read_browse_preset_resource, "learning")
+
+    @server.resource("phios://browse/libraries", mime_type="application/json")
+    def resource_browse_libraries() -> dict[str, object]:
+        return _safe_call(read_browse_preset_resource, "libraries")
+
     @server.tool(name="phi_status")
     def tool_phi_status() -> dict[str, object]:
         return _safe_call(run_phi_status, kernel_adapter)
@@ -301,16 +337,38 @@ def create_mcp_server(adapter: PhiKernelCLIAdapter | None = None) -> Any:
         return _safe_call(run_phi_discovery, mcp_surface_registry())
 
     @server.tool(name="phi_browse_observatory")
-    def tool_phi_browse_observatory() -> dict[str, object]:
-        return _safe_call(run_phi_browse_observatory)
+    def tool_phi_browse_observatory(
+        preset: str = "overview",
+        artifact_family: str | None = None,
+        limit: int = 20,
+        include_counts: bool = True,
+        include_rollups: bool = True,
+    ) -> dict[str, object]:
+        return _safe_call(
+            run_phi_browse_observatory,
+            preset=preset,
+            artifact_family=artifact_family,
+            limit=limit,
+            include_counts=include_counts,
+            include_rollups=include_rollups,
+        )
 
     @server.tool(name="phi_session_summary")
     def tool_phi_session_summary() -> dict[str, object]:
         return _safe_call(run_phi_session_summary, kernel_adapter)
 
     @server.tool(name="phi_archive_summary")
-    def tool_phi_archive_summary() -> dict[str, object]:
-        return _safe_call(run_phi_archive_summary)
+    def tool_phi_archive_summary(
+        preset: str = "overview",
+        limit: int = 10,
+        include_rollups: bool = True,
+    ) -> dict[str, object]:
+        return _safe_call(
+            run_phi_archive_summary,
+            preset=preset,
+            limit=limit,
+            include_rollups=include_rollups,
+        )
 
     @server.prompt(name="field_guidance")
     def prompt_field_guidance() -> str:
