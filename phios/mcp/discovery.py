@@ -81,6 +81,29 @@ def list_mcp_browse_families(registry: object) -> list[str]:
 def list_mcp_learning_maps(registry: object) -> list[str]:
     return [uri for uri in list_mcp_resources(registry) if uri.startswith("phios://maps/")]
 
+def list_mcp_dashboard_resources(registry: object) -> list[str]:
+    return [uri for uri in list_mcp_resources(registry) if uri.startswith("phios://dashboards/")]
+
+
+def list_mcp_family_resources(registry: object) -> list[str]:
+    return [uri for uri in list_mcp_resources(registry) if uri.startswith("phios://families/")]
+
+
+def list_mcp_dashboard_resources(registry: object) -> list[str]:
+    return [uri for uri in list_mcp_resources(registry) if uri.startswith("phios://dashboards/")]
+
+
+def list_mcp_family_resources(registry: object) -> list[str]:
+    return [uri for uri in list_mcp_resources(registry) if uri.startswith("phios://families/")]
+
+
+def list_mcp_console_resources(registry: object) -> list[str]:
+    return [uri for uri in list_mcp_resources(registry) if uri.startswith("phios://consoles/")]
+
+
+def list_mcp_family_dashboard_resources(registry: object) -> list[str]:
+    return [uri for uri in list_mcp_family_resources(registry) if "/dashboard_" in uri]
+
 
 def list_mcp_dashboard_resources(registry: object) -> list[str]:
     return [uri for uri in list_mcp_resources(registry) if uri.startswith("phios://dashboards/")]
