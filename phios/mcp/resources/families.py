@@ -32,6 +32,14 @@ def _as_dict(value: object) -> dict[str, object]:
     return value if isinstance(value, dict) else {}
 
 
+def _as_list(value: object) -> list[object]:
+    return value if isinstance(value, list) else []
+
+
+def _as_str_list(value: object) -> list[str]:
+    return [item for item in _as_list(value) if isinstance(item, str)]
+
+
 def _to_int(value: object, default: int = 0) -> int:
     if isinstance(value, bool):
         return int(value)
@@ -39,17 +47,23 @@ def _to_int(value: object, default: int = 0) -> int:
         return value
     if isinstance(value, float):
         return int(value)
-    try:
-        return int(value)  # type: ignore[arg-type]
-    except (TypeError, ValueError):
-        return default
+    if isinstance(value, (str, bytes, bytearray)):
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            return default
+    return default
+
+
+def _dict_int(mapping: dict[str, object], key: str, default: int = 0) -> int:
+    return _to_int(mapping.get(key, default), default)
 
 
 def _titles(*payloads: dict[str, object]) -> list[str]:
     titles: list[str] = []
     for payload in payloads:
-        for item in _as_dict(payload).get("recent_titles", []):
-            if isinstance(item, str) and item not in titles:
+        for item in _as_str_list(payload.get("recent_titles", [])):
+            if item not in titles:
                 titles.append(item)
     return titles[:8]
 
@@ -76,32 +90,31 @@ def read_families_overview_resource() -> dict[str, object]:
                 "maps": {"learning": learning_map},
             },
             "family_counts": {
-                "learning": len(_as_dict(learning).get("families", [])),
-                "capstones": len(_as_dict(capstones).get("families", [])),
-                "programs": len(_as_dict(programs).get("families", [])),
-                "collections": len(_as_dict(collections).get("families", [])),
+                "learning": len(_as_list(_as_dict(learning).get("families", []))),
+                "capstones": len(_as_list(_as_dict(capstones).get("families", []))),
+                "programs": len(_as_list(_as_dict(programs).get("families", []))),
+                "collections": len(_as_list(_as_dict(collections).get("families", []))),
             },
             "catalog_counts": {
-                "learning": _to_int(_as_dict(learning).get("count")),
-                "capstones": _to_int(_as_dict(capstones).get("count")),
-                "programs": _to_int(_as_dict(programs).get("count")),
-                "collections": _to_int(_as_dict(collections).get("count")),
+                "learning": _dict_int(_as_dict(learning), "count"),
+                "capstones": _dict_int(_as_dict(capstones), "count"),
+                "programs": _dict_int(_as_dict(programs), "count"),
+                "collections": _dict_int(_as_dict(collections), "count"),
             },
-            "map_counts": {"learning": _to_int(_as_dict(learning_map).get("count"))},
-            "recent_titles": _titles(learning, capstones, programs, collections),
+            "map_counts": {"learning": _dict_int(_as_dict(learning_map), "count")},
+            "recent_titles": _titles(_as_dict(learning), _as_dict(capstones), _as_dict(programs), _as_dict(collections)),
             "tag_coverage": sorted(
                 {
                     tag
-                    for payload in (learning, capstones, programs, collections)
-                    for tag in _as_dict(payload).get("tag_coverage", [])
-                    if isinstance(tag, str)
+                    for payload in (_as_dict(learning), _as_dict(capstones), _as_dict(programs), _as_dict(collections))
+                    for tag in _as_str_list(payload.get("tag_coverage", []))
                 }
             ),
             "availability_flags": {
                 "route_available": bool(_as_dict(learning_map).get("route_available")),
                 "longitudinal_available": bool(_as_dict(learning_map).get("longitudinal_available")),
                 "diagnostics_available": bool(_as_dict(learning_map).get("diagnostics_available")),
-                "archive_pathways_available": _to_int(_as_dict(read_archive_pathways_index_resource(limit=1)).get("count")) > 0,
+                "archive_pathways_available": _dict_int(_as_dict(read_archive_pathways_index_resource(limit=1)), "count") > 0,
             },
             "source": "phios.mcp.resources.families.overview",
             "read_only": True,
@@ -118,30 +131,29 @@ def read_families_learning_resource() -> dict[str, object]:
         {
             "generated_at": _utc_now_iso(),
             "family": "learning",
-            "count": _to_int(_as_dict(learning).get("count")),
+            "count": _dict_int(_as_dict(learning), "count"),
             "surface_groups": {
                 "catalogs": {"learning": learning, "programs": programs},
                 "maps": {"learning": learning_map, "programs": programs_map},
             },
             "family_counts": {
-                "learning": len(_as_dict(learning).get("families", [])),
-                "programs": len(_as_dict(programs).get("families", [])),
+                "learning": len(_as_list(_as_dict(learning).get("families", []))),
+                "programs": len(_as_list(_as_dict(programs).get("families", []))),
             },
             "catalog_counts": {
-                "learning": _to_int(_as_dict(learning).get("count")),
-                "programs": _to_int(_as_dict(programs).get("count")),
+                "learning": _dict_int(_as_dict(learning), "count"),
+                "programs": _dict_int(_as_dict(programs), "count"),
             },
             "map_counts": {
-                "learning": _to_int(_as_dict(learning_map).get("count")),
-                "programs": _to_int(_as_dict(programs_map).get("count")),
+                "learning": _dict_int(_as_dict(learning_map), "count"),
+                "programs": _dict_int(_as_dict(programs_map), "count"),
             },
-            "recent_titles": _titles(learning, programs),
+            "recent_titles": _titles(_as_dict(learning), _as_dict(programs)),
             "tag_coverage": sorted(
                 {
                     tag
-                    for payload in (learning, programs)
-                    for tag in _as_dict(payload).get("tag_coverage", [])
-                    if isinstance(tag, str)
+                    for payload in (_as_dict(learning), _as_dict(programs))
+                    for tag in _as_str_list(payload.get("tag_coverage", []))
                 }
             ),
             "availability_flags": {
@@ -162,16 +174,16 @@ def read_families_capstones_resource() -> dict[str, object]:
         {
             "generated_at": _utc_now_iso(),
             "family": "capstones",
-            "count": _to_int(_as_dict(capstones).get("count")),
+            "count": _dict_int(_as_dict(capstones), "count"),
             "surface_groups": {
                 "catalogs": {"capstones": capstones},
                 "maps": {"capstones": capstones_map},
             },
-            "family_counts": {"capstones": len(_as_dict(capstones).get("families", []))},
-            "catalog_counts": {"capstones": _to_int(_as_dict(capstones).get("count"))},
-            "map_counts": {"capstones": _to_int(_as_dict(capstones_map).get("count"))},
-            "recent_titles": _titles(capstones),
-            "tag_coverage": sorted([tag for tag in _as_dict(capstones).get("tag_coverage", []) if isinstance(tag, str)]),
+            "family_counts": {"capstones": len(_as_list(_as_dict(capstones).get("families", [])))},
+            "catalog_counts": {"capstones": _dict_int(_as_dict(capstones), "count")},
+            "map_counts": {"capstones": _dict_int(_as_dict(capstones_map), "count")},
+            "recent_titles": _titles(_as_dict(capstones)),
+            "tag_coverage": sorted(_as_str_list(_as_dict(capstones).get("tag_coverage", []))),
             "availability_flags": {
                 "route_available": bool(_as_dict(capstones_map).get("route_available")),
                 "longitudinal_available": bool(_as_dict(capstones_map).get("longitudinal_available")),
@@ -184,33 +196,35 @@ def read_families_capstones_resource() -> dict[str, object]:
 
 
 def _family_dashboard_payload(*, family_dashboard: str, base_family: dict[str, object], dashboard: dict[str, object], related: dict[str, object]) -> dict[str, object]:
+    base_family_obj = _as_dict(base_family)
+    dashboard_obj = _as_dict(dashboard)
+    related_obj = _as_dict(related)
     return with_resource_schema(
         {
             "generated_at": _utc_now_iso(),
             "family_dashboard": family_dashboard,
-            "count": _to_int(_as_dict(base_family).get("count")),
+            "count": _dict_int(base_family_obj, "count"),
             "surface_groups": {
                 "family": base_family,
                 "dashboard": dashboard,
                 "related": related,
             },
-            "family_counts": _as_dict(base_family).get("family_counts", {}),
-            "catalog_counts": _as_dict(base_family).get("catalog_counts", {}),
-            "map_counts": _as_dict(base_family).get("map_counts", {}),
+            "family_counts": _as_dict(base_family_obj.get("family_counts", {})),
+            "catalog_counts": _as_dict(base_family_obj.get("catalog_counts", {})),
+            "map_counts": _as_dict(base_family_obj.get("map_counts", {})),
             "dashboard_counts": {
-                "selected_dashboard_count": _to_int(_as_dict(dashboard).get("count")),
-                "related_dashboard_count": _to_int(_as_dict(related).get("count")),
+                "selected_dashboard_count": _dict_int(dashboard_obj, "count"),
+                "related_dashboard_count": _dict_int(related_obj, "count"),
             },
-            "recent_titles": _titles(base_family, dashboard),
+            "recent_titles": _titles(base_family_obj, dashboard_obj),
             "tag_coverage": sorted(
                 {
                     tag
-                    for payload in (base_family, dashboard)
-                    for tag in _as_dict(payload).get("tag_coverage", [])
-                    if isinstance(tag, str)
+                    for payload in (base_family_obj, dashboard_obj)
+                    for tag in _as_str_list(payload.get("tag_coverage", []))
                 }
             ),
-            "availability_flags": _as_dict(base_family).get("availability_flags", {}),
+            "availability_flags": _as_dict(base_family_obj.get("availability_flags", {})),
             "source": f"phios.mcp.resources.families.{family_dashboard}",
             "read_only": True,
         }

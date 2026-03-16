@@ -58,6 +58,14 @@ def _as_dict(value: object) -> dict[str, object]:
     return value if isinstance(value, dict) else {}
 
 
+def _as_list(value: object) -> list[object]:
+    return value if isinstance(value, list) else []
+
+
+def _as_str_list(value: object) -> list[str]:
+    return [item for item in _as_list(value) if isinstance(item, str)]
+
+
 def _to_int(value: object, default: int = 0) -> int:
     if isinstance(value, bool):
         return int(value)
@@ -73,16 +81,19 @@ def _to_int(value: object, default: int = 0) -> int:
     return default
 
 
+def _dict_int(mapping: dict[str, object], key: str, default: int = 0) -> int:
+    return _to_int(mapping.get(key, default), default)
+
+
 def _collect_titles_and_tags(*catalogs: dict[str, object]) -> tuple[list[str], list[str]]:
     titles: list[str] = []
     tags: set[str] = set()
     for catalog in catalogs:
-        for title in _as_dict(catalog).get("recent_titles", []):
-            if isinstance(title, str) and title not in titles:
+        for title in _as_str_list(catalog.get("recent_titles", [])):
+            if title not in titles:
                 titles.append(title)
-        for tag in _as_dict(catalog).get("tag_coverage", []):
-            if isinstance(tag, str):
-                tags.add(tag)
+        for tag in _as_str_list(catalog.get("tag_coverage", [])):
+            tags.add(tag)
     return titles[:10], sorted(tags)
 
 
@@ -105,38 +116,43 @@ def _maps() -> dict[str, dict[str, object]]:
 
 
 def read_dashboards_discovery_resource(registry: object) -> dict[str, object]:
-    discovery = build_mcp_discovery_payload(registry)
+    discovery = _as_dict(build_mcp_discovery_payload(registry))
     catalogs = _catalogs()
     maps = _maps()
     titles, tags = _collect_titles_and_tags(*catalogs.values())
+
+    dashboard_resources = _as_list(discovery.get("dashboard_resources", []))
+    family_resources = _as_list(discovery.get("family_resources", []))
+    learning_browse_families = _as_list(discovery.get("learning_browse_families", []))
+    browse_family_groups = _as_dict(discovery.get("browse_family_groups", {}))
 
     return with_resource_schema(
         {
             "generated_at": _utc_now_iso(),
             "dashboard": "discovery",
-            "count": _to_int(discovery.get("resource_counts")),
+            "count": _dict_int(discovery, "resource_counts"),
             "surface_groups": {
-                "browse_resources": _as_dict(discovery).get("browse_resources", []),
-                "catalog_resources": _as_dict(discovery).get("catalog_resources", []),
-                "learning_maps": _as_dict(discovery).get("learning_maps", []),
-                "dashboard_resources": _as_dict(discovery).get("dashboard_resources", []),
-                "family_resources": _as_dict(discovery).get("family_resources", []),
+                "browse_resources": _as_list(discovery.get("browse_resources", [])),
+                "catalog_resources": _as_list(discovery.get("catalog_resources", [])),
+                "learning_maps": _as_list(discovery.get("learning_maps", [])),
+                "dashboard_resources": dashboard_resources,
+                "family_resources": family_resources,
             },
             "resource_counts": {
-                "resources": _to_int(discovery.get("resource_counts")),
-                "dashboards": len(_as_dict(discovery).get("dashboard_resources", [])),
-                "families": len(_as_dict(discovery).get("family_resources", [])),
+                "resources": _dict_int(discovery, "resource_counts"),
+                "dashboards": len(dashboard_resources),
+                "families": len(family_resources),
             },
             "tool_counts": {
-                "tools": _to_int(discovery.get("tool_counts")),
+                "tools": _dict_int(discovery, "tool_counts"),
                 "dashboard_tools": 1,
             },
             "family_counts": {
-                "browse_families": _to_int(_as_dict(_as_dict(discovery).get("browse_family_groups", {})).get("family_count")),
-                "learning_families": len(_as_dict(discovery).get("learning_browse_families", [])),
+                "browse_families": _dict_int(browse_family_groups, "family_count"),
+                "learning_families": len(learning_browse_families),
             },
-            "catalog_counts": {name: _to_int(_as_dict(payload).get("count")) for name, payload in catalogs.items()},
-            "map_counts": {name: _to_int(_as_dict(payload).get("count")) for name, payload in maps.items()},
+            "catalog_counts": {name: _dict_int(_as_dict(payload), "count") for name, payload in catalogs.items()},
+            "map_counts": {name: _dict_int(_as_dict(payload), "count") for name, payload in maps.items()},
             "recent_titles": titles,
             "tag_coverage": tags,
             "availability_flags": {
@@ -166,7 +182,7 @@ def read_dashboards_archive_resource() -> dict[str, object]:
         {
             "generated_at": _utc_now_iso(),
             "dashboard": "archive",
-            "count": sum(_to_int(_as_dict(payload).get("count")) for payload in archive_indexes.values()),
+            "count": sum(_dict_int(_as_dict(payload), "count") for payload in archive_indexes.values()),
             "surface_groups": {
                 "archive_indexes": archive_indexes,
                 "program_rollups": {
@@ -177,21 +193,21 @@ def read_dashboards_archive_resource() -> dict[str, object]:
                     "journey_ensembles": read_programs_journey_ensembles_rollup_resource(),
                 },
             },
-            "resource_counts": {name: _to_int(_as_dict(payload).get("count")) for name, payload in archive_indexes.items()},
+            "resource_counts": {name: _dict_int(_as_dict(payload), "count") for name, payload in archive_indexes.items()},
             "tool_counts": {"archive_summary_tools": 3, "summary_tools": 1},
             "family_counts": {
                 "collection_rollups": 6,
                 "program_rollups": 5,
                 "capstone_rollups": 5,
             },
-            "catalog_counts": {name: _to_int(_as_dict(payload).get("count")) for name, payload in catalogs.items()},
-            "map_counts": {name: _to_int(_as_dict(payload).get("count")) for name, payload in maps.items()},
+            "catalog_counts": {name: _dict_int(_as_dict(payload), "count") for name, payload in catalogs.items()},
+            "map_counts": {name: _dict_int(_as_dict(payload), "count") for name, payload in maps.items()},
             "recent_titles": titles,
             "tag_coverage": tags,
             "availability_flags": {
-                "route_available": _to_int(_as_dict(archive_indexes["route_compares"]).get("count")) > 0,
-                "longitudinal_available": _to_int(_as_dict(archive_indexes["longitudinal"]).get("count")) > 0,
-                "diagnostics_available": _to_int(_as_dict(archive_indexes["route_compares"]).get("count")) > 0,
+                "route_available": _dict_int(_as_dict(archive_indexes["route_compares"]), "count") > 0,
+                "longitudinal_available": _dict_int(_as_dict(archive_indexes["longitudinal"]), "count") > 0,
+                "diagnostics_available": _dict_int(_as_dict(archive_indexes["route_compares"]), "count") > 0,
             },
             "source": "phios.mcp.resources.dashboards.archive",
             "read_only": True,
@@ -210,33 +226,35 @@ def read_dashboards_learning_resource() -> dict[str, object]:
         "study_halls": read_study_halls_rollup_resource(),
     }
     titles, tags = _collect_titles_and_tags(learning_catalog, programs_catalog)
+    learning_families = _as_list(_as_dict(learning_catalog).get("families", []))
+    program_families = _as_list(_as_dict(programs_catalog).get("families", []))
     return with_resource_schema(
         {
             "generated_at": _utc_now_iso(),
             "dashboard": "learning",
-            "count": _to_int(_as_dict(learning_catalog).get("count")),
+            "count": _dict_int(_as_dict(learning_catalog), "count"),
             "surface_groups": {
                 "catalogs": {"learning": learning_catalog, "programs": programs_catalog},
                 "maps": {"learning": learning_map, "programs": programs_map},
                 "collection_rollups": collection_rollups,
             },
             "resource_counts": {
-                "learning_catalog": _to_int(_as_dict(learning_catalog).get("count")),
-                "programs_catalog": _to_int(_as_dict(programs_catalog).get("count")),
-                "collection_rollups": sum(_to_int(_as_dict(payload).get("count")) for payload in collection_rollups.values()),
+                "learning_catalog": _dict_int(_as_dict(learning_catalog), "count"),
+                "programs_catalog": _dict_int(_as_dict(programs_catalog), "count"),
+                "collection_rollups": sum(_dict_int(_as_dict(payload), "count") for payload in collection_rollups.values()),
             },
             "tool_counts": {"learning_summary_tools": 3},
             "family_counts": {
-                "learning_families": len(_as_dict(learning_catalog).get("families", [])),
-                "program_families": len(_as_dict(programs_catalog).get("families", [])),
+                "learning_families": len(learning_families),
+                "program_families": len(program_families),
             },
             "catalog_counts": {
-                "learning": _to_int(_as_dict(learning_catalog).get("count")),
-                "programs": _to_int(_as_dict(programs_catalog).get("count")),
+                "learning": _dict_int(_as_dict(learning_catalog), "count"),
+                "programs": _dict_int(_as_dict(programs_catalog), "count"),
             },
             "map_counts": {
-                "learning": _to_int(_as_dict(learning_map).get("count")),
-                "programs": _to_int(_as_dict(programs_map).get("count")),
+                "learning": _dict_int(_as_dict(learning_map), "count"),
+                "programs": _dict_int(_as_dict(programs_map), "count"),
             },
             "recent_titles": titles,
             "tag_coverage": tags,
@@ -267,25 +285,26 @@ def read_dashboards_capstones_resource() -> dict[str, object]:
         "reading_rooms": read_reading_rooms_rollup_resource(),
     }
     titles, tags = _collect_titles_and_tags(capstones_catalog)
+    capstone_families = _as_list(_as_dict(capstones_catalog).get("families", []))
     return with_resource_schema(
         {
             "generated_at": _utc_now_iso(),
             "dashboard": "capstones",
-            "count": _to_int(_as_dict(capstones_catalog).get("count")),
+            "count": _dict_int(_as_dict(capstones_catalog), "count"),
             "surface_groups": {
                 "catalog": capstones_catalog,
                 "map": capstones_map,
                 "capstone_rollups": capstone_rollups,
                 "collection_support": collection_support,
             },
-            "resource_counts": {name: _to_int(_as_dict(payload).get("count")) for name, payload in capstone_rollups.items()},
+            "resource_counts": {name: _dict_int(_as_dict(payload), "count") for name, payload in capstone_rollups.items()},
             "tool_counts": {"capstone_summary_tools": 3},
             "family_counts": {
-                "catalog_families": len(_as_dict(capstones_catalog).get("families", [])),
+                "catalog_families": len(capstone_families),
                 "rollup_families": len(capstone_rollups),
             },
-            "catalog_counts": {"capstones": _to_int(_as_dict(capstones_catalog).get("count"))},
-            "map_counts": {"capstones": _to_int(_as_dict(capstones_map).get("count"))},
+            "catalog_counts": {"capstones": _dict_int(_as_dict(capstones_catalog), "count")},
+            "map_counts": {"capstones": _dict_int(_as_dict(capstones_map), "count")},
             "recent_titles": titles,
             "tag_coverage": tags,
             "availability_flags": {

@@ -62,7 +62,7 @@ def _build_learning_map(*, map_name: str, primary_catalog: str, linked_catalogs:
     for payload in [primary, *linked.values()]:
         if not isinstance(payload, dict):
             continue
-        for family, count in (payload.get("artifact_family_counts", {}) or {}).items():
+        for family, count in _as_dict(payload.get("artifact_family_counts", {})).items():
             if isinstance(family, str):
                 family_counts[family] = family_counts.get(family, 0) + _to_int(count)
                 artifact_family_counts[family] = artifact_family_counts.get(family, 0) + _to_int(count)

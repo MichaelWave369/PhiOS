@@ -21,13 +21,37 @@ def _utc_now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+def _to_int(value: object, default: int = 0) -> int:
+    if isinstance(value, bool):
+        return int(value)
+    if isinstance(value, int):
+        return value
+    if isinstance(value, float):
+        return int(value)
+    if isinstance(value, (str, bytes, bytearray)):
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            return default
+    return default
+
+
+def _as_dict(value: object) -> dict[str, object]:
+    return value if isinstance(value, dict) else {}
+
+
+def _as_rows(rows: object) -> list[dict[str, object]]:
+    return [row for row in rows if isinstance(row, dict)] if isinstance(rows, list) else []
+
+
 def _index_payload(rows: list[dict[str, object]], *, limit: int, source: str) -> dict[str, object]:
-    capped = rows[: max(0, int(limit))]
+    safe_limit = max(0, _to_int(limit))
+    capped = rows[:safe_limit]
     return with_resource_schema(
         {
             "generated_at": _utc_now_iso(),
             "count": len(capped),
-            "limit": max(0, int(limit)),
+            "limit": safe_limit,
             "index": capped,
             "source": source,
             "read_only": True,
@@ -37,7 +61,7 @@ def _index_payload(rows: list[dict[str, object]], *, limit: int, source: str) ->
 
 def read_archive_pathways_index_resource(*, limit: int = _MAX_RECENT) -> dict[str, object]:
     return _index_payload(
-        [r for r in list_visual_bloom_pathways() if isinstance(r, dict)],
+        _as_rows(list_visual_bloom_pathways()),
         limit=limit,
         source="phios.services.visualizer.list_visual_bloom_pathways",
     )
@@ -45,7 +69,7 @@ def read_archive_pathways_index_resource(*, limit: int = _MAX_RECENT) -> dict[st
 
 def read_archive_atlas_index_resource(*, limit: int = _MAX_RECENT) -> dict[str, object]:
     return _index_payload(
-        [r for r in list_visual_bloom_atlas_cohorts() if isinstance(r, dict)],
+        _as_rows(list_visual_bloom_atlas_cohorts()),
         limit=limit,
         source="phios.services.visualizer.list_visual_bloom_atlas_cohorts",
     )
@@ -53,7 +77,7 @@ def read_archive_atlas_index_resource(*, limit: int = _MAX_RECENT) -> dict[str, 
 
 def read_archive_curricula_index_resource(*, limit: int = _MAX_RECENT) -> dict[str, object]:
     return _index_payload(
-        [r for r in list_visual_bloom_curricula() if isinstance(r, dict)],
+        _as_rows(list_visual_bloom_curricula()),
         limit=limit,
         source="phios.services.visualizer.list_visual_bloom_curricula",
     )
@@ -61,16 +85,15 @@ def read_archive_curricula_index_resource(*, limit: int = _MAX_RECENT) -> dict[s
 
 def read_archive_journey_ensembles_index_resource(*, limit: int = _MAX_RECENT) -> dict[str, object]:
     return _index_payload(
-        [r for r in list_visual_bloom_journey_ensembles() if isinstance(r, dict)],
+        _as_rows(list_visual_bloom_journey_ensembles()),
         limit=limit,
         source="phios.services.visualizer.list_visual_bloom_journey_ensembles",
     )
 
 
 def read_archive_route_compares_index_resource(*, limit: int = _MAX_RECENT) -> dict[str, object]:
-    dashboard = build_visual_bloom_dashboard_model()
-    rows_obj = dashboard.get("recent_route_compares") if isinstance(dashboard, dict) else []
-    rows = [r for r in rows_obj if isinstance(r, dict)] if isinstance(rows_obj, list) else []
+    dashboard = _as_dict(build_visual_bloom_dashboard_model())
+    rows = _as_rows(dashboard.get("recent_route_compares", []))
     return _index_payload(
         rows,
         limit=limit,
@@ -79,12 +102,12 @@ def read_archive_route_compares_index_resource(*, limit: int = _MAX_RECENT) -> d
 
 
 def read_archive_longitudinal_index_resource() -> dict[str, object]:
-    summary = build_visual_bloom_longitudinal_summary()
+    summary = _as_dict(build_visual_bloom_longitudinal_summary())
     return with_resource_schema(
         {
             "generated_at": _utc_now_iso(),
-            "count": int(summary.get("session_count", 0)) if isinstance(summary, dict) else 0,
-            "index": summary if isinstance(summary, dict) else {},
+            "count": _to_int(summary.get("session_count", 0)),
+            "index": summary,
             "source": "phios.services.visualizer.build_visual_bloom_longitudinal_summary",
             "read_only": True,
         }

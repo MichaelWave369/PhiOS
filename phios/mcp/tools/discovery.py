@@ -43,10 +43,12 @@ def _to_int(value: object, default: int = 0) -> int:
         return value
     if isinstance(value, float):
         return int(value)
-    try:
-        return int(value)  # type: ignore[arg-type]
-    except (TypeError, ValueError):
-        return default
+    if isinstance(value, (str, bytes, bytearray)):
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            return default
+    return default
 
 
 def run_phi_discovery(registry: object) -> dict[str, object]:
@@ -103,8 +105,8 @@ def run_phi_discovery_dashboard_summary(
     if include_dashboard_counts:
         payload["dashboard_counts"] = {
             "count": _to_int(_as_dict(selected).get("count")),
-            "resource_count": len(_as_dict(selected).get("resource_counts", {})),
-            "map_count": len(_as_dict(selected).get("map_counts", {})),
+            "resource_count": len(_as_dict(_as_dict(selected).get("resource_counts", {}))),
+            "map_count": len(_as_dict(_as_dict(selected).get("map_counts", {}))),
         }
     if include_family_counts:
         payload["family_counts"] = {
@@ -144,8 +146,8 @@ def run_phi_navigation_console_summary(
     if include_console_counts:
         payload["console_counts"] = {
             "count": _to_int(_as_dict(selected).get("count")),
-            "resource_count": len(_as_dict(selected).get("resource_counts", {})),
-            "dashboard_count": len(_as_dict(selected).get("dashboard_counts", {})),
+            "resource_count": len(_as_dict(_as_dict(selected).get("resource_counts", {}))),
+            "dashboard_count": len(_as_dict(_as_dict(selected).get("dashboard_counts", {}))),
         }
     if include_family_dashboard_counts:
         payload["family_dashboard_counts"] = {

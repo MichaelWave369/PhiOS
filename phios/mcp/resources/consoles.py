@@ -36,6 +36,14 @@ def _as_dict(value: object) -> dict[str, object]:
     return value if isinstance(value, dict) else {}
 
 
+def _as_list(value: object) -> list[object]:
+    return value if isinstance(value, list) else []
+
+
+def _as_str_list(value: object) -> list[str]:
+    return [item for item in _as_list(value) if isinstance(item, str)]
+
+
 def _to_int(value: object, default: int = 0) -> int:
     if isinstance(value, bool):
         return int(value)
@@ -43,22 +51,27 @@ def _to_int(value: object, default: int = 0) -> int:
         return value
     if isinstance(value, float):
         return int(value)
-    try:
-        return int(value)  # type: ignore[arg-type]
-    except (TypeError, ValueError):
-        return default
+    if isinstance(value, (str, bytes, bytearray)):
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            return default
+    return default
+
+
+def _dict_int(mapping: dict[str, object], key: str, default: int = 0) -> int:
+    return _to_int(mapping.get(key, default), default)
 
 
 def _title_tag_coverage(*payloads: dict[str, object]) -> tuple[list[str], list[str]]:
     titles: list[str] = []
     tags: set[str] = set()
     for payload in payloads:
-        for title in _as_dict(payload).get("recent_titles", []):
-            if isinstance(title, str) and title not in titles:
+        for title in _as_str_list(payload.get("recent_titles", [])):
+            if title not in titles:
                 titles.append(title)
-        for tag in _as_dict(payload).get("tag_coverage", []):
-            if isinstance(tag, str):
-                tags.add(tag)
+        for tag in _as_str_list(payload.get("tag_coverage", [])):
+            tags.add(tag)
     return titles[:10], sorted(tags)
 
 
@@ -72,11 +85,11 @@ def _maps() -> dict[str, dict[str, object]]:
 
 
 def _dashboard_counts(registry: object) -> dict[str, int]:
-    discovery = build_mcp_discovery_payload(registry)
+    discovery = _as_dict(build_mcp_discovery_payload(registry))
     return {
-        "dashboards": len(_as_dict(discovery).get("dashboard_resources", [])),
-        "consoles": len(_as_dict(discovery).get("console_resources", [])),
-        "families": len(_as_dict(discovery).get("family_resources", [])),
+        "dashboards": len(_as_list(discovery.get("dashboard_resources", []))),
+        "consoles": len(_as_list(discovery.get("console_resources", []))),
+        "families": len(_as_list(discovery.get("family_resources", []))),
     }
 
 
@@ -90,17 +103,19 @@ def _base_console_payload(
     family_dashboards: dict[str, dict[str, object]],
 ) -> dict[str, object]:
     maps = _maps()
-    titles, tags = _title_tag_coverage(primary_dashboard, family_payload, *extra_dashboards.values())
+    titles, tags = _title_tag_coverage(_as_dict(primary_dashboard), _as_dict(family_payload), *[_as_dict(v) for v in extra_dashboards.values()])
     availability_flags = {
         "route_available": any(bool(_as_dict(m).get("route_available")) for m in maps.values()),
         "longitudinal_available": any(bool(_as_dict(m).get("longitudinal_available")) for m in maps.values()),
         "diagnostics_available": any(bool(_as_dict(m).get("diagnostics_available")) for m in maps.values()),
     }
+    family_counts = _as_dict(_as_dict(family_payload).get("family_counts", {}))
+    catalog_counts = _as_dict(_as_dict(family_payload).get("catalog_counts", {}))
     return with_resource_schema(
         {
             "generated_at": _utc_now_iso(),
             "console": console,
-            "count": _to_int(_as_dict(primary_dashboard).get("count")),
+            "count": _dict_int(_as_dict(primary_dashboard), "count"),
             "surface_groups": {
                 "dashboard": primary_dashboard,
                 "related_dashboards": extra_dashboards,
@@ -109,7 +124,7 @@ def _base_console_payload(
                 "maps": maps,
             },
             "resource_counts": {
-                "dashboard_count": _to_int(_as_dict(primary_dashboard).get("count")),
+                "dashboard_count": _dict_int(_as_dict(primary_dashboard), "count"),
                 "related_dashboards": len(extra_dashboards),
                 "family_resources": len(family_dashboards) + 1,
             },
@@ -118,11 +133,11 @@ def _base_console_payload(
                 "summary_tools": 1,
             },
             "family_counts": {
-                "family_count": len(_as_dict(family_payload).get("family_counts", {})),
+                "family_count": len(family_counts),
                 "family_dashboard_count": len(family_dashboards),
             },
-            "catalog_counts": _as_dict(family_payload).get("catalog_counts", {}),
-            "map_counts": {name: _to_int(_as_dict(payload).get("count")) for name, payload in maps.items()},
+            "catalog_counts": catalog_counts,
+            "map_counts": {name: _dict_int(_as_dict(payload), "count") for name, payload in maps.items()},
             "dashboard_counts": _dashboard_counts(registry),
             "recent_titles": titles,
             "tag_coverage": tags,

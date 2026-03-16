@@ -105,6 +105,22 @@ def list_mcp_family_dashboard_resources(registry: object) -> list[str]:
     return [uri for uri in list_mcp_family_resources(registry) if "/dashboard_" in uri]
 
 
+def list_mcp_dashboard_resources(registry: object) -> list[str]:
+    return [uri for uri in list_mcp_resources(registry) if uri.startswith("phios://dashboards/")]
+
+
+def list_mcp_family_resources(registry: object) -> list[str]:
+    return [uri for uri in list_mcp_resources(registry) if uri.startswith("phios://families/")]
+
+
+def list_mcp_console_resources(registry: object) -> list[str]:
+    return [uri for uri in list_mcp_resources(registry) if uri.startswith("phios://consoles/")]
+
+
+def list_mcp_family_dashboard_resources(registry: object) -> list[str]:
+    return [uri for uri in list_mcp_family_resources(registry) if "/dashboard_" in uri]
+
+
 def build_mcp_discovery_payload(registry: object) -> dict[str, object]:
     """Build stable discovery payload from registry + policy state."""
 
@@ -198,8 +214,6 @@ def build_mcp_discovery_payload(registry: object) -> dict[str, object]:
             "program_families",
         }
     ]
-
-    learning_map_names = [uri.split("/")[-1] for uri in learning_maps]
 
     return {
         "schema_version": MCP_SCHEMA_VERSION,
