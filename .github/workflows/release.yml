@@ -44,12 +44,41 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -e ".[dev]"
+      - name: Clean old build artifacts
+        run: |
+          rm -rf dist/ build/ ./*.egg-info
       - name: Build distribution artifacts
         run: python -m build
+      - name: Verify distribution artifacts
+        shell: bash
+        run: |
+          echo "dist contents:"
+          ls -lah dist || true
+
+          shopt -s nullglob
+          wheels=(dist/*.whl)
+          sdists=(dist/*.tar.gz)
+
+          if (( ${#wheels[@]} == 0 && ${#sdists[@]} == 0 )); then
+            echo "ERROR: No valid Python distribution artifacts were produced."
+            exit 1
+          fi
+
+          for f in dist/*; do
+            case "$f" in
+              *.whl|*.tar.gz) ;;
+              *)
+                echo "ERROR: Unexpected file in dist/: $f"
+                exit 1
+                ;;
+            esac
+          done
       - uses: actions/upload-artifact@v4
         with:
           name: dist-artifacts
-          path: dist/*
+          path: |
+            dist/*.whl
+            dist/*.tar.gz
 
   release-notes:
     runs-on: ubuntu-latest
@@ -126,4 +155,6 @@ jobs:
 
             Manifesto: https://enterthefield.org/phios
             Hemavit attribution: TIEKAT v8.1 mathematical foundation by Hemavit.
-          files: dist/*
+          files: |
+            dist/*.whl
+            dist/*.tar.gz
