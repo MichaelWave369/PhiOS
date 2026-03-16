@@ -49,7 +49,28 @@ from phios.core.bioeffector_layer import (
     summarize_bioeffectors,
 )
 from phios.core.sectors import list_visual_bloom_sectors
+from phios.mcp.policy import CAP_AGENT_DISPATCH, CAP_AGENT_KILL, CAP_AGENT_MEMORY_WRITE, is_capability_allowed
 
+from phios.services.agent_dispatch import (
+    build_dispatch_context,
+    cancel_agent_run,
+    dispatch_agentception_run,
+    get_agent_run_status,
+    list_agent_runs,
+    persist_dispatch_storyboard,
+    run_agentception_plan,
+    stream_agent_run_events,
+)
+from phios.services.cognitive_arch import (
+    build_cognitive_arch_context,
+    recommend_cognitive_architecture,
+)
+from phios.services.agent_memory import (
+    get_agent_memory,
+    get_agent_memory_coherence,
+    list_recent_agent_deliberations,
+    store_agent_deliberation,
+)
 from phios.services.visualizer import (
     VALID_LENSES,
     VALID_PRESETS,
@@ -360,7 +381,7 @@ def cmd_help(_: list[str], session: object | None = None) -> str:
             "  sovereign annotate P note   Add annotation",
             "  brainc status               Check local Ollama status",
             "  tbrc status                 Check TBRC bridge status",
-            "  memory [status|search|recent]",
+            "  memory [status|search <query>|recent|topic <topic>|coherence <topic>|store <topic> --positions <json> --outcome <text> --winner <figure> --trace <comma floats> [--tags a,b] --yes]",
             "  archive [timeline|add|export]",
             "  kg [stats|search]",
             "  sync [status|push|pull|both]",
@@ -376,6 +397,9 @@ def cmd_help(_: list[str], session: object | None = None) -> str:
             "  launch [artifacts|announce|distrowatch|investor]",
             "  build [iso|status|clean]",
             "  notify [test|status|history]",
+            "  dispatch <task> [--field-guided] [--arch <name>] [--review-panel] [--coherence-gate <float>] [--dry-run] [--stream]",
+            "  agents [list|status <id>|kill <id> --yes|log <id>]",
+            "  recommend-arch [--json]      Show field-guided cognitive architecture recommendation",
             "  exit                        Exit REPL",
         ]
     )
@@ -2297,19 +2321,84 @@ def cmd_tbrc(args: list[str], session: object | None = None) -> str:
 def cmd_memory(args: list[str], session: object | None = None) -> str:
     bridge = TBRCBridge()
     action = args[0] if args else "status"
+
     if action == "status":
         stats = bridge.memory_stats()
         if not stats.get("available", False):
             return _boxed_tbrc_message(str(stats.get("reason", "not available")))
         return json.dumps(stats, indent=2)
+
     if action == "search":
         query = " ".join(args[1:])
         if not query:
             return "Usage: memory search <query>"
         return json.dumps(bridge.memory_search(query), indent=2)
+
+    if action == "topic":
+        if len(args) < 2:
+            return "Usage: memory topic <topic>"
+        return json.dumps(get_agent_memory(args[1]), indent=2)
+
+    if action == "coherence":
+        if len(args) < 2:
+            return "Usage: memory coherence <topic>"
+        return json.dumps(get_agent_memory_coherence(args[1]), indent=2)
+
     if action == "recent":
-        return json.dumps(bridge.archive_timeline(limit=5), indent=2)
-    return "Usage: memory [status|search <query>|recent]"
+        local_recent = list_recent_agent_deliberations(limit=10)
+        tbrc_recent = bridge.archive_timeline(limit=5)
+        return json.dumps({"agent_deliberations": local_recent, "tbrc_recent": tbrc_recent}, indent=2)
+
+    if action == "store":
+        if len(args) < 2:
+            return "Usage: memory store <topic> --positions <json> --outcome <text> --winner <figure> --trace <comma floats> [--tags a,b] --yes"
+        if "--yes" not in args:
+            return "Refusing memory store without confirmation. Re-run with --yes"
+        decision = is_capability_allowed(CAP_AGENT_MEMORY_WRITE)
+        if not decision.allowed:
+            return json.dumps(
+                {
+                    "ok": False,
+                    "allowed": False,
+                    "reason": decision.reason,
+                    "capability_scope": decision.capability_scope,
+                    "policy_source": decision.policy_source,
+                    "error_code": "AGENT_MEMORY_WRITE_NOT_PERMITTED",
+                },
+                indent=2,
+            )
+        topic = args[1]
+        positions_raw = _arg_value(args, "--positions")
+        outcome = _arg_value(args, "--outcome") or ""
+        winner = _arg_value(args, "--winner") or ""
+        trace_raw = _arg_value(args, "--trace") or ""
+        tags_raw = _arg_value(args, "--tags") or ""
+        if not positions_raw or not outcome or not winner:
+            return "Usage: memory store <topic> --positions <json> --outcome <text> --winner <figure> --trace <comma floats> [--tags a,b] --yes"
+        try:
+            parsed_positions = json.loads(positions_raw)
+        except Exception:
+            return "Invalid --positions JSON"
+        if not isinstance(parsed_positions, list):
+            return "--positions must be a JSON list"
+        trace: list[float] = []
+        for token in [part.strip() for part in trace_raw.split(",") if part.strip()]:
+            try:
+                trace.append(float(token))
+            except ValueError:
+                return "--trace must be comma-separated floats"
+        tags = [part.strip() for part in tags_raw.split(",") if part.strip()]
+        result = store_agent_deliberation(
+            topic=topic,
+            positions=parsed_positions,
+            outcome=outcome,
+            winning_figure=winner,
+            coherence_trace=trace,
+            tags=tags,
+        )
+        return json.dumps(result, indent=2)
+
+    return "Usage: memory [status|search <query>|recent|topic <topic>|coherence <topic>|store <topic> --positions <json> --outcome <text> --winner <figure> --trace <comma floats> [--tags a,b] --yes]"
 
 
 def cmd_archive(args: list[str], session: object | None = None) -> str:
@@ -2565,6 +2654,169 @@ def cmd_research(args: list[str], session: object | None = None) -> str:
     return "Usage: research [status|compose|start|stop|memory|archive|kg|phb|session]"
 
 
+def _arg_value(args: list[str], flag: str) -> str | None:
+    if flag not in args:
+        return None
+    idx = args.index(flag)
+    if idx + 1 >= len(args):
+        return None
+    return args[idx + 1]
+
+
+def cmd_dispatch(args: list[str], session: object | None = None) -> str:
+    if not args:
+        return (
+            "Usage: dispatch <task> [--field-guided] [--arch <name>] [--review-panel] "
+            "[--coherence-gate <float>] [--dry-run] [--stream]"
+        )
+
+    value_flags = {"--arch", "--coherence-gate"}
+    task_tokens: list[str] = []
+    skip_next = False
+    for idx, token in enumerate(args):
+        if skip_next:
+            skip_next = False
+            continue
+        if token in value_flags:
+            skip_next = True
+            continue
+        if token.startswith("--"):
+            continue
+        task_tokens.append(token)
+    task = " ".join(task_tokens).strip()
+    if not task:
+        return "Usage: dispatch <task> [--field-guided] [--dry-run]"
+
+    field_guided = "--field-guided" in args
+    dry_run = "--dry-run" in args
+    review_panel = "--review-panel" in args
+    stream = "--stream" in args
+    arch = _arg_value(args, "--arch")
+    coherence_gate_raw = _arg_value(args, "--coherence-gate")
+    coherence_gate = float(coherence_gate_raw) if coherence_gate_raw else None
+
+    dispatch_decision = is_capability_allowed(CAP_AGENT_DISPATCH)
+    if not dry_run and not dispatch_decision.allowed:
+        return json.dumps(
+            {
+                "ok": False,
+                "allowed": False,
+                "reason": dispatch_decision.reason,
+                "capability_scope": dispatch_decision.capability_scope,
+                "policy_source": dispatch_decision.policy_source,
+                "error_code": "AGENT_DISPATCH_NOT_PERMITTED",
+            },
+            indent=2,
+        )
+
+    adapter = PhiKernelCLIAdapter()
+    context = build_dispatch_context(
+        task=task,
+        adapter=adapter,
+        field_guided=field_guided,
+        arch=arch,
+        review_panel=review_panel,
+    )
+
+    if coherence_gate is not None and field_guided:
+        field = context.get("field_state", {})
+        current = field.get("C_current") if isinstance(field, dict) else None
+        if isinstance(current, (float, int)) and float(current) < coherence_gate:
+            return json.dumps(
+                {
+                    "ok": False,
+                    "allowed": False,
+                    "reason": f"Coherence gate not met: C_current={float(current):.3f} < {coherence_gate:.3f}",
+                    "error_code": "COHERENCE_GATE_BLOCKED",
+                },
+                indent=2,
+            )
+
+    plan = run_agentception_plan(task=task, context=context)
+    if dry_run:
+        return json.dumps(
+            {
+                "ok": True,
+                "dry_run": True,
+                "task": task,
+                "context": context,
+                "plan": plan,
+            },
+            indent=2,
+        )
+
+    run = dispatch_agentception_run(task=task, context=context, plan=plan, stream=stream)
+    events = stream_agent_run_events(str(run.get("run_id", "")))
+    storyboard = persist_dispatch_storyboard(run=run, plan=plan, events=events)
+    return json.dumps({"ok": True, "run": run, "storyboard": storyboard}, indent=2)
+
+
+def cmd_agents(args: list[str], session: object | None = None) -> str:
+    action = args[0] if args else "list"
+    if action == "list":
+        return json.dumps({"runs": list_agent_runs(active_only=False)}, indent=2)
+
+    if action == "status":
+        if len(args) < 2:
+            return "Usage: agents status <run_id>"
+        return json.dumps(get_agent_run_status(args[1]), indent=2)
+
+    if action == "kill":
+        if len(args) < 2:
+            return "Usage: agents kill <run_id> --yes"
+        if "--yes" not in args:
+            return "Refusing kill without confirmation. Use: phi agents kill <run_id> --yes"
+        kill_decision = is_capability_allowed(CAP_AGENT_KILL)
+        if not kill_decision.allowed:
+            return json.dumps(
+                {
+                    "ok": False,
+                    "allowed": False,
+                    "reason": kill_decision.reason,
+                    "capability_scope": kill_decision.capability_scope,
+                    "policy_source": kill_decision.policy_source,
+                    "error_code": "AGENT_KILL_NOT_PERMITTED",
+                },
+                indent=2,
+            )
+        return json.dumps(cancel_agent_run(args[1]), indent=2)
+
+    if action == "log":
+        if len(args) < 2:
+            return "Usage: agents log <run_id>"
+        return json.dumps({"run_id": args[1], "events": stream_agent_run_events(args[1])}, indent=2)
+
+    return "Usage: agents [list|status <run_id>|kill <run_id> --yes|log <run_id>]"
+
+
+def cmd_recommend_arch(args: list[str], session: object | None = None) -> str:
+    adapter = PhiKernelCLIAdapter()
+    context = build_cognitive_arch_context(adapter)
+    recommendation = recommend_cognitive_architecture(context)
+
+    payload = {
+        "ok": True,
+        "read_only": True,
+        "experimental": True,
+        "recommendation": recommendation,
+        "context": context,
+    }
+    if "--json" in args:
+        return json.dumps(payload, indent=2)
+
+    return "\n".join(
+        [
+            "Field-guided cognitive architecture recommendation",
+            f"figure: {recommendation.get('figure', 'unknown')}",
+            f"archetype: {recommendation.get('archetype', 'unknown')}",
+            f"confidence: {float(recommendation.get('confidence', 0.0)):.3f}",
+            f"reason: {recommendation.get('reason', '')}",
+            f"signals: observer={context.get('observer_state')} alignment={context.get('self_alignment')} entropy={context.get('entropy_load')} emergence={context.get('emergence_pressure')}",
+            "framing: C* theoretical; bio-vacuum target experimental; Hunter's C unconfirmed.",
+        ]
+    )
+
+
 def cmd_dashboard(args: list[str], session: object | None = None) -> str:
     PhiDashboard(announcer=NETWORK_ANNOUNCER, discovery=NETWORK_DISCOVERY).run()
     return "Dashboard closed"
@@ -2789,5 +3041,8 @@ COMMANDS: dict[str, CommandHandler] = {
     "founding": cmd_founding,
     "launch": cmd_launch,
     "notify": cmd_notify,
+    "dispatch": cmd_dispatch,
+    "agents": cmd_agents,
+    "recommend-arch": cmd_recommend_arch,
     "build": cmd_build,
 }

@@ -1,5 +1,15 @@
 """Read-only MCP resources for PhiOS Phase 1-15."""
 
+from .agent_memory import (
+    read_agent_memory_coherence_resource,
+    read_agent_memory_topic_resource,
+    read_recent_agent_deliberations_resource,
+)
+from .agents import (
+    read_agent_run_events_resource,
+    read_agent_run_resource,
+    read_agents_active_resource,
+)
 from .archive import (
     read_archive_atlas_index_resource,
     read_archive_curricula_index_resource,
@@ -23,6 +33,7 @@ from .catalogs import (
     read_catalog_programs_resource,
 )
 from .coherence_lt import read_coherence_lt_resource
+from .cognitive_arch import read_cognition_recommendation_resource
 from .collections import (
     read_curricula_rollup_resource,
     read_field_libraries_rollup_resource,
@@ -57,11 +68,6 @@ from .history import (
     read_recent_capsules_resource,
     read_recent_field_snapshots_resource,
     read_recent_sessions_resource,
-)
-from .families import (
-    read_families_capstones_resource,
-    read_families_learning_resource,
-    read_families_overview_resource,
 )
 from .maps import (
     read_capstones_map_resource,
@@ -172,4 +178,11 @@ __all__ = [
     "read_consoles_archive_resource",
     "read_consoles_learning_resource",
     "read_consoles_capstones_resource",
+    "read_agents_active_resource",
+    "read_agent_run_resource",
+    "read_agent_run_events_resource",
+    "read_cognition_recommendation_resource",
+    "read_agent_memory_topic_resource",
+    "read_agent_memory_coherence_resource",
+    "read_recent_agent_deliberations_resource",
 ]
