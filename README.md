@@ -58,6 +58,37 @@ phi ask "How should I begin?"
 phi sovereign export ./phi_snapshot.json
 ```
 
+
+## MCP Phase 1 interface
+
+PhiOS now exposes a **Phase 1 MCP interface layer** over existing PhiOS/PhiKernel capabilities.
+This is additive interface work only; it does not replace runtime internals.
+**PhiKernel remains source of truth** for status, field, anchor, capsules, and pulse behavior.
+
+Run the stdio MCP server:
+
+```bash
+phi-mcp
+```
+
+Phase 1 resources:
+- `phios://field/state`
+- `phios://coherence/lt`
+- `phios://system/status`
+
+Phase 1 tools:
+- `phi_status`
+- `phi_ask`
+- `phi_pulse_once`
+
+Phase 1 prompt:
+- `field_guidance`
+
+Framing discipline is preserved in MCP outputs and prompts:
+- `C*` is treated as theoretical.
+- bio-vacuum targets are experimental.
+- Hunter's C remains unconfirmed.
+
 ## First Day with PhiOS
 
 ```bash
