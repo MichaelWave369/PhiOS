@@ -62,7 +62,7 @@ def _build_learning_map(*, map_name: str, primary_catalog: str, linked_catalogs:
     for payload in [primary, *linked.values()]:
         if not isinstance(payload, dict):
             continue
-        for family, count in (payload.get("artifact_family_counts", {}) or {}).items():
+        for family, count in _as_dict(payload.get("artifact_family_counts", {})).items():
             if isinstance(family, str):
                 family_counts[family] = family_counts.get(family, 0) + _to_int(count)
                 artifact_family_counts[family] = artifact_family_counts.get(family, 0) + _to_int(count)
@@ -85,11 +85,9 @@ def _build_learning_map(*, map_name: str, primary_catalog: str, linked_catalogs:
                 if isinstance(title, str) and title not in recent_titles:
                     recent_titles.append(title)
 
-    availability = {
-        "route": any(bool(_as_dict(_as_dict(catalogs[name]).get("availability", {})).get("route")) for name in [primary_catalog, *linked_catalogs]),
-        "longitudinal": any(bool(_as_dict(_as_dict(catalogs[name]).get("availability", {})).get("longitudinal")) for name in [primary_catalog, *linked_catalogs]),
-        "diagnostics": any(bool(_as_dict(_as_dict(catalogs[name]).get("availability", {})).get("diagnostics")) for name in [primary_catalog, *linked_catalogs]),
-    }
+    route_available = any(bool(_as_dict(_as_dict(catalogs[name]).get("availability", {})).get("route")) for name in [primary_catalog, *linked_catalogs])
+    longitudinal_available = any(bool(_as_dict(_as_dict(catalogs[name]).get("availability", {})).get("longitudinal")) for name in [primary_catalog, *linked_catalogs])
+    diagnostics_available = any(bool(_as_dict(_as_dict(catalogs[name]).get("availability", {})).get("diagnostics")) for name in [primary_catalog, *linked_catalogs])
 
     return with_resource_schema(
         {
@@ -102,8 +100,15 @@ def _build_learning_map(*, map_name: str, primary_catalog: str, linked_catalogs:
             "tag_coverage": sorted(tag_coverage),
             "artifact_family_counts": artifact_family_counts,
             "dominant_sector_counts": dominant_sector_counts,
+            "route_available": route_available,
+            "longitudinal_available": longitudinal_available,
+            "diagnostics_available": diagnostics_available,
             "recent_titles": recent_titles[:10],
-            "availability": availability,
+            "availability": {
+                "route": route_available,
+                "longitudinal": longitudinal_available,
+                "diagnostics": diagnostics_available,
+            },
             "primary_catalog": primary,
             "linked": linked,
             "source": "phios.mcp.resources.maps",

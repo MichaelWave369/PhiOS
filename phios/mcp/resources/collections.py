@@ -69,7 +69,7 @@ def _rollup(rows: list[dict[str, object]], *, family: str, source: str) -> dict[
             bool(row.get(key)) for key in ("longitudinal", "timeline", "trend")
         )
 
-    dominant_sector = max(sectors, key=sectors.get) if sectors else None
+    dominant_sector = max(sectors, key=lambda s: sectors.get(s, 0)) if sectors else None
 
     return with_resource_schema(
         {
