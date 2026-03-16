@@ -1,6 +1,7 @@
 """MCP tools for PhiOS Phase 1-15."""
 
 from .ask import run_phi_ask
+from .agent_memory import phi_store_deliberation
 from .cognitive_arch import run_phi_recommend_cognitive_arch
 from .agents import (
     run_phi_agent_status,
@@ -60,4 +61,5 @@ __all__ = [
     "run_phi_agent_status",
     "run_phi_kill_agent",
     "run_phi_recommend_cognitive_arch",
+    "phi_store_deliberation",
 ]

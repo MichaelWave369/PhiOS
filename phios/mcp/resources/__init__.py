@@ -1,5 +1,10 @@
 """Read-only MCP resources for PhiOS Phase 1-15."""
 
+from .agent_memory import (
+    read_agent_memory_coherence_resource,
+    read_agent_memory_topic_resource,
+    read_recent_agent_deliberations_resource,
+)
 from .agents import (
     read_agent_run_events_resource,
     read_agent_run_resource,
@@ -177,4 +182,7 @@ __all__ = [
     "read_agent_run_resource",
     "read_agent_run_events_resource",
     "read_cognition_recommendation_resource",
+    "read_agent_memory_topic_resource",
+    "read_agent_memory_coherence_resource",
+    "read_recent_agent_deliberations_resource",
 ]

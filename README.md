@@ -170,6 +170,9 @@ Resources:
 - `phios://agents/active`
 - `phios://agents/{run_id}`
 - `phios://agents/{run_id}/events`
+- `phios://agents/memory/{topic}`
+- `phios://agents/memory/{topic}/coherence`
+- `phios://agents/deliberations/recent`
 
 Tools:
 - `phi_status`
@@ -197,6 +200,7 @@ Tools:
 - `phi_list_agents`
 - `phi_agent_status`
 - `phi_kill_agent`
+- `phi_store_deliberation`
 
 Prompt:
 - `field_guidance`
@@ -211,7 +215,7 @@ Phase 3 additions:
 - Observatory resources are additive interface surfaces for local observatory artifacts; they are non-truth-bearing and do not replace PhiKernel truth logic.
 
 Phase 4 additions:
-- Optional lightweight capability scopes via `PHIOS_MCP_CAPABILITIES` (for example: `read_state,read_history,read_observatory,prompt_guidance,pulse_once,agent_dispatch,agent_kill`).
+- Optional lightweight capability scopes via `PHIOS_MCP_CAPABILITIES` (for example: `read_state,read_history,read_observatory,prompt_guidance,pulse_once,agent_dispatch,agent_kill,agent_memory_write`).
 - New read-safe summary tools: `phi_observatory_summary`, `phi_recent_activity`, and `phi_library_summary`.
 - Capability gating remains local/lightweight for now (not a full identity/auth platform).
 
@@ -276,6 +280,20 @@ Phase 17 additions (Issue #76 field-guided cognitive architecture selection):
 - AgentCeption interoperability notes (opt-in on AgentCeption side):
   - `AC_PHIOS_ENDPOINT`
   - `AC_PHIOS_FIELD_WEIGHT`
+
+Phase 18 additions (Issue #77 observatory-backed agent long-term memory):
+- New read-only MCP memory resources:
+  - `phios://agents/memory/{topic}`
+  - `phios://agents/memory/{topic}/coherence`
+  - `phios://agents/deliberations/recent`
+- New MCP write-like tool (capability-gated): `phi_store_deliberation`.
+- New shell memory read/write surfaces:
+  - `phi memory topic <topic>`
+  - `phi memory coherence <topic>`
+  - `phi memory recent`
+  - `phi memory store <topic> ... --yes` (gated)
+- Storage model is local-first and observatory-backed via narrative artifacts (`~/.phios/journal/visual_bloom/narratives/agent_memory_<topic>.json`) with additive `agent_deliberations` entries.
+- This is additive experimental archive memory, not a truth-layer mutation; PhiKernel remains source of truth.
 
 Phase 11 additions:
 - Stable capstone/collection-family rollups under `phios://capstones/*` for syllabi, atlas cohorts, field-library families, dossier families, and storyboard families.

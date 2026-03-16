@@ -49,7 +49,7 @@ from phios.core.bioeffector_layer import (
     summarize_bioeffectors,
 )
 from phios.core.sectors import list_visual_bloom_sectors
-from phios.mcp.policy import CAP_AGENT_DISPATCH, CAP_AGENT_KILL, is_capability_allowed
+from phios.mcp.policy import CAP_AGENT_DISPATCH, CAP_AGENT_KILL, CAP_AGENT_MEMORY_WRITE, is_capability_allowed
 
 from phios.services.agent_dispatch import (
     build_dispatch_context,
@@ -64,6 +64,12 @@ from phios.services.agent_dispatch import (
 from phios.services.cognitive_arch import (
     build_cognitive_arch_context,
     recommend_cognitive_architecture,
+)
+from phios.services.agent_memory import (
+    get_agent_memory,
+    get_agent_memory_coherence,
+    list_recent_agent_deliberations,
+    store_agent_deliberation,
 )
 from phios.services.visualizer import (
     VALID_LENSES,
@@ -375,7 +381,7 @@ def cmd_help(_: list[str], session: object | None = None) -> str:
             "  sovereign annotate P note   Add annotation",
             "  brainc status               Check local Ollama status",
             "  tbrc status                 Check TBRC bridge status",
-            "  memory [status|search|recent]",
+            "  memory [status|search <query>|recent|topic <topic>|coherence <topic>|store <topic> --positions <json> --outcome <text> --winner <figure> --trace <comma floats> [--tags a,b] --yes]",
             "  archive [timeline|add|export]",
             "  kg [stats|search]",
             "  sync [status|push|pull|both]",
@@ -2315,19 +2321,84 @@ def cmd_tbrc(args: list[str], session: object | None = None) -> str:
 def cmd_memory(args: list[str], session: object | None = None) -> str:
     bridge = TBRCBridge()
     action = args[0] if args else "status"
+
     if action == "status":
         stats = bridge.memory_stats()
         if not stats.get("available", False):
             return _boxed_tbrc_message(str(stats.get("reason", "not available")))
         return json.dumps(stats, indent=2)
+
     if action == "search":
         query = " ".join(args[1:])
         if not query:
             return "Usage: memory search <query>"
         return json.dumps(bridge.memory_search(query), indent=2)
+
+    if action == "topic":
+        if len(args) < 2:
+            return "Usage: memory topic <topic>"
+        return json.dumps(get_agent_memory(args[1]), indent=2)
+
+    if action == "coherence":
+        if len(args) < 2:
+            return "Usage: memory coherence <topic>"
+        return json.dumps(get_agent_memory_coherence(args[1]), indent=2)
+
     if action == "recent":
-        return json.dumps(bridge.archive_timeline(limit=5), indent=2)
-    return "Usage: memory [status|search <query>|recent]"
+        local_recent = list_recent_agent_deliberations(limit=10)
+        tbrc_recent = bridge.archive_timeline(limit=5)
+        return json.dumps({"agent_deliberations": local_recent, "tbrc_recent": tbrc_recent}, indent=2)
+
+    if action == "store":
+        if len(args) < 2:
+            return "Usage: memory store <topic> --positions <json> --outcome <text> --winner <figure> --trace <comma floats> [--tags a,b] --yes"
+        if "--yes" not in args:
+            return "Refusing memory store without confirmation. Re-run with --yes"
+        decision = is_capability_allowed(CAP_AGENT_MEMORY_WRITE)
+        if not decision.allowed:
+            return json.dumps(
+                {
+                    "ok": False,
+                    "allowed": False,
+                    "reason": decision.reason,
+                    "capability_scope": decision.capability_scope,
+                    "policy_source": decision.policy_source,
+                    "error_code": "AGENT_MEMORY_WRITE_NOT_PERMITTED",
+                },
+                indent=2,
+            )
+        topic = args[1]
+        positions_raw = _arg_value(args, "--positions")
+        outcome = _arg_value(args, "--outcome") or ""
+        winner = _arg_value(args, "--winner") or ""
+        trace_raw = _arg_value(args, "--trace") or ""
+        tags_raw = _arg_value(args, "--tags") or ""
+        if not positions_raw or not outcome or not winner:
+            return "Usage: memory store <topic> --positions <json> --outcome <text> --winner <figure> --trace <comma floats> [--tags a,b] --yes"
+        try:
+            parsed_positions = json.loads(positions_raw)
+        except Exception:
+            return "Invalid --positions JSON"
+        if not isinstance(parsed_positions, list):
+            return "--positions must be a JSON list"
+        trace: list[float] = []
+        for token in [part.strip() for part in trace_raw.split(",") if part.strip()]:
+            try:
+                trace.append(float(token))
+            except ValueError:
+                return "--trace must be comma-separated floats"
+        tags = [part.strip() for part in tags_raw.split(",") if part.strip()]
+        result = store_agent_deliberation(
+            topic=topic,
+            positions=parsed_positions,
+            outcome=outcome,
+            winning_figure=winner,
+            coherence_trace=trace,
+            tags=tags,
+        )
+        return json.dumps(result, indent=2)
+
+    return "Usage: memory [status|search <query>|recent|topic <topic>|coherence <topic>|store <topic> --positions <json> --outcome <text> --winner <figure> --trace <comma floats> [--tags a,b] --yes]"
 
 
 def cmd_archive(args: list[str], session: object | None = None) -> str:
