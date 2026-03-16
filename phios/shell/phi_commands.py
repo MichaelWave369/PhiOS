@@ -49,7 +49,18 @@ from phios.core.bioeffector_layer import (
     summarize_bioeffectors,
 )
 from phios.core.sectors import list_visual_bloom_sectors
+from phios.mcp.policy import CAP_AGENT_DISPATCH, CAP_AGENT_KILL, is_capability_allowed
 
+from phios.services.agent_dispatch import (
+    build_dispatch_context,
+    cancel_agent_run,
+    dispatch_agentception_run,
+    get_agent_run_status,
+    list_agent_runs,
+    persist_dispatch_storyboard,
+    run_agentception_plan,
+    stream_agent_run_events,
+)
 from phios.services.visualizer import (
     VALID_LENSES,
     VALID_PRESETS,
@@ -376,6 +387,8 @@ def cmd_help(_: list[str], session: object | None = None) -> str:
             "  launch [artifacts|announce|distrowatch|investor]",
             "  build [iso|status|clean]",
             "  notify [test|status|history]",
+            "  dispatch <task> [--field-guided] [--arch <name>] [--review-panel] [--coherence-gate <float>] [--dry-run] [--stream]",
+            "  agents [list|status <id>|kill <id> --yes|log <id>]",
             "  exit                        Exit REPL",
         ]
     )
@@ -2565,6 +2578,141 @@ def cmd_research(args: list[str], session: object | None = None) -> str:
     return "Usage: research [status|compose|start|stop|memory|archive|kg|phb|session]"
 
 
+def _arg_value(args: list[str], flag: str) -> str | None:
+    if flag not in args:
+        return None
+    idx = args.index(flag)
+    if idx + 1 >= len(args):
+        return None
+    return args[idx + 1]
+
+
+def cmd_dispatch(args: list[str], session: object | None = None) -> str:
+    if not args:
+        return (
+            "Usage: dispatch <task> [--field-guided] [--arch <name>] [--review-panel] "
+            "[--coherence-gate <float>] [--dry-run] [--stream]"
+        )
+
+    value_flags = {"--arch", "--coherence-gate"}
+    task_tokens: list[str] = []
+    skip_next = False
+    for idx, token in enumerate(args):
+        if skip_next:
+            skip_next = False
+            continue
+        if token in value_flags:
+            skip_next = True
+            continue
+        if token.startswith("--"):
+            continue
+        task_tokens.append(token)
+    task = " ".join(task_tokens).strip()
+    if not task:
+        return "Usage: dispatch <task> [--field-guided] [--dry-run]"
+
+    field_guided = "--field-guided" in args
+    dry_run = "--dry-run" in args
+    review_panel = "--review-panel" in args
+    stream = "--stream" in args
+    arch = _arg_value(args, "--arch")
+    coherence_gate_raw = _arg_value(args, "--coherence-gate")
+    coherence_gate = float(coherence_gate_raw) if coherence_gate_raw else None
+
+    dispatch_decision = is_capability_allowed(CAP_AGENT_DISPATCH)
+    if not dry_run and not dispatch_decision.allowed:
+        return json.dumps(
+            {
+                "ok": False,
+                "allowed": False,
+                "reason": dispatch_decision.reason,
+                "capability_scope": dispatch_decision.capability_scope,
+                "policy_source": dispatch_decision.policy_source,
+                "error_code": "AGENT_DISPATCH_NOT_PERMITTED",
+            },
+            indent=2,
+        )
+
+    adapter = PhiKernelCLIAdapter()
+    context = build_dispatch_context(
+        task=task,
+        adapter=adapter,
+        field_guided=field_guided,
+        arch=arch,
+        review_panel=review_panel,
+    )
+
+    if coherence_gate is not None and field_guided:
+        field = context.get("field_state", {})
+        current = field.get("C_current") if isinstance(field, dict) else None
+        if isinstance(current, (float, int)) and float(current) < coherence_gate:
+            return json.dumps(
+                {
+                    "ok": False,
+                    "allowed": False,
+                    "reason": f"Coherence gate not met: C_current={float(current):.3f} < {coherence_gate:.3f}",
+                    "error_code": "COHERENCE_GATE_BLOCKED",
+                },
+                indent=2,
+            )
+
+    plan = run_agentception_plan(task=task, context=context)
+    if dry_run:
+        return json.dumps(
+            {
+                "ok": True,
+                "dry_run": True,
+                "task": task,
+                "context": context,
+                "plan": plan,
+            },
+            indent=2,
+        )
+
+    run = dispatch_agentception_run(task=task, context=context, plan=plan, stream=stream)
+    events = stream_agent_run_events(str(run.get("run_id", "")))
+    storyboard = persist_dispatch_storyboard(run=run, plan=plan, events=events)
+    return json.dumps({"ok": True, "run": run, "storyboard": storyboard}, indent=2)
+
+
+def cmd_agents(args: list[str], session: object | None = None) -> str:
+    action = args[0] if args else "list"
+    if action == "list":
+        return json.dumps({"runs": list_agent_runs(active_only=False)}, indent=2)
+
+    if action == "status":
+        if len(args) < 2:
+            return "Usage: agents status <run_id>"
+        return json.dumps(get_agent_run_status(args[1]), indent=2)
+
+    if action == "kill":
+        if len(args) < 2:
+            return "Usage: agents kill <run_id> --yes"
+        if "--yes" not in args:
+            return "Refusing kill without confirmation. Use: phi agents kill <run_id> --yes"
+        kill_decision = is_capability_allowed(CAP_AGENT_KILL)
+        if not kill_decision.allowed:
+            return json.dumps(
+                {
+                    "ok": False,
+                    "allowed": False,
+                    "reason": kill_decision.reason,
+                    "capability_scope": kill_decision.capability_scope,
+                    "policy_source": kill_decision.policy_source,
+                    "error_code": "AGENT_KILL_NOT_PERMITTED",
+                },
+                indent=2,
+            )
+        return json.dumps(cancel_agent_run(args[1]), indent=2)
+
+    if action == "log":
+        if len(args) < 2:
+            return "Usage: agents log <run_id>"
+        return json.dumps({"run_id": args[1], "events": stream_agent_run_events(args[1])}, indent=2)
+
+    return "Usage: agents [list|status <run_id>|kill <run_id> --yes|log <run_id>]"
+
+
 def cmd_dashboard(args: list[str], session: object | None = None) -> str:
     PhiDashboard(announcer=NETWORK_ANNOUNCER, discovery=NETWORK_DISCOVERY).run()
     return "Dashboard closed"
@@ -2789,5 +2937,7 @@ COMMANDS: dict[str, CommandHandler] = {
     "founding": cmd_founding,
     "launch": cmd_launch,
     "notify": cmd_notify,
+    "dispatch": cmd_dispatch,
+    "agents": cmd_agents,
     "build": cmd_build,
 }
