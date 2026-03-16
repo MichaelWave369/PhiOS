@@ -166,6 +166,9 @@ Resources:
 - `phios://sessions/recent_reports`
 - `phios://sessions/recent_checkins`
 - `phios://sessions/current`
+- `phios://agents/active`
+- `phios://agents/{run_id}`
+- `phios://agents/{run_id}/events`
 
 Tools:
 - `phi_status`
@@ -188,6 +191,10 @@ Tools:
 - `phi_capstone_summary`
 - `phi_catalog_summary`
 - `phi_learning_map_summary`
+- `phi_dispatch_agents`
+- `phi_list_agents`
+- `phi_agent_status`
+- `phi_kill_agent`
 
 Prompt:
 - `field_guidance`
@@ -202,7 +209,7 @@ Phase 3 additions:
 - Observatory resources are additive interface surfaces for local observatory artifacts; they are non-truth-bearing and do not replace PhiKernel truth logic.
 
 Phase 4 additions:
-- Optional lightweight capability scopes via `PHIOS_MCP_CAPABILITIES` (for example: `read_state,read_history,read_observatory,prompt_guidance,pulse_once`).
+- Optional lightweight capability scopes via `PHIOS_MCP_CAPABILITIES` (for example: `read_state,read_history,read_observatory,prompt_guidance,pulse_once,agent_dispatch,agent_kill`).
 - New read-safe summary tools: `phi_observatory_summary`, `phi_recent_activity`, and `phi_library_summary`.
 - Capability gating remains local/lightweight for now (not a full identity/auth platform).
 
@@ -242,6 +249,19 @@ Phase 10 additions:
 - New bounded read-only summary tools `phi_program_summary` and `phi_curation_summary` for grounded program/collection synthesis without speculative recommendations.
 - Discovery now includes program coverage metadata (`program_rollups`, `learning_groups`, `program_surface_counts`) in addition to existing profile/capability posture fields.
 - Runtime-gated Phase 10 client-path test hook added for discovery → browse preset → collection rollup → program rollup → summary tool invoke flow expansion when SDK runtime allows.
+
+
+Phase 16 additions (Issue #79 experimental AgentCeption conductor):
+- New shell orchestration commands: `phi dispatch "<task>"` and `phi agents [list|status|kill|log]`.
+- New MCP tools for dispatch lifecycle orchestration: `phi_dispatch_agents`, `phi_list_agents`, `phi_agent_status`, `phi_kill_agent`.
+- New read-only MCP resources for active runs and run traces: `phios://agents/active`, `phios://agents/{run_id}`, `phios://agents/{run_id}/events`.
+- Dispatch/kill actions are explicitly capability gated (`agent_dispatch`, `agent_kill`) with structured deny payloads.
+- Integration remains additive/experimental: PhiOS is shell + observatory orchestrator, PhiKernel remains runtime truth source, and AgentCeption is treated as an external planning/dispatch engine.
+- Scientific framing remains explicit: C* is theoretical, bio-vacuum targets are experimental, and Hunter's C is unconfirmed.
+- Environment toggles for integration:
+  - `PHIOS_AGENTCEPTION_ENABLED=true|false`
+  - `PHIOS_AGENTCEPTION_BASE_URL=http://127.0.0.1:8787`
+  - optional `PHIOS_AGENTCEPTION_TOKEN`
 
 Phase 11 additions:
 - Stable capstone/collection-family rollups under `phios://capstones/*` for syllabi, atlas cohorts, field-library families, dossier families, and storyboard families.

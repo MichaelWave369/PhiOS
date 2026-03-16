@@ -10,6 +10,11 @@ from typing import Any
 
 from phios.adapters.phik import PhiKernelCLIAdapter
 from phios.mcp.prompts.field_guidance import build_field_guidance_prompt
+from phios.mcp.resources.agents import (
+    read_agent_run_events_resource,
+    read_agent_run_resource,
+    read_agents_active_resource,
+)
 from phios.mcp.resources.archive import (
     read_archive_atlas_index_resource,
     read_archive_curricula_index_resource,
@@ -101,6 +106,12 @@ from phios.mcp.resources.sessions import (
     read_sessions_recent_reports_resource,
 )
 from phios.mcp.resources.status import read_system_status_resource
+from phios.mcp.tools.agents import (
+    run_phi_agent_status,
+    run_phi_dispatch_agents,
+    run_phi_kill_agent,
+    run_phi_list_agents,
+)
 from phios.mcp.tools.ask import run_phi_ask
 from phios.mcp.tools.discovery import run_phi_discovery, run_phi_discovery_dashboard_summary, run_phi_navigation_console_summary
 from phios.mcp.tools.observatory import (
@@ -231,6 +242,9 @@ def mcp_surface_registry() -> McpSurfaceRegistry:
             "phios://browse/collection_families",
             "phios://browse/capstone_families",
             "phios://browse/archive_families",
+            "phios://agents/active",
+            "phios://agents/{run_id}",
+            "phios://agents/{run_id}/events",
         ),
         tools=(
             "phi_status",
@@ -253,6 +267,10 @@ def mcp_surface_registry() -> McpSurfaceRegistry:
             "phi_capstone_summary",
             "phi_catalog_summary",
             "phi_learning_map_summary",
+            "phi_dispatch_agents",
+            "phi_list_agents",
+            "phi_agent_status",
+            "phi_kill_agent",
         ),
         prompts=("field_guidance",),
     )
@@ -659,6 +677,18 @@ def create_mcp_server(adapter: PhiKernelCLIAdapter | None = None) -> Any:
     def resource_consoles_capstones() -> dict[str, object]:
         return _safe_call(read_consoles_capstones_resource, mcp_surface_registry())
 
+    @server.resource("phios://agents/active", mime_type="application/json")
+    def resource_agents_active() -> dict[str, object]:
+        return _safe_call(read_agents_active_resource)
+
+    @server.resource("phios://agents/{run_id}", mime_type="application/json")
+    def resource_agent_run(run_id: str) -> dict[str, object]:
+        return _safe_call(read_agent_run_resource, run_id)
+
+    @server.resource("phios://agents/{run_id}/events", mime_type="application/json")
+    def resource_agent_run_events(run_id: str) -> dict[str, object]:
+        return _safe_call(read_agent_run_events_resource, run_id)
+
     @server.tool(name="phi_status")
     def tool_phi_status() -> dict[str, object]:
         return _safe_call(run_phi_status, kernel_adapter)
@@ -805,6 +835,40 @@ def create_mcp_server(adapter: PhiKernelCLIAdapter | None = None) -> Any:
     @server.tool(name="phi_learning_map_summary")
     def tool_phi_learning_map_summary(include_map_counts: bool = True) -> dict[str, object]:
         return _safe_call(run_phi_learning_map_summary, include_map_counts=include_map_counts)
+
+    @server.tool(name="phi_dispatch_agents")
+    def tool_phi_dispatch_agents(
+        task: str,
+        field_guided: bool = False,
+        dry_run: bool = False,
+        coherence_gate: float | None = None,
+        arch: str | None = None,
+        review_panel: bool = False,
+        stream: bool = False,
+    ) -> dict[str, object]:
+        return _safe_call(
+            run_phi_dispatch_agents,
+            kernel_adapter,
+            task=task,
+            field_guided=field_guided,
+            dry_run=dry_run,
+            coherence_gate=coherence_gate,
+            arch=arch,
+            review_panel=review_panel,
+            stream=stream,
+        )
+
+    @server.tool(name="phi_list_agents")
+    def tool_phi_list_agents() -> dict[str, object]:
+        return _safe_call(run_phi_list_agents)
+
+    @server.tool(name="phi_agent_status")
+    def tool_phi_agent_status(run_id: str) -> dict[str, object]:
+        return _safe_call(run_phi_agent_status, run_id=run_id)
+
+    @server.tool(name="phi_kill_agent")
+    def tool_phi_kill_agent(run_id: str) -> dict[str, object]:
+        return _safe_call(run_phi_kill_agent, run_id=run_id)
 
     @server.prompt(name="field_guidance")
     def prompt_field_guidance() -> str:

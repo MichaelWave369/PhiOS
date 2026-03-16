@@ -1,5 +1,10 @@
 """Read-only MCP resources for PhiOS Phase 1-15."""
 
+from .agents import (
+    read_agent_run_events_resource,
+    read_agent_run_resource,
+    read_agents_active_resource,
+)
 from .archive import (
     read_archive_atlas_index_resource,
     read_archive_curricula_index_resource,
@@ -167,4 +172,7 @@ __all__ = [
     "read_consoles_archive_resource",
     "read_consoles_learning_resource",
     "read_consoles_capstones_resource",
+    "read_agents_active_resource",
+    "read_agent_run_resource",
+    "read_agent_run_events_resource",
 ]
