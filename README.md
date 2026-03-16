@@ -58,6 +58,63 @@ phi ask "How should I begin?"
 phi sovereign export ./phi_snapshot.json
 ```
 
+
+## MCP interface (Phase 1 + Phase 2)
+
+PhiOS exposes an MCP interface layer over existing PhiOS/PhiKernel capabilities.
+This is additive interface work only; it does not replace runtime internals.
+**PhiKernel remains source of truth** for status, field, anchor, capsules, and pulse behavior.
+
+Run the stdio MCP server:
+
+```bash
+phi-mcp
+```
+
+Resources:
+- `phios://field/state`
+- `phios://coherence/lt`
+- `phios://system/status`
+- `phios://history/recent_capsules`
+- `phios://history/recent_sessions`
+- `phios://history/recent_field_snapshots`
+- `phios://observatory/index`
+- `phios://observatory/dashboard`
+- `phios://observatory/atlas_gallery`
+- `phios://observatory/storyboards/recent`
+- `phios://observatory/dossiers/recent`
+- `phios://observatory/field_libraries/recent`
+
+Tools:
+- `phi_status`
+- `phi_ask`
+- `phi_pulse_once`
+- `phi_observatory_summary`
+- `phi_recent_activity`
+- `phi_library_summary`
+
+Prompt:
+- `field_guidance`
+
+Phase 2 additions:
+- Schema versioning on MCP payloads via top-level `schema_version` plus `resource_version`/`tool_version` where applicable.
+- Default-safe pulse capability gating for `phi_pulse_once`; enable explicitly with `PHIOS_MCP_ALLOW_PULSE=true`.
+- Read-only history resources from grounded local/adapter data with sensible recent limits.
+
+Phase 3 additions:
+- Richer read-only observatory resources for dashboard/gallery/storyboard/dossier/field-library discovery and summaries.
+- Observatory resources are additive interface surfaces for local observatory artifacts; they are non-truth-bearing and do not replace PhiKernel truth logic.
+
+Phase 4 additions:
+- Optional lightweight capability scopes via `PHIOS_MCP_CAPABILITIES` (for example: `read_state,read_history,read_observatory,prompt_guidance,pulse_once`).
+- New read-safe summary tools: `phi_observatory_summary`, `phi_recent_activity`, and `phi_library_summary`.
+- Capability gating remains local/lightweight for now (not a full identity/auth platform).
+
+Framing discipline is preserved in MCP outputs and prompts:
+- `C*` is treated as theoretical.
+- bio-vacuum targets are experimental.
+- Hunter's C remains unconfirmed.
+
 ## First Day with PhiOS
 
 ```bash
