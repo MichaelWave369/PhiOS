@@ -9,6 +9,13 @@ from .archive import (
     read_archive_route_compares_index_resource,
 )
 from .browse import read_browse_preset_resource
+from .capstones import (
+    read_capstones_atlas_cohorts_rollup_resource,
+    read_capstones_dossiers_rollup_family_resource,
+    read_capstones_field_libraries_rollup_family_resource,
+    read_capstones_storyboards_rollup_family_resource,
+    read_capstones_syllabi_rollup_resource,
+)
 from .coherence_lt import read_coherence_lt_resource
 from .collections import (
     read_curricula_rollup_resource,
@@ -83,9 +90,20 @@ __all__ = [
     "read_archive_journey_ensembles_index_resource",
     "read_mcp_discovery_resource",
     "read_browse_preset_resource",
+    "read_field_libraries_rollup_resource",
+    "read_shelves_rollup_resource",
+    "read_reading_rooms_rollup_resource",
+    "read_study_halls_rollup_resource",
+    "read_curricula_rollup_resource",
+    "read_journey_ensembles_rollup_resource",
     "read_programs_curricula_rollup_resource",
     "read_programs_study_halls_rollup_resource",
     "read_programs_thematic_pathways_rollup_resource",
     "read_programs_syllabi_rollup_resource",
     "read_programs_journey_ensembles_rollup_resource",
+    "read_capstones_syllabi_rollup_resource",
+    "read_capstones_atlas_cohorts_rollup_resource",
+    "read_capstones_field_libraries_rollup_family_resource",
+    "read_capstones_dossiers_rollup_family_resource",
+    "read_capstones_storyboards_rollup_family_resource",
 ]

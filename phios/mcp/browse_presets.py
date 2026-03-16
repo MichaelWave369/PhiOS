@@ -129,6 +129,56 @@ BROWSE_PRESETS: dict[str, dict[str, object]] = {
         ],
         "tools": ["phi_program_summary", "phi_curation_summary"],
     },
+    "capstones": {
+        "description": "Capstone-family browse over syllabi/atlas/dossier/storyboard artifacts.",
+        "resources": [
+            "phios://browse/capstones",
+            "phios://capstones/syllabi/rollup",
+            "phios://capstones/atlas_cohorts/rollup",
+            "phios://capstones/dossiers/rollup_family",
+            "phios://capstones/storyboards/rollup_family",
+        ],
+        "tools": ["phi_capstone_summary", "phi_curation_summary"],
+    },
+    "collections_family": {
+        "description": "Collection-family rollup browse view.",
+        "resources": [
+            "phios://browse/collections_family",
+            "phios://capstones/field_libraries/rollup_family",
+            "phios://collections/field_libraries/rollup",
+            "phios://collections/shelves/rollup",
+        ],
+        "tools": ["phi_capstone_summary", "phi_collection_summary"],
+    },
+    "learning_programs": {
+        "description": "Program + capstone learning family view.",
+        "resources": [
+            "phios://browse/learning_programs",
+            "phios://programs/curricula/rollup",
+            "phios://programs/thematic_pathways/rollup",
+            "phios://capstones/syllabi/rollup",
+        ],
+        "tools": ["phi_program_summary", "phi_capstone_summary"],
+    },
+    "comparative_learning": {
+        "description": "Comparative learning view with atlas cohorts + route compare context.",
+        "resources": [
+            "phios://browse/comparative_learning",
+            "phios://capstones/atlas_cohorts/rollup",
+            "phios://archive/route_compares/index",
+            "phios://archive/longitudinal/index",
+        ],
+        "tools": ["phi_archive_summary", "phi_capstone_summary"],
+    },
+    "study_tracks": {
+        "description": "Study-track view across study halls and thematic pathways.",
+        "resources": [
+            "phios://browse/study_tracks",
+            "phios://programs/study_halls/rollup",
+            "phios://programs/thematic_pathways/rollup",
+        ],
+        "tools": ["phi_program_summary", "phi_capstone_summary"],
+    },
     "libraries": {
         "description": "Library/shelf/reading-room focused observatory view.",
         "resources": [

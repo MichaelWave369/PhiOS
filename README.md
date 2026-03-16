@@ -111,6 +111,16 @@ Resources:
 - `phios://browse/curricula`
 - `phios://browse/cohorts`
 - `phios://browse/learning_tracks`
+- `phios://capstones/syllabi/rollup`
+- `phios://capstones/atlas_cohorts/rollup`
+- `phios://capstones/field_libraries/rollup_family`
+- `phios://capstones/dossiers/rollup_family`
+- `phios://capstones/storyboards/rollup_family`
+- `phios://browse/capstones`
+- `phios://browse/collections_family`
+- `phios://browse/learning_programs`
+- `phios://browse/comparative_learning`
+- `phios://browse/study_tracks`
 - `phios://browse/learning`
 - `phios://browse/archive`
 - `phios://browse/sessions`
@@ -142,6 +152,7 @@ Tools:
 - `phi_collection_summary`
 - `phi_program_summary`
 - `phi_curation_summary`
+- `phi_capstone_summary`
 
 Prompt:
 - `field_guidance`
@@ -196,6 +207,13 @@ Phase 10 additions:
 - New bounded read-only summary tools `phi_program_summary` and `phi_curation_summary` for grounded program/collection synthesis without speculative recommendations.
 - Discovery now includes program coverage metadata (`program_rollups`, `learning_groups`, `program_surface_counts`) in addition to existing profile/capability posture fields.
 - Runtime-gated Phase 10 client-path test hook added for discovery → browse preset → collection rollup → program rollup → summary tool invoke flow expansion when SDK runtime allows.
+
+Phase 11 additions:
+- Stable capstone/collection-family rollups under `phios://capstones/*` for syllabi, atlas cohorts, field-library families, dossier families, and storyboard families.
+- Richer deterministic learning browse families (`capstones`, `collections_family`, `learning_programs`, `comparative_learning`, `study_tracks`) via stable browse preset surfaces.
+- New bounded read-only synthesis tool `phi_capstone_summary` for capstone/family rollup aggregation grounded in local metadata only.
+- Discovery now includes capstone/family visibility and counts (`capstone_rollups`, `collection_family_rollups`, `learning_browse_families`, `capstone_surface_counts`).
+- Broader runtime-gated Phase 11 client-path hook added for discovery → browse preset → rollup reads → summary invocation flow expansion when SDK runtime allows.
 
 Framing discipline is preserved in MCP outputs and prompts:
 - `C*` is treated as theoretical.

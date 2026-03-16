@@ -14,6 +14,13 @@ from phios.mcp.resources.archive import (
     read_archive_pathways_index_resource,
     read_archive_route_compares_index_resource,
 )
+from phios.mcp.resources.capstones import (
+    read_capstones_atlas_cohorts_rollup_resource,
+    read_capstones_dossiers_rollup_family_resource,
+    read_capstones_field_libraries_rollup_family_resource,
+    read_capstones_storyboards_rollup_family_resource,
+    read_capstones_syllabi_rollup_resource,
+)
 from phios.mcp.resources.collections import (
     read_curricula_rollup_resource,
     read_field_libraries_rollup_resource,
@@ -221,6 +228,50 @@ def run_phi_program_summary() -> dict[str, object]:
     )
 
 
+
+def run_phi_capstone_summary() -> dict[str, object]:
+    """Return bounded synthesis across capstone/collection-family rollup resources."""
+
+    decision = is_capability_allowed(CAP_READ_HISTORY)
+    if not decision.allowed:
+        return with_tool_schema(denied_capability_payload(decision=decision, error_code="CAPSTONE_SUMMARY_NOT_PERMITTED"))
+
+    syllabi = read_capstones_syllabi_rollup_resource()
+    atlas_cohorts = read_capstones_atlas_cohorts_rollup_resource()
+    field_libraries_family = read_capstones_field_libraries_rollup_family_resource()
+    dossiers_family = read_capstones_dossiers_rollup_family_resource()
+    storyboards_family = read_capstones_storyboards_rollup_family_resource()
+
+    total_items = sum(
+        int(item.get("count", 0))
+        for item in (syllabi, atlas_cohorts, field_libraries_family, dossiers_family, storyboards_family)
+    )
+
+    return with_tool_schema(
+        {
+            "ok": True,
+            "allowed": decision.allowed,
+            "reason": decision.reason,
+            "capability_scope": decision.capability_scope,
+            "policy_source": decision.policy_source,
+            "generated_at": _utc_now_iso(),
+            "summary": {
+                "capstone_rollup_count": 5,
+                "total_capstone_items": total_items,
+                "syllabi_count": int(syllabi.get("count", 0)),
+                "atlas_cohorts_count": int(atlas_cohorts.get("count", 0)),
+                "family_rollup_count": int(field_libraries_family.get("count", 0)) + int(dossiers_family.get("count", 0)) + int(storyboards_family.get("count", 0)),
+            },
+            "capstone_rollups": {
+                "syllabi": syllabi,
+                "atlas_cohorts": atlas_cohorts,
+                "field_libraries_family": field_libraries_family,
+                "dossiers_family": dossiers_family,
+                "storyboards_family": storyboards_family,
+            },
+        }
+    )
+
 def run_phi_curation_summary() -> dict[str, object]:
     """Return bounded read-only curation summary across collections/programs."""
 
@@ -230,9 +281,11 @@ def run_phi_curation_summary() -> dict[str, object]:
 
     collection_summary = run_phi_collection_summary()
     program_summary = run_phi_program_summary()
+    capstone_summary = run_phi_capstone_summary()
 
     collection_total = int(collection_summary.get("summary", {}).get("total_collection_items", 0)) if isinstance(collection_summary, dict) else 0
     program_total = 0
+    capstone_total = int(capstone_summary.get("summary", {}).get("total_capstone_items", 0)) if isinstance(capstone_summary, dict) else 0
     if isinstance(program_summary, dict):
         summary_obj = program_summary.get("summary", {})
         if isinstance(summary_obj, dict):
@@ -258,9 +311,11 @@ def run_phi_curation_summary() -> dict[str, object]:
             "summary": {
                 "collection_total": collection_total,
                 "program_total": program_total,
-                "combined_total": collection_total + program_total,
+                "combined_total": collection_total + program_total + capstone_total,
+                "capstone_total": capstone_total,
             },
             "collection_summary": collection_summary,
             "program_summary": program_summary,
+            "capstone_summary": capstone_summary,
         }
     )

@@ -172,3 +172,27 @@ def test_mcp_client_harness_phase10_path_if_available(monkeypatch):
     # - assert profile capability posture and pulse deny behavior
     assert ClientSession is not None
     assert stdio_client is not None
+
+
+def test_mcp_client_harness_phase11_path_if_available(monkeypatch):
+    """Runtime-gated path for broader Phase 11 discovery→browse→rollup→summary flows."""
+
+    _ = pytest.importorskip("mcp", reason="mcp SDK not installed in this runtime")
+    monkeypatch.setenv("PHIOS_MCP_PROFILE", "observer")
+
+    try:
+        from mcp.client.session import ClientSession  # type: ignore
+        from mcp.client.stdio import stdio_client  # type: ignore
+    except Exception:
+        pytest.skip("mcp client stdio/session modules unavailable in this runtime")
+
+    # Future expansion point:
+    # - call phi_discovery
+    # - read phios://browse/capstones
+    # - read phios://collections/field_libraries/rollup
+    # - read phios://capstones/syllabi/rollup
+    # - read phios://archive/pathways/index
+    # - call phi_capstone_summary
+    # - assert capability/profile posture and pulse deny behavior
+    assert ClientSession is not None
+    assert stdio_client is not None
