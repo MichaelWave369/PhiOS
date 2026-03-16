@@ -71,6 +71,13 @@ def list_mcp_browse_families(registry: object) -> list[str]:
 def list_mcp_learning_maps(registry: object) -> list[str]:
     return [uri for uri in list_mcp_resources(registry) if uri.startswith("phios://maps/")]
 
+def list_mcp_dashboard_resources(registry: object) -> list[str]:
+    return [uri for uri in list_mcp_resources(registry) if uri.startswith("phios://dashboards/")]
+
+
+def list_mcp_family_resources(registry: object) -> list[str]:
+    return [uri for uri in list_mcp_resources(registry) if uri.startswith("phios://families/")]
+
 
 def build_mcp_discovery_payload(registry: object) -> dict[str, object]:
     """Build stable discovery payload from registry + policy state."""
@@ -91,9 +98,11 @@ def build_mcp_discovery_payload(registry: object) -> dict[str, object]:
     catalog_resources = list_mcp_catalog_resources(registry)
     browse_families = list_mcp_browse_families(registry)
     learning_maps = list_mcp_learning_maps(registry)
+    dashboard_resources = list_mcp_dashboard_resources(registry)
+    family_resources = list_mcp_family_resources(registry)
 
     tool_groups = {
-        "core": [t for t in tool_list if t in {"phi_status", "phi_ask", "phi_pulse_once", "phi_discovery"}],
+        "core": [t for t in tool_list if t in {"phi_status", "phi_ask", "phi_pulse_once", "phi_discovery", "phi_discovery_dashboard_summary"}],
         "observatory": [t for t in tool_list if "observatory" in t or t in {"phi_storyboard_summary", "phi_atlas_summary", "phi_library_summary"}],
         "session_archive": [t for t in tool_list if t in {"phi_session_summary", "phi_archive_summary", "phi_collection_summary", "phi_program_summary", "phi_curation_summary", "phi_capstone_summary", "phi_catalog_summary", "phi_learning_map_summary"}],
     }
@@ -103,6 +112,8 @@ def build_mcp_discovery_payload(registry: object) -> dict[str, object]:
         "archive_tool_count": len(tool_groups["session_archive"]),
         "archive_available": len(archive_resources) > 0,
     }
+
+    learning_map_names = [uri.split("/")[-1] for uri in learning_maps]
 
     return {
         "schema_version": MCP_SCHEMA_VERSION,
@@ -130,6 +141,8 @@ def build_mcp_discovery_payload(registry: object) -> dict[str, object]:
         "capstone_rollups": capstone_rollups,
         "catalog_resources": catalog_resources,
         "learning_maps": learning_maps,
+        "dashboard_resources": dashboard_resources,
+        "family_resources": family_resources,
         "resource_groups": {
             "sessions": session_resources,
             "archive": archive_resources,
@@ -171,13 +184,37 @@ def build_mcp_discovery_payload(registry: object) -> dict[str, object]:
             "archive_resources": archive_resources,
             "browse_families": [uri for uri in browse_families if "archive" in uri],
             "learning_maps": learning_maps,
+        "dashboard_resources": dashboard_resources,
+        "family_resources": family_resources,
+            "counts": {
+                "archive_resources": len(archive_resources),
+                "archive_browse_families": len([uri for uri in browse_families if "archive" in uri]),
+                "learning_maps": len(learning_maps),
+            },
+        },
+        "family_navigation_groups": {
+            "family_resources": family_resources,
+            "browse_families": browse_families,
+            "counts": {
+                "family_resources": len(family_resources),
+                "browse_families": len(browse_families),
+            },
         },
         "cross_catalog_groups": {
             "catalog_resources": catalog_resources,
             "learning_maps": learning_maps,
+        "dashboard_resources": dashboard_resources,
+        "family_resources": family_resources,
             "collection_rollups": collection_rollups,
             "program_rollups": program_rollups,
             "capstone_rollups": capstone_rollups,
+            "counts": {
+                "catalog_resources": len(catalog_resources),
+                "learning_maps": len(learning_maps),
+                "collection_rollups": len(collection_rollups),
+                "program_rollups": len(program_rollups),
+                "capstone_rollups": len(capstone_rollups),
+            },
         },
         "browse_family_groups": {
             "family_resources": browse_families,
@@ -205,6 +242,13 @@ def build_mcp_discovery_payload(registry: object) -> dict[str, object]:
         "map_surface_counts": {
             "learning_maps": len(learning_maps),
             "map_tools": len([t for t in tool_list if t in {"phi_learning_map_summary"}]),
+            "named_maps": learning_map_names,
+            "archive_group_surfaces": len([uri for uri in browse_families if any(k in uri for k in ("archive", "cross_catalog", "program_families", "learning_maps"))]),
+        },
+        "dashboard_surface_counts": {
+            "dashboard_resources": len(dashboard_resources),
+            "family_resources": len(family_resources),
+            "dashboard_tools": len([t for t in tool_list if t in {"phi_discovery_dashboard_summary"}]),
         },
         "archive_rollups": archive_rollups,
         "resource_counts": len(resource_list),

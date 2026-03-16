@@ -1,4 +1,4 @@
-"""Read-only MCP resources for PhiOS Phase 1-13."""
+"""Read-only MCP resources for PhiOS Phase 1-14."""
 
 from .archive import (
     read_archive_atlas_index_resource,
@@ -32,11 +32,22 @@ from .collections import (
     read_study_halls_rollup_resource,
 )
 from .discovery import read_mcp_discovery_resource
+from .dashboards import (
+    read_dashboards_archive_resource,
+    read_dashboards_capstones_resource,
+    read_dashboards_discovery_resource,
+    read_dashboards_learning_resource,
+)
 from .field_state import read_field_state_resource
 from .history import (
     read_recent_capsules_resource,
     read_recent_field_snapshots_resource,
     read_recent_sessions_resource,
+)
+from .families import (
+    read_families_capstones_resource,
+    read_families_learning_resource,
+    read_families_overview_resource,
 )
 from .maps import (
     read_capstones_map_resource,
@@ -101,6 +112,13 @@ __all__ = [
     "read_archive_curricula_index_resource",
     "read_archive_journey_ensembles_index_resource",
     "read_mcp_discovery_resource",
+    "read_families_capstones_resource",
+    "read_families_learning_resource",
+    "read_families_overview_resource",
+    "read_dashboards_capstones_resource",
+    "read_dashboards_learning_resource",
+    "read_dashboards_archive_resource",
+    "read_dashboards_discovery_resource",
     "read_browse_preset_resource",
     "read_field_libraries_rollup_resource",
     "read_shelves_rollup_resource",
