@@ -28,6 +28,14 @@ def build_field_guidance_prompt(adapter: PhiKernelCLIAdapter) -> str:
         "status": status,
         "coherence": coherence,
         "lt": lt,
+        "observatory_resources": [
+            "phios://observatory/index",
+            "phios://observatory/dashboard",
+            "phios://observatory/atlas_gallery",
+            "phios://observatory/storyboards/recent",
+            "phios://observatory/dossiers/recent",
+            "phios://observatory/field_libraries/recent",
+        ],
         "framing": {
             "theoretical_C_star": "Treat C* as a theoretical attractor.",
             "experimental_bio_vacuum_target": (

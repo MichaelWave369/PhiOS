@@ -21,6 +21,14 @@ from phios.mcp.resources.history import (
     read_recent_field_snapshots_resource,
     read_recent_sessions_resource,
 )
+from phios.mcp.resources.observatory import (
+    read_observatory_atlas_gallery_resource,
+    read_observatory_dashboard_resource,
+    read_observatory_index_resource,
+    read_observatory_recent_dossiers_resource,
+    read_observatory_recent_field_libraries_resource,
+    read_observatory_recent_storyboards_resource,
+)
 from phios.mcp.tools.ask import run_phi_ask
 from phios.mcp.tools.pulse import run_phi_pulse_once
 from phios.mcp.tools.status import run_phi_status
@@ -44,6 +52,12 @@ def phase1_registry() -> Phase1Registry:
             "phios://history/recent_capsules",
             "phios://history/recent_sessions",
             "phios://history/recent_field_snapshots",
+            "phios://observatory/index",
+            "phios://observatory/dashboard",
+            "phios://observatory/atlas_gallery",
+            "phios://observatory/storyboards/recent",
+            "phios://observatory/dossiers/recent",
+            "phios://observatory/field_libraries/recent",
         ),
         tools=("phi_status", "phi_ask", "phi_pulse_once"),
         prompts=("field_guidance",),
@@ -92,6 +106,30 @@ def create_mcp_server(adapter: PhiKernelCLIAdapter | None = None) -> Any:
     @server.resource("phios://history/recent_field_snapshots", mime_type="application/json")
     def resource_recent_field_snapshots() -> dict[str, object]:
         return _safe_call(read_recent_field_snapshots_resource)
+
+    @server.resource("phios://observatory/index", mime_type="application/json")
+    def resource_observatory_index() -> dict[str, object]:
+        return _safe_call(read_observatory_index_resource)
+
+    @server.resource("phios://observatory/dashboard", mime_type="application/json")
+    def resource_observatory_dashboard() -> dict[str, object]:
+        return _safe_call(read_observatory_dashboard_resource)
+
+    @server.resource("phios://observatory/atlas_gallery", mime_type="application/json")
+    def resource_observatory_atlas_gallery() -> dict[str, object]:
+        return _safe_call(read_observatory_atlas_gallery_resource)
+
+    @server.resource("phios://observatory/storyboards/recent", mime_type="application/json")
+    def resource_observatory_storyboards_recent() -> dict[str, object]:
+        return _safe_call(read_observatory_recent_storyboards_resource)
+
+    @server.resource("phios://observatory/dossiers/recent", mime_type="application/json")
+    def resource_observatory_dossiers_recent() -> dict[str, object]:
+        return _safe_call(read_observatory_recent_dossiers_resource)
+
+    @server.resource("phios://observatory/field_libraries/recent", mime_type="application/json")
+    def resource_observatory_field_libraries_recent() -> dict[str, object]:
+        return _safe_call(read_observatory_recent_field_libraries_resource)
 
     @server.tool(name="phi_status")
     def tool_phi_status() -> dict[str, object]:
