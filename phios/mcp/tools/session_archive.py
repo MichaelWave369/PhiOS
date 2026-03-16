@@ -22,6 +22,13 @@ from phios.mcp.resources.collections import (
     read_shelves_rollup_resource,
     read_study_halls_rollup_resource,
 )
+from phios.mcp.resources.programs import (
+    read_programs_curricula_rollup_resource,
+    read_programs_journey_ensembles_rollup_resource,
+    read_programs_study_halls_rollup_resource,
+    read_programs_syllabi_rollup_resource,
+    read_programs_thematic_pathways_rollup_resource,
+)
 from phios.mcp.resources.sessions import (
     read_sessions_current_resource,
     read_sessions_recent_checkins_resource,
@@ -170,5 +177,90 @@ def run_phi_collection_summary() -> dict[str, object]:
                 "curricula": curricula,
                 "journey_ensembles": journey_ensembles,
             },
+        }
+    )
+
+
+def run_phi_program_summary() -> dict[str, object]:
+    """Return bounded synthesis over program/learning rollup resources."""
+
+    decision = is_capability_allowed(CAP_READ_HISTORY)
+    if not decision.allowed:
+        return with_tool_schema(denied_capability_payload(decision=decision, error_code="PROGRAM_SUMMARY_NOT_PERMITTED"))
+
+    curricula = read_programs_curricula_rollup_resource()
+    study_halls = read_programs_study_halls_rollup_resource()
+    thematic_pathways = read_programs_thematic_pathways_rollup_resource()
+    syllabi = read_programs_syllabi_rollup_resource()
+    journeys = read_programs_journey_ensembles_rollup_resource()
+
+    return with_tool_schema(
+        {
+            "ok": True,
+            "allowed": decision.allowed,
+            "reason": decision.reason,
+            "capability_scope": decision.capability_scope,
+            "policy_source": decision.policy_source,
+            "generated_at": _utc_now_iso(),
+            "summary": {
+                "program_rollup_count": 5,
+                "curricula_count": int(curricula.get("count", 0)),
+                "study_halls_count": int(study_halls.get("count", 0)),
+                "thematic_pathways_count": int(thematic_pathways.get("count", 0)),
+                "syllabi_count": int(syllabi.get("count", 0)),
+                "journey_ensembles_count": int(journeys.get("count", 0)),
+            },
+            "program_rollups": {
+                "curricula": curricula,
+                "study_halls": study_halls,
+                "thematic_pathways": thematic_pathways,
+                "syllabi": syllabi,
+                "journey_ensembles": journeys,
+            },
+        }
+    )
+
+
+def run_phi_curation_summary() -> dict[str, object]:
+    """Return bounded read-only curation summary across collections/programs."""
+
+    decision = is_capability_allowed(CAP_READ_HISTORY)
+    if not decision.allowed:
+        return with_tool_schema(denied_capability_payload(decision=decision, error_code="CURATION_SUMMARY_NOT_PERMITTED"))
+
+    collection_summary = run_phi_collection_summary()
+    program_summary = run_phi_program_summary()
+
+    collection_total = int(collection_summary.get("summary", {}).get("total_collection_items", 0)) if isinstance(collection_summary, dict) else 0
+    program_total = 0
+    if isinstance(program_summary, dict):
+        summary_obj = program_summary.get("summary", {})
+        if isinstance(summary_obj, dict):
+            program_total = sum(
+                int(summary_obj.get(key, 0))
+                for key in (
+                    "curricula_count",
+                    "study_halls_count",
+                    "thematic_pathways_count",
+                    "syllabi_count",
+                    "journey_ensembles_count",
+                )
+            )
+
+    return with_tool_schema(
+        {
+            "ok": True,
+            "allowed": decision.allowed,
+            "reason": decision.reason,
+            "capability_scope": decision.capability_scope,
+            "policy_source": decision.policy_source,
+            "generated_at": _utc_now_iso(),
+            "summary": {
+                "collection_total": collection_total,
+                "program_total": program_total,
+                "combined_total": collection_total + program_total,
+            },
+            "collection_summary": collection_summary,
+            "program_summary": program_summary,
         }
     )

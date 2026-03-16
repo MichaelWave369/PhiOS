@@ -1,4 +1,4 @@
-"""PhiOS MCP server (Phase 1-8).
+"""PhiOS MCP server (Phase 1-10).
 
 This module provides a stable stdio MCP server surface over existing PhiOS services.
 """
@@ -49,6 +49,13 @@ from phios.mcp.resources.observatory import (
     read_observatory_reading_rooms_index_resource,
     read_observatory_study_halls_index_resource,
 )
+from phios.mcp.resources.programs import (
+    read_programs_curricula_rollup_resource,
+    read_programs_journey_ensembles_rollup_resource,
+    read_programs_study_halls_rollup_resource,
+    read_programs_syllabi_rollup_resource,
+    read_programs_thematic_pathways_rollup_resource,
+)
 from phios.mcp.resources.sessions import (
     read_sessions_current_resource,
     read_sessions_recent_checkins_resource,
@@ -66,7 +73,13 @@ from phios.mcp.tools.observatory import (
     run_phi_browse_observatory,
 )
 from phios.mcp.tools.pulse import run_phi_pulse_once
-from phios.mcp.tools.session_archive import run_phi_archive_summary, run_phi_collection_summary, run_phi_session_summary
+from phios.mcp.tools.session_archive import (
+    run_phi_archive_summary,
+    run_phi_collection_summary,
+    run_phi_curation_summary,
+    run_phi_program_summary,
+    run_phi_session_summary,
+)
 from phios.mcp.tools.status import run_phi_status
 
 
@@ -127,6 +140,14 @@ def mcp_surface_registry() -> McpSurfaceRegistry:
             "phios://collections/study_halls/rollup",
             "phios://collections/curricula/rollup",
             "phios://collections/journey_ensembles/rollup",
+            "phios://programs/curricula/rollup",
+            "phios://programs/study_halls/rollup",
+            "phios://programs/thematic_pathways/rollup",
+            "phios://programs/syllabi/rollup",
+            "phios://programs/journey_ensembles/rollup",
+            "phios://browse/curricula",
+            "phios://browse/cohorts",
+            "phios://browse/learning_tracks",
         ),
         tools=(
             "phi_status",
@@ -142,6 +163,8 @@ def mcp_surface_registry() -> McpSurfaceRegistry:
             "phi_session_summary",
             "phi_archive_summary",
             "phi_collection_summary",
+            "phi_program_summary",
+            "phi_curation_summary",
         ),
         prompts=("field_guidance",),
     )
@@ -328,6 +351,18 @@ def create_mcp_server(adapter: PhiKernelCLIAdapter | None = None) -> Any:
     def resource_browse_comparative() -> dict[str, object]:
         return _safe_call(read_browse_preset_resource, "comparative")
 
+    @server.resource("phios://browse/curricula", mime_type="application/json")
+    def resource_browse_curricula() -> dict[str, object]:
+        return _safe_call(read_browse_preset_resource, "curricula")
+
+    @server.resource("phios://browse/cohorts", mime_type="application/json")
+    def resource_browse_cohorts() -> dict[str, object]:
+        return _safe_call(read_browse_preset_resource, "cohorts")
+
+    @server.resource("phios://browse/learning_tracks", mime_type="application/json")
+    def resource_browse_learning_tracks() -> dict[str, object]:
+        return _safe_call(read_browse_preset_resource, "learning_tracks")
+
     @server.resource("phios://collections/field_libraries/rollup", mime_type="application/json")
     def resource_collections_field_libraries_rollup() -> dict[str, object]:
         return _safe_call(read_field_libraries_rollup_resource)
@@ -351,6 +386,26 @@ def create_mcp_server(adapter: PhiKernelCLIAdapter | None = None) -> Any:
     @server.resource("phios://collections/journey_ensembles/rollup", mime_type="application/json")
     def resource_collections_journey_ensembles_rollup() -> dict[str, object]:
         return _safe_call(read_journey_ensembles_rollup_resource)
+
+    @server.resource("phios://programs/curricula/rollup", mime_type="application/json")
+    def resource_programs_curricula_rollup() -> dict[str, object]:
+        return _safe_call(read_programs_curricula_rollup_resource)
+
+    @server.resource("phios://programs/study_halls/rollup", mime_type="application/json")
+    def resource_programs_study_halls_rollup() -> dict[str, object]:
+        return _safe_call(read_programs_study_halls_rollup_resource)
+
+    @server.resource("phios://programs/thematic_pathways/rollup", mime_type="application/json")
+    def resource_programs_thematic_pathways_rollup() -> dict[str, object]:
+        return _safe_call(read_programs_thematic_pathways_rollup_resource)
+
+    @server.resource("phios://programs/syllabi/rollup", mime_type="application/json")
+    def resource_programs_syllabi_rollup() -> dict[str, object]:
+        return _safe_call(read_programs_syllabi_rollup_resource)
+
+    @server.resource("phios://programs/journey_ensembles/rollup", mime_type="application/json")
+    def resource_programs_journey_ensembles_rollup() -> dict[str, object]:
+        return _safe_call(read_programs_journey_ensembles_rollup_resource)
 
     @server.tool(name="phi_status")
     def tool_phi_status() -> dict[str, object]:
@@ -434,6 +489,14 @@ def create_mcp_server(adapter: PhiKernelCLIAdapter | None = None) -> Any:
     @server.tool(name="phi_collection_summary")
     def tool_phi_collection_summary() -> dict[str, object]:
         return _safe_call(run_phi_collection_summary)
+
+    @server.tool(name="phi_program_summary")
+    def tool_phi_program_summary() -> dict[str, object]:
+        return _safe_call(run_phi_program_summary)
+
+    @server.tool(name="phi_curation_summary")
+    def tool_phi_curation_summary() -> dict[str, object]:
+        return _safe_call(run_phi_curation_summary)
 
     @server.prompt(name="field_guidance")
     def prompt_field_guidance() -> str:

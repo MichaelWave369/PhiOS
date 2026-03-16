@@ -51,6 +51,10 @@ def list_mcp_collection_rollups(registry: object) -> list[str]:
     return [uri for uri in list_mcp_resources(registry) if uri.startswith("phios://collections/")]
 
 
+def list_mcp_program_rollups(registry: object) -> list[str]:
+    return [uri for uri in list_mcp_resources(registry) if uri.startswith("phios://programs/")]
+
+
 def build_mcp_discovery_payload(registry: object) -> dict[str, object]:
     """Build stable discovery payload from registry + policy state."""
 
@@ -65,11 +69,12 @@ def build_mcp_discovery_payload(registry: object) -> dict[str, object]:
     observatory_resources = list_mcp_observatory_resources(registry)
     browse_resources = list_mcp_browse_resources(registry)
     collection_rollups = list_mcp_collection_rollups(registry)
+    program_rollups = list_mcp_program_rollups(registry)
 
     tool_groups = {
         "core": [t for t in tool_list if t in {"phi_status", "phi_ask", "phi_pulse_once", "phi_discovery"}],
         "observatory": [t for t in tool_list if "observatory" in t or t in {"phi_storyboard_summary", "phi_atlas_summary", "phi_library_summary"}],
-        "session_archive": [t for t in tool_list if t in {"phi_session_summary", "phi_archive_summary", "phi_collection_summary"}],
+        "session_archive": [t for t in tool_list if t in {"phi_session_summary", "phi_archive_summary", "phi_collection_summary", "phi_program_summary", "phi_curation_summary"}],
     }
 
     archive_rollups = {
@@ -100,6 +105,7 @@ def build_mcp_discovery_payload(registry: object) -> dict[str, object]:
         "observatory_resources": observatory_resources,
         "browse_resources": browse_resources,
         "collection_rollups": collection_rollups,
+        "program_rollups": program_rollups,
         "resource_groups": {
             "sessions": session_resources,
             "archive": archive_resources,
@@ -113,7 +119,7 @@ def build_mcp_discovery_payload(registry: object) -> dict[str, object]:
             "supported": list_mcp_browse_presets(),
             "definitions": BROWSE_PRESETS,
         },
-        "learning_presets": [p for p in list_mcp_browse_presets() if p in {"learning", "learning_paths", "programs", "collections"}],
+        "learning_presets": [p for p in list_mcp_browse_presets() if p in {"learning", "learning_paths", "programs", "collections", "curricula", "cohorts", "learning_tracks"}],
         "collection_groups": {
             "libraries": [uri for uri in collection_rollups if any(k in uri for k in ("field_libraries", "shelves", "reading_rooms", "study_halls"))],
             "learning": [uri for uri in collection_rollups if any(k in uri for k in ("curricula", "journey_ensembles"))],
@@ -121,7 +127,17 @@ def build_mcp_discovery_payload(registry: object) -> dict[str, object]:
         "browse_surface_counts": {
             "browse_resources": len(browse_resources),
             "collection_rollups": len(collection_rollups),
-            "learning_presets": len([p for p in list_mcp_browse_presets() if p in {"learning", "learning_paths", "programs", "collections"}]),
+            "program_rollups": len(program_rollups),
+            "learning_presets": len([p for p in list_mcp_browse_presets() if p in {"learning", "learning_paths", "programs", "collections", "curricula", "cohorts", "learning_tracks"}]),
+        },
+        "learning_groups": {
+            "programs": program_rollups,
+            "collections": collection_rollups,
+            "learning_browse_resources": [uri for uri in browse_resources if any(key in uri for key in ("learning", "program", "curricula", "cohorts", "tracks"))],
+        },
+        "program_surface_counts": {
+            "program_rollups": len(program_rollups),
+            "program_tools": len([t for t in tool_list if t in {"phi_program_summary", "phi_curation_summary"}]),
         },
         "archive_rollups": archive_rollups,
         "resource_counts": len(resource_list),

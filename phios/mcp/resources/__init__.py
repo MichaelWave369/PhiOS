@@ -25,6 +25,13 @@ from .history import (
     read_recent_field_snapshots_resource,
     read_recent_sessions_resource,
 )
+from .programs import (
+    read_programs_curricula_rollup_resource,
+    read_programs_journey_ensembles_rollup_resource,
+    read_programs_study_halls_rollup_resource,
+    read_programs_syllabi_rollup_resource,
+    read_programs_thematic_pathways_rollup_resource,
+)
 from .observatory import (
     read_observatory_atlas_gallery_resource,
     read_observatory_dashboard_resource,
@@ -76,4 +83,9 @@ __all__ = [
     "read_archive_journey_ensembles_index_resource",
     "read_mcp_discovery_resource",
     "read_browse_preset_resource",
+    "read_programs_curricula_rollup_resource",
+    "read_programs_study_halls_rollup_resource",
+    "read_programs_thematic_pathways_rollup_resource",
+    "read_programs_syllabi_rollup_resource",
+    "read_programs_journey_ensembles_rollup_resource",
 ]

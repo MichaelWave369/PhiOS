@@ -30,6 +30,13 @@ from phios.mcp.resources.observatory import (
     read_observatory_storyboards_index_resource,
     read_observatory_study_halls_index_resource,
 )
+from phios.mcp.resources.programs import (
+    read_programs_curricula_rollup_resource,
+    read_programs_journey_ensembles_rollup_resource,
+    read_programs_study_halls_rollup_resource,
+    read_programs_syllabi_rollup_resource,
+    read_programs_thematic_pathways_rollup_resource,
+)
 from phios.mcp.resources.sessions import (
     read_sessions_recent_checkins_resource,
     read_sessions_recent_reports_resource,
@@ -125,6 +132,24 @@ def read_browse_preset_resource(preset: str) -> dict[str, object]:
             "route_compares": read_archive_route_compares_index_resource(limit=15),
             "longitudinal": read_archive_longitudinal_index_resource(),
             "atlas": read_archive_atlas_index_resource(limit=15),
+        }
+    elif name == "curricula":
+        views = {
+            "curricula_rollup": read_programs_curricula_rollup_resource(),
+            "syllabi_rollup": read_programs_syllabi_rollup_resource(),
+            "curricula_index": read_archive_curricula_index_resource(limit=15),
+        }
+    elif name == "cohorts":
+        views = {
+            "atlas": read_archive_atlas_index_resource(limit=15),
+            "journey_ensembles_rollup": read_programs_journey_ensembles_rollup_resource(),
+            "thematic_pathways_rollup": read_programs_thematic_pathways_rollup_resource(),
+        }
+    elif name == "learning_tracks":
+        views = {
+            "thematic_pathways_rollup": read_programs_thematic_pathways_rollup_resource(),
+            "study_halls_rollup": read_programs_study_halls_rollup_resource(),
+            "journey_ensembles_rollup": read_programs_journey_ensembles_rollup_resource(),
         }
 
     return with_resource_schema(

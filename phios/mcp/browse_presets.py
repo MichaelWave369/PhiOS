@@ -102,6 +102,33 @@ BROWSE_PRESETS: dict[str, dict[str, object]] = {
         ],
         "tools": ["phi_archive_summary", "phi_atlas_summary"],
     },
+    "curricula": {
+        "description": "Curriculum-first program browsing view.",
+        "resources": [
+            "phios://browse/curricula",
+            "phios://programs/curricula/rollup",
+            "phios://programs/syllabi/rollup",
+        ],
+        "tools": ["phi_program_summary", "phi_curation_summary"],
+    },
+    "cohorts": {
+        "description": "Cohort-level learning view grounded in atlas and journeys.",
+        "resources": [
+            "phios://browse/cohorts",
+            "phios://archive/atlas/index",
+            "phios://programs/journey_ensembles/rollup",
+        ],
+        "tools": ["phi_program_summary"],
+    },
+    "learning_tracks": {
+        "description": "Learning-track view across thematic pathways and study halls.",
+        "resources": [
+            "phios://browse/learning_tracks",
+            "phios://programs/thematic_pathways/rollup",
+            "phios://programs/study_halls/rollup",
+        ],
+        "tools": ["phi_program_summary", "phi_curation_summary"],
+    },
     "libraries": {
         "description": "Library/shelf/reading-room focused observatory view.",
         "resources": [

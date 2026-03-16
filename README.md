@@ -103,6 +103,14 @@ Resources:
 - `phios://collections/study_halls/rollup`
 - `phios://collections/curricula/rollup`
 - `phios://collections/journey_ensembles/rollup`
+- `phios://programs/curricula/rollup`
+- `phios://programs/study_halls/rollup`
+- `phios://programs/thematic_pathways/rollup`
+- `phios://programs/syllabi/rollup`
+- `phios://programs/journey_ensembles/rollup`
+- `phios://browse/curricula`
+- `phios://browse/cohorts`
+- `phios://browse/learning_tracks`
 - `phios://browse/learning`
 - `phios://browse/archive`
 - `phios://browse/sessions`
@@ -132,6 +140,8 @@ Tools:
 - `phi_archive_summary`
 - `phi_session_summary`
 - `phi_collection_summary`
+- `phi_program_summary`
+- `phi_curation_summary`
 
 Prompt:
 - `field_guidance`
@@ -179,6 +189,13 @@ Phase 9 additions:
 - New bounded synthesis tool `phi_collection_summary` for collection/library rollup aggregation with schema markers and generated timestamps.
 - Discovery now includes collection and learning coverage metadata (`collection_rollups`, `learning_presets`, `collection_groups`, `browse_surface_counts`) for easier client navigation.
 - Runtime-gated Phase 9 client-path test hook added for discovery → preset browse → rollup read → archive read → tool invoke flow expansion when SDK runtime allows.
+
+Phase 10 additions:
+- Stable program/learning rollup resources under `phios://programs/*/rollup` for curricula, study halls, thematic pathways, syllabi, and journey ensembles.
+- New deterministic program-level browse presets/resources (`curricula`, `cohorts`, `learning_tracks`) exposed through the existing browse preset surface.
+- New bounded read-only summary tools `phi_program_summary` and `phi_curation_summary` for grounded program/collection synthesis without speculative recommendations.
+- Discovery now includes program coverage metadata (`program_rollups`, `learning_groups`, `program_surface_counts`) in addition to existing profile/capability posture fields.
+- Runtime-gated Phase 10 client-path test hook added for discovery → browse preset → collection rollup → program rollup → summary tool invoke flow expansion when SDK runtime allows.
 
 Framing discipline is preserved in MCP outputs and prompts:
 - `C*` is treated as theoretical.
