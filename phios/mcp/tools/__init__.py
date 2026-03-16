@@ -6,6 +6,7 @@ from .cognitive_arch import run_phi_recommend_cognitive_arch
 from .cognitive_atoms import run_phi_recommend_cognitive_atoms
 from .debate import phi_debate_coherence_gate
 from .review import phi_review_coherence_gate
+from .dispatch_graph import phi_optimize_dispatch_graph
 from .figure_fitness import (
     phi_record_figure_outcome,
     phi_figure_fitness_report,
@@ -76,4 +77,5 @@ __all__ = [
     "phi_record_figure_outcome",
     "phi_figure_fitness_report",
     "phi_recommend_figure_for_task",
+    "phi_optimize_dispatch_graph",
 ]

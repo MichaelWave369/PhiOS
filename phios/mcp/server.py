@@ -54,6 +54,7 @@ from phios.mcp.resources.collections import (
     read_study_halls_rollup_resource,
 )
 from phios.mcp.resources.discovery import read_mcp_discovery_resource
+from phios.mcp.resources.dispatch_graph import read_dispatch_graph_last_resource
 from phios.mcp.resources.debates import (
     read_debate_session_resource,
     read_debates_recent_resource,
@@ -138,6 +139,7 @@ from phios.mcp.tools.cognitive_arch import run_phi_recommend_cognitive_arch
 from phios.mcp.tools.cognitive_atoms import run_phi_recommend_cognitive_atoms
 from phios.mcp.tools.discovery import run_phi_discovery, run_phi_discovery_dashboard_summary, run_phi_navigation_console_summary
 from phios.mcp.tools.debate import phi_debate_coherence_gate
+from phios.mcp.tools.dispatch_graph import phi_optimize_dispatch_graph
 from phios.mcp.tools.review import phi_review_coherence_gate
 from phios.mcp.tools.figure_fitness import (
     phi_record_figure_outcome,
@@ -287,6 +289,7 @@ def mcp_surface_registry() -> McpSurfaceRegistry:
             "phios://figures/fitness",
             "phios://figures/fitness/{figure}",
             "phios://figures/recommendation/{task_key}",
+            "phios://dispatch/graph/last",
         ),
         tools=(
             "phi_status",
@@ -321,6 +324,7 @@ def mcp_surface_registry() -> McpSurfaceRegistry:
             "phi_record_figure_outcome",
             "phi_figure_fitness_report",
             "phi_recommend_figure_for_task",
+            "phi_optimize_dispatch_graph",
         ),
         prompts=("field_guidance",),
     )
@@ -787,6 +791,10 @@ def create_mcp_server(adapter: PhiKernelCLIAdapter | None = None) -> Any:
     def resource_figure_recommendation(task_key: str, sector: str | None = None) -> dict[str, object]:
         return _safe_call(read_figure_recommendation_resource, task_key, sector)
 
+    @server.resource("phios://dispatch/graph/last", mime_type="application/json")
+    def resource_dispatch_graph_last() -> dict[str, object]:
+        return _safe_call(read_dispatch_graph_last_resource)
+
     @server.tool(name="phi_status")
     def tool_phi_status() -> dict[str, object]:
         return _safe_call(run_phi_status, kernel_adapter)
@@ -1088,6 +1096,10 @@ def create_mcp_server(adapter: PhiKernelCLIAdapter | None = None) -> Any:
             required_skill=required_skill,
             min_coherence=min_coherence,
         )
+
+    @server.tool(name="phi_optimize_dispatch_graph")
+    def tool_phi_optimize_dispatch_graph(graph: dict[str, object]) -> dict[str, object]:
+        return _safe_call(phi_optimize_dispatch_graph, graph=graph)
 
     @server.prompt(name="field_guidance")
     def prompt_field_guidance() -> str:

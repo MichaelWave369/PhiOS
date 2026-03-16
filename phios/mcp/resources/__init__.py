@@ -107,6 +107,7 @@ from .sessions import (
     read_sessions_recent_reports_resource,
 )
 from .status import read_system_status_resource
+from .dispatch_graph import read_dispatch_graph_last_resource
 from .reviews import (
     read_review_panel_resource,
     read_reviews_recent_resource,
@@ -207,4 +208,5 @@ __all__ = [
     "read_figures_fitness_resource",
     "read_figure_fitness_detail_resource",
     "read_figure_recommendation_resource",
+    "read_dispatch_graph_last_resource",
 ]

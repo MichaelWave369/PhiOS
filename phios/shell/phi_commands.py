@@ -85,6 +85,10 @@ from phios.services.review_gate import (
     evaluate_review_coherence_gate,
     persist_review_outcome,
 )
+from phios.services.dispatch_graph import (
+    optimize_dispatch_graph,
+    summarize_dispatch_graph_plan,
+)
 from phios.services.figure_fitness import (
     build_figure_fitness_report,
     recommend_figure_for_task,
@@ -417,6 +421,7 @@ def cmd_help(_: list[str], session: object | None = None) -> str:
             "  build [iso|status|clean]",
             "  notify [test|status|history]",
             "  dispatch <task> [--field-guided] [--arch <name>] [--review-panel] [--coherence-gate <float>] [--dry-run] [--stream]",
+            "  dispatch optimize --graph <json> [--json]",
             "  agents [list|status <id>|kill <id> --yes|log <id>|figures [--top <n>] [--sector <name>]|evolve [--top <n>] [--sector <name>] [--task-key <key>] [--skill <skill>] [--min-coherence <v>]]",
             "  recommend-arch [--json]      Show field-guided cognitive architecture recommendation",
             "  recommend-atoms [--json]     Show sector-to-atom cognitive override recommendation",
@@ -2686,6 +2691,41 @@ def _arg_value(args: list[str], flag: str) -> str | None:
 
 
 def cmd_dispatch(args: list[str], session: object | None = None) -> str:
+    if args and args[0] == "optimize":
+        graph_raw = _arg_value(args, "--graph") or ""
+        if not graph_raw:
+            return "Usage: dispatch optimize --graph <json> [--json]"
+        try:
+            graph_obj = json.loads(graph_raw)
+        except Exception:
+            return "--graph must be valid JSON object"
+        if not isinstance(graph_obj, dict):
+            return "--graph must be JSON object"
+
+        plan = optimize_dispatch_graph(graph_obj)
+        payload = {
+            "ok": bool(plan.get("ok", False)),
+            "read_only": True,
+            "advisory_only": True,
+            "plan": plan,
+            "summary": summarize_dispatch_graph_plan(plan),
+            "experimental": True,
+        }
+        if "--json" in args:
+            return json.dumps(payload, indent=2)
+        if not payload["ok"]:
+            return f"Dispatch graph optimization failed: {plan.get('reason', 'invalid graph')}"
+        summary = payload["summary"]
+        return "\n".join(
+            [
+                "Dispatch graph optimization",
+                f"nodes: {summary.get('nodes', 0)}",
+                f"waves: {summary.get('waves', 0)}",
+                f"graph_score: {float(summary.get('graph_score', 0.0)):.3f}",
+                f"bottlenecks: {', '.join(str(x) for x in summary.get('bottlenecks', [])[:5]) or 'none'}",
+            ]
+        )
+
     if not args:
         return (
             "Usage: dispatch <task> [--field-guided] [--arch <name>] [--review-panel] "
@@ -2695,7 +2735,7 @@ def cmd_dispatch(args: list[str], session: object | None = None) -> str:
     value_flags = {"--arch", "--coherence-gate"}
     task_tokens: list[str] = []
     skip_next = False
-    for idx, token in enumerate(args):
+    for token in args:
         if skip_next:
             skip_next = False
             continue

@@ -181,6 +181,7 @@ Resources:
 - `phios://figures/fitness`
 - `phios://figures/fitness/{figure}`
 - `phios://figures/recommendation/{task_key}`
+- `phios://dispatch/graph/last`
 
 Tools:
 - `phi_status`
@@ -215,6 +216,7 @@ Tools:
 - `phi_record_figure_outcome`
 - `phi_figure_fitness_report`
 - `phi_recommend_figure_for_task`
+- `phi_optimize_dispatch_graph`
 
 Prompt:
 - `field_guidance`
@@ -365,9 +367,26 @@ Phase 22 additions (Issue #80 living cognitive ecosystem figure fitness):
   - `phios://figures/fitness`
   - `phios://figures/fitness/{figure}`
   - `phios://figures/recommendation/{task_key}`
+- `phios://dispatch/graph/last`
 - Storage model is local-first and inspectable under `~/.phios/journal/visual_bloom/narratives/figure_fitness_records.json` with append-only-like `figure_outcomes` entries.
 - Deterministic report metrics include `grade_success_rate`, `avg_merge_time_minutes`, `avg_coherence`, `redispatch_rate`, and `close_rate`.
 - This remains additive and experimental; write path is explicitly capability-gated (`figure_fitness_write`), and recommendations are advisory only.
+
+Phase 23 additions (Issue #82 golden lattice dependency navigator):
+- New deterministic dispatch-graph optimizer service: `phios/services/dispatch_graph.py`.
+- New shell command:
+  - `phi dispatch optimize --graph <json> [--json]`
+- New MCP read-only tool:
+  - `phi_optimize_dispatch_graph`
+- New read-only MCP resource:
+  - `phios://dispatch/graph/last`
+- Graph model supports node fields such as: `id`, `label`, `dependencies`, `estimated_cost`, `sector`, `skills`, `figure`, `atom_overrides`, and `priority`.
+- Deterministic optimization rules:
+  - dependency correctness via topological ordering first
+  - ready-node ranking by depth(desc), priority(desc), estimated_cost(asc), id(asc)
+  - parallel wave construction for dependency-safe batching
+  - bottleneck detection by fan-out
+- The optimizer remains additive, experimental, and advisory; no autonomous execution.
 
 Phase 11 additions:
 - Stable capstone/collection-family rollups under `phios://capstones/*` for syllabi, atlas cohorts, field-library families, dossier families, and storyboard families.
