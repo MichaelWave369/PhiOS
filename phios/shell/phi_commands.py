@@ -61,6 +61,10 @@ from phios.services.agent_dispatch import (
     run_agentception_plan,
     stream_agent_run_events,
 )
+from phios.services.cognitive_arch import (
+    build_cognitive_arch_context,
+    recommend_cognitive_architecture,
+)
 from phios.services.visualizer import (
     VALID_LENSES,
     VALID_PRESETS,
@@ -389,6 +393,7 @@ def cmd_help(_: list[str], session: object | None = None) -> str:
             "  notify [test|status|history]",
             "  dispatch <task> [--field-guided] [--arch <name>] [--review-panel] [--coherence-gate <float>] [--dry-run] [--stream]",
             "  agents [list|status <id>|kill <id> --yes|log <id>]",
+            "  recommend-arch [--json]      Show field-guided cognitive architecture recommendation",
             "  exit                        Exit REPL",
         ]
     )
@@ -2713,6 +2718,34 @@ def cmd_agents(args: list[str], session: object | None = None) -> str:
     return "Usage: agents [list|status <run_id>|kill <run_id> --yes|log <run_id>]"
 
 
+def cmd_recommend_arch(args: list[str], session: object | None = None) -> str:
+    adapter = PhiKernelCLIAdapter()
+    context = build_cognitive_arch_context(adapter)
+    recommendation = recommend_cognitive_architecture(context)
+
+    payload = {
+        "ok": True,
+        "read_only": True,
+        "experimental": True,
+        "recommendation": recommendation,
+        "context": context,
+    }
+    if "--json" in args:
+        return json.dumps(payload, indent=2)
+
+    return "\n".join(
+        [
+            "Field-guided cognitive architecture recommendation",
+            f"figure: {recommendation.get('figure', 'unknown')}",
+            f"archetype: {recommendation.get('archetype', 'unknown')}",
+            f"confidence: {float(recommendation.get('confidence', 0.0)):.3f}",
+            f"reason: {recommendation.get('reason', '')}",
+            f"signals: observer={context.get('observer_state')} alignment={context.get('self_alignment')} entropy={context.get('entropy_load')} emergence={context.get('emergence_pressure')}",
+            "framing: C* theoretical; bio-vacuum target experimental; Hunter's C unconfirmed.",
+        ]
+    )
+
+
 def cmd_dashboard(args: list[str], session: object | None = None) -> str:
     PhiDashboard(announcer=NETWORK_ANNOUNCER, discovery=NETWORK_DISCOVERY).run()
     return "Dashboard closed"
@@ -2939,5 +2972,6 @@ COMMANDS: dict[str, CommandHandler] = {
     "notify": cmd_notify,
     "dispatch": cmd_dispatch,
     "agents": cmd_agents,
+    "recommend-arch": cmd_recommend_arch,
     "build": cmd_build,
 }

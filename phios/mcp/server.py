@@ -38,6 +38,7 @@ from phios.mcp.resources.catalogs import (
     read_catalog_programs_resource,
 )
 from phios.mcp.resources.coherence_lt import read_coherence_lt_resource
+from phios.mcp.resources.cognitive_arch import read_cognition_recommendation_resource
 from phios.mcp.resources.collections import (
     read_curricula_rollup_resource,
     read_field_libraries_rollup_resource,
@@ -113,6 +114,7 @@ from phios.mcp.tools.agents import (
     run_phi_list_agents,
 )
 from phios.mcp.tools.ask import run_phi_ask
+from phios.mcp.tools.cognitive_arch import run_phi_recommend_cognitive_arch
 from phios.mcp.tools.discovery import run_phi_discovery, run_phi_discovery_dashboard_summary, run_phi_navigation_console_summary
 from phios.mcp.tools.observatory import (
     run_phi_atlas_summary,
@@ -150,6 +152,7 @@ def mcp_surface_registry() -> McpSurfaceRegistry:
         resources=(
             "phios://field/state",
             "phios://coherence/lt",
+            "phios://cognition/recommendation",
             "phios://system/status",
             "phios://mcp/discovery",
             "phios://history/recent_capsules",
@@ -249,6 +252,7 @@ def mcp_surface_registry() -> McpSurfaceRegistry:
         tools=(
             "phi_status",
             "phi_ask",
+            "phi_recommend_cognitive_arch",
             "phi_pulse_once",
             "phi_observatory_summary",
             "phi_recent_activity",
@@ -309,6 +313,10 @@ def create_mcp_server(adapter: PhiKernelCLIAdapter | None = None) -> Any:
     @server.resource("phios://coherence/lt", mime_type="application/json")
     def resource_coherence_lt() -> dict[str, object]:
         return _safe_call(read_coherence_lt_resource)
+
+    @server.resource("phios://cognition/recommendation", mime_type="application/json")
+    def resource_cognition_recommendation() -> dict[str, object]:
+        return _safe_call(read_cognition_recommendation_resource, kernel_adapter)
 
     @server.resource("phios://system/status", mime_type="application/json")
     def resource_system_status() -> dict[str, object]:
@@ -692,6 +700,10 @@ def create_mcp_server(adapter: PhiKernelCLIAdapter | None = None) -> Any:
     @server.tool(name="phi_status")
     def tool_phi_status() -> dict[str, object]:
         return _safe_call(run_phi_status, kernel_adapter)
+
+    @server.tool(name="phi_recommend_cognitive_arch")
+    def tool_phi_recommend_cognitive_arch() -> dict[str, object]:
+        return _safe_call(run_phi_recommend_cognitive_arch, kernel_adapter)
 
     @server.tool(name="phi_ask")
     def tool_phi_ask(prompt: str) -> dict[str, object]:

@@ -28,6 +28,7 @@ from .catalogs import (
     read_catalog_programs_resource,
 )
 from .coherence_lt import read_coherence_lt_resource
+from .cognitive_arch import read_cognition_recommendation_resource
 from .collections import (
     read_curricula_rollup_resource,
     read_field_libraries_rollup_resource,
@@ -175,4 +176,5 @@ __all__ = [
     "read_agents_active_resource",
     "read_agent_run_resource",
     "read_agent_run_events_resource",
+    "read_cognition_recommendation_resource",
 ]

@@ -74,6 +74,7 @@ phi-mcp
 Resources:
 - `phios://field/state`
 - `phios://coherence/lt`
+- `phios://cognition/recommendation`
 - `phios://system/status`
 - `phios://mcp/discovery`
 - `phios://history/recent_capsules`
@@ -173,6 +174,7 @@ Resources:
 Tools:
 - `phi_status`
 - `phi_ask`
+- `phi_recommend_cognitive_arch`
 - `phi_pulse_once`
 - `phi_observatory_summary`
 - `phi_recent_activity`
@@ -262,6 +264,18 @@ Phase 16 additions (Issue #79 experimental AgentCeption conductor):
   - `PHIOS_AGENTCEPTION_ENABLED=true|false`
   - `PHIOS_AGENTCEPTION_BASE_URL=http://127.0.0.1:8787`
   - optional `PHIOS_AGENTCEPTION_TOKEN`
+
+
+Phase 17 additions (Issue #76 field-guided cognitive architecture selection):
+- New read-only advisory shell command: `phi recommend-arch` (or `phi recommend-arch --json`).
+- New MCP read-only advisory tool: `phi_recommend_cognitive_arch`.
+- New MCP read-only resource: `phios://cognition/recommendation`.
+- Recommendation output is deterministic and explainable (`figure`, `archetype`, `reason`, `confidence`, signals, candidate scores).
+- This recommendation is an additive experimental prior for orchestration only, not a PhiKernel truth mutation.
+- Scientific framing remains explicit: `C*` is theoretical, bio-vacuum target is experimental, and Hunter's C remains unconfirmed.
+- AgentCeption interoperability notes (opt-in on AgentCeption side):
+  - `AC_PHIOS_ENDPOINT`
+  - `AC_PHIOS_FIELD_WEIGHT`
 
 Phase 11 additions:
 - Stable capstone/collection-family rollups under `phios://capstones/*` for syllabi, atlas cohorts, field-library families, dossier families, and storyboard families.
