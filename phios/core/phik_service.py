@@ -12,6 +12,8 @@ from phios.adapters.phik import (
     PhiKernelCLIAdapter,
     PhiKernelUnavailableError,
 )
+from phios.core.kernel_rollout import recent_rollout_status
+from phios.core.kernel_runtime import run_kernel_runtime
 
 
 def _as_int(value: object, default: int = 0) -> int:
@@ -64,7 +66,7 @@ def build_status_report(adapter: PhiKernelCLIAdapter) -> dict[str, object]:
     field = adapter.field()
     capsules = adapter.capsule_list()
 
-    return {
+    report = {
         "anchor_verification_state": _anchor_verification_state(status),
         "heart_state": _heart_state(status),
         "field_action": field.get("recommended_action", field.get("field_action", "unknown")),
@@ -72,6 +74,14 @@ def build_status_report(adapter: PhiKernelCLIAdapter) -> dict[str, object]:
         "capsule_count": _capsule_count(capsules),
         "phik_status": status,
     }
+    try:
+        runtime = run_kernel_runtime(adapter, context_type="status", source_label="phi status")
+    except PhiKernelAdapterError as exc:
+        report["kernel_runtime"] = {"enabled": True, "error": str(exc)}
+    else:
+        report["kernel_runtime"] = runtime
+        report["kernel_rollout"] = recent_rollout_status()
+    return report
 
 
 def build_coherence_report(adapter: PhiKernelCLIAdapter) -> dict[str, object]:
@@ -90,6 +100,23 @@ def build_coherence_report(adapter: PhiKernelCLIAdapter) -> dict[str, object]:
 
 
 def build_ask_report(adapter: PhiKernelCLIAdapter, prompt: str) -> dict[str, object]:
+    runtime = run_kernel_runtime(adapter, prompt=prompt, context_type="ask", source_label="phi ask")
+    if runtime.get("enabled"):
+        primary = runtime.get("primary", {})
+        recommendation = primary.get("recommendation")
+        return {
+            "prompt": prompt,
+            "coach": "PhiKernelRuntime",
+            "field_action": primary.get("verdict"),
+            "field_band": primary.get("mode"),
+            "safety_posture": primary.get("evidence_level"),
+            "route_reason": f"adapter={primary.get('adapter', 'unknown')}",
+            "body": recommendation,
+            "next_actions": [recommendation] if recommendation else [],
+            "kernel_runtime": runtime,
+            "phik_ask": {},
+        }
+
     data = adapter.ask(prompt)
     return {
         "prompt": prompt,
@@ -100,6 +127,7 @@ def build_ask_report(adapter: PhiKernelCLIAdapter, prompt: str) -> dict[str, obj
         "route_reason": data.get("route_reason"),
         "body": data.get("body"),
         "next_actions": data.get("next_actions"),
+        "kernel_runtime": runtime,
         "phik_ask": data,
     }
 
