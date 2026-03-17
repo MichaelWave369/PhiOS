@@ -200,6 +200,14 @@ from phios.services.visualizer import (
     export_visual_bloom_atlas_cohort,
     write_bloom_file,
 )
+from phios.core.kernel_rollout import (
+    KernelRolloutStore,
+    export_compare_report,
+    load_eval_cases,
+    recent_rollout_status,
+    run_kernel_evaluation,
+)
+from phios.core.kernel_runtime import KernelRuntimeConfig
 from phios.core.lt_engine import compute_lt
 from phios.core.sovereignty import SovereignSnapshot, export_snapshot, verify_snapshot
 from phios.core.tbrc_bridge import TBRCBridge, tbrc_connected
@@ -395,6 +403,7 @@ def cmd_help(_: list[str], session: object | None = None) -> str:
             "  bio export <path>            Export bioeffector layer",
             "  view --mode sonic [--live] [--refresh-seconds <float>] [--duration <seconds>] [--output <path.html>] [--journal] [--journal-dir <path>] [--label <name>] [--replay <session_id|session.json[:idx]>] [--state-idx <n>] [--next-state|--prev-state] [--preset <name>] [--lens <name>] [--audio-reactive] [--collection <name>] [--browse] [--browse-collections] [--browse-collection <name>] [--compare <left> <right>] [--export-report <path.json>]",
             "  status [--json]               Show PhiKernel-backed operator status",
+            "  eval-kernel [--input <cases.json>] [--compare <primary> <shadow>] [--report <path.json>] [--json]",
             "  ask <prompt> [--json]         Ask PhiKernel coach",
             "  coherence [live|--json]       Show PhiKernel coherence field",
             "  coherence live              Launch live coherence monitor",
@@ -2208,7 +2217,85 @@ def cmd_status(args: list[str], session: object | None = None) -> str:
             f"Heart state: {report.get('heart_state', 'unknown')}",
             f"Field action / drift band: {report.get('field_action', 'unknown')} / {report.get('field_drift_band', 'unknown')}",
             f"Capsules tracked: {report.get('capsule_count', 0)}",
+            f"Kernel runtime: {'on' if ((report.get('kernel_runtime') or {}).get('enabled')) else 'off'}",
+            f"Adapters: {((report.get('kernel_runtime') or {}).get('configured_adapter') or 'legacy')} / shadow {((report.get('kernel_runtime') or {}).get('shadow_adapter') or 'none')}",
+            f"Compare mode: {'on' if ((report.get('kernel_runtime') or {}).get('compare_mode')) else 'off'}",
+            f"Recent compare samples: {((report.get('kernel_rollout') or {}).get('recent_samples') or 0)}",
             "Source of truth: PhiKernel",
+        ]
+    )
+
+
+def cmd_eval_kernel(args: list[str], session: object | None = None) -> str:
+    if "--help" in args or "-h" in args:
+        return "Usage: eval-kernel [--input <cases.json>] [--compare <primary> <shadow>] [--report <path.json>] [--json]"
+
+    input_path = _extract_flag_value(args, "--input") if "--input" in args else None
+    report_path = _extract_flag_value(args, "--report") if "--report" in args else None
+
+    compare: tuple[str, str] | None = None
+    if "--compare" in args:
+        idx = args.index("--compare")
+        if idx + 2 >= len(args):
+            return "Usage: eval-kernel [--input <cases.json>] [--compare <primary> <shadow>] [--report <path.json>] [--json]"
+        compare = (args[idx + 1], args[idx + 2])
+
+    try:
+        cases = load_eval_cases(input_path)
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        return f"Failed to load kernel evaluation cases: {exc}"
+
+    cfg = KernelRuntimeConfig.from_env()
+    if compare:
+        cfg = KernelRuntimeConfig(enabled=True, adapter=compare[0], shadow_adapter=compare[1], compare_mode=True)
+
+    if not cfg.enabled:
+        return "Kernel runtime evaluation is disabled. Set PHIOS_KERNEL_ENABLED=true or pass --compare."
+
+    store = KernelRolloutStore()
+    result = run_kernel_evaluation(adapter=PhiKernelCLIAdapter(), cases=cases, config=cfg, store=store)
+
+    export_target = None
+    if report_path:
+        compare_records = [
+            row.get("runtime", {}).get("compare_record")
+            for row in result.get("results", [])
+            if isinstance(row, dict)
+            and isinstance(row.get("runtime"), dict)
+            and isinstance(row.get("runtime", {}).get("compare_record"), dict)
+        ]
+        export_target = str(export_compare_report(report_path, compare_records))
+
+    payload = {
+        "config": {
+            "enabled": cfg.enabled,
+            "adapter": cfg.adapter,
+            "shadow_adapter": cfg.shadow_adapter,
+            "compare_mode": cfg.compare_mode,
+        },
+        "summary": result.get("summary", {}),
+        "total_cases": result.get("total_cases", 0),
+        "recent_rollout": recent_rollout_status(store=store),
+    }
+    if export_target:
+        payload["report_path"] = export_target
+
+    if "--json" in args:
+        return json.dumps(payload, indent=2)
+
+    summary = payload.get("summary", {})
+    return "\n".join(
+        [
+            "PHI369 Labs / Parallax · Kernel Rollout Evaluation",
+            f"cases: {payload.get('total_cases', 0)}",
+            f"primary adapter: {cfg.adapter}",
+            f"shadow adapter: {cfg.shadow_adapter or 'none'}",
+            f"compare mode: {'on' if cfg.compare_mode else 'off'}",
+            f"verdict changes: {summary.get('verdict_changes', 0)}",
+            f"recommendation changes: {summary.get('recommendation_changes', 0)}",
+            f"null-result disagreement: {summary.get('null_result_disagreement', 0)}",
+            f"avg deltas: {json.dumps(summary.get('avg_score_deltas', {}), sort_keys=True)}",
+            f"report: {export_target or 'not written'}",
         ]
     )
 
@@ -3310,6 +3397,7 @@ COMMANDS: dict[str, CommandHandler] = {
     "bio": cmd_bio,
     "view": cmd_view,
     "status": cmd_status,
+    "eval-kernel": cmd_eval_kernel,
     "ask": cmd_ask,
     "coherence": cmd_coherence,
     "sovereign": cmd_sovereign,

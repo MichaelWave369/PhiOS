@@ -147,6 +147,9 @@ def run_kernel_runtime(
     *,
     prompt: str | None = None,
     config: KernelRuntimeConfig | None = None,
+    context_type: str = "runtime",
+    source_label: str = "phios",
+    rollout_store: object | None = None,
 ) -> dict[str, Any]:
     cfg = config or KernelRuntimeConfig.from_env()
     out: dict[str, Any] = {
@@ -167,5 +170,18 @@ def run_kernel_runtime(
         shadow = NormalizedKernelResult.from_payload(shadow_payload)
         out["shadow"] = shadow.to_public_dict()
         out["deltas"] = _compute_compare_deltas(primary, shadow)
+        try:
+            from phios.core.kernel_rollout import record_compare_result
+
+            compare_record = record_compare_result(
+                out,
+                context_type=context_type,
+                source_label=source_label,
+                store=rollout_store,
+            )
+            if compare_record is not None:
+                out["compare_record"] = compare_record
+        except Exception:
+            pass
 
     return out

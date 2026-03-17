@@ -12,6 +12,7 @@ from phios.adapters.phik import (
     PhiKernelCLIAdapter,
     PhiKernelUnavailableError,
 )
+from phios.core.kernel_rollout import recent_rollout_status
 from phios.core.kernel_runtime import run_kernel_runtime
 
 
@@ -74,11 +75,12 @@ def build_status_report(adapter: PhiKernelCLIAdapter) -> dict[str, object]:
         "phik_status": status,
     }
     try:
-        runtime = run_kernel_runtime(adapter)
+        runtime = run_kernel_runtime(adapter, context_type="status", source_label="phi status")
     except PhiKernelAdapterError as exc:
         report["kernel_runtime"] = {"enabled": True, "error": str(exc)}
     else:
         report["kernel_runtime"] = runtime
+        report["kernel_rollout"] = recent_rollout_status()
     return report
 
 
@@ -98,7 +100,7 @@ def build_coherence_report(adapter: PhiKernelCLIAdapter) -> dict[str, object]:
 
 
 def build_ask_report(adapter: PhiKernelCLIAdapter, prompt: str) -> dict[str, object]:
-    runtime = run_kernel_runtime(adapter, prompt=prompt)
+    runtime = run_kernel_runtime(adapter, prompt=prompt, context_type="ask", source_label="phi ask")
     if runtime.get("enabled"):
         primary = runtime.get("primary", {})
         recommendation = primary.get("recommendation")

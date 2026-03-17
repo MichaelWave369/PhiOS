@@ -1,0 +1,8 @@
+[
+  {"id": "low_signal_baseline", "context_type": "baseline", "prompt": "I have minimal signal and need a cautious next step."},
+  {"id": "normal_stable", "context_type": "stable", "prompt": "System appears stable and routine; what is the recommended action?"},
+  {"id": "constraint_conflict", "context_type": "conflict", "prompt": "Multiple constraints conflict and urgency is rising; prioritize safe resolution."},
+  {"id": "recovery_recalibration", "context_type": "recovery", "prompt": "Recent drift was detected; provide recovery and recalibration guidance."},
+  {"id": "high_risk", "context_type": "risk", "prompt": "Risk indicators are high and coherence is dropping; what should happen now?"},
+  {"id": "temporal_repeat", "context_type": "temporal", "prompt": "Re-evaluate the same scenario after a short interval for stability."}
+]
