@@ -4,9 +4,12 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from phios.adapters.phik import PhiKernelCLIAdapter
+
+if TYPE_CHECKING:
+    from phios.core.kernel_rollout import KernelRolloutStore
 
 
 _ALLOWED_ADAPTERS = {"legacy", "tiekat_v50"}
@@ -149,7 +152,7 @@ def run_kernel_runtime(
     config: KernelRuntimeConfig | None = None,
     context_type: str = "runtime",
     source_label: str = "phios",
-    rollout_store: object | None = None,
+    rollout_store: "KernelRolloutStore | None" = None,
 ) -> dict[str, Any]:
     cfg = config or KernelRuntimeConfig.from_env()
     out: dict[str, Any] = {
