@@ -33,6 +33,16 @@ PhiKernel remains authoritative for:
 - coherence
 - routing safety
 
+PhiKernel runtime contract integration (optional, default-off):
+
+- `PHIOS_KERNEL_ENABLED=true` enables consumption of PhiKernel's normalized runtime contract.
+- `PHIOS_KERNEL_ADAPTER=legacy` selects primary runtime adapter (`legacy` or `tiekat_v50`).
+- `PHIOS_KERNEL_SHADOW_ADAPTER=` optionally sets a secondary adapter for compare mode.
+- `PHIOS_KERNEL_COMPARE_MODE=false` enables side-by-side shadow execution without changing primary behavior.
+
+When compare mode is enabled, PhiOS uses the primary runtime result for normal flows and captures shadow deltas for operator analysis only.
+
+
 ## Install
 
 ```bash
