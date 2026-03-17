@@ -33,6 +33,57 @@ PhiKernel remains authoritative for:
 - coherence
 - routing safety
 
+PhiKernel runtime contract integration (optional, default-off):
+
+- `PHIOS_KERNEL_ENABLED=true` enables consumption of PhiKernel's normalized runtime contract.
+- `PHIOS_KERNEL_ADAPTER=legacy` selects primary runtime adapter (`legacy` or `tiekat_v50`).
+- `PHIOS_KERNEL_SHADOW_ADAPTER=` optionally sets a secondary adapter for compare mode.
+- `PHIOS_KERNEL_COMPARE_MODE=false` enables side-by-side shadow execution without changing primary behavior.
+
+When compare mode is enabled, PhiOS uses the primary runtime result for normal flows and captures shadow deltas for operator analysis only.
+
+### Kernel rollout evaluation (compare-mode analysis)
+
+Kernel compare logging and evaluation are opt-in rollout aids and do not auto-promote adapters.
+
+- Compare-mode runs are persisted locally under `~/.phios/kernel_rollout/compare_records.jsonl`.
+- Records include normalized runtime deltas only (no proprietary internals).
+- Duplicate compare payloads are suppressed within a short dedupe window.
+
+Run canonical evaluation cases:
+
+```bash
+phi eval-kernel --compare legacy tiekat_v50 --json
+```
+
+Run from custom case file and export report:
+
+```bash
+phi eval-kernel --input ./kernel_eval_cases.json --compare legacy tiekat_v50 --report ./kernel_rollout_report.json --json
+```
+
+Suggested shadow rollout env:
+
+```bash
+export PHIOS_KERNEL_ENABLED=true
+export PHIOS_KERNEL_ADAPTER=legacy
+export PHIOS_KERNEL_SHADOW_ADAPTER=tiekat_v50
+export PHIOS_KERNEL_COMPARE_MODE=true
+```
+
+After reviewing compare reports with operator approval, promotion to `tiekat_v50` should be deliberate and manual. Compare outputs are rollout aids, not proof of correctness.
+
+Review promotion readiness (advisory):
+
+```bash
+phi review-kernel-rollout --adapter legacy --since 2026-01-01T00:00:00+00:00 --json
+phi review-kernel-rollout --adapter legacy --markdown ./kernel_rollout_review.md
+```
+
+Readiness states are `ready`, `caution`, or `hold` based on transparent rollout heuristics (change rates and score deltas). This review is advisory-only and never auto-switches adapters.
+
+
+
 ## Install
 
 ```bash
