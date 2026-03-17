@@ -4,7 +4,9 @@ import json
 
 from phios.core.kernel_rollout import (
     KernelRolloutStore,
+    build_rollout_review,
     export_compare_report,
+    export_review_markdown,
     record_compare_result,
     summarize_compare_records,
 )
@@ -84,3 +86,45 @@ def test_disabled_mode_noop_record(tmp_path):
     out = record_compare_result({"enabled": False}, context_type="status", source_label="phi status", store=store)
     assert out is None
     assert store.read_records() == []
+
+
+def test_rollout_review_status_ready_and_hold(tmp_path):
+    ready_records = []
+    for i in range(6):
+        ready_records.append(
+            {
+                "id": str(i),
+                "verdict_changed": False,
+                "recommendation_changed": False,
+                "null_result_primary": False,
+                "null_result_shadow": False,
+                "score_delta_json": {"coherence_delta": 0.02, "stability_delta": 0.01, "readiness_delta": 0.02, "risk_delta": 0.01},
+            }
+        )
+    ready = build_rollout_review(ready_records)
+    assert ready["status"] == "ready"
+
+    hold_records = []
+    for i in range(8):
+        hold_records.append(
+            {
+                "id": str(i),
+                "verdict_changed": True,
+                "recommendation_changed": True,
+                "null_result_primary": i % 2 == 0,
+                "null_result_shadow": False,
+                "score_delta_json": {"coherence_delta": 0.5, "stability_delta": 0.1, "readiness_delta": 0.1, "risk_delta": 0.1},
+            }
+        )
+    hold = build_rollout_review(hold_records)
+    assert hold["status"] == "hold"
+    assert "VERDICT_CHANGE_RATE_HIGH" in hold["reason_codes"]
+
+
+def test_markdown_export_shape(tmp_path):
+    review = build_rollout_review([])
+    md = export_review_markdown(str(tmp_path / "review.md"), review)
+    body = md.read_text(encoding="utf-8")
+    assert body.startswith("# Kernel Rollout Review")
+    assert "Promotion readiness" in body
+    assert "advisory" in body.lower()

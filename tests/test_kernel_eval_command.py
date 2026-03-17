@@ -71,6 +71,28 @@ def test_eval_kernel_cli_report_export(monkeypatch, tmp_path):
     assert report_path.exists()
 
 
+def test_review_kernel_rollout_cli_json_and_markdown(monkeypatch, tmp_path):
+    monkeypatch.setenv("PHIOS_CONFIG_HOME", str(tmp_path))
+    monkeypatch.setattr("phios.shell.phi_commands.PhiKernelCLIAdapter", lambda: StubAdapter())
+
+    route_command(["eval-kernel", "--compare", "legacy", "tiekat_v50", "--json"])
+    md = tmp_path / "review.md"
+    out, code = route_command([
+        "review-kernel-rollout",
+        "--adapter",
+        "legacy",
+        "--markdown",
+        str(md),
+        "--json",
+    ])
+
+    assert code == 0
+    data = json.loads(out)
+    assert data["review"]["status"] in {"ready", "caution", "hold"}
+    assert data["markdown_path"] == str(md)
+    assert md.exists()
+
+
 def test_status_surface_includes_rollout_block(monkeypatch):
     monkeypatch.setattr(
         "phios.shell.phi_commands.build_status_report",
@@ -86,7 +108,7 @@ def test_status_surface_includes_rollout_block(monkeypatch):
                 "shadow_adapter": "tiekat_v50",
                 "compare_mode": True,
             },
-            "kernel_rollout": {"recent_samples": 5},
+            "kernel_rollout": {"recent_samples": 5, "review_status": "caution"},
         },
     )
 
@@ -94,3 +116,4 @@ def test_status_surface_includes_rollout_block(monkeypatch):
     assert code == 0
     assert "Kernel runtime:" in out
     assert "Recent compare samples:" in out
+    assert "Promotion readiness:" in out

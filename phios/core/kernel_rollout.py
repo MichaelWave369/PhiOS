@@ -88,6 +88,12 @@ def _avg(nums: list[float]) -> float | None:
     return round(sum(nums) / len(nums), 6)
 
 
+def _safe_rate(numerator: int, denominator: int) -> float:
+    if denominator <= 0:
+        return 0.0
+    return round(numerator / denominator, 6)
+
+
 class KernelRolloutStore:
     def __init__(self, root: Path | None = None):
         self.root = root or _root_dir()
@@ -165,29 +171,37 @@ class KernelRolloutStore:
         adapter: str | None = None,
         context_type: str | None = None,
         since: str | None = None,
+        until: str | None = None,
     ) -> list[dict[str, Any]]:
         rows = self.read_records()
         out: list[dict[str, Any]] = []
         since_dt: datetime | None = None
+        until_dt: datetime | None = None
         if since:
             try:
                 since_dt = datetime.fromisoformat(since)
             except ValueError:
                 since_dt = None
+        if until:
+            try:
+                until_dt = datetime.fromisoformat(until)
+            except ValueError:
+                until_dt = None
 
         for row in rows:
             if adapter and row.get("primary_adapter") != adapter and row.get("shadow_adapter") != adapter:
                 continue
             if context_type and row.get("context_type") != context_type:
                 continue
-            if since_dt and isinstance(row.get("created_at"), str):
+            if isinstance(row.get("created_at"), str):
                 try:
                     row_dt = datetime.fromisoformat(row["created_at"])
                 except ValueError:
-                    pass
-                else:
-                    if row_dt < since_dt:
-                        continue
+                    row_dt = None
+                if row_dt is not None and since_dt is not None and row_dt < since_dt:
+                    continue
+                if row_dt is not None and until_dt is not None and row_dt > until_dt:
+                    continue
             out.append(row)
         return out
 
@@ -254,11 +268,7 @@ def record_compare_result(
         null_result_primary=bool(primary.get("null_result", False)),
         null_result_shadow=bool(shadow.get("null_result", False)),
         summary_note=_build_summary_note(primary, shadow, deltas),
-        raw_compare_json={
-            "primary": primary,
-            "shadow": shadow,
-            "deltas": deltas,
-        },
+        raw_compare_json={"primary": primary, "shadow": shadow, "deltas": deltas},
         fingerprint=fingerprint,
     )
     target = store or KernelRolloutStore()
@@ -303,17 +313,29 @@ def summarize_compare_records(records: list[dict[str, Any]]) -> dict[str, Any]:
         reverse=True,
     )[:3]
 
+    max_delta = {
+        "coherence": max(coherence_deltas) if coherence_deltas else None,
+        "stability": max(stability_deltas) if stability_deltas else None,
+        "readiness": max(readiness_deltas) if readiness_deltas else None,
+        "risk": max(risk_deltas) if risk_deltas else None,
+    }
+
+    total_cases = len(records)
     return {
-        "total_cases": len(records),
+        "total_cases": total_cases,
         "verdict_changes": verdict_changes,
         "recommendation_changes": recommendation_changes,
         "null_result_disagreement": null_disagreement,
+        "verdict_change_rate": _safe_rate(verdict_changes, total_cases),
+        "recommendation_change_rate": _safe_rate(recommendation_changes, total_cases),
+        "null_result_disagreement_rate": _safe_rate(null_disagreement, total_cases),
         "avg_score_deltas": {
             "coherence": _avg(coherence_deltas),
             "stability": _avg(stability_deltas),
             "readiness": _avg(readiness_deltas),
             "risk": _avg(risk_deltas),
         },
+        "max_score_deltas": max_delta,
         "largest_delta_cases": [
             {
                 "id": row.get("id"),
@@ -325,13 +347,93 @@ def summarize_compare_records(records: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
+def build_rollout_review(records: list[dict[str, Any]]) -> dict[str, Any]:
+    summary = summarize_compare_records(records)
+    total = int(summary.get("total_cases", 0))
+    verdict_rate = float(summary.get("verdict_change_rate", 0.0) or 0.0)
+    rec_rate = float(summary.get("recommendation_change_rate", 0.0) or 0.0)
+    null_rate = float(summary.get("null_result_disagreement_rate", 0.0) or 0.0)
+    avg_deltas = summary.get("avg_score_deltas", {}) if isinstance(summary.get("avg_score_deltas"), dict) else {}
+    max_deltas = summary.get("max_score_deltas", {}) if isinstance(summary.get("max_score_deltas"), dict) else {}
+    avg_peak = max(
+        float(avg_deltas.get("coherence") or 0.0),
+        float(avg_deltas.get("stability") or 0.0),
+        float(avg_deltas.get("readiness") or 0.0),
+        float(avg_deltas.get("risk") or 0.0),
+    )
+    max_peak = max(
+        float(max_deltas.get("coherence") or 0.0),
+        float(max_deltas.get("stability") or 0.0),
+        float(max_deltas.get("readiness") or 0.0),
+        float(max_deltas.get("risk") or 0.0),
+    )
+
+    reason_codes: list[str] = []
+    status = "ready"
+
+    if total < 5:
+        status = "hold"
+        reason_codes.append("LOW_SAMPLE_SIZE")
+    if null_rate > 0.05:
+        status = "hold"
+        reason_codes.append("NULL_RESULT_DISAGREEMENT_HIGH")
+    if verdict_rate > 0.25:
+        status = "hold"
+        reason_codes.append("VERDICT_CHANGE_RATE_HIGH")
+    if max_peak > 0.4:
+        status = "hold"
+        reason_codes.append("MAX_SCORE_DELTA_HIGH")
+
+    if status != "hold":
+        if verdict_rate > 0.10:
+            status = "caution"
+            reason_codes.append("VERDICT_CHANGE_RATE_ELEVATED")
+        if rec_rate > 0.20:
+            status = "caution"
+            reason_codes.append("RECOMMENDATION_CHANGE_RATE_ELEVATED")
+        if avg_peak > 0.15:
+            status = "caution"
+            reason_codes.append("AVERAGE_SCORE_DELTA_ELEVATED")
+        if max_peak > 0.25:
+            status = "caution"
+            reason_codes.append("MAX_SCORE_DELTA_ELEVATED")
+
+    if not reason_codes:
+        reason_codes.append("STABLE_COMPARE_WINDOW")
+
+    explanation = (
+        f"Status={status}. samples={total}, verdict_rate={verdict_rate:.3f}, "
+        f"recommendation_rate={rec_rate:.3f}, null_rate={null_rate:.3f}, "
+        f"avg_peak_delta={avg_peak:.3f}, max_peak_delta={max_peak:.3f}. "
+        "Advisory only; operator approval remains authoritative."
+    )
+
+    return {
+        "status": status,
+        "reason_codes": reason_codes,
+        "metrics": {
+            "total_cases": total,
+            "verdict_change_rate": verdict_rate,
+            "recommendation_change_rate": rec_rate,
+            "null_result_disagreement_rate": null_rate,
+            "avg_peak_score_delta": round(avg_peak, 6),
+            "max_peak_score_delta": round(max_peak, 6),
+        },
+        "explanation_note": explanation,
+        "summary": summary,
+    }
+
+
 def recent_rollout_status(store: KernelRolloutStore | None = None, limit: int = 20) -> dict[str, Any]:
     target = store or KernelRolloutStore()
     records = target.read_records()[-limit:]
-    summary = summarize_compare_records(records)
+    review = build_rollout_review(records)
     return {
         "recent_samples": len(records),
-        **summary,
+        **review["summary"],
+        "review_status": review["status"],
+        "review_reason_codes": review["reason_codes"],
+        "review_explanation_note": review["explanation_note"],
     }
 
 
@@ -341,10 +443,78 @@ def export_compare_report(path: str, records: list[dict[str, Any]]) -> Path:
     payload = {
         "exported_at": _now_iso(),
         "summary": summarize_compare_records(records),
+        "review": build_rollout_review(records),
         "records": records,
     }
     target.write_text(json.dumps(payload, indent=2), encoding="utf-8")
     return target
+
+
+def export_review_markdown(path: str, review: dict[str, Any]) -> Path:
+    target = Path(path).expanduser().resolve(strict=False)
+    target.parent.mkdir(parents=True, exist_ok=True)
+
+    metrics = review.get("metrics", {}) if isinstance(review.get("metrics"), dict) else {}
+    codes = review.get("reason_codes", []) if isinstance(review.get("reason_codes"), list) else []
+    summary = review.get("summary", {}) if isinstance(review.get("summary"), dict) else {}
+
+    lines = [
+        "# Kernel Rollout Review",
+        "",
+        f"- Generated: {_now_iso()}",
+        f"- Promotion readiness: **{review.get('status', 'unknown')}**",
+        f"- Reason codes: {', '.join(str(c) for c in codes) if codes else 'none'}",
+        "",
+        "## Metrics",
+        "",
+        f"- Total cases: {metrics.get('total_cases', 0)}",
+        f"- Verdict change rate: {metrics.get('verdict_change_rate', 0.0)}",
+        f"- Recommendation change rate: {metrics.get('recommendation_change_rate', 0.0)}",
+        f"- Null-result disagreement rate: {metrics.get('null_result_disagreement_rate', 0.0)}",
+        f"- Avg peak score delta: {metrics.get('avg_peak_score_delta', 0.0)}",
+        f"- Max peak score delta: {metrics.get('max_peak_score_delta', 0.0)}",
+        "",
+        "## Delta Summary",
+        "",
+        f"- Average deltas: `{json.dumps(summary.get('avg_score_deltas', {}), sort_keys=True)}`",
+        f"- Max deltas: `{json.dumps(summary.get('max_score_deltas', {}), sort_keys=True)}`",
+        "",
+        "## Note",
+        "",
+        str(review.get("explanation_note", "Advisory review.")),
+        "",
+        "_Rollout review is advisory only and does not auto-switch adapters._",
+    ]
+
+    target.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return target
+
+
+def review_rollout_records(
+    *,
+    store: KernelRolloutStore | None = None,
+    adapter: str | None = None,
+    context_type: str | None = None,
+    since: str | None = None,
+    until: str | None = None,
+    limit: int = 50,
+) -> dict[str, Any]:
+    target = store or KernelRolloutStore()
+    records = target.query_records(adapter=adapter, context_type=context_type, since=since, until=until)
+    records = records[-max(1, limit):]
+    review = build_rollout_review(records)
+    return {
+        "filters": {
+            "adapter": adapter,
+            "context_type": context_type,
+            "since": since,
+            "until": until,
+            "limit": limit,
+        },
+        "record_count": len(records),
+        "review": review,
+        "recent_records": records[-5:],
+    }
 
 
 def load_eval_cases(path: str | None = None) -> list[dict[str, str]]:
@@ -382,12 +552,7 @@ def run_kernel_evaluation(
             source_label=case.get("id", "case"),
             rollout_store=store,
         )
-        record = {
-            "id": case.get("id"),
-            "context_type": case.get("context_type"),
-            "runtime": runtime,
-        }
-        rows.append(record)
+        rows.append({"id": case.get("id"), "context_type": case.get("context_type"), "runtime": runtime})
 
     compare_records = [
         row["runtime"].get("compare_record")
@@ -398,4 +563,5 @@ def run_kernel_evaluation(
         "total_cases": len(cases),
         "results": rows,
         "summary": summarize_compare_records(compare_records),
+        "review": build_rollout_review(compare_records),
     }

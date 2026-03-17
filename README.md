@@ -73,6 +73,16 @@ export PHIOS_KERNEL_COMPARE_MODE=true
 
 After reviewing compare reports with operator approval, promotion to `tiekat_v50` should be deliberate and manual. Compare outputs are rollout aids, not proof of correctness.
 
+Review promotion readiness (advisory):
+
+```bash
+phi review-kernel-rollout --adapter legacy --since 2026-01-01T00:00:00+00:00 --json
+phi review-kernel-rollout --adapter legacy --markdown ./kernel_rollout_review.md
+```
+
+Readiness states are `ready`, `caution`, or `hold` based on transparent rollout heuristics (change rates and score deltas). This review is advisory-only and never auto-switches adapters.
+
+
 
 ## Install
 

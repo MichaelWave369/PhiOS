@@ -203,8 +203,10 @@ from phios.services.visualizer import (
 from phios.core.kernel_rollout import (
     KernelRolloutStore,
     export_compare_report,
+    export_review_markdown,
     load_eval_cases,
     recent_rollout_status,
+    review_rollout_records,
     run_kernel_evaluation,
 )
 from phios.core.kernel_runtime import KernelRuntimeConfig
@@ -404,6 +406,7 @@ def cmd_help(_: list[str], session: object | None = None) -> str:
             "  view --mode sonic [--live] [--refresh-seconds <float>] [--duration <seconds>] [--output <path.html>] [--journal] [--journal-dir <path>] [--label <name>] [--replay <session_id|session.json[:idx]>] [--state-idx <n>] [--next-state|--prev-state] [--preset <name>] [--lens <name>] [--audio-reactive] [--collection <name>] [--browse] [--browse-collections] [--browse-collection <name>] [--compare <left> <right>] [--export-report <path.json>]",
             "  status [--json]               Show PhiKernel-backed operator status",
             "  eval-kernel [--input <cases.json>] [--compare <primary> <shadow>] [--report <path.json>] [--json]",
+            "  review-kernel-rollout [--adapter <name>] [--context <type>] [--since <iso>] [--until <iso>] [--limit <n>] [--markdown <path.md>] [--json]",
             "  ask <prompt> [--json]         Ask PhiKernel coach",
             "  coherence [live|--json]       Show PhiKernel coherence field",
             "  coherence live              Launch live coherence monitor",
@@ -2221,6 +2224,7 @@ def cmd_status(args: list[str], session: object | None = None) -> str:
             f"Adapters: {((report.get('kernel_runtime') or {}).get('configured_adapter') or 'legacy')} / shadow {((report.get('kernel_runtime') or {}).get('shadow_adapter') or 'none')}",
             f"Compare mode: {'on' if ((report.get('kernel_runtime') or {}).get('compare_mode')) else 'off'}",
             f"Recent compare samples: {((report.get('kernel_rollout') or {}).get('recent_samples') or 0)}",
+            f"Promotion readiness: {((report.get('kernel_rollout') or {}).get('review_status') or 'unknown')}",
             "Source of truth: PhiKernel",
         ]
     )
@@ -2296,6 +2300,61 @@ def cmd_eval_kernel(args: list[str], session: object | None = None) -> str:
             f"null-result disagreement: {summary.get('null_result_disagreement', 0)}",
             f"avg deltas: {json.dumps(summary.get('avg_score_deltas', {}), sort_keys=True)}",
             f"report: {export_target or 'not written'}",
+        ]
+    )
+
+
+def cmd_review_kernel_rollout(args: list[str], session: object | None = None) -> str:
+    if "--help" in args or "-h" in args:
+        return "Usage: review-kernel-rollout [--adapter <name>] [--context <type>] [--since <iso>] [--until <iso>] [--limit <n>] [--markdown <path.md>] [--json]"
+
+    adapter = _extract_flag_value(args, "--adapter") if "--adapter" in args else None
+    context_type = _extract_flag_value(args, "--context") if "--context" in args else None
+    since = _extract_flag_value(args, "--since") if "--since" in args else None
+    until = _extract_flag_value(args, "--until") if "--until" in args else None
+    markdown_path = _extract_flag_value(args, "--markdown") if "--markdown" in args else None
+
+    limit = 50
+    if "--limit" in args:
+        try:
+            limit = max(1, int(_extract_flag_value(args, "--limit") or "50"))
+        except ValueError:
+            return "--limit must be an integer"
+
+    review_payload = review_rollout_records(
+        adapter=adapter,
+        context_type=context_type,
+        since=since,
+        until=until,
+        limit=limit,
+    )
+
+    markdown_target = None
+    if markdown_path:
+        markdown_target = str(export_review_markdown(markdown_path, review_payload.get("review", {})))
+
+    if "--json" in args:
+        out = dict(review_payload)
+        if markdown_target:
+            out["markdown_path"] = markdown_target
+        return json.dumps(out, indent=2)
+
+    review = review_payload.get("review", {})
+    metrics = review.get("metrics", {}) if isinstance(review.get("metrics"), dict) else {}
+    reason_codes = review.get("reason_codes", []) if isinstance(review.get("reason_codes"), list) else []
+    return "\n".join(
+        [
+            "PHI369 Labs / Parallax · Kernel Rollout Review",
+            f"promotion readiness: {review.get('status', 'unknown')}",
+            f"records analyzed: {review_payload.get('record_count', 0)}",
+            f"verdict change rate: {metrics.get('verdict_change_rate', 0.0)}",
+            f"recommendation change rate: {metrics.get('recommendation_change_rate', 0.0)}",
+            f"null-result disagreement rate: {metrics.get('null_result_disagreement_rate', 0.0)}",
+            f"avg peak delta: {metrics.get('avg_peak_score_delta', 0.0)}",
+            f"max peak delta: {metrics.get('max_peak_score_delta', 0.0)}",
+            f"reason codes: {', '.join(str(x) for x in reason_codes) if reason_codes else 'none'}",
+            f"markdown: {markdown_target or 'not written'}",
+            "Advisory only: no adapter auto-promotion.",
         ]
     )
 
@@ -3398,6 +3457,7 @@ COMMANDS: dict[str, CommandHandler] = {
     "view": cmd_view,
     "status": cmd_status,
     "eval-kernel": cmd_eval_kernel,
+    "review-kernel-rollout": cmd_review_kernel_rollout,
     "ask": cmd_ask,
     "coherence": cmd_coherence,
     "sovereign": cmd_sovereign,
