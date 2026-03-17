@@ -46,7 +46,7 @@ jobs:
           pip install -e ".[dev]"
       - name: Clean old build artifacts
         run: |
-          rm -rf dist/ build/ ./*.egg-info
+          rm -rf dist build *.egg-info ./*.egg-info
       - name: Build distribution artifacts
         run: python -m build
       - name: Verify distribution artifacts
