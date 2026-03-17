@@ -114,3 +114,20 @@ class PhiKernelCLIAdapter:
         if resonant_label:
             args.extend(["--resonant-label", resonant_label])
         return self._run_json(args)
+
+    def runtime(
+        self,
+        *,
+        prompt: str | None = None,
+        adapter: str | None = None,
+        mode: str | None = None,
+    ) -> dict[str, object]:
+        args: list[str] = ["runtime"]
+        if prompt:
+            args.extend(["--prompt", prompt])
+        if adapter:
+            args.extend(["--adapter", adapter])
+        if mode:
+            args.extend(["--mode", mode])
+        return self._run_json(args)
+
