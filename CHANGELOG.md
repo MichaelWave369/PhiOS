@@ -4,6 +4,12 @@ PHI369 Labs / Parallax
 TIEKAT v8.1 / Hemavit attribution  
 Dreamteam attribution: PHI369 Labs, contributors, and field builders.
 
+## Unreleased
+
+- Added kernel migration runbook (`docs/kernel-migration-v50.md`) for controlled operator-reviewed legacy -> `tiekat_v50` campaigns.
+- Added advisory rollout guardrails for contributors/agents in `AGENTS.md`.
+- Added `scripts/kernel_rollout_campaign.sh` helper for repeatable shadow/promoted/rollback evaluation + review artifact generation.
+
 ## v1.0.0 — Public Launch · The Parallax Declaration
 
 The first public release of PhiOS — Sovereign Computing Shell.
