@@ -10,6 +10,7 @@ from phios.reality import (
     JSON_STRUCTURAL_PREDICATES,
     JSON_TYPE_NAMES,
     JsonContractClause,
+    JsonMixedContractClause,
     RealityClaim,
     RealityClaimKind,
     StdlibLoopbackHttpStateProvider,
@@ -45,8 +46,32 @@ def _json_contract_clauses(
     return tuple(clauses)
 
 
+def _json_mixed_contract_clauses(
+    parser: argparse.ArgumentParser,
+    raw_clauses: list[str],
+) -> tuple[JsonMixedContractClause, ...]:
+    clauses: list[JsonMixedContractClause] = []
+    for index, raw in enumerate(raw_clauses):
+        try:
+            value = json.loads(raw)
+        except json.JSONDecodeError as exc:
+            parser.error(
+                f"--json-mixed-clause {index} is not valid JSON: {exc.msg}"
+            )
+        if not isinstance(value, dict):
+            parser.error(
+                f"--json-mixed-clause {index} must decode to a JSON object"
+            )
+        try:
+            clause = JsonMixedContractClause.from_mapping(value)
+        except ValueError as exc:
+            parser.error(f"--json-mixed-clause {index}: {exc}")
+        clauses.append(clause)
+    return tuple(clauses)
+
+
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="phi-spine", description="PhiOS Spine v0.18")
+    parser = argparse.ArgumentParser(prog="phi-spine", description="PhiOS Spine v0.19")
     parser.add_argument("--state-root", help="Override the PhiOS Spine local state root")
     parser.add_argument(
         "--allow",
@@ -57,7 +82,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     sub = parser.add_subparsers(dest="command", required=True)
 
-    sub.add_parser("status", help="Show the v0.18 spine and Mandala contract state")
+    sub.add_parser("status", help="Show the v0.19 spine and Mandala contract state")
     sub.add_parser("list", help="List registered capabilities")
 
     perceive = sub.add_parser(
@@ -237,6 +262,18 @@ def build_parser() -> argparse.ArgumentParser:
         "--json-scalar-operand",
         help="Numeric operand required by integer/number scalar predicates",
     )
+    verify_claim.add_argument(
+        "--json-mixed-clause",
+        action="append",
+        default=[],
+        metavar="JSON",
+        help=(
+            "Repeatable clause for local_http_json_mixed_contract. "
+            'Examples: {"pointer":"/models","type":"array"}, '
+            '{"pointer":"/models","predicate":"array_length_gte","bound":1}, '
+            'or {"pointer":"/ready","scalar_predicate":"boolean_is_true"}'
+        ),
+    )
     verify_claim.add_argument("--max-evidence-bytes", type=int, default=1_048_576)
 
     run = sub.add_parser("run", help="Plan, authorize, execute, and receipt a capability")
@@ -272,7 +309,7 @@ def main() -> int:
                     "gates": [gate.value for gate in Gate],
                     "statuses": [status.value for status in MandalaStatus],
                     "north_gate": "soma.text.v0.1+soma.file.v0.1+soma.screen.v0.1+soma.recovery.v0.1+soma.multishot.v0.1+soma.enhancement.v0.1+soma.ocr.v0.1",
-                    "reality_gate": "reality.bounded-evidence.v0.8",
+                    "reality_gate": "reality.bounded-evidence.v0.9",
                     "world_verifiers": [
                         "local-interface-state.v0.1",
                         "local-tcp-listener-state.v0.1",
@@ -282,6 +319,7 @@ def main() -> int:
                         "local-http-json-structural-predicate.v0.1",
                         "local-http-json-multi-contract.v0.1",
                         "local-http-json-scalar-predicate.v0.1",
+                        "local-http-json-mixed-contract.v0.1",
                     ],
                 },
                 indent=2,
@@ -432,6 +470,10 @@ def main() -> int:
             parser,
             args.json_clause,
         )
+        json_mixed_contract_clauses = _json_mixed_contract_clauses(
+            parser,
+            args.json_mixed_clause,
+        )
         claim = RealityClaim.create(
             kind=RealityClaimKind(args.kind),
             statement=args.statement,
@@ -466,6 +508,7 @@ def main() -> int:
             json_contract_clauses=json_contract_clauses,
             json_scalar_predicate_kind=args.json_scalar_predicate,
             json_scalar_operand=args.json_scalar_operand,
+            json_mixed_contract_clauses=json_mixed_contract_clauses,
         )
         verification_result = runtime.verify_reality(
             claims=(claim,),
@@ -479,6 +522,7 @@ def main() -> int:
                     RealityClaimKind.LOCAL_HTTP_JSON_PREDICATE.value,
                     RealityClaimKind.LOCAL_HTTP_JSON_MULTI_CONTRACT.value,
                     RealityClaimKind.LOCAL_HTTP_JSON_SCALAR_PREDICATE.value,
+                    RealityClaimKind.LOCAL_HTTP_JSON_MIXED_CONTRACT.value,
                 }
                 else None
             ),
