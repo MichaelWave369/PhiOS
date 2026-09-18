@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 
 from phios.mandala import MANDALA_CONTRACT_VERSION, Gate, MandalaStatus
+from phios.soma import ScreenRegion
 
 from . import __version__ as SPINE_VERSION
 from .runtime import PhiOSSpine
@@ -16,7 +17,7 @@ def _runtime(args: argparse.Namespace) -> PhiOSSpine:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="phi-spine", description="PhiOS Spine v0.4")
+    parser = argparse.ArgumentParser(prog="phi-spine", description="PhiOS Spine v0.5")
     parser.add_argument("--state-root", help="Override the PhiOS Spine local state root")
     parser.add_argument(
         "--allow",
@@ -27,7 +28,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     sub = parser.add_subparsers(dest="command", required=True)
 
-    sub.add_parser("status", help="Show the v0.4 spine and Mandala contract state")
+    sub.add_parser("status", help="Show the v0.5 spine and Mandala contract state")
     sub.add_parser("list", help="List registered capabilities")
 
     perceive = sub.add_parser(
@@ -58,6 +59,17 @@ def build_parser() -> argparse.ArgumentParser:
         choices=["strip_utf8_bom", "normalize_newlines"],
         help="Apply one deterministic recovery transform (repeatable)",
     )
+
+    perceive_screen = sub.add_parser(
+        "perceive-screen",
+        help="Capture one explicitly selected desktop region through the SOMA North Gate",
+    )
+    perceive_screen.add_argument("--x", type=int, required=True)
+    perceive_screen.add_argument("--y", type=int, required=True)
+    perceive_screen.add_argument("--width", type=int, required=True)
+    perceive_screen.add_argument("--height", type=int, required=True)
+    perceive_screen.add_argument("--max-pixels", type=int, default=8_294_400)
+    perceive_screen.add_argument("--reacquire-attempts", type=int, default=1)
 
     run = sub.add_parser("run", help="Plan, authorize, execute, and receipt a capability")
     run.add_argument("capability_id")
@@ -91,7 +103,7 @@ def main() -> int:
                     "core_lifecycle": runtime.core.lifecycle.value,
                     "gates": [gate.value for gate in Gate],
                     "statuses": [status.value for status in MandalaStatus],
-                    "north_gate": "soma.text.v0.1+soma.file.v0.1",
+                    "north_gate": "soma.text.v0.1+soma.file.v0.1+soma.screen.v0.1",
                 },
                 indent=2,
             )
@@ -122,6 +134,25 @@ def main() -> int:
         return (
             0
             if file_result.receipt.status in {MandalaStatus.ACCEPTED, MandalaStatus.DEGRADED}
+            else 2
+        )
+
+    if args.command == "perceive-screen":
+        screen_result = runtime.perceive_screen(
+            region=ScreenRegion(
+                x=args.x,
+                y=args.y,
+                width=args.width,
+                height=args.height,
+            ),
+            max_pixels=args.max_pixels,
+            reacquire_attempts=args.reacquire_attempts,
+        )
+        print(json.dumps(screen_result.to_dict(), indent=2))
+        return (
+            0
+            if screen_result.receipt.status
+            in {MandalaStatus.ACCEPTED, MandalaStatus.DEGRADED}
             else 2
         )
 

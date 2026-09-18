@@ -88,6 +88,10 @@ class PerceptionReceipt(ReceiptEnvelope):
     acquisition_status: str | None = None
     source_locator: str | None = None
     source_root_ref: str | None = None
+    capture_region: dict[str, int] = field(default_factory=dict)
+    capture_backend: str | None = None
+    capture_attempts: int = 0
+    recovery_steps: tuple[str, ...] = field(default_factory=tuple)
     receipt_type: str = field(init=False, default="PerceptionReceipt")
 
 

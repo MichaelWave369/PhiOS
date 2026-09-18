@@ -29,6 +29,8 @@ Repository = "https://github.com/MichaelWave369/PhiOS"
 Manifesto = "https://enterthefield.org/phios"
 
 [project.optional-dependencies]
+screen = ["Pillow>=10.0"]
+
 dev = [
   "build>=1.2.2",
   "twine>=5.1.1",
