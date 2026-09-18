@@ -71,11 +71,11 @@ class TesseractOcrProvider:
     name = "tesseract-local"
 
     @staticmethod
-    def _line_text(data: dict[str, object]) -> str:
-        raw_text = list(data.get("text", []))  # type: ignore[arg-type]
-        blocks = list(data.get("block_num", []))  # type: ignore[arg-type]
-        paragraphs = list(data.get("par_num", []))  # type: ignore[arg-type]
-        lines = list(data.get("line_num", []))  # type: ignore[arg-type]
+    def _line_text(data: dict[str, list[object]]) -> str:
+        raw_text = list(data.get("text", []))
+        blocks = list(data.get("block_num", []))
+        paragraphs = list(data.get("par_num", []))
+        lines = list(data.get("line_num", []))
 
         groups: list[tuple[tuple[object, object, object], list[str]]] = []
         current_key: tuple[object, object, object] | None = None
@@ -102,9 +102,9 @@ class TesseractOcrProvider:
         return "\n".join(" ".join(words) for _, words in groups)
 
     @staticmethod
-    def _confidences(data: dict[str, object]) -> tuple[float, ...]:
+    def _confidences(data: dict[str, list[object]]) -> tuple[float, ...]:
         values: list[float] = []
-        for raw in list(data.get("conf", [])):  # type: ignore[arg-type]
+        for raw in list(data.get("conf", [])):
             try:
                 value = float(raw)
             except (TypeError, ValueError):
