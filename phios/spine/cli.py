@@ -112,16 +112,16 @@ def main() -> int:
         return 0 if result.receipt.status in {MandalaStatus.ACCEPTED, MandalaStatus.DEGRADED} else 2
 
     if args.command == "perceive-file":
-        result = runtime.perceive_file(
+        file_result = runtime.perceive_file(
             source_root=Path(args.root).expanduser(),
             relative_path=args.path,
             transforms=tuple(args.transform),
             max_bytes=args.max_bytes,
         )
-        print(json.dumps(result.to_dict(), indent=2))
+        print(json.dumps(file_result.to_dict(), indent=2))
         return (
             0
-            if result.receipt.status in {MandalaStatus.ACCEPTED, MandalaStatus.DEGRADED}
+            if file_result.receipt.status in {MandalaStatus.ACCEPTED, MandalaStatus.DEGRADED}
             else 2
         )
 
