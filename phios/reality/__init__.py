@@ -8,6 +8,14 @@ from .local_http import (
     UnavailableLocalHttpStateProvider,
     local_http_url_error,
 )
+from .local_json import (
+    JSON_TYPE_NAMES,
+    json_pointer_error,
+    json_type_matches,
+    json_type_name,
+    resolve_json_pointer,
+    strict_json_loads,
+)
 from .local_network import (
     InterfaceObservation,
     InterfaceObservationError,
@@ -29,6 +37,7 @@ from .models import (
 from .service import RealityVerificationService
 
 __all__ = [
+    "JSON_TYPE_NAMES",
     "InterfaceObservation",
     "InterfaceObservationError",
     "InterfaceStateProvider",
@@ -47,5 +56,10 @@ __all__ = [
     "TcpListenerObservationError",
     "TcpListenerStateProvider",
     "UnavailableLocalHttpStateProvider",
+    "json_pointer_error",
+    "json_type_matches",
+    "json_type_name",
     "local_http_url_error",
+    "resolve_json_pointer",
+    "strict_json_loads",
 ]
