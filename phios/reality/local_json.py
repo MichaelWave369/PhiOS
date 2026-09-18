@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from decimal import Decimal
 from typing import Any
 
 JSON_TYPE_NAMES = frozenset(
@@ -83,7 +84,7 @@ def json_type_name(value: Any) -> str:
         return "boolean"
     if isinstance(value, int):
         return "integer"
-    if isinstance(value, float):
+    if isinstance(value, (float, Decimal)):
         return "number"
     if isinstance(value, str):
         return "string"
@@ -107,4 +108,8 @@ def strict_json_loads(data: bytes) -> Any:
     def reject_constant(value: str) -> None:
         raise ValueError(f"non-standard JSON constant: {value}")
 
-    return json.loads(text, parse_constant=reject_constant)
+    return json.loads(
+        text,
+        parse_constant=reject_constant,
+        parse_float=Decimal,
+    )
