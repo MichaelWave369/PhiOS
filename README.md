@@ -117,7 +117,7 @@ because computers have been exploiting that kind of optimism for decades.
 
 ## Current Spine verification ladder
 
-The current merged Spine line is **v0.22**.
+The current merged Spine line is **v0.23**.
 
 | Version | Capability |
 |---|---|
@@ -134,6 +134,7 @@ The current merged Spine line is **v0.22**.
 | v0.20 | bounded repeated mixed observations across 2-5 discrete samples |
 | v0.21 | explicit minimum monotonic spacing between repeated observations |
 | v0.22 | bounded monotonic cadence window between repeated observations |
+| v0.23 | bounded first-to-last temporal envelope across cadenced observations |
 
 The v0.17 same-snapshot contract can evaluate **1–8 bounded clauses from one HTTP observation**:
 
@@ -164,7 +165,8 @@ All clauses describe the **same captured response**, not several requests made a
 
 See:
 
-- [Spine v0.22 overview](README_SPINE_V0.22.md)
+- [Spine v0.23 overview](README_SPINE_V0.23.md)
+- [Spine v0.23 temporal-envelope contract](docs/PHIOS_SPINE_V0.23_TEMPORAL_ENVELOPE.md)
 - [Spine v0.22 cadence-window contract](docs/PHIOS_SPINE_V0.22_CADENCED_MIXED_OBSERVATION.md)
 - [Spine v0.21 timed observation contract](docs/PHIOS_SPINE_V0.21_TIMED_MIXED_OBSERVATION.md)
 - [Spine v0.20 repeated observation contract](docs/PHIOS_SPINE_V0.20_REPEATED_MIXED_OBSERVATION.md)
@@ -183,6 +185,9 @@ v0.20 can evaluate that same mixed contract across 2-5 discrete observations. Re
 v0.21 adds an explicit 0.05-10 second minimum interval between provider invocation starts. Timing requires `reality.local_http.timing.wait` and uses a monotonic clock; wall-clock capture timestamps do not establish spacing.
 
 v0.22 adds an inclusive minimum/maximum cadence window between provider invocation starts. Cadence requires the separate `reality.local_http.timing.cadence` grant. Semantic success cannot override a missed cadence bound.
+
+v0.23 adds an explicit first-to-last provider-start span window above cadence. Temporal-envelope control requires `reality.local_http.timing.envelope`, rejects impossible cadence/span combinations before I/O, and schedules each next start to preserve future feasibility when possible.
+
 
 
 
