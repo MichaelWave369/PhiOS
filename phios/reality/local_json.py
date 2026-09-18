@@ -113,3 +113,103 @@ def strict_json_loads(data: bytes) -> Any:
         parse_constant=reject_constant,
         parse_float=Decimal,
     )
+
+
+JSON_STRUCTURAL_PREDICATES = frozenset(
+    {
+        "string_non_empty",
+        "array_length_eq",
+        "array_length_gte",
+        "array_length_lte",
+        "object_key_count_eq",
+        "object_key_count_gte",
+        "object_key_count_lte",
+    }
+)
+
+_JSON_PREDICATE_EXPECTED_TYPES = {
+    "string_non_empty": "string",
+    "array_length_eq": "array",
+    "array_length_gte": "array",
+    "array_length_lte": "array",
+    "object_key_count_eq": "object",
+    "object_key_count_gte": "object",
+    "object_key_count_lte": "object",
+}
+
+
+def json_structural_predicate_error(
+    predicate: str | None,
+    bound: int | None,
+) -> str | None:
+    if predicate is None:
+        return "local_http_json_predicate_requires_kind"
+    if predicate not in JSON_STRUCTURAL_PREDICATES:
+        return "local_http_json_predicate_invalid_kind"
+
+    if predicate == "string_non_empty":
+        if bound is not None:
+            return "local_http_json_predicate_disallows_bound"
+        return None
+
+    if bound is None:
+        return "local_http_json_predicate_requires_bound"
+    if (
+        isinstance(bound, bool)
+        or not isinstance(bound, int)
+        or not 0 <= bound <= 1_000_000
+    ):
+        return "local_http_json_predicate_invalid_bound"
+    return None
+
+
+def json_structural_predicate_expected_type(predicate: str) -> str:
+    return _JSON_PREDICATE_EXPECTED_TYPES[predicate]
+
+
+def evaluate_json_structural_predicate(
+    value: Any,
+    *,
+    predicate: str,
+    bound: int | None,
+) -> dict[str, Any]:
+    expected_type = json_structural_predicate_expected_type(predicate)
+    observed_type = json_type_name(value)
+    result: dict[str, Any] = {
+        "predicate": predicate,
+        "expected_json_type": expected_type,
+        "observed_json_type": observed_type,
+        "type_matches": observed_type == expected_type,
+        "bound": bound,
+        "measurement_name": None,
+        "measurement": None,
+        "predicate_matches": False,
+    }
+    if observed_type != expected_type:
+        return result
+
+    if predicate == "string_non_empty":
+        assert isinstance(value, str)
+        result["measurement_name"] = "is_non_empty"
+        result["measurement"] = bool(value)
+        result["predicate_matches"] = bool(value)
+        return result
+
+    assert bound is not None
+    if predicate.startswith("array_length_"):
+        assert isinstance(value, list)
+        measurement = len(value)
+        result["measurement_name"] = "array_length"
+    else:
+        assert isinstance(value, dict)
+        measurement = len(value)
+        result["measurement_name"] = "object_key_count"
+
+    result["measurement"] = measurement
+    if predicate.endswith("_eq"):
+        result["predicate_matches"] = measurement == bound
+    elif predicate.endswith("_gte"):
+        result["predicate_matches"] = measurement >= bound
+    else:
+        result["predicate_matches"] = measurement <= bound
+    return result
