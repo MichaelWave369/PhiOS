@@ -105,7 +105,7 @@ class RealityVerificationService:
             payload={
                 "claim_count": len(claims),
                 "claims": [claim.to_dict() for claim in claims],
-                "verification_method": "bounded-evidence-v0.11",
+                "verification_method": "bounded-evidence-v0.12",
             },
             authority=self.authority,
             evidence_refs=evidence_refs,
@@ -2173,6 +2173,389 @@ class RealityVerificationService:
             used_refs,
         )
 
+    def _local_http_json_cadenced_mixed_contract(
+        self,
+        claim: RealityClaim,
+        *,
+        provider: LocalHttpStateProvider,
+    ) -> tuple[dict[str, Any], tuple[str, ...]]:
+        assert claim.http_url is not None
+        assert claim.expected_http_status is not None
+        assert claim.json_mixed_contract_clauses
+        assert claim.repeat_observation_count is not None
+        assert claim.minimum_interval_seconds is not None
+        assert claim.maximum_interval_seconds is not None
+
+        requires_value_read = any(
+            clause.requires_value_read
+            for clause in claim.json_mixed_contract_clauses
+        )
+        permissions = [
+            "reality.local_http.read",
+            "reality.local_http.semantic.read",
+            "reality.local_http.repeat.read",
+            "reality.local_http.timing.wait",
+            "reality.local_http.timing.cadence",
+        ]
+        if requires_value_read:
+            permissions.append("reality.local_http.semantic.value.read")
+
+        for permission in permissions:
+            if not self.authority.allows(permission):
+                return (
+                    {
+                        "claim_id": claim.claim_id,
+                        "kind": claim.kind.value,
+                        "statement": claim.statement,
+                        "verdict": RealityVerdict.BLOCKED.value,
+                        "reason": f"missing_grant:{permission}",
+                        "scope": "local_http_json_cadenced_mixed_contract",
+                        "http_url": claim.http_url,
+                        "expected_http_status": claim.expected_http_status,
+                        "clause_count": len(claim.json_mixed_contract_clauses),
+                        "observation_count_requested": claim.repeat_observation_count,
+                        "minimum_interval_seconds": claim.minimum_interval_seconds,
+                        "maximum_interval_seconds": claim.maximum_interval_seconds,
+                        "requires_value_read": requires_value_read,
+                        "series_evidence_ref": None,
+                    },
+                    (),
+                )
+
+        sample_results: list[dict[str, Any]] = []
+        sample_evidence_refs: list[str] = []
+        previous_start_monotonic: float | None = None
+
+        for sample_index in range(claim.repeat_observation_count):
+            if previous_start_monotonic is not None:
+                earliest_start = (
+                    previous_start_monotonic + claim.minimum_interval_seconds
+                )
+                while True:
+                    remaining = earliest_start - monotonic()
+                    if remaining <= 0:
+                        break
+                    sleep(remaining)
+
+            started_monotonic = monotonic()
+            interval_since_previous = (
+                None
+                if previous_start_monotonic is None
+                else started_monotonic - previous_start_monotonic
+            )
+            lower_bound_satisfied = (
+                None
+                if interval_since_previous is None
+                else interval_since_previous >= claim.minimum_interval_seconds
+            )
+            upper_bound_satisfied = (
+                None
+                if interval_since_previous is None
+                else interval_since_previous <= claim.maximum_interval_seconds
+            )
+            cadence_satisfied = (
+                None
+                if interval_since_previous is None
+                else bool(lower_bound_satisfied and upper_bound_satisfied)
+            )
+            previous_start_monotonic = started_monotonic
+            persisted_interval = (
+                None
+                if interval_since_previous is None
+                else round(interval_since_previous, 9)
+            )
+
+            try:
+                observation = provider.observe(
+                    url=claim.http_url,
+                    timeout_seconds=claim.http_timeout_seconds,
+                    max_body_bytes=claim.http_max_body_bytes,
+                )
+            except LocalHttpObservationError as exc:
+                sample_results.append(
+                    {
+                        "sample_index": sample_index,
+                        "verdict": RealityVerdict.UNRESOLVED.value,
+                        "reason": exc.code,
+                        "elapsed_since_previous_start_seconds": persisted_interval,
+                        "lower_bound_satisfied": lower_bound_satisfied,
+                        "upper_bound_satisfied": upper_bound_satisfied,
+                        "cadence_satisfied": cadence_satisfied,
+                        "json_valid": None,
+                        "clauses_evaluated": 0,
+                        "all_clauses_match": None,
+                        "observation_evidence_ref": None,
+                    }
+                )
+                continue
+            except Exception:  # noqa: BLE001 - provider boundary
+                sample_results.append(
+                    {
+                        "sample_index": sample_index,
+                        "verdict": RealityVerdict.UNRESOLVED.value,
+                        "reason": "local_http_provider_error",
+                        "elapsed_since_previous_start_seconds": persisted_interval,
+                        "lower_bound_satisfied": lower_bound_satisfied,
+                        "upper_bound_satisfied": upper_bound_satisfied,
+                        "cadence_satisfied": cadence_satisfied,
+                        "json_valid": None,
+                        "clauses_evaluated": 0,
+                        "all_clauses_match": None,
+                        "observation_evidence_ref": None,
+                    }
+                )
+                continue
+
+            json_valid: bool | None = None
+            clause_results: list[dict[str, Any]] = []
+
+            if observation.status_code != claim.expected_http_status:
+                sample_verdict = RealityVerdict.CONTRADICTED
+                sample_reason = "local_http_json_cadenced_mixed_sample_status_mismatch"
+            elif observation.body_truncated:
+                sample_verdict = RealityVerdict.UNRESOLVED
+                sample_reason = "local_http_json_cadenced_mixed_sample_body_truncated"
+            elif observation.body is None:
+                sample_verdict = RealityVerdict.UNRESOLVED
+                sample_reason = "local_http_semantic_body_unavailable"
+            else:
+                try:
+                    document = strict_json_loads(observation.body)
+                except (UnicodeDecodeError, ValueError):
+                    json_valid = False
+                    sample_verdict = RealityVerdict.CONTRADICTED
+                    sample_reason = "local_http_json_cadenced_mixed_sample_invalid_json"
+                else:
+                    json_valid = True
+                    for clause_index, clause in enumerate(
+                        claim.json_mixed_contract_clauses
+                    ):
+                        result = evaluate_json_mixed_contract_clause(
+                            document,
+                            clause,
+                        )
+                        result["clause_index"] = clause_index
+
+                        if not result["pointer_exists"]:
+                            clause_reason = "pointer_missing"
+                        elif not result["type_matches"]:
+                            clause_reason = "type_mismatch"
+                        elif (
+                            result["mode"] in {"structural", "scalar"}
+                            and not result["predicate_matches"]
+                        ):
+                            clause_reason = "predicate_mismatch"
+                        else:
+                            clause_reason = "matches"
+
+                        result["clause_reason"] = clause_reason
+                        clause_results.append(result)
+
+                    all_match = all(
+                        bool(item["clause_matches"])
+                        for item in clause_results
+                    )
+                    if all_match:
+                        sample_verdict = RealityVerdict.SUPPORTED
+                        sample_reason = "local_http_json_cadenced_mixed_sample_matches"
+                    else:
+                        sample_verdict = RealityVerdict.CONTRADICTED
+                        sample_reason = (
+                            "local_http_json_cadenced_mixed_sample_clause_mismatch"
+                        )
+
+            all_clauses_match = (
+                all(bool(item["clause_matches"]) for item in clause_results)
+                if clause_results
+                else None
+            )
+            sample_evidence_record = {
+                "sample_index": sample_index,
+                "http_observation": observation.to_dict(),
+                "timing_observation": {
+                    "minimum_interval_seconds": claim.minimum_interval_seconds,
+                    "maximum_interval_seconds": claim.maximum_interval_seconds,
+                    "elapsed_since_previous_start_seconds": persisted_interval,
+                    "lower_bound_satisfied": lower_bound_satisfied,
+                    "upper_bound_satisfied": upper_bound_satisfied,
+                    "cadence_satisfied": cadence_satisfied,
+                    "interval_basis": "provider_invocation_start_monotonic",
+                },
+                "semantic_contract": {
+                    "expected_http_status": claim.expected_http_status,
+                    "requires_value_read": requires_value_read,
+                    "repeat_observation_count": claim.repeat_observation_count,
+                    "minimum_interval_seconds": claim.minimum_interval_seconds,
+                    "maximum_interval_seconds": claim.maximum_interval_seconds,
+                    "clauses": [
+                        clause.to_dict()
+                        for clause in claim.json_mixed_contract_clauses
+                    ],
+                },
+                "semantic_observation": {
+                    "verdict": sample_verdict.value,
+                    "reason": sample_reason,
+                    "json_valid": json_valid,
+                    "clause_results": clause_results,
+                    "clauses_evaluated": len(clause_results),
+                    "all_clauses_match": all_clauses_match,
+                },
+            }
+            sample_evidence_bytes = json.dumps(
+                sample_evidence_record,
+                sort_keys=True,
+                separators=(",", ":"),
+                ensure_ascii=False,
+            ).encode("utf-8")
+            sample_evidence = self.evidence.put_bytes(
+                sample_evidence_bytes,
+                media_type="application/json; charset=utf-8",
+                suffix=".json",
+            )
+            sample_evidence_refs.append(sample_evidence.evidence_ref)
+            sample_results.append(
+                {
+                    "sample_index": sample_index,
+                    "verdict": sample_verdict.value,
+                    "reason": sample_reason,
+                    "elapsed_since_previous_start_seconds": persisted_interval,
+                    "lower_bound_satisfied": lower_bound_satisfied,
+                    "upper_bound_satisfied": upper_bound_satisfied,
+                    "cadence_satisfied": cadence_satisfied,
+                    "observed_http_status": observation.status_code,
+                    "json_valid": json_valid,
+                    "clauses_evaluated": len(clause_results),
+                    "clause_results": clause_results,
+                    "all_clauses_match": all_clauses_match,
+                    "body_sha256": observation.body_sha256,
+                    "body_bytes_observed": observation.body_bytes_observed,
+                    "body_truncated": observation.body_truncated,
+                    "body_digest_scope": observation.body_digest_scope,
+                    "elapsed_ms": observation.elapsed_ms,
+                    "provider": observation.provider,
+                    "provider_version": observation.provider_version,
+                    "captured_at_utc": observation.captured_at_utc,
+                    "observation_evidence_ref": sample_evidence.evidence_ref,
+                }
+            )
+
+        verdict_values = [item["verdict"] for item in sample_results]
+        supported_count = verdict_values.count(RealityVerdict.SUPPORTED.value)
+        contradicted_count = verdict_values.count(RealityVerdict.CONTRADICTED.value)
+        unresolved_count = verdict_values.count(RealityVerdict.UNRESOLVED.value)
+        observed_intervals = [
+            float(item["elapsed_since_previous_start_seconds"])
+            for item in sample_results
+            if item["elapsed_since_previous_start_seconds"] is not None
+        ]
+        cadence_satisfied = all(
+            item["cadence_satisfied"] is not False
+            for item in sample_results
+        )
+        minimum_observed_interval_seconds = (
+            min(observed_intervals) if observed_intervals else None
+        )
+        maximum_observed_interval_seconds = (
+            max(observed_intervals) if observed_intervals else None
+        )
+
+        if not cadence_satisfied:
+            verdict = RealityVerdict.CONTRADICTED
+            reason = "local_http_json_cadenced_mixed_window_violation"
+        elif contradicted_count:
+            verdict = RealityVerdict.CONTRADICTED
+            reason = "local_http_json_cadenced_mixed_sample_contradiction"
+        elif unresolved_count:
+            verdict = RealityVerdict.UNRESOLVED
+            reason = "local_http_json_cadenced_mixed_sample_unresolved"
+        else:
+            verdict = RealityVerdict.SUPPORTED
+            reason = "local_http_json_cadenced_mixed_all_observations_match"
+
+        all_observations_match = (
+            cadence_satisfied
+            and supported_count == claim.repeat_observation_count
+        )
+        series_evidence_record = {
+            "semantic_contract": {
+                "expected_http_status": claim.expected_http_status,
+                "requires_value_read": requires_value_read,
+                "repeat_observation_count": claim.repeat_observation_count,
+                "minimum_interval_seconds": claim.minimum_interval_seconds,
+                "maximum_interval_seconds": claim.maximum_interval_seconds,
+                "interval_basis": "provider_invocation_start_monotonic",
+                "clauses": [
+                    clause.to_dict()
+                    for clause in claim.json_mixed_contract_clauses
+                ],
+            },
+            "timing_summary": {
+                "cadence_satisfied": cadence_satisfied,
+                "minimum_observed_interval_seconds": (
+                    minimum_observed_interval_seconds
+                ),
+                "maximum_observed_interval_seconds": (
+                    maximum_observed_interval_seconds
+                ),
+                "observed_interval_count": len(observed_intervals),
+            },
+            "repeated_observation": {
+                "attempts_completed": len(sample_results),
+                "supported_count": supported_count,
+                "contradicted_count": contradicted_count,
+                "unresolved_count": unresolved_count,
+                "all_observations_match": all_observations_match,
+                "sample_results": sample_results,
+            },
+        }
+        series_evidence_bytes = json.dumps(
+            series_evidence_record,
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=False,
+        ).encode("utf-8")
+        series_evidence = self.evidence.put_bytes(
+            series_evidence_bytes,
+            media_type="application/json; charset=utf-8",
+            suffix=".json",
+        )
+
+        used_refs = tuple(sample_evidence_refs + [series_evidence.evidence_ref])
+        return (
+            {
+                "claim_id": claim.claim_id,
+                "kind": claim.kind.value,
+                "statement": claim.statement,
+                "verdict": verdict.value,
+                "reason": reason,
+                "scope": "local_http_json_cadenced_mixed_contract",
+                "http_url": claim.http_url,
+                "expected_http_status": claim.expected_http_status,
+                "clause_count": len(claim.json_mixed_contract_clauses),
+                "observation_count_requested": claim.repeat_observation_count,
+                "observation_attempts_completed": len(sample_results),
+                "requires_value_read": requires_value_read,
+                "minimum_interval_seconds": claim.minimum_interval_seconds,
+                "maximum_interval_seconds": claim.maximum_interval_seconds,
+                "interval_basis": "provider_invocation_start_monotonic",
+                "cadence_satisfied": cadence_satisfied,
+                "minimum_observed_interval_seconds": (
+                    minimum_observed_interval_seconds
+                ),
+                "maximum_observed_interval_seconds": (
+                    maximum_observed_interval_seconds
+                ),
+                "supported_count": supported_count,
+                "contradicted_count": contradicted_count,
+                "unresolved_count": unresolved_count,
+                "all_observations_match": all_observations_match,
+                "sample_results": sample_results,
+                "sample_evidence_refs": sample_evidence_refs,
+                "series_evidence_ref": series_evidence.evidence_ref,
+            },
+            used_refs,
+        )
+
     def verify(
         self,
         *,
@@ -2219,7 +2602,7 @@ class RealityVerificationService:
                 unresolved_contradictions=(),
                 unresolved_claims=tuple(claim.claim_id for claim in claims),
                 verdict_summary={RealityVerdict.BLOCKED.value: len(claims)},
-                verification_method="bounded-evidence-v0.11",
+                verification_method="bounded-evidence-v0.12",
                 promotion_status="not_promoted",
                 limitations=(
                     f"missing_grant:{permission}",
@@ -2282,7 +2665,7 @@ class RealityVerificationService:
                 unresolved_contradictions=(),
                 unresolved_claims=tuple(claim.claim_id for claim in claims),
                 verdict_summary={RealityVerdict.BLOCKED.value: len(claims)},
-                verification_method="bounded-evidence-v0.11",
+                verification_method="bounded-evidence-v0.12",
                 promotion_status="not_promoted",
                 limitations=invalid_global
                 + tuple(
@@ -2414,6 +2797,18 @@ class RealityVerificationService:
                 used.extend(claim_used)
                 continue
 
+            if (
+                claim.kind
+                is RealityClaimKind.LOCAL_HTTP_JSON_CADENCED_MIXED_CONTRACT
+            ):
+                result, claim_used = self._local_http_json_cadenced_mixed_contract(
+                    claim,
+                    provider=selected_local_http_provider,
+                )
+                results.append(result)
+                used.extend(claim_used)
+                continue
+
             results.append(
                 {
                     "claim_id": claim.claim_id,
@@ -2460,7 +2855,7 @@ class RealityVerificationService:
             unresolved_contradictions=contradicted,
             unresolved_claims=unresolved,
             verdict_summary=dict(counts),
-            verification_method="bounded-evidence-v0.11",
+            verification_method="bounded-evidence-v0.12",
             promotion_status="not_promoted",
             limitations=(
                 "lexical_source_support_is_not_world_state_verification",
@@ -2498,6 +2893,12 @@ class RealityVerificationService:
                 "timed_mixed_success_is_not_continuous_health",
                 "timed_mixed_wall_clock_timestamps_do_not_establish_spacing",
                 "timed_mixed_scalar_observed_values_not_persisted",
+                "cadenced_http_control_requires_separate_grant",
+                "cadenced_mixed_window_uses_monotonic_invocation_starts",
+                "cadenced_mixed_window_is_not_continuous_monitoring",
+                "cadenced_mixed_provider_overrun_can_violate_upper_bound",
+                "cadenced_mixed_wall_clock_timestamps_do_not_establish_window",
+                "cadenced_mixed_scalar_observed_values_not_persisted",
                 "http_status_is_not_application_health",
                 "live_http_transport_is_adapter_scoped",
                 "host_observation_is_point_in_time",
