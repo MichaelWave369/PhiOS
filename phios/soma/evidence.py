@@ -14,11 +14,23 @@ class NativeEvidenceStore:
     def __init__(self, root: Path) -> None:
         self.root = root.expanduser()
 
-    def put_text(self, text: str) -> NativeEvidence:
-        data = text.encode("utf-8")
+    @staticmethod
+    def _safe_suffix(suffix: str) -> str:
+        candidate = suffix.lower()
+        if candidate.startswith(".") and candidate[1:].isalnum():
+            return candidate
+        return ".bin"
+
+    def put_bytes(
+        self,
+        data: bytes,
+        *,
+        media_type: str = "application/octet-stream",
+        suffix: str = ".bin",
+    ) -> NativeEvidence:
         digest = hashlib.sha256(data).hexdigest()
         self.root.mkdir(parents=True, exist_ok=True)
-        path = self.root / f"{digest}.txt"
+        path = self.root / f"{digest}{self._safe_suffix(suffix)}"
 
         if not path.exists():
             fd, temp_name = tempfile.mkstemp(prefix=".evidence-", dir=self.root)
@@ -41,6 +53,13 @@ class NativeEvidenceStore:
             evidence_ref=f"evidence:sha256:{digest}",
             sha256=digest,
             path=str(path),
-            media_type="text/plain; charset=utf-8",
+            media_type=media_type,
             size_bytes=len(data),
+        )
+
+    def put_text(self, text: str) -> NativeEvidence:
+        return self.put_bytes(
+            text.encode("utf-8"),
+            media_type="text/plain; charset=utf-8",
+            suffix=".txt",
         )
