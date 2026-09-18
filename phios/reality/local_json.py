@@ -225,6 +225,11 @@ class JsonContractClause:
 
     @classmethod
     def from_mapping(cls, value: dict[str, Any]) -> "JsonContractClause":
+        allowed_keys = {"pointer", "type", "predicate", "bound"}
+        unknown_keys = sorted(set(value) - allowed_keys)
+        if unknown_keys:
+            joined = ",".join(unknown_keys)
+            raise ValueError(f"unsupported JSON clause keys: {joined}")
         return cls(
             pointer=str(value.get("pointer", "")),
             expected_json_type=(
