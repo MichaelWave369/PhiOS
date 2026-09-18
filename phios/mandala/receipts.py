@@ -108,6 +108,26 @@ class PerceptionReceipt(ReceiptEnvelope):
 
 
 @dataclass(frozen=True, kw_only=True)
+class OcrReceipt(ReceiptEnvelope):
+    source_evidence_ref: str
+    output_evidence_ref: str | None
+    engine: str
+    engine_version: str | None
+    language: str
+    page_segmentation_mode: int
+    text_sha256: str | None = None
+    character_count: int = 0
+    token_count: int = 0
+    confidence_count: int = 0
+    confidence_mean: float | None = None
+    confidence_min: float | None = None
+    confidence_max: float | None = None
+    limitations: tuple[str, ...] = field(default_factory=tuple)
+    interpretation_status: str = "unknown"
+    receipt_type: str = field(init=False, default="OcrReceipt")
+
+
+@dataclass(frozen=True, kw_only=True)
 class RealityReceipt(ReceiptEnvelope):
     claims_checked: tuple[dict[str, Any], ...] = field(default_factory=tuple)
     evidence_used: tuple[str, ...] = field(default_factory=tuple)

@@ -24,6 +24,9 @@ from phios.mandala.receipts import receipt_meta
 from phios.soma import (
     FileObservationResult,
     ObservationResult,
+    OcrObservationResult,
+    OcrProvider,
+    OcrSpec,
     PillowEdgeSharpnessScorer,
     PillowScreenCaptureProvider,
     PillowUnsharpMaskProvider,
@@ -167,6 +170,21 @@ class PhiOSSpine:
             frame_count=frame_count,
             max_pixels=max_pixels,
             max_total_pixels=max_total_pixels,
+        )
+
+    def ocr_screen_evidence(
+        self,
+        *,
+        evidence_ref: str,
+        spec: OcrSpec | None = None,
+        provider: OcrProvider | None = None,
+    ) -> OcrObservationResult:
+        ocr_provider = provider or TesseractOcrProvider()
+        ocr_spec = spec or OcrSpec()
+        return self.soma.ocr_screen_evidence(
+            evidence_ref=evidence_ref,
+            provider=ocr_provider,
+            spec=ocr_spec,
         )
 
     def enhance_screen_evidence(

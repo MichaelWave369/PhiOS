@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 
 from phios.mandala import MANDALA_CONTRACT_VERSION, Gate, MandalaStatus
-from phios.soma import ScreenCrop, ScreenEnhancementSpec, ScreenRegion
+from phios.soma import OcrSpec, ScreenCrop, ScreenEnhancementSpec, ScreenRegion
 
 from . import __version__ as SPINE_VERSION
 from .runtime import PhiOSSpine
@@ -17,7 +17,7 @@ def _runtime(args: argparse.Namespace) -> PhiOSSpine:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="phi-spine", description="PhiOS Spine v0.8")
+    parser = argparse.ArgumentParser(prog="phi-spine", description="PhiOS Spine v0.9")
     parser.add_argument("--state-root", help="Override the PhiOS Spine local state root")
     parser.add_argument(
         "--allow",
@@ -28,7 +28,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     sub = parser.add_subparsers(dest="command", required=True)
 
-    sub.add_parser("status", help="Show the v0.8 spine and Mandala contract state")
+    sub.add_parser("status", help="Show the v0.9 spine and Mandala contract state")
     sub.add_parser("list", help="List registered capabilities")
 
     perceive = sub.add_parser(
@@ -82,6 +82,15 @@ def build_parser() -> argparse.ArgumentParser:
     perceive_burst.add_argument("--frames", type=int, default=3)
     perceive_burst.add_argument("--max-pixels", type=int, default=8_294_400)
     perceive_burst.add_argument("--max-total-pixels", type=int, default=33_177_600)
+
+    ocr_screen = sub.add_parser(
+        "ocr-screen",
+        help="Interpret preserved PNG evidence as text through an explicit OCR receipt",
+    )
+    ocr_screen.add_argument("--evidence-ref", required=True)
+    ocr_screen.add_argument("--language", default="eng")
+    ocr_screen.add_argument("--psm", type=int, default=6)
+    ocr_screen.add_argument("--max-pixels", type=int, default=16_777_216)
 
     enhance_screen = sub.add_parser(
         "enhance-screen",
@@ -137,7 +146,7 @@ def main() -> int:
                     "core_lifecycle": runtime.core.lifecycle.value,
                     "gates": [gate.value for gate in Gate],
                     "statuses": [status.value for status in MandalaStatus],
-                    "north_gate": "soma.text.v0.1+soma.file.v0.1+soma.screen.v0.1+soma.recovery.v0.1+soma.multishot.v0.1+soma.enhancement.v0.1",
+                    "north_gate": "soma.text.v0.1+soma.file.v0.1+soma.screen.v0.1+soma.recovery.v0.1+soma.multishot.v0.1+soma.enhancement.v0.1+soma.ocr.v0.1",
                 },
                 indent=2,
             )
@@ -206,6 +215,23 @@ def main() -> int:
         return (
             0
             if burst_result.receipt.status
+            in {MandalaStatus.ACCEPTED, MandalaStatus.DEGRADED}
+            else 2
+        )
+
+    if args.command == "ocr-screen":
+        ocr_result = runtime.ocr_screen_evidence(
+            evidence_ref=args.evidence_ref,
+            spec=OcrSpec(
+                language=args.language,
+                page_segmentation_mode=args.psm,
+                max_pixels=args.max_pixels,
+            ),
+        )
+        print(json.dumps(ocr_result.to_dict(include_text=True), indent=2))
+        return (
+            0
+            if ocr_result.receipt.status
             in {MandalaStatus.ACCEPTED, MandalaStatus.DEGRADED}
             else 2
         )

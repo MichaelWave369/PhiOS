@@ -4,7 +4,7 @@ from dataclasses import asdict, dataclass
 from enum import StrEnum
 from typing import Any
 
-from phios.mandala import MandalaPacket, PerceptionReceipt
+from phios.mandala import MandalaPacket, OcrReceipt, PerceptionReceipt
 
 
 class AcuityStatus(StrEnum):
@@ -164,3 +164,27 @@ class ScreenEnhancementResult:
             "enhancement_method": self.enhancement_method,
             "enhancement_parameters": dict(self.enhancement_parameters),
         }
+
+
+@dataclass(frozen=True, kw_only=True)
+class OcrObservationResult:
+    packet: MandalaPacket
+    receipt: OcrReceipt
+    source_evidence_ref: str
+    text_evidence: NativeEvidence | None
+    text: str | None
+
+    def to_dict(self, *, include_text: bool = False) -> dict[str, Any]:
+        data: dict[str, Any] = {
+            "packet": self.packet.to_dict(),
+            "receipt": self.receipt.to_dict(),
+            "source_evidence_ref": self.source_evidence_ref,
+            "text_evidence": (
+                self.text_evidence.to_dict()
+                if self.text_evidence is not None
+                else None
+            ),
+        }
+        if include_text:
+            data["text"] = self.text
+        return data
