@@ -4,7 +4,8 @@ import hashlib
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 Handler = Callable[[dict[str, Any]], "ArtifactResult"]
 
