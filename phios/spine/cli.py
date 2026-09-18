@@ -4,6 +4,8 @@ import argparse
 import json
 from pathlib import Path
 
+from phios.mandala import MANDALA_CONTRACT_VERSION, Gate, MandalaStatus
+
 from .runtime import PhiOSSpine
 
 
@@ -13,8 +15,8 @@ def _runtime(args: argparse.Namespace) -> PhiOSSpine:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="phi-spine", description="PhiOS Spine v0.1")
-    parser.add_argument("--state-root", help="Override ~/.phios/spine-v0.1")
+    parser = argparse.ArgumentParser(prog="phi-spine", description="PhiOS Spine v0.2")
+    parser.add_argument("--state-root", help="Override the PhiOS Spine local state root")
     parser.add_argument(
         "--allow",
         action="append",
@@ -24,15 +26,18 @@ def build_parser() -> argparse.ArgumentParser:
     )
     sub = parser.add_subparsers(dest="command", required=True)
 
-    sub.add_parser("status", help="Show the v0.1 spine state")
+    sub.add_parser("status", help="Show the v0.2 spine and Mandala contract state")
     sub.add_parser("list", help="List registered capabilities")
 
     run = sub.add_parser("run", help="Plan, authorize, execute, and receipt a capability")
     run.add_argument("capability_id")
     run.add_argument("--input", default="{}", help="JSON object payload")
 
-    ledger = sub.add_parser("ledger", help="Show recent Reality Ledger receipts")
+    ledger = sub.add_parser("ledger", help="Show recent legacy execution receipts")
     ledger.add_argument("--limit", type=int, default=10)
+
+    mandala = sub.add_parser("mandala-ledger", help="Show recent typed Mandala receipts")
+    mandala.add_argument("--limit", type=int, default=10)
     return parser
 
 
@@ -42,12 +47,23 @@ def main() -> int:
     runtime = _runtime(args)
 
     if args.command == "status":
-        print(json.dumps({
-            "version": "0.1.0",
-            "state_root": str(runtime.state_root),
-            "capability_count": len(runtime.registry.list()),
-            "ledger": str(runtime.ledger.path),
-        }, indent=2))
+        print(
+            json.dumps(
+                {
+                    "version": "0.2.0",
+                    "state_root": str(runtime.state_root),
+                    "capability_count": len(runtime.registry.list()),
+                    "legacy_ledger": str(runtime.ledger.path),
+                    "mandala_ledger": str(runtime.mandala_ledger.path),
+                    "mandala_contract": MANDALA_CONTRACT_VERSION,
+                    "task_id": runtime.core.task_id,
+                    "core_lifecycle": runtime.core.lifecycle.value,
+                    "gates": [gate.value for gate in Gate],
+                    "statuses": [status.value for status in MandalaStatus],
+                },
+                indent=2,
+            )
+        )
         return 0
 
     if args.command == "list":
@@ -64,6 +80,10 @@ def main() -> int:
 
     if args.command == "ledger":
         print(json.dumps(runtime.ledger.recent(args.limit), indent=2))
+        return 0
+
+    if args.command == "mandala-ledger":
+        print(json.dumps(runtime.mandala_ledger.recent(args.limit), indent=2))
         return 0
 
     parser.error("unknown command")
