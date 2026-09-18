@@ -30,6 +30,7 @@ class RealityClaimKind(StrEnum):
     LOCAL_HTTP_JSON_SCALAR_PREDICATE = "local_http_json_scalar_predicate"
     LOCAL_HTTP_JSON_MIXED_CONTRACT = "local_http_json_mixed_contract"
     LOCAL_HTTP_JSON_REPEATED_MIXED_CONTRACT = "local_http_json_repeated_mixed_contract"
+    LOCAL_HTTP_JSON_TIMED_MIXED_CONTRACT = "local_http_json_timed_mixed_contract"
 
 
 class RealityVerdict(StrEnum):
@@ -65,6 +66,7 @@ class RealityClaim:
     json_scalar_operand: str | None = None
     json_mixed_contract_clauses: tuple[JsonMixedContractClause, ...] = ()
     repeat_observation_count: int | None = None
+    minimum_interval_seconds: float | None = None
 
     @classmethod
     def create(
@@ -93,6 +95,7 @@ class RealityClaim:
         json_scalar_operand: str | None = None,
         json_mixed_contract_clauses: tuple[JsonMixedContractClause, ...] = (),
         repeat_observation_count: int | None = None,
+        minimum_interval_seconds: float | None = None,
     ) -> "RealityClaim":
         return cls(
             claim_id=str(uuid.uuid4()),
@@ -119,6 +122,7 @@ class RealityClaim:
             json_scalar_operand=json_scalar_operand,
             json_mixed_contract_clauses=tuple(json_mixed_contract_clauses),
             repeat_observation_count=repeat_observation_count,
+            minimum_interval_seconds=minimum_interval_seconds,
         )
 
     def validation_errors(self) -> tuple[str, ...]:
@@ -156,6 +160,7 @@ class RealityClaim:
             RealityClaimKind.LOCAL_HTTP_JSON_SCALAR_PREDICATE,
             RealityClaimKind.LOCAL_HTTP_JSON_MIXED_CONTRACT,
             RealityClaimKind.LOCAL_HTTP_JSON_REPEATED_MIXED_CONTRACT,
+            RealityClaimKind.LOCAL_HTTP_JSON_TIMED_MIXED_CONTRACT,
         }:
             url_error = local_http_url_error(self.http_url)
             if url_error is not None:
@@ -229,6 +234,7 @@ class RealityClaim:
             not in {
                 RealityClaimKind.LOCAL_HTTP_JSON_MIXED_CONTRACT,
                 RealityClaimKind.LOCAL_HTTP_JSON_REPEATED_MIXED_CONTRACT,
+                RealityClaimKind.LOCAL_HTTP_JSON_TIMED_MIXED_CONTRACT,
             }
             and self.json_mixed_contract_clauses
         ):
@@ -303,12 +309,65 @@ class RealityClaim:
                     "local_http_json_repeated_mixed_contract_requires_2_to_5_observations"
                 )
 
+        if self.kind is RealityClaimKind.LOCAL_HTTP_JSON_TIMED_MIXED_CONTRACT:
+            if any(
+                value is not None
+                for value in (
+                    self.json_pointer,
+                    self.expected_json_type,
+                    self.json_predicate_kind,
+                    self.json_predicate_bound,
+                    self.json_scalar_predicate_kind,
+                    self.json_scalar_operand,
+                )
+            ) or self.json_contract_clauses:
+                errors.append(
+                    "local_http_json_timed_mixed_contract_disallows_legacy_fields"
+                )
+            if not 1 <= len(self.json_mixed_contract_clauses) <= 8:
+                errors.append(
+                    "local_http_json_timed_mixed_contract_requires_1_to_8_clauses"
+                )
+            for index, timed_clause in enumerate(
+                self.json_mixed_contract_clauses
+            ):
+                for error in timed_clause.validation_errors():
+                    errors.append(f"json_timed_mixed_clause_{index}:{error}")
+            if (
+                isinstance(self.repeat_observation_count, bool)
+                or not isinstance(self.repeat_observation_count, int)
+                or not 2 <= self.repeat_observation_count <= 5
+            ):
+                errors.append(
+                    "local_http_json_timed_mixed_contract_requires_2_to_5_observations"
+                )
+            if (
+                isinstance(self.minimum_interval_seconds, bool)
+                or not isinstance(self.minimum_interval_seconds, (int, float))
+                or not 0.05 <= float(self.minimum_interval_seconds) <= 10.0
+            ):
+                errors.append(
+                    "local_http_json_timed_mixed_contract_requires_interval_0_05_to_10_seconds"
+                )
+
         if (
-            self.kind is not RealityClaimKind.LOCAL_HTTP_JSON_REPEATED_MIXED_CONTRACT
+            self.kind
+            not in {
+                RealityClaimKind.LOCAL_HTTP_JSON_REPEATED_MIXED_CONTRACT,
+                RealityClaimKind.LOCAL_HTTP_JSON_TIMED_MIXED_CONTRACT,
+            }
             and self.repeat_observation_count is not None
         ):
             errors.append(
                 "repeat_observation_count_only_for_repeated_mixed_contract"
+            )
+
+        if (
+            self.kind is not RealityClaimKind.LOCAL_HTTP_JSON_TIMED_MIXED_CONTRACT
+            and self.minimum_interval_seconds is not None
+        ):
+            errors.append(
+                "minimum_interval_seconds_only_for_timed_mixed_contract"
             )
 
         return tuple(errors)
@@ -343,6 +402,7 @@ class RealityClaim:
                 clause.to_dict() for clause in self.json_mixed_contract_clauses
             ],
             "repeat_observation_count": self.repeat_observation_count,
+            "minimum_interval_seconds": self.minimum_interval_seconds,
         }
 
 
