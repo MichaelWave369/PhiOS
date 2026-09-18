@@ -26,6 +26,7 @@ from phios.reality import (
     RealityClaim,
     RealityVerificationResult,
     RealityVerificationService,
+    TcpListenerStateProvider,
 )
 from phios.soma import (
     FileObservationResult,
@@ -206,11 +207,13 @@ class PhiOSSpine:
         claims: tuple[RealityClaim, ...],
         max_evidence_bytes: int = 1_048_576,
         interface_provider: InterfaceStateProvider | None = None,
+        tcp_listener_provider: TcpListenerStateProvider | None = None,
     ) -> RealityVerificationResult:
         return self.reality.verify(
             claims=claims,
             max_evidence_bytes=max_evidence_bytes,
             interface_provider=interface_provider,
+            tcp_listener_provider=tcp_listener_provider,
         )
 
     def enhance_screen_evidence(
