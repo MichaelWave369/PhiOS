@@ -166,12 +166,12 @@ def build_parser() -> argparse.ArgumentParser:
     )
     verify_claim.add_argument(
         "--http-url",
-        help="Required loopback HTTP URL for local_http_response_state claims",
+        help="Required loopback HTTP URL for local HTTP claim kinds",
     )
     verify_claim.add_argument(
         "--expected-http-status",
         type=int,
-        help="Required exact HTTP status for local_http_response_state claims",
+        help="Required exact HTTP status for local HTTP claim kinds",
     )
     verify_claim.add_argument("--http-timeout", type=float, default=2.0)
     verify_claim.add_argument("--http-max-body-bytes", type=int, default=65_536)
