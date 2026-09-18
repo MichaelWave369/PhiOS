@@ -26,7 +26,6 @@ dependencies = ["psutil>=5.9.0", "mcp>=1.26,<2"]
 [project.urls]
 Homepage = "https://github.com/MichaelWave369/PhiOS"
 Repository = "https://github.com/MichaelWave369/PhiOS"
-Manifesto = "https://enterthefield.org/phios"
 
 [project.optional-dependencies]
 screen = ["Pillow>=10.0"]
