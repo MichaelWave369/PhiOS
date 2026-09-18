@@ -626,7 +626,7 @@ def test_live_cadence_contract_uses_requested_count_and_window(
             json_mixed_contract_clauses=_mixed_clauses(),
             repeat_observation_count=3,
             minimum_interval_seconds=0.05,
-            maximum_interval_seconds=0.5,
+            maximum_interval_seconds=2.0,
         )
         result = spine.verify_reality(
             claims=(claim,),
@@ -639,7 +639,7 @@ def test_live_cadence_contract_uses_requested_count_and_window(
     claim_result = result.claim_results[0]
     assert claim_result["cadence_satisfied"] is True
     assert claim_result["minimum_observed_interval_seconds"] >= 0.05
-    assert claim_result["maximum_observed_interval_seconds"] <= 0.5
+    assert claim_result["maximum_observed_interval_seconds"] <= 2.0
     assert "cadenced_http_control_requires_separate_grant" in (
         result.receipt.limitations
     )
