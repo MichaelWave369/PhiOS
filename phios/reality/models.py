@@ -12,6 +12,7 @@ class RealityClaimKind(StrEnum):
     SOURCE_CONTAINS_TEXT = "source_contains_text"
     WORLD_STATE = "world_state"
     LOCAL_INTERFACE_STATE = "local_interface_state"
+    LOCAL_TCP_LISTENER_STATE = "local_tcp_listener_state"
 
 
 class RealityVerdict(StrEnum):
@@ -31,6 +32,9 @@ class RealityClaim:
     case_sensitive: bool = False
     interface_name: str | None = None
     expected_is_up: bool | None = None
+    local_port: int | None = None
+    local_address: str | None = None
+    expected_listening: bool | None = None
 
     @classmethod
     def create(
@@ -43,6 +47,9 @@ class RealityClaim:
         case_sensitive: bool = False,
         interface_name: str | None = None,
         expected_is_up: bool | None = None,
+        local_port: int | None = None,
+        local_address: str | None = None,
+        expected_listening: bool | None = None,
     ) -> "RealityClaim":
         return cls(
             claim_id=str(uuid.uuid4()),
@@ -53,6 +60,9 @@ class RealityClaim:
             case_sensitive=case_sensitive,
             interface_name=interface_name,
             expected_is_up=expected_is_up,
+            local_port=local_port,
+            local_address=local_address,
+            expected_listening=expected_listening,
         )
 
     def validation_errors(self) -> tuple[str, ...]:
@@ -72,6 +82,16 @@ class RealityClaim:
             if self.expected_is_up is None:
                 errors.append("local_interface_claim_requires_expected_state")
 
+        if self.kind is RealityClaimKind.LOCAL_TCP_LISTENER_STATE:
+            if self.local_port is None:
+                errors.append("local_tcp_claim_requires_port")
+            elif not 1 <= self.local_port <= 65535:
+                errors.append("local_tcp_claim_invalid_port")
+            if self.local_address is not None and not self.local_address.strip():
+                errors.append("local_tcp_claim_invalid_address")
+            if self.expected_listening is None:
+                errors.append("local_tcp_claim_requires_expected_state")
+
         return tuple(errors)
 
     def to_dict(self) -> dict[str, Any]:
@@ -84,6 +104,9 @@ class RealityClaim:
             "case_sensitive": self.case_sensitive,
             "interface_name": self.interface_name,
             "expected_is_up": self.expected_is_up,
+            "local_port": self.local_port,
+            "local_address": self.local_address,
+            "expected_listening": self.expected_listening,
         }
 
 

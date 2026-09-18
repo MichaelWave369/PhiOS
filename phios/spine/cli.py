@@ -18,7 +18,7 @@ def _runtime(args: argparse.Namespace) -> PhiOSSpine:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="phi-spine", description="PhiOS Spine v0.11")
+    parser = argparse.ArgumentParser(prog="phi-spine", description="PhiOS Spine v0.12")
     parser.add_argument("--state-root", help="Override the PhiOS Spine local state root")
     parser.add_argument(
         "--allow",
@@ -29,7 +29,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     sub = parser.add_subparsers(dest="command", required=True)
 
-    sub.add_parser("status", help="Show the v0.11 spine and Mandala contract state")
+    sub.add_parser("status", help="Show the v0.12 spine and Mandala contract state")
     sub.add_parser("list", help="List registered capabilities")
 
     perceive = sub.add_parser(
@@ -145,6 +145,20 @@ def build_parser() -> argparse.ArgumentParser:
         choices=["up", "down"],
         help="Required for local_interface_state claims",
     )
+    verify_claim.add_argument(
+        "--local-port",
+        type=int,
+        help="Required for local_tcp_listener_state claims",
+    )
+    verify_claim.add_argument(
+        "--local-address",
+        help="Optional exact local address filter for local_tcp_listener_state",
+    )
+    verify_claim.add_argument(
+        "--expected-listening",
+        choices=["yes", "no"],
+        help="Required for local_tcp_listener_state claims",
+    )
     verify_claim.add_argument("--max-evidence-bytes", type=int, default=1_048_576)
 
     run = sub.add_parser("run", help="Plan, authorize, execute, and receipt a capability")
@@ -180,8 +194,11 @@ def main() -> int:
                     "gates": [gate.value for gate in Gate],
                     "statuses": [status.value for status in MandalaStatus],
                     "north_gate": "soma.text.v0.1+soma.file.v0.1+soma.screen.v0.1+soma.recovery.v0.1+soma.multishot.v0.1+soma.enhancement.v0.1+soma.ocr.v0.1",
-                    "reality_gate": "reality.bounded-evidence.v0.2",
-                    "world_verifier": "local-interface-state.v0.1",
+                    "reality_gate": "reality.bounded-evidence.v0.3",
+                    "world_verifiers": [
+                        "local-interface-state.v0.1",
+                        "local-tcp-listener-state.v0.1",
+                    ],
                 },
                 indent=2,
             )
@@ -339,6 +356,15 @@ def main() -> int:
                 if args.expected_state == "up"
                 else False
                 if args.expected_state == "down"
+                else None
+            ),
+            local_port=args.local_port,
+            local_address=args.local_address,
+            expected_listening=(
+                True
+                if args.expected_listening == "yes"
+                else False
+                if args.expected_listening == "no"
                 else None
             ),
         )

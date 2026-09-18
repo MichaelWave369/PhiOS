@@ -6,6 +6,12 @@ from .local_network import (
     InterfaceStateProvider,
     PsutilInterfaceStateProvider,
 )
+from .local_socket import (
+    PsutilTcpListenerStateProvider,
+    TcpListenerObservation,
+    TcpListenerObservationError,
+    TcpListenerStateProvider,
+)
 from .models import (
     RealityClaim,
     RealityClaimKind,
@@ -19,9 +25,13 @@ __all__ = [
     "InterfaceObservationError",
     "InterfaceStateProvider",
     "PsutilInterfaceStateProvider",
+    "PsutilTcpListenerStateProvider",
     "RealityClaim",
     "RealityClaimKind",
     "RealityVerdict",
     "RealityVerificationResult",
     "RealityVerificationService",
+    "TcpListenerObservation",
+    "TcpListenerObservationError",
+    "TcpListenerStateProvider",
 ]
