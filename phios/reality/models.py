@@ -388,15 +388,17 @@ class RealityClaim:
                 errors.append(
                     "local_http_json_cadenced_mixed_contract_requires_2_to_5_observations"
                 )
+            min_interval = self.minimum_interval_seconds
+            max_interval = self.maximum_interval_seconds
             min_valid = (
-                not isinstance(self.minimum_interval_seconds, bool)
-                and isinstance(self.minimum_interval_seconds, (int, float))
-                and 0.05 <= float(self.minimum_interval_seconds) <= 10.0
+                not isinstance(min_interval, bool)
+                and isinstance(min_interval, (int, float))
+                and 0.05 <= float(min_interval) <= 10.0
             )
             max_valid = (
-                not isinstance(self.maximum_interval_seconds, bool)
-                and isinstance(self.maximum_interval_seconds, (int, float))
-                and 0.05 <= float(self.maximum_interval_seconds) <= 10.0
+                not isinstance(max_interval, bool)
+                and isinstance(max_interval, (int, float))
+                and 0.05 <= float(max_interval) <= 10.0
             )
             if not min_valid:
                 errors.append(
@@ -406,15 +408,13 @@ class RealityClaim:
                 errors.append(
                     "local_http_json_cadenced_mixed_contract_requires_max_interval_0_05_to_10_seconds"
                 )
-            if (
-                min_valid
-                and max_valid
-                and float(self.maximum_interval_seconds)
-                < float(self.minimum_interval_seconds)
-            ):
-                errors.append(
-                    "local_http_json_cadenced_mixed_contract_requires_max_interval_gte_min"
-                )
+            if min_valid and max_valid:
+                assert isinstance(min_interval, (int, float))
+                assert isinstance(max_interval, (int, float))
+                if float(max_interval) < float(min_interval):
+                    errors.append(
+                        "local_http_json_cadenced_mixed_contract_requires_max_interval_gte_min"
+                    )
 
         if (
             self.kind
