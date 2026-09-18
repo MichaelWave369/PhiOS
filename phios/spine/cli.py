@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 
 from phios.mandala import MANDALA_CONTRACT_VERSION, Gate, MandalaStatus
+from phios.reality import RealityClaim, RealityClaimKind
 from phios.soma import OcrSpec, ScreenCrop, ScreenEnhancementSpec, ScreenRegion
 
 from . import __version__ as SPINE_VERSION
@@ -17,7 +18,7 @@ def _runtime(args: argparse.Namespace) -> PhiOSSpine:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="phi-spine", description="PhiOS Spine v0.9")
+    parser = argparse.ArgumentParser(prog="phi-spine", description="PhiOS Spine v0.10")
     parser.add_argument("--state-root", help="Override the PhiOS Spine local state root")
     parser.add_argument(
         "--allow",
@@ -28,7 +29,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     sub = parser.add_subparsers(dest="command", required=True)
 
-    sub.add_parser("status", help="Show the v0.9 spine and Mandala contract state")
+    sub.add_parser("status", help="Show the v0.10 spine and Mandala contract state")
     sub.add_parser("list", help="List registered capabilities")
 
     perceive = sub.add_parser(
@@ -114,6 +115,29 @@ def build_parser() -> argparse.ArgumentParser:
     recover_screen.add_argument("--scale", type=int, default=1)
     recover_screen.add_argument("--max-output-pixels", type=int, default=16_777_216)
 
+    verify_claim = sub.add_parser(
+        "verify-claim",
+        help="Evaluate a bounded claim through the Reality Gate bridge",
+    )
+    verify_claim.add_argument(
+        "--kind",
+        required=True,
+        choices=[item.value for item in RealityClaimKind],
+    )
+    verify_claim.add_argument("--statement", required=True)
+    verify_claim.add_argument(
+        "--evidence-ref",
+        action="append",
+        default=[],
+        help="Cited evidence reference (repeatable)",
+    )
+    verify_claim.add_argument(
+        "--expected-text",
+        help="Required for source_contains_text claims",
+    )
+    verify_claim.add_argument("--case-sensitive", action="store_true")
+    verify_claim.add_argument("--max-evidence-bytes", type=int, default=1_048_576)
+
     run = sub.add_parser("run", help="Plan, authorize, execute, and receipt a capability")
     run.add_argument("capability_id")
     run.add_argument("--input", default="{}", help="JSON object payload")
@@ -147,6 +171,7 @@ def main() -> int:
                     "gates": [gate.value for gate in Gate],
                     "statuses": [status.value for status in MandalaStatus],
                     "north_gate": "soma.text.v0.1+soma.file.v0.1+soma.screen.v0.1+soma.recovery.v0.1+soma.multishot.v0.1+soma.enhancement.v0.1+soma.ocr.v0.1",
+                    "reality_gate": "reality.bounded-text-evidence.v0.1",
                 },
                 indent=2,
             )
@@ -288,6 +313,30 @@ def main() -> int:
             0
             if recovery_result.receipt.status
             in {MandalaStatus.ACCEPTED, MandalaStatus.DEGRADED}
+            else 2
+        )
+
+    if args.command == "verify-claim":
+        claim = RealityClaim.create(
+            kind=RealityClaimKind(args.kind),
+            statement=args.statement,
+            evidence_refs=tuple(args.evidence_ref),
+            expected_text=args.expected_text,
+            case_sensitive=args.case_sensitive,
+        )
+        verification_result = runtime.verify_reality(
+            claims=(claim,),
+            max_evidence_bytes=args.max_evidence_bytes,
+        )
+        print(json.dumps(verification_result.to_dict(), indent=2))
+        return (
+            0
+            if verification_result.receipt.status
+            in {
+                MandalaStatus.ACCEPTED,
+                MandalaStatus.UNKNOWN,
+                MandalaStatus.DISPUTED,
+            }
             else 2
         )
 
