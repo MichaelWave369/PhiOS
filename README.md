@@ -131,7 +131,7 @@ The current merged Spine line is **v0.18**.
 | v0.17 | same-snapshot multi-clause JSON contracts |
 | v0.18 | bounded Boolean and numeric scalar predicates |
 
-The latest semantic contract can evaluate **1–8 bounded clauses from one HTTP observation**:
+The v0.17 same-snapshot contract can evaluate **1–8 bounded clauses from one HTTP observation**:
 
 ```text
 one GET
