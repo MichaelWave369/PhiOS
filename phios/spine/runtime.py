@@ -3,9 +3,10 @@ from __future__ import annotations
 import hashlib
 import json
 import uuid
-from datetime import datetime, timezone
+from collections.abc import Iterable
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 
 from .collaborator import PhiVesselAdapter
 from .executor import ExecutorRegistry, text_artifact_handler
@@ -57,7 +58,7 @@ class PhiOSSpine:
         receipt = ExecutionReceipt(
             schema_version="phios.execution_receipt.v0.1",
             receipt_id=str(uuid.uuid4()),
-            timestamp_utc=datetime.now(timezone.utc).isoformat(),
+            timestamp_utc=datetime.now(UTC).isoformat(),
             capability_id=capability.id,
             planner=plan.planner,
             input_sha256=self._hash_payload(plan.payload),
@@ -75,7 +76,7 @@ class PhiOSSpine:
             receipt.execution_status = "succeeded"
             receipt.artifact_path = str(artifact.path)
             receipt.artifact_sha256 = artifact.sha256
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001 - executor boundary receipts arbitrary failures
             receipt.execution_status = "failed"
             receipt.error = f"{type(exc).__name__}: {exc}"
 
