@@ -8,6 +8,7 @@ from typing import Any
 from phios.mandala import MandalaPacket, RealityReceipt
 
 from .local_http import local_http_url_error
+from .local_json import JSON_TYPE_NAMES, json_pointer_error
 
 
 class RealityClaimKind(StrEnum):
@@ -16,6 +17,7 @@ class RealityClaimKind(StrEnum):
     LOCAL_INTERFACE_STATE = "local_interface_state"
     LOCAL_TCP_LISTENER_STATE = "local_tcp_listener_state"
     LOCAL_HTTP_RESPONSE_STATE = "local_http_response_state"
+    LOCAL_HTTP_JSON_CONTRACT = "local_http_json_contract"
 
 
 class RealityVerdict(StrEnum):
@@ -42,6 +44,8 @@ class RealityClaim:
     expected_http_status: int | None = None
     http_timeout_seconds: float = 2.0
     http_max_body_bytes: int = 65_536
+    json_pointer: str | None = None
+    expected_json_type: str | None = None
 
     @classmethod
     def create(
@@ -61,6 +65,8 @@ class RealityClaim:
         expected_http_status: int | None = None,
         http_timeout_seconds: float = 2.0,
         http_max_body_bytes: int = 65_536,
+        json_pointer: str | None = None,
+        expected_json_type: str | None = None,
     ) -> "RealityClaim":
         return cls(
             claim_id=str(uuid.uuid4()),
@@ -78,6 +84,8 @@ class RealityClaim:
             expected_http_status=expected_http_status,
             http_timeout_seconds=http_timeout_seconds,
             http_max_body_bytes=http_max_body_bytes,
+            json_pointer=json_pointer,
+            expected_json_type=expected_json_type,
         )
 
     def validation_errors(self) -> tuple[str, ...]:
@@ -107,7 +115,10 @@ class RealityClaim:
             if self.expected_listening is None:
                 errors.append("local_tcp_claim_requires_expected_state")
 
-        if self.kind is RealityClaimKind.LOCAL_HTTP_RESPONSE_STATE:
+        if self.kind in {
+            RealityClaimKind.LOCAL_HTTP_RESPONSE_STATE,
+            RealityClaimKind.LOCAL_HTTP_JSON_CONTRACT,
+        }:
             url_error = local_http_url_error(self.http_url)
             if url_error is not None:
                 errors.append(url_error)
@@ -119,6 +130,15 @@ class RealityClaim:
                 errors.append("local_http_claim_invalid_timeout")
             if not 1 <= self.http_max_body_bytes <= 1_048_576:
                 errors.append("local_http_claim_invalid_body_budget")
+
+        if self.kind is RealityClaimKind.LOCAL_HTTP_JSON_CONTRACT:
+            pointer_error = json_pointer_error(self.json_pointer)
+            if pointer_error is not None:
+                errors.append(pointer_error)
+            if self.expected_json_type is None:
+                errors.append("local_http_json_claim_requires_expected_type")
+            elif self.expected_json_type not in JSON_TYPE_NAMES:
+                errors.append("local_http_json_claim_invalid_expected_type")
 
         return tuple(errors)
 
@@ -139,6 +159,8 @@ class RealityClaim:
             "expected_http_status": self.expected_http_status,
             "http_timeout_seconds": self.http_timeout_seconds,
             "http_max_body_bytes": self.http_max_body_bytes,
+            "json_pointer": self.json_pointer,
+            "expected_json_type": self.expected_json_type,
         }
 
 
