@@ -44,12 +44,9 @@ class SomaPerceptionService:
     @staticmethod
     def _apply_transform(text: str, transform: str) -> str:
         if transform == "strip_utf8_bom":
-            return text.removeprefix("﻿")
+            return text.removeprefix("\ufeff")
         if transform == "normalize_newlines":
-            return text.replace("
-", "
-").replace("", "
-")
+            return text.replace("\r\n", "\n").replace("\r", "\n")
         raise ValueError(f"unsupported perception transform: {transform}")
 
     def perceive_text(
