@@ -385,6 +385,38 @@ def test_cadence_window_passes_when_starts_are_inside_bounds(
     ] == [None, True, True]
 
 
+def test_cadence_verdict_uses_persisted_nine_decimal_interval(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    clock = FakeClock()
+    _patch_clock(monkeypatch, clock)
+    provider = CadencedSequenceProvider(
+        clock=clock,
+        items=[_observation(0), _observation(1)],
+        durations=[2.0000000004, 0.0],
+    )
+    spine = _spine(tmp_path, _value_permissions())
+
+    result = spine.verify_reality(
+        claims=(
+            _claim(
+                count=2,
+                minimum=1.0,
+                maximum=2.0,
+            ),
+        ),
+        local_http_provider=provider,
+    )
+
+    assert provider.calls == 2
+    assert result.receipt.status is MandalaStatus.ACCEPTED
+    sample = result.claim_results[0]["sample_results"][1]
+    assert sample["elapsed_since_previous_start_seconds"] == 2.0
+    assert sample["upper_bound_satisfied"] is True
+    assert sample["cadence_satisfied"] is True
+
+
 def test_provider_overrun_violates_upper_bound_but_does_not_stop_series(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
