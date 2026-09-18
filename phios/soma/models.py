@@ -90,3 +90,25 @@ class ScreenObservationResult:
             "capture_attempts": self.capture_attempts,
             "observation_sha256": self.observation_sha256,
         }
+
+
+@dataclass(frozen=True, kw_only=True)
+class ScreenRecoveryResult:
+    packet: MandalaPacket
+    receipt: PerceptionReceipt
+    native_evidence_ref: str
+    derived_evidence: tuple[NativeEvidence, ...]
+    observation_evidence_ref: str | None
+    observation_sha256: str | None
+    recovery_steps: tuple[str, ...]
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "packet": self.packet.to_dict(),
+            "receipt": self.receipt.to_dict(),
+            "native_evidence_ref": self.native_evidence_ref,
+            "derived_evidence": [item.to_dict() for item in self.derived_evidence],
+            "observation_evidence_ref": self.observation_evidence_ref,
+            "observation_sha256": self.observation_sha256,
+            "recovery_steps": list(self.recovery_steps),
+        }
