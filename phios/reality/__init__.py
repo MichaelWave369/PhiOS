@@ -10,7 +10,9 @@ from .local_http import (
 )
 from .local_json import (
     JSON_STRUCTURAL_PREDICATES,
+    JsonContractClause,
     JSON_TYPE_NAMES,
+    evaluate_json_contract_clause,
     evaluate_json_structural_predicate,
     json_pointer_error,
     json_structural_predicate_error,
@@ -42,6 +44,7 @@ from .service import RealityVerificationService
 
 __all__ = [
     "JSON_STRUCTURAL_PREDICATES",
+    "JsonContractClause",
     "JSON_TYPE_NAMES",
     "InterfaceObservation",
     "InterfaceObservationError",
@@ -61,6 +64,7 @@ __all__ = [
     "TcpListenerObservationError",
     "TcpListenerStateProvider",
     "UnavailableLocalHttpStateProvider",
+    "evaluate_json_contract_clause",
     "evaluate_json_structural_predicate",
     "json_pointer_error",
     "json_structural_predicate_error",
