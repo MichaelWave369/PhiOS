@@ -117,7 +117,7 @@ because computers have been exploiting that kind of optimism for decades.
 
 ## Current Spine verification ladder
 
-The current merged Spine line is **v0.19**.
+The current merged Spine line is **v0.20**.
 
 | Version | Capability |
 |---|---|
@@ -131,6 +131,7 @@ The current merged Spine line is **v0.19**.
 | v0.17 | same-snapshot multi-clause JSON contracts |
 | v0.18 | bounded Boolean and numeric scalar predicates |
 | v0.19 | same-snapshot mixed type / structural / scalar contracts |
+| v0.20 | bounded repeated mixed observations across 2-5 discrete samples |
 
 The v0.17 same-snapshot contract can evaluate **1–8 bounded clauses from one HTTP observation**:
 
@@ -161,7 +162,8 @@ All clauses describe the **same captured response**, not several requests made a
 
 See:
 
-- [Spine v0.19 overview](README_SPINE_V0.19.md)
+- [Spine v0.20 overview](README_SPINE_V0.20.md)
+- [Spine v0.20 repeated observation contract](docs/PHIOS_SPINE_V0.20_REPEATED_MIXED_OBSERVATION.md)
 - [Spine v0.19 mixed contract](docs/PHIOS_SPINE_V0.19_JSON_MIXED_CONTRACT.md)
 - [Spine v0.18 scalar predicate contract](docs/PHIOS_SPINE_V0.18_JSON_SCALAR_PREDICATES.md)
 - [Spine v0.17 same-snapshot contract](docs/PHIOS_SPINE_V0.17_JSON_MULTI_CONTRACT.md)
@@ -171,6 +173,9 @@ Older Spine documents remain in the repository as the versioned design trail.
 v0.18 adds a stronger semantic boundary for scalar values. Boolean and numeric values may be inspected only with the separate `reality.local_http.semantic.value.read` grant. The observed scalar is used transiently for comparison and is not persisted in semantic evidence.
 
 v0.19 composes type, structural, and scalar clauses against one captured response. Value-read authority is required only when the mixed contract actually contains a scalar clause.
+
+v0.20 can evaluate that same mixed contract across 2-5 discrete observations. Repetition requires the separate `reality.local_http.repeat.read` grant. No minimum sampling interval is enforced, so repeated support does not establish continuous health between observations.
+
 
 
 

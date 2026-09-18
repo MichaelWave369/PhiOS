@@ -29,6 +29,7 @@ class RealityClaimKind(StrEnum):
     LOCAL_HTTP_JSON_MULTI_CONTRACT = "local_http_json_multi_contract"
     LOCAL_HTTP_JSON_SCALAR_PREDICATE = "local_http_json_scalar_predicate"
     LOCAL_HTTP_JSON_MIXED_CONTRACT = "local_http_json_mixed_contract"
+    LOCAL_HTTP_JSON_REPEATED_MIXED_CONTRACT = "local_http_json_repeated_mixed_contract"
 
 
 class RealityVerdict(StrEnum):
@@ -63,6 +64,7 @@ class RealityClaim:
     json_scalar_predicate_kind: str | None = None
     json_scalar_operand: str | None = None
     json_mixed_contract_clauses: tuple[JsonMixedContractClause, ...] = ()
+    repeat_observation_count: int | None = None
 
     @classmethod
     def create(
@@ -90,6 +92,7 @@ class RealityClaim:
         json_scalar_predicate_kind: str | None = None,
         json_scalar_operand: str | None = None,
         json_mixed_contract_clauses: tuple[JsonMixedContractClause, ...] = (),
+        repeat_observation_count: int | None = None,
     ) -> "RealityClaim":
         return cls(
             claim_id=str(uuid.uuid4()),
@@ -115,6 +118,7 @@ class RealityClaim:
             json_scalar_predicate_kind=json_scalar_predicate_kind,
             json_scalar_operand=json_scalar_operand,
             json_mixed_contract_clauses=tuple(json_mixed_contract_clauses),
+            repeat_observation_count=repeat_observation_count,
         )
 
     def validation_errors(self) -> tuple[str, ...]:
@@ -151,6 +155,7 @@ class RealityClaim:
             RealityClaimKind.LOCAL_HTTP_JSON_MULTI_CONTRACT,
             RealityClaimKind.LOCAL_HTTP_JSON_SCALAR_PREDICATE,
             RealityClaimKind.LOCAL_HTTP_JSON_MIXED_CONTRACT,
+            RealityClaimKind.LOCAL_HTTP_JSON_REPEATED_MIXED_CONTRACT,
         }:
             url_error = local_http_url_error(self.http_url)
             if url_error is not None:
@@ -220,7 +225,11 @@ class RealityClaim:
             errors.append("json_contract_clauses_only_for_multi_contract")
 
         if (
-            self.kind is not RealityClaimKind.LOCAL_HTTP_JSON_MIXED_CONTRACT
+            self.kind
+            not in {
+                RealityClaimKind.LOCAL_HTTP_JSON_MIXED_CONTRACT,
+                RealityClaimKind.LOCAL_HTTP_JSON_REPEATED_MIXED_CONTRACT,
+            }
             and self.json_mixed_contract_clauses
         ):
             errors.append("json_mixed_contract_clauses_only_for_mixed_contract")
@@ -261,6 +270,47 @@ class RealityClaim:
                 for error in mixed_clause.validation_errors():
                     errors.append(f"json_mixed_clause_{index}:{error}")
 
+        if self.kind is RealityClaimKind.LOCAL_HTTP_JSON_REPEATED_MIXED_CONTRACT:
+            if any(
+                value is not None
+                for value in (
+                    self.json_pointer,
+                    self.expected_json_type,
+                    self.json_predicate_kind,
+                    self.json_predicate_bound,
+                    self.json_scalar_predicate_kind,
+                    self.json_scalar_operand,
+                )
+            ) or self.json_contract_clauses:
+                errors.append(
+                    "local_http_json_repeated_mixed_contract_disallows_legacy_fields"
+                )
+            if not 1 <= len(self.json_mixed_contract_clauses) <= 8:
+                errors.append(
+                    "local_http_json_repeated_mixed_contract_requires_1_to_8_clauses"
+                )
+            for index, repeated_clause in enumerate(
+                self.json_mixed_contract_clauses
+            ):
+                for error in repeated_clause.validation_errors():
+                    errors.append(f"json_repeated_mixed_clause_{index}:{error}")
+            if (
+                isinstance(self.repeat_observation_count, bool)
+                or not isinstance(self.repeat_observation_count, int)
+                or not 2 <= self.repeat_observation_count <= 5
+            ):
+                errors.append(
+                    "local_http_json_repeated_mixed_contract_requires_2_to_5_observations"
+                )
+
+        if (
+            self.kind is not RealityClaimKind.LOCAL_HTTP_JSON_REPEATED_MIXED_CONTRACT
+            and self.repeat_observation_count is not None
+        ):
+            errors.append(
+                "repeat_observation_count_only_for_repeated_mixed_contract"
+            )
+
         return tuple(errors)
 
     def to_dict(self) -> dict[str, Any]:
@@ -292,6 +342,7 @@ class RealityClaim:
             "json_mixed_contract_clauses": [
                 clause.to_dict() for clause in self.json_mixed_contract_clauses
             ],
+            "repeat_observation_count": self.repeat_observation_count,
         }
 
 
