@@ -32,6 +32,9 @@ class RealityClaimKind(StrEnum):
     LOCAL_HTTP_JSON_REPEATED_MIXED_CONTRACT = "local_http_json_repeated_mixed_contract"
     LOCAL_HTTP_JSON_TIMED_MIXED_CONTRACT = "local_http_json_timed_mixed_contract"
     LOCAL_HTTP_JSON_CADENCED_MIXED_CONTRACT = "local_http_json_cadenced_mixed_contract"
+    LOCAL_HTTP_JSON_TEMPORAL_ENVELOPE_MIXED_CONTRACT = (
+        "local_http_json_temporal_envelope_mixed_contract"
+    )
 
 
 class RealityVerdict(StrEnum):
@@ -69,6 +72,8 @@ class RealityClaim:
     repeat_observation_count: int | None = None
     minimum_interval_seconds: float | None = None
     maximum_interval_seconds: float | None = None
+    minimum_series_span_seconds: float | None = None
+    maximum_series_span_seconds: float | None = None
 
     @classmethod
     def create(
@@ -99,6 +104,8 @@ class RealityClaim:
         repeat_observation_count: int | None = None,
         minimum_interval_seconds: float | None = None,
         maximum_interval_seconds: float | None = None,
+        minimum_series_span_seconds: float | None = None,
+        maximum_series_span_seconds: float | None = None,
     ) -> "RealityClaim":
         return cls(
             claim_id=str(uuid.uuid4()),
@@ -127,6 +134,8 @@ class RealityClaim:
             repeat_observation_count=repeat_observation_count,
             minimum_interval_seconds=minimum_interval_seconds,
             maximum_interval_seconds=maximum_interval_seconds,
+            minimum_series_span_seconds=minimum_series_span_seconds,
+            maximum_series_span_seconds=maximum_series_span_seconds,
         )
 
     def validation_errors(self) -> tuple[str, ...]:
@@ -166,6 +175,7 @@ class RealityClaim:
             RealityClaimKind.LOCAL_HTTP_JSON_REPEATED_MIXED_CONTRACT,
             RealityClaimKind.LOCAL_HTTP_JSON_TIMED_MIXED_CONTRACT,
             RealityClaimKind.LOCAL_HTTP_JSON_CADENCED_MIXED_CONTRACT,
+            RealityClaimKind.LOCAL_HTTP_JSON_TEMPORAL_ENVELOPE_MIXED_CONTRACT,
         }:
             url_error = local_http_url_error(self.http_url)
             if url_error is not None:
@@ -241,6 +251,7 @@ class RealityClaim:
                 RealityClaimKind.LOCAL_HTTP_JSON_REPEATED_MIXED_CONTRACT,
                 RealityClaimKind.LOCAL_HTTP_JSON_TIMED_MIXED_CONTRACT,
                 RealityClaimKind.LOCAL_HTTP_JSON_CADENCED_MIXED_CONTRACT,
+                RealityClaimKind.LOCAL_HTTP_JSON_TEMPORAL_ENVELOPE_MIXED_CONTRACT,
             }
             and self.json_mixed_contract_clauses
         ):
@@ -418,10 +429,140 @@ class RealityClaim:
 
         if (
             self.kind
+            is RealityClaimKind.LOCAL_HTTP_JSON_TEMPORAL_ENVELOPE_MIXED_CONTRACT
+        ):
+            if any(
+                value is not None
+                for value in (
+                    self.json_pointer,
+                    self.expected_json_type,
+                    self.json_predicate_kind,
+                    self.json_predicate_bound,
+                    self.json_scalar_predicate_kind,
+                    self.json_scalar_operand,
+                )
+            ) or self.json_contract_clauses:
+                errors.append(
+                    "local_http_json_temporal_envelope_contract_disallows_legacy_fields"
+                )
+            if not 1 <= len(self.json_mixed_contract_clauses) <= 8:
+                errors.append(
+                    "local_http_json_temporal_envelope_contract_requires_1_to_8_clauses"
+                )
+            for index, envelope_clause in enumerate(
+                self.json_mixed_contract_clauses
+            ):
+                for error in envelope_clause.validation_errors():
+                    errors.append(f"json_temporal_envelope_clause_{index}:{error}")
+
+            count = self.repeat_observation_count
+            count_valid = (
+                not isinstance(count, bool)
+                and isinstance(count, int)
+                and 2 <= count <= 5
+            )
+            if not count_valid:
+                errors.append(
+                    "local_http_json_temporal_envelope_contract_requires_2_to_5_observations"
+                )
+
+            min_interval = self.minimum_interval_seconds
+            max_interval = self.maximum_interval_seconds
+            min_interval_valid = (
+                not isinstance(min_interval, bool)
+                and isinstance(min_interval, (int, float))
+                and 0.05 <= float(min_interval) <= 10.0
+            )
+            max_interval_valid = (
+                not isinstance(max_interval, bool)
+                and isinstance(max_interval, (int, float))
+                and 0.05 <= float(max_interval) <= 10.0
+            )
+            if not min_interval_valid:
+                errors.append(
+                    "local_http_json_temporal_envelope_contract_requires_min_interval_0_05_to_10_seconds"
+                )
+            if not max_interval_valid:
+                errors.append(
+                    "local_http_json_temporal_envelope_contract_requires_max_interval_0_05_to_10_seconds"
+                )
+            intervals_ordered = False
+            if min_interval_valid and max_interval_valid:
+                assert isinstance(min_interval, (int, float))
+                assert isinstance(max_interval, (int, float))
+                intervals_ordered = float(max_interval) >= float(min_interval)
+                if not intervals_ordered:
+                    errors.append(
+                        "local_http_json_temporal_envelope_contract_requires_max_interval_gte_min"
+                    )
+
+            min_span = self.minimum_series_span_seconds
+            max_span = self.maximum_series_span_seconds
+            min_span_valid = (
+                not isinstance(min_span, bool)
+                and isinstance(min_span, (int, float))
+                and 0.05 <= float(min_span) <= 40.0
+            )
+            max_span_valid = (
+                not isinstance(max_span, bool)
+                and isinstance(max_span, (int, float))
+                and 0.05 <= float(max_span) <= 40.0
+            )
+            if not min_span_valid:
+                errors.append(
+                    "local_http_json_temporal_envelope_contract_requires_min_span_0_05_to_40_seconds"
+                )
+            if not max_span_valid:
+                errors.append(
+                    "local_http_json_temporal_envelope_contract_requires_max_span_0_05_to_40_seconds"
+                )
+            spans_ordered = False
+            if min_span_valid and max_span_valid:
+                assert isinstance(min_span, (int, float))
+                assert isinstance(max_span, (int, float))
+                spans_ordered = float(max_span) >= float(min_span)
+                if not spans_ordered:
+                    errors.append(
+                        "local_http_json_temporal_envelope_contract_requires_max_span_gte_min"
+                    )
+
+            if (
+                count_valid
+                and min_interval_valid
+                and max_interval_valid
+                and intervals_ordered
+                and min_span_valid
+                and max_span_valid
+                and spans_ordered
+            ):
+                assert isinstance(count, int)
+                assert isinstance(min_interval, (int, float))
+                assert isinstance(max_interval, (int, float))
+                assert isinstance(min_span, (int, float))
+                assert isinstance(max_span, (int, float))
+                implied_min_span = round(
+                    (count - 1) * float(min_interval),
+                    9,
+                )
+                implied_max_span = round(
+                    (count - 1) * float(max_interval),
+                    9,
+                )
+                if (
+                    float(max_span) < implied_min_span
+                    or float(min_span) > implied_max_span
+                ):
+                    errors.append(
+                        "local_http_json_temporal_envelope_contract_infeasible_span"
+                    )
+
+        if (
+            self.kind
             not in {
                 RealityClaimKind.LOCAL_HTTP_JSON_REPEATED_MIXED_CONTRACT,
                 RealityClaimKind.LOCAL_HTTP_JSON_TIMED_MIXED_CONTRACT,
                 RealityClaimKind.LOCAL_HTTP_JSON_CADENCED_MIXED_CONTRACT,
+                RealityClaimKind.LOCAL_HTTP_JSON_TEMPORAL_ENVELOPE_MIXED_CONTRACT,
             }
             and self.repeat_observation_count is not None
         ):
@@ -434,6 +575,7 @@ class RealityClaim:
             not in {
                 RealityClaimKind.LOCAL_HTTP_JSON_TIMED_MIXED_CONTRACT,
                 RealityClaimKind.LOCAL_HTTP_JSON_CADENCED_MIXED_CONTRACT,
+                RealityClaimKind.LOCAL_HTTP_JSON_TEMPORAL_ENVELOPE_MIXED_CONTRACT,
             }
             and self.minimum_interval_seconds is not None
         ):
@@ -442,11 +584,27 @@ class RealityClaim:
             )
 
         if (
-            self.kind is not RealityClaimKind.LOCAL_HTTP_JSON_CADENCED_MIXED_CONTRACT
+            self.kind
+            not in {
+                RealityClaimKind.LOCAL_HTTP_JSON_CADENCED_MIXED_CONTRACT,
+                RealityClaimKind.LOCAL_HTTP_JSON_TEMPORAL_ENVELOPE_MIXED_CONTRACT,
+            }
             and self.maximum_interval_seconds is not None
         ):
             errors.append(
                 "maximum_interval_seconds_only_for_cadenced_mixed_contract"
+            )
+
+        if (
+            self.kind
+            is not RealityClaimKind.LOCAL_HTTP_JSON_TEMPORAL_ENVELOPE_MIXED_CONTRACT
+            and (
+                self.minimum_series_span_seconds is not None
+                or self.maximum_series_span_seconds is not None
+            )
+        ):
+            errors.append(
+                "series_span_fields_only_for_temporal_envelope_mixed_contract"
             )
 
         return tuple(errors)
@@ -483,6 +641,8 @@ class RealityClaim:
             "repeat_observation_count": self.repeat_observation_count,
             "minimum_interval_seconds": self.minimum_interval_seconds,
             "maximum_interval_seconds": self.maximum_interval_seconds,
+            "minimum_series_span_seconds": self.minimum_series_span_seconds,
+            "maximum_series_span_seconds": self.maximum_series_span_seconds,
         }
 
 
