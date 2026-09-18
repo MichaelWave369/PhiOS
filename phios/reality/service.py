@@ -23,6 +23,12 @@ from .local_http import (
     LocalHttpStateProvider,
     UnavailableLocalHttpStateProvider,
 )
+from .local_json import (
+    json_type_matches,
+    json_type_name,
+    resolve_json_pointer,
+    strict_json_loads,
+)
 from .local_network import (
     InterfaceObservationError,
     InterfaceStateProvider,
@@ -92,7 +98,7 @@ class RealityVerificationService:
             payload={
                 "claim_count": len(claims),
                 "claims": [claim.to_dict() for claim in claims],
-                "verification_method": "bounded-evidence-v0.4",
+                "verification_method": "bounded-evidence-v0.5",
             },
             authority=self.authority,
             evidence_refs=evidence_refs,
@@ -578,6 +584,180 @@ class RealityVerificationService:
             (observation_evidence.evidence_ref,),
         )
 
+    def _local_http_json_contract(
+        self,
+        claim: RealityClaim,
+        *,
+        provider: LocalHttpStateProvider,
+    ) -> tuple[dict[str, Any], tuple[str, ...]]:
+        assert claim.http_url is not None
+        assert claim.expected_http_status is not None
+        assert claim.json_pointer is not None
+        assert claim.expected_json_type is not None
+
+        for permission in (
+            "reality.local_http.read",
+            "reality.local_http.semantic.read",
+        ):
+            if not self.authority.allows(permission):
+                return (
+                    {
+                        "claim_id": claim.claim_id,
+                        "kind": claim.kind.value,
+                        "statement": claim.statement,
+                        "verdict": RealityVerdict.BLOCKED.value,
+                        "reason": f"missing_grant:{permission}",
+                        "scope": "local_http_json_contract",
+                        "http_url": claim.http_url,
+                        "expected_http_status": claim.expected_http_status,
+                        "json_pointer": claim.json_pointer,
+                        "expected_json_type": claim.expected_json_type,
+                        "observation_evidence_ref": None,
+                    },
+                    (),
+                )
+
+        try:
+            observation = provider.observe(
+                url=claim.http_url,
+                timeout_seconds=claim.http_timeout_seconds,
+                max_body_bytes=claim.http_max_body_bytes,
+            )
+        except LocalHttpObservationError as exc:
+            return (
+                {
+                    "claim_id": claim.claim_id,
+                    "kind": claim.kind.value,
+                    "statement": claim.statement,
+                    "verdict": RealityVerdict.UNRESOLVED.value,
+                    "reason": exc.code,
+                    "scope": "local_http_json_contract",
+                    "http_url": claim.http_url,
+                    "expected_http_status": claim.expected_http_status,
+                    "json_pointer": claim.json_pointer,
+                    "expected_json_type": claim.expected_json_type,
+                    "observation_evidence_ref": None,
+                },
+                (),
+            )
+        except Exception:  # noqa: BLE001 - provider boundary
+            return (
+                {
+                    "claim_id": claim.claim_id,
+                    "kind": claim.kind.value,
+                    "statement": claim.statement,
+                    "verdict": RealityVerdict.UNRESOLVED.value,
+                    "reason": "local_http_provider_error",
+                    "scope": "local_http_json_contract",
+                    "http_url": claim.http_url,
+                    "expected_http_status": claim.expected_http_status,
+                    "json_pointer": claim.json_pointer,
+                    "expected_json_type": claim.expected_json_type,
+                    "observation_evidence_ref": None,
+                },
+                (),
+            )
+
+        semantic: dict[str, Any] = {
+            "json_valid": None,
+            "pointer_exists": None,
+            "observed_json_type": None,
+            "type_matches": None,
+        }
+
+        if observation.status_code != claim.expected_http_status:
+            verdict = RealityVerdict.CONTRADICTED
+            reason = "local_http_json_contract_status_mismatch"
+        elif observation.body_truncated:
+            verdict = RealityVerdict.UNRESOLVED
+            reason = "local_http_json_contract_body_truncated"
+        elif observation.body is None:
+            verdict = RealityVerdict.UNRESOLVED
+            reason = "local_http_semantic_body_unavailable"
+        else:
+            try:
+                document = strict_json_loads(observation.body)
+            except (UnicodeDecodeError, ValueError):
+                semantic["json_valid"] = False
+                verdict = RealityVerdict.CONTRADICTED
+                reason = "local_http_json_contract_invalid_json"
+            else:
+                semantic["json_valid"] = True
+                pointer_exists, value = resolve_json_pointer(
+                    document,
+                    claim.json_pointer,
+                )
+                semantic["pointer_exists"] = pointer_exists
+                if not pointer_exists:
+                    verdict = RealityVerdict.CONTRADICTED
+                    reason = "local_http_json_contract_pointer_missing"
+                else:
+                    observed_type = json_type_name(value)
+                    type_matches = json_type_matches(
+                        value,
+                        claim.expected_json_type,
+                    )
+                    semantic["observed_json_type"] = observed_type
+                    semantic["type_matches"] = type_matches
+                    if type_matches:
+                        verdict = RealityVerdict.SUPPORTED
+                        reason = "local_http_json_contract_matches"
+                    else:
+                        verdict = RealityVerdict.CONTRADICTED
+                        reason = "local_http_json_contract_type_mismatch"
+
+        evidence_record = {
+            "http_observation": observation.to_dict(),
+            "semantic_contract": {
+                "expected_http_status": claim.expected_http_status,
+                "json_pointer": claim.json_pointer,
+                "expected_json_type": claim.expected_json_type,
+            },
+            "semantic_observation": semantic,
+        }
+        observation_bytes = json.dumps(
+            evidence_record,
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=False,
+        ).encode("utf-8")
+        observation_evidence = self.evidence.put_bytes(
+            observation_bytes,
+            media_type="application/json; charset=utf-8",
+            suffix=".json",
+        )
+
+        return (
+            {
+                "claim_id": claim.claim_id,
+                "kind": claim.kind.value,
+                "statement": claim.statement,
+                "verdict": verdict.value,
+                "reason": reason,
+                "scope": "local_http_json_contract",
+                "http_url": observation.url,
+                "method": observation.method,
+                "expected_http_status": claim.expected_http_status,
+                "observed_http_status": observation.status_code,
+                "json_pointer": claim.json_pointer,
+                "expected_json_type": claim.expected_json_type,
+                "json_valid": semantic["json_valid"],
+                "pointer_exists": semantic["pointer_exists"],
+                "observed_json_type": semantic["observed_json_type"],
+                "type_matches": semantic["type_matches"],
+                "body_sha256": observation.body_sha256,
+                "body_bytes_observed": observation.body_bytes_observed,
+                "body_truncated": observation.body_truncated,
+                "body_digest_scope": observation.body_digest_scope,
+                "elapsed_ms": observation.elapsed_ms,
+                "provider": observation.provider,
+                "provider_version": observation.provider_version,
+                "captured_at_utc": observation.captured_at_utc,
+                "observation_evidence_ref": observation_evidence.evidence_ref,
+            },
+            (observation_evidence.evidence_ref,),
+        )
+
     def verify(
         self,
         *,
@@ -624,7 +804,7 @@ class RealityVerificationService:
                 unresolved_contradictions=(),
                 unresolved_claims=tuple(claim.claim_id for claim in claims),
                 verdict_summary={RealityVerdict.BLOCKED.value: len(claims)},
-                verification_method="bounded-evidence-v0.4",
+                verification_method="bounded-evidence-v0.5",
                 promotion_status="not_promoted",
                 limitations=(
                     f"missing_grant:{permission}",
@@ -687,7 +867,7 @@ class RealityVerificationService:
                 unresolved_contradictions=(),
                 unresolved_claims=tuple(claim.claim_id for claim in claims),
                 verdict_summary={RealityVerdict.BLOCKED.value: len(claims)},
-                verification_method="bounded-evidence-v0.4",
+                verification_method="bounded-evidence-v0.5",
                 promotion_status="not_promoted",
                 limitations=invalid_global
                 + tuple(
@@ -753,6 +933,15 @@ class RealityVerificationService:
                 used.extend(claim_used)
                 continue
 
+            if claim.kind is RealityClaimKind.LOCAL_HTTP_JSON_CONTRACT:
+                result, claim_used = self._local_http_json_contract(
+                    claim,
+                    provider=selected_local_http_provider,
+                )
+                results.append(result)
+                used.extend(claim_used)
+                continue
+
             results.append(
                 {
                     "claim_id": claim.claim_id,
@@ -799,7 +988,7 @@ class RealityVerificationService:
             unresolved_contradictions=contradicted,
             unresolved_claims=unresolved,
             verdict_summary=dict(counts),
-            verification_method="bounded-evidence-v0.4",
+            verification_method="bounded-evidence-v0.5",
             promotion_status="not_promoted",
             limitations=(
                 "lexical_source_support_is_not_world_state_verification",
@@ -808,6 +997,10 @@ class RealityVerificationService:
                 "local_interface_state_uses_direct_host_observation",
                 "local_tcp_listener_state_uses_direct_host_observation",
                 "local_http_response_state_uses_provider_observation",
+                "local_http_json_contract_uses_bounded_semantic_observation",
+                "semantic_http_read_requires_separate_grant",
+                "local_http_json_contract_requires_complete_body",
+                "json_pointer_type_check_is_not_application_health",
                 "http_status_is_not_application_health",
                 "live_http_transport_is_adapter_scoped",
                 "host_observation_is_point_in_time",
