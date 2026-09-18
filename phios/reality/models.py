@@ -232,7 +232,7 @@ class RealityClaim:
             }
             and self.json_mixed_contract_clauses
         ):
-            errors.append("json_mixed_contract_clauses_only_for_mixed_contracts")
+            errors.append("json_mixed_contract_clauses_only_for_mixed_contract")
 
         if self.kind is RealityClaimKind.LOCAL_HTTP_JSON_MULTI_CONTRACT:
             if any(
