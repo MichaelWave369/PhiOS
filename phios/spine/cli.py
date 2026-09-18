@@ -36,7 +36,11 @@ def _json_contract_clauses(
             parser.error(f"--json-clause {index} is not valid JSON: {exc.msg}")
         if not isinstance(value, dict):
             parser.error(f"--json-clause {index} must decode to a JSON object")
-        clauses.append(JsonContractClause.from_mapping(value))
+        try:
+            clause = JsonContractClause.from_mapping(value)
+        except ValueError as exc:
+            parser.error(f"--json-clause {index}: {exc}")
+        clauses.append(clause)
     return tuple(clauses)
 
 
