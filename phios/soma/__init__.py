@@ -24,6 +24,7 @@ from .models import (
     ScreenRecoveryResult,
 )
 from .ocr import (
+    PNG_SIGNATURE,
     OcrEngineError,
     OcrEngineResult,
     OcrProvider,
@@ -67,6 +68,7 @@ __all__ = [
     "OcrObservationResult",
     "OcrProvider",
     "OcrSpec",
+    "PNG_SIGNATURE",
     "PillowEdgeSharpnessScorer",
     "PillowScreenCaptureProvider",
     "PillowScreenRecoveryProvider",
