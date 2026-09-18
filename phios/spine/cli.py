@@ -6,6 +6,7 @@ from pathlib import Path
 
 from phios.mandala import MANDALA_CONTRACT_VERSION, Gate, MandalaStatus
 from phios.reality import (
+    JSON_SCALAR_PREDICATES,
     JSON_STRUCTURAL_PREDICATES,
     JSON_TYPE_NAMES,
     JsonContractClause,
@@ -45,7 +46,7 @@ def _json_contract_clauses(
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="phi-spine", description="PhiOS Spine v0.17")
+    parser = argparse.ArgumentParser(prog="phi-spine", description="PhiOS Spine v0.18")
     parser.add_argument("--state-root", help="Override the PhiOS Spine local state root")
     parser.add_argument(
         "--allow",
@@ -56,7 +57,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     sub = parser.add_subparsers(dest="command", required=True)
 
-    sub.add_parser("status", help="Show the v0.17 spine and Mandala contract state")
+    sub.add_parser("status", help="Show the v0.18 spine and Mandala contract state")
     sub.add_parser("list", help="List registered capabilities")
 
     perceive = sub.add_parser(
@@ -227,6 +228,15 @@ def build_parser() -> argparse.ArgumentParser:
             '{"pointer":"/models","predicate":"array_length_gte","bound":1}'
         ),
     )
+    verify_claim.add_argument(
+        "--json-scalar-predicate",
+        choices=sorted(JSON_SCALAR_PREDICATES),
+        help="Required bounded scalar predicate for local_http_json_scalar_predicate claims",
+    )
+    verify_claim.add_argument(
+        "--json-scalar-operand",
+        help="Numeric operand required by integer/number scalar predicates",
+    )
     verify_claim.add_argument("--max-evidence-bytes", type=int, default=1_048_576)
 
     run = sub.add_parser("run", help="Plan, authorize, execute, and receipt a capability")
@@ -262,7 +272,7 @@ def main() -> int:
                     "gates": [gate.value for gate in Gate],
                     "statuses": [status.value for status in MandalaStatus],
                     "north_gate": "soma.text.v0.1+soma.file.v0.1+soma.screen.v0.1+soma.recovery.v0.1+soma.multishot.v0.1+soma.enhancement.v0.1+soma.ocr.v0.1",
-                    "reality_gate": "reality.bounded-evidence.v0.7",
+                    "reality_gate": "reality.bounded-evidence.v0.8",
                     "world_verifiers": [
                         "local-interface-state.v0.1",
                         "local-tcp-listener-state.v0.1",
@@ -271,6 +281,7 @@ def main() -> int:
                         "local-http-json-contract.v0.1",
                         "local-http-json-structural-predicate.v0.1",
                         "local-http-json-multi-contract.v0.1",
+                        "local-http-json-scalar-predicate.v0.1",
                     ],
                 },
                 indent=2,
@@ -453,6 +464,8 @@ def main() -> int:
             json_predicate_kind=args.json_predicate,
             json_predicate_bound=args.json_predicate_bound,
             json_contract_clauses=json_contract_clauses,
+            json_scalar_predicate_kind=args.json_scalar_predicate,
+            json_scalar_operand=args.json_scalar_operand,
         )
         verification_result = runtime.verify_reality(
             claims=(claim,),
@@ -465,6 +478,7 @@ def main() -> int:
                     RealityClaimKind.LOCAL_HTTP_JSON_CONTRACT.value,
                     RealityClaimKind.LOCAL_HTTP_JSON_PREDICATE.value,
                     RealityClaimKind.LOCAL_HTTP_JSON_MULTI_CONTRACT.value,
+                    RealityClaimKind.LOCAL_HTTP_JSON_SCALAR_PREDICATE.value,
                 }
                 else None
             ),
