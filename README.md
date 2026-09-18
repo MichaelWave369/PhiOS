@@ -1,1350 +1,432 @@
-# φ PhiOS — Sovereign Computing Shell
+# φ PhiOS
 
-> “We did not come here to improve the cage. We came here to end it.”
+**Local-first, authority-aware computing for human + computational collaboration.**
 
-PhiOS is the sovereign operator shell on top of PhiKernel.
+**Sovereign. Coherent. Local. Free.**
 
-Read the manifesto: https://enterthefield.org/phios  
-Built by: PHI369 Labs / Parallax
+PhiOS is an open-source operator shell and research computing layer built around a simple rule:
 
-Sovereign. Coherent. Local. Free.
+> **Capability is not authority. Observation is not truth. Evidence should say exactly what it establishes.**
 
-## PhiOS on PhiKernel
+The repository currently contains two complementary surfaces:
 
-Architecture relationship:
+- **PhiOS Shell / MCP** — operator-facing commands, local workflows, observatory surfaces, integrations, and machine-readable interfaces.
+- **PhiOS Spine** — the newer authority-aware execution core built around Mandala contracts, SOMA perception, Reality Gate verification, explicit grants, and receipts.
 
-Linux  
-↓  
-PhiKernel = trusted runtime core (source of truth)  
-↓  
-PhiOS = sovereign shell / operator experience
+PhiOS is under active development and should be treated as **alpha software**.
 
-Phase 1 integration is intentionally loose-coupled:
+---
 
-- PhiOS calls PhiKernel via stable CLI interfaces (`phik ... --json`).
-- PhiOS re-renders operator-friendly output and composes workflows.
-- PhiOS does **not** duplicate runtime internals.
+## What PhiOS is trying to solve
 
-PhiKernel remains authoritative for:
+Modern AI tooling is very good at producing output and surprisingly bad at remembering the difference between:
 
-- anchor
-- capsules
-- heart
-- coherence
-- routing safety
+- *can do* and *is allowed to do*;
+- *observed* and *inferred*;
+- *evidence* and *interpretation*;
+- *a successful check* and *a broad claim about system health*.
 
-PhiKernel runtime contract integration (optional, default-off):
+PhiOS makes those boundaries explicit.
 
-- `PHIOS_KERNEL_ENABLED=true` enables consumption of PhiKernel's normalized runtime contract.
-- `PHIOS_KERNEL_ADAPTER=legacy` selects primary runtime adapter (`legacy` or `tiekat_v50`).
-- `PHIOS_KERNEL_SHADOW_ADAPTER=` optionally sets a secondary adapter for compare mode.
-- `PHIOS_KERNEL_COMPARE_MODE=false` enables side-by-side shadow execution without changing primary behavior.
-
-When compare mode is enabled, PhiOS uses the primary runtime result for normal flows and captures shadow deltas for operator analysis only.
-
-### Kernel rollout evaluation (compare-mode analysis)
-
-Kernel compare logging and evaluation are opt-in rollout aids and do not auto-promote adapters.
-
-- Compare-mode runs are persisted locally under `~/.phios/kernel_rollout/compare_records.jsonl`.
-- Records include normalized runtime deltas only (no proprietary internals).
-- Duplicate compare payloads are suppressed within a short dedupe window.
-
-Run canonical evaluation cases:
-
-```bash
-phi eval-kernel --compare legacy tiekat_v50 --json
+```text
+human / client / local agent
+          ↓
+   explicit capability request
+          ↓
+       authority check
+          ↓
+    bounded observation
+          ↓
+   typed evidence / receipt
+          ↓
+       narrow claim
 ```
 
-Run from custom case file and export report:
+A green check is useful. A green check that explains what it actually proved is much more useful.
 
-```bash
-phi eval-kernel --input ./kernel_eval_cases.json --compare legacy tiekat_v50 --report ./kernel_rollout_report.json --json
+---
+
+## Core principles
+
+PhiOS development follows a few hard constraints:
+
+1. **Capability ≠ authority.** A tool existing does not grant permission to use it.
+2. **Evidence is scoped.** A local observation proves only the fact actually observed.
+3. **Interpretation is separate from native evidence.**
+4. **Failure should fail closed.** Missing authority, malformed contracts, and unavailable evidence do not get converted into success.
+5. **Derived artifacts do not gain authority merely by being derived.**
+6. **No automatic promotion from a narrow fact to a broad conclusion.**
+7. **Local-first by default.** The current Spine network verifiers are deliberately loopback-bounded.
+8. **Receipts matter.** Important operations should be inspectable after execution.
+
+These are engineering constraints, not branding decoration.
+
+---
+
+## Architecture
+
+### Operator surfaces
+
+```text
+phi
+├─ interactive/operator shell
+├─ local workflows
+├─ observatory + archive surfaces
+└─ optional PhiKernel integration
+
+phi-mcp
+└─ MCP resources, tools, prompts, and local capability surfaces
+
+phi-spine
+└─ authority-aware execution + verification runtime
 ```
 
-Suggested shadow rollout env:
+### PhiOS Spine
 
-```bash
-export PHIOS_KERNEL_ENABLED=true
-export PHIOS_KERNEL_ADAPTER=legacy
-export PHIOS_KERNEL_SHADOW_ADAPTER=tiekat_v50
-export PHIOS_KERNEL_COMPARE_MODE=true
+```text
+request
+  ↓
+PhiOS Core
+  ↓
+Mandala contract + authority gate
+  ↓
+SOMA perception / bounded acquisition
+  ↓
+Reality Gate verification
+  ↓
+content-addressed evidence
+  ↓
+typed receipts
 ```
 
-After reviewing compare reports with operator approval, promotion to `tiekat_v50` should be deliberate and manual. Compare outputs are rollout aids, not proof of correctness.
+The Spine is intentionally conservative. It tries very hard not to turn:
 
-Review promotion readiness (advisory):
-
-```bash
-phi review-kernel-rollout --adapter legacy --since 2026-01-01T00:00:00+00:00 --json
-phi review-kernel-rollout --adapter legacy --markdown ./kernel_rollout_review.md
+```text
+"port 11434 is listening"
 ```
 
-Readiness states are `ready`, `caution`, or `hold` based on transparent rollout heuristics (change rates and score deltas). This review is advisory-only and never auto-switches adapters.
+into:
 
-
-For a full operator sequence (shadow rollout, promotion, reverse-shadow validation, rollback), see `docs/kernel-migration-v50.md`.
-
-Helper script for campaign execution:
-
-```bash
-bash scripts/kernel_rollout_campaign.sh shadow ./kernel-rollout-artifacts
-bash scripts/kernel_rollout_campaign.sh promoted ./kernel-rollout-artifacts
-bash scripts/kernel_rollout_campaign.sh rollback ./kernel-rollout-artifacts
+```text
+"Ollama is healthy"
 ```
 
+because computers have been exploiting that kind of optimism for decades.
+
+---
+
+## Current Spine verification ladder
+
+The current merged Spine line is **v0.17**.
+
+| Version | Capability |
+|---|---|
+| v0.10 | source-content verification bridge |
+| v0.11 | local network-interface observation |
+| v0.12 | local TCP-listener observation |
+| v0.13 | local HTTP response contract |
+| v0.14 | live bounded loopback HTTP adapter |
+| v0.15 | JSON pointer + type verification |
+| v0.16 | bounded structural JSON predicates |
+| v0.17 | same-snapshot multi-clause JSON contracts |
+
+The latest semantic contract can evaluate **1–8 bounded clauses from one HTTP observation**:
+
+```text
+one GET
+  ↓
+one captured body
+  ↓
+one digest + timestamp
+  ↓
+one strict JSON parse
+  ↓
+multiple bounded clauses
+  ↓
+one evidence record
+```
+
+Example clauses:
+
+```json
+{"pointer":"/models","type":"array"}
+{"pointer":"/models","predicate":"array_length_gte","bound":1}
+{"pointer":"/models/0/name","type":"string"}
+{"pointer":"/models/0/name","predicate":"string_non_empty"}
+```
+
+All clauses describe the **same captured response**, not several requests made at different moments.
+
+See:
+
+- [Spine v0.17 overview](README_SPINE_V0.17.md)
+- [Spine v0.17 contract details](docs/PHIOS_SPINE_V0.17_JSON_MULTI_CONTRACT.md)
+
+Older Spine documents remain in the repository as the versioned design trail.
+
+---
+
+## SOMA perception
+
+SOMA is the Spine's bounded perception layer.
+
+Current work includes:
+
+- native text evidence;
+- bounded local file acquisition;
+- selected screen-region capture;
+- acuity recovery;
+- multishot native-frame selection;
+- deterministic sharpening derivatives;
+- OCR interpretation with explicit separation from native image evidence.
+
+The rule remains:
+
+```text
+enhancement does not create missing information
+interpretation does not become native evidence
+perception does not grant action authority
+```
+
+---
+
+## Reality Gate
+
+Reality Gate evaluates explicit claims against bounded evidence and returns narrow verdicts such as:
+
+- `SUPPORTED`
+- `CONTRADICTED`
+- `UNRESOLVED`
+- `BLOCKED`
+
+Those verdicts are intentionally different.
+
+For example:
+
+```text
+transport failed
+    → UNRESOLVED
+
+HTTP status differed from the explicit contract
+    → CONTRADICTED
+
+required authority was not granted
+    → BLOCKED
+```
+
+PhiOS does not collapse all three into “false.”
+
+---
 
 ## Install
 
+### Requirements
+
+- Python **3.11+**
+- `psutil>=5.9.0`
+- `mcp>=1.26,<2`
+
+Clone and install:
+
 ```bash
-python -m pip install -r requirements.txt
+git clone https://github.com/MichaelWave369/PhiOS.git
+cd PhiOS
+
 python -m pip install -e .
 ```
 
-## Verify toolchain
+Development environment:
 
 ```bash
-phi --help
-phik --help
-phik status --json
+python -m pip install -e ".[dev]"
 ```
+
+Optional screen / OCR support:
+
+```bash
+python -m pip install -e ".[screen]"
+python -m pip install -e ".[ocr]"
+```
+
+---
 
 ## Quick start
 
+Inspect the shell and Spine surfaces:
+
 ```bash
-phi
-phi status
-phi coherence
-phi ask "How should I begin?"
-phi sovereign export ./phi_snapshot.json
+phi --help
+phi-spine --help
 ```
 
+Check the Spine contract state:
 
-## MCP interface (Phase 1 + Phase 2)
+```bash
+phi-spine status
+```
 
-PhiOS exposes an MCP interface layer over existing PhiOS/PhiKernel capabilities.
-This is additive interface work only; it does not replace runtime internals.
-**PhiKernel remains source of truth** for status, field, anchor, capsules, and pulse behavior.
-
-Run the stdio MCP server:
+Run the MCP server:
 
 ```bash
 phi-mcp
 ```
 
-Resources:
-- `phios://field/state`
-- `phios://coherence/lt`
-- `phios://cognition/recommendation`
-- `phios://system/status`
-- `phios://mcp/discovery`
-- `phios://history/recent_capsules`
-- `phios://history/recent_sessions`
-- `phios://history/recent_field_snapshots`
-- `phios://observatory/index`
-- `phios://observatory/dashboard`
-- `phios://observatory/atlas_gallery`
-- `phios://observatory/storyboards/recent`
-- `phios://observatory/dossiers/recent`
-- `phios://observatory/field_libraries/recent`
-- `phios://observatory/study_halls/index`
-- `phios://observatory/reading_rooms/index`
-- `phios://observatory/shelves/index`
-- `phios://observatory/field_libraries/index`
-- `phios://observatory/dossiers/index`
-- `phios://observatory/storyboards/index`
-- `phios://archive/journey_ensembles/index`
-- `phios://browse/libraries`
-- `phios://browse/learning_paths`
-- `phios://browse/collections`
-- `phios://browse/programs`
-- `phios://browse/comparative`
-- `phios://collections/field_libraries/rollup`
-- `phios://collections/shelves/rollup`
-- `phios://collections/reading_rooms/rollup`
-- `phios://collections/study_halls/rollup`
-- `phios://collections/curricula/rollup`
-- `phios://collections/journey_ensembles/rollup`
-- `phios://programs/curricula/rollup`
-- `phios://programs/study_halls/rollup`
-- `phios://programs/thematic_pathways/rollup`
-- `phios://programs/syllabi/rollup`
-- `phios://programs/journey_ensembles/rollup`
-- `phios://browse/curricula`
-- `phios://browse/cohorts`
-- `phios://browse/learning_tracks`
-- `phios://capstones/syllabi/rollup`
-- `phios://capstones/atlas_cohorts/rollup`
-- `phios://capstones/field_libraries/rollup_family`
-- `phios://capstones/dossiers/rollup_family`
-- `phios://capstones/storyboards/rollup_family`
-- `phios://browse/capstones`
-- `phios://browse/collections_family`
-- `phios://browse/learning_programs`
-- `phios://browse/comparative_learning`
-- `phios://browse/study_tracks`
-- `phios://catalogs/learning`
-- `phios://catalogs/capstones`
-- `phios://catalogs/programs`
-- `phios://catalogs/collections`
-- `phios://maps/learning`
-- `phios://maps/capstones`
-- `phios://maps/programs`
-- `phios://maps/collections`
-- `phios://dashboards/discovery`
-- `phios://dashboards/archive`
-- `phios://dashboards/learning`
-- `phios://dashboards/capstones`
-- `phios://families/overview`
-- `phios://families/learning`
-- `phios://families/capstones`
-- `phios://families/dashboard_overview`
-- `phios://families/dashboard_learning`
-- `phios://families/dashboard_capstones`
-- `phios://consoles/navigation`
-- `phios://consoles/archive`
-- `phios://consoles/learning`
-- `phios://consoles/capstones`
-- `phios://browse/observatory_families`
-- `phios://browse/learning_families`
-- `phios://browse/collection_families`
-- `phios://browse/capstone_families`
-- `phios://browse/archive_families`
-- `phios://browse/archive_groups`
-- `phios://browse/learning_maps`
-- `phios://browse/cross_catalog`
-- `phios://browse/program_families`
-- `phios://browse/learning`
-- `phios://browse/archive`
-- `phios://browse/sessions`
-- `phios://browse/observatory`
-- `phios://browse/recent`
-- `phios://browse/overview`
-- `phios://archive/curricula/index`
-- `phios://archive/longitudinal/index`
-- `phios://archive/route_compares/index`
-- `phios://archive/atlas/index`
-- `phios://archive/pathways/index`
-- `phios://sessions/recent_reports`
-- `phios://sessions/recent_checkins`
-- `phios://sessions/current`
-- `phios://agents/active`
-- `phios://agents/{run_id}`
-- `phios://agents/{run_id}/events`
-- `phios://agents/memory/{topic}`
-- `phios://agents/memory/{topic}/coherence`
-- `phios://agents/deliberations/recent`
-- `phios://debates/recent`
-- `phios://debates/{session_id}`
-- `phios://reviews/recent`
-- `phios://reviews/{panel_id}`
-- `phios://cognition/atoms`
-- `phios://figures/fitness`
-- `phios://figures/fitness/{figure}`
-- `phios://figures/recommendation/{task_key}`
-- `phios://dispatch/graph/last`
-
-Tools:
-- `phi_status`
-- `phi_ask`
-- `phi_recommend_cognitive_arch`
-- `phi_pulse_once`
-- `phi_observatory_summary`
-- `phi_recent_activity`
-- `phi_library_summary`
-- `phi_storyboard_summary`
-- `phi_atlas_summary`
-- `phi_discovery`
-- `phi_discovery_dashboard_summary`
-- `phi_navigation_console_summary`
-- `phi_browse_observatory`
-- `phi_archive_summary`
-- `phi_session_summary`
-- `phi_collection_summary`
-- `phi_program_summary`
-- `phi_curation_summary`
-- `phi_capstone_summary`
-- `phi_catalog_summary`
-- `phi_learning_map_summary`
-- `phi_dispatch_agents`
-- `phi_list_agents`
-- `phi_agent_status`
-- `phi_kill_agent`
-- `phi_store_deliberation`
-- `phi_debate_coherence_gate`
-- `phi_review_coherence_gate`
-- `phi_recommend_cognitive_atoms`
-- `phi_record_figure_outcome`
-- `phi_figure_fitness_report`
-- `phi_recommend_figure_for_task`
-- `phi_optimize_dispatch_graph`
-
-Prompt:
-- `field_guidance`
-
-Phase 2 additions:
-- Schema versioning on MCP payloads via top-level `schema_version` plus `resource_version`/`tool_version` where applicable.
-- Default-safe pulse capability gating for `phi_pulse_once`; enable explicitly with `PHIOS_MCP_ALLOW_PULSE=true`.
-- Read-only history resources from grounded local/adapter data with sensible recent limits.
-
-Phase 3 additions:
-- Richer read-only observatory resources for dashboard/gallery/storyboard/dossier/field-library discovery and summaries.
-- Observatory resources are additive interface surfaces for local observatory artifacts; they are non-truth-bearing and do not replace PhiKernel truth logic.
-
-Phase 4 additions:
-- Optional lightweight capability scopes via `PHIOS_MCP_CAPABILITIES` (for example: `read_state,read_history,read_observatory,prompt_guidance,pulse_once,agent_dispatch,agent_kill,agent_memory_write`).
-- New read-safe summary tools: `phi_observatory_summary`, `phi_recent_activity`, and `phi_library_summary`.
-- Capability gating remains local/lightweight for now (not a full identity/auth platform).
-
-Phase 5 additions:
-- Client-facing discovery surfaces: `phios://mcp/discovery` and `phi_discovery` (registry + capability/policy posture).
-- Additional bounded summary tools: `phi_storyboard_summary` and `phi_atlas_summary`.
-- Real-client harness prep tests included; full SDK-client handshake assertions run only when MCP client runtime modules are available in CI/runtime.
-
-Phase 6 additions:
-- Optional lightweight client profile presets via `PHIOS_MCP_PROFILE` (`read_only`, `observer`, `operator`, `developer`) resolved into capability scopes.
-- New read-only observatory browsing resources for index-style navigation (storyboards, dossiers, field libraries, shelves, reading rooms, study halls).
-- New bounded browse tool: `phi_browse_observatory` synthesizing index surfaces for ergonomic client browsing.
-- Discovery payloads now include profile and resolved capability posture details (`profile`, `resolved_capabilities`, `resource_counts`, `tool_counts`, `prompt_counts`).
-
-Phase 7 additions:
-- Session-oriented read resources: `phios://sessions/current`, `phios://sessions/recent_checkins`, `phios://sessions/recent_reports`.
-- Richer archive browsing resources for pathways/atlas/route-compares/longitudinal/curricula/journey-ensembles.
-- New read-safe synthesis tools: `phi_session_summary` and `phi_archive_summary`.
-- Deeper runtime-gated client integration prep coverage for session/archive discovery→resource→tool paths where SDK runtime is available.
-
-Phase 8 additions:
-- Stable deterministic browse presets (`overview`, `recent`, `observatory`, `sessions`, `archive`, `learning`, `libraries`) exposed in discovery metadata and read-only browse resources.
-- Richer archive navigation rollups in `phi_archive_summary` and grouped discovery fields (`browse_presets`, `resource_groups`, `tool_groups`, `archive_rollups`).
-- Preset-aware browse/summary parameters for deterministic client browsing (`preset`, `artifact_family`, `limit`, `include_counts`, `include_rollups`).
-- Deeper runtime-gated client integration prep notes for discovery → preset browse → resource read → tool invoke flows when SDK runtime is available.
-
-Phase 9 additions:
-- Stable collection/library rollup resources for `field_libraries`, `shelves`, `reading_rooms`, `study_halls`, `curricula`, and `journey_ensembles` under `phios://collections/*/rollup`.
-- Richer learning-oriented browse presets/resources (`learning_paths`, `collections`, `programs`, `comparative`) with deterministic payload structure and grounded local data only.
-- New bounded synthesis tool `phi_collection_summary` for collection/library rollup aggregation with schema markers and generated timestamps.
-- Discovery now includes collection and learning coverage metadata (`collection_rollups`, `learning_presets`, `collection_groups`, `browse_surface_counts`) for easier client navigation.
-- Runtime-gated Phase 9 client-path test hook added for discovery → preset browse → rollup read → archive read → tool invoke flow expansion when SDK runtime allows.
-
-Phase 10 additions:
-- Stable program/learning rollup resources under `phios://programs/*/rollup` for curricula, study halls, thematic pathways, syllabi, and journey ensembles.
-- New deterministic program-level browse presets/resources (`curricula`, `cohorts`, `learning_tracks`) exposed through the existing browse preset surface.
-- New bounded read-only summary tools `phi_program_summary` and `phi_curation_summary` for grounded program/collection synthesis without speculative recommendations.
-- Discovery now includes program coverage metadata (`program_rollups`, `learning_groups`, `program_surface_counts`) in addition to existing profile/capability posture fields.
-- Runtime-gated Phase 10 client-path test hook added for discovery → browse preset → collection rollup → program rollup → summary tool invoke flow expansion when SDK runtime allows.
-
-
-Phase 16 additions (Issue #79 experimental AgentCeption conductor):
-- New shell orchestration commands: `phi dispatch "<task>"` and `phi agents [list|status|kill|log]`.
-- New MCP tools for dispatch lifecycle orchestration: `phi_dispatch_agents`, `phi_list_agents`, `phi_agent_status`, `phi_kill_agent`.
-- New read-only MCP resources for active runs and run traces: `phios://agents/active`, `phios://agents/{run_id}`, `phios://agents/{run_id}/events`.
-- Dispatch/kill actions are explicitly capability gated (`agent_dispatch`, `agent_kill`) with structured deny payloads.
-- Integration remains additive/experimental: PhiOS is shell + observatory orchestrator, PhiKernel remains runtime truth source, and AgentCeption is treated as an external planning/dispatch engine.
-- Scientific framing remains explicit: C* is theoretical, bio-vacuum targets are experimental, and Hunter's C is unconfirmed.
-- Environment toggles for integration:
-  - `PHIOS_AGENTCEPTION_ENABLED=true|false`
-  - `PHIOS_AGENTCEPTION_BASE_URL=http://127.0.0.1:8787`
-  - optional `PHIOS_AGENTCEPTION_TOKEN`
-
-
-Phase 17 additions (Issue #76 field-guided cognitive architecture selection):
-- New read-only advisory shell command: `phi recommend-arch` (or `phi recommend-arch --json`).
-- New MCP read-only advisory tool: `phi_recommend_cognitive_arch`.
-- New MCP read-only resource: `phios://cognition/recommendation`.
-- Recommendation output is deterministic and explainable (`figure`, `archetype`, `reason`, `confidence`, signals, candidate scores).
-- This recommendation is an additive experimental prior for orchestration only, not a PhiKernel truth mutation.
-- Scientific framing remains explicit: `C*` is theoretical, bio-vacuum target is experimental, and Hunter's C remains unconfirmed.
-- AgentCeption interoperability notes (opt-in on AgentCeption side):
-  - `AC_PHIOS_ENDPOINT`
-  - `AC_PHIOS_FIELD_WEIGHT`
-
-Phase 18 additions (Issue #77 observatory-backed agent long-term memory):
-- New read-only MCP memory resources:
-  - `phios://agents/memory/{topic}`
-  - `phios://agents/memory/{topic}/coherence`
-  - `phios://agents/deliberations/recent`
-- New MCP write-like tool (capability-gated): `phi_store_deliberation`.
-- New shell memory read/write surfaces:
-  - `phi memory topic <topic>`
-  - `phi memory coherence <topic>`
-  - `phi memory recent`
-  - `phi memory store <topic> ... --yes` (gated)
-- Storage model is local-first and observatory-backed via narrative artifacts (`~/.phios/journal/visual_bloom/narratives/agent_memory_<topic>.json`) with additive `agent_deliberations` entries.
-- This is additive experimental archive memory, not a truth-layer mutation; PhiKernel remains source of truth.
-
-Phase 19 additions (Issue #75 cognitive debate arena coherence gate):
-- New MCP debate gate tool: `phi_debate_coherence_gate(session_id, round, positions, threshold, persist)`.
-- New read-only MCP debate resources:
-  - `phios://debates/recent`
-  - `phios://debates/{session_id}`
-- New shell command:
-  - `phi debate gate --session-id <id> --round <n> --positions <json> [--threshold <float>] [--persist] [--json]`
-- Convergence model:
-  - `converged` when current coherence crosses threshold (default near `C*_theoretical`)
-  - `deadlock` when coherence remains below threshold with low recent trace span after multiple rounds
-  - otherwise `continue`
-- Optional additive observatory persistence (`--persist` / tool `persist=true`) stores debate outcome, dissent, and coherence trace in agent memory narratives.
-- This remains additive/experimental and non-truth-bearing; PhiKernel remains source of truth.
-
-Phase 20 additions (Issue #78 adversarial architecture review coherence gate):
-- New MCP tool: `phi_review_coherence_gate(round, reviewer_grades, reviewer_critiques, pr_number, panel_id, mediator_summary, persist)`.
-- New read-only MCP resources:
-  - `phios://reviews/recent`
-  - `phios://reviews/{panel_id}`
-- New shell command:
-  - `phi review gate --round <n> --reviewer-grades <json> --reviewer-critiques <json> [--panel-id <id>] [--pr-number <n>] [--mediator-summary <text>] [--persist] [--json]`
-- Deterministic gate semantics:
-  - `converged` when coherence is strong and grade spread is narrow
-  - `mediate` when disagreement/critique pressure remains high (or coherence plateaus with unresolved spread)
-  - `continue` otherwise
-- Optional persistence (`persist`) writes additive review outcomes/dissent/coherence traces into existing observatory-backed agent-memory narratives.
-- This is additive and experimental; PhiKernel remains source of truth and coherence is used as an oracle signal only.
-
-Phase 21 additions (Issue #81 sector-to-atom cognitive overrides):
-- New read-only shell command: `phi recommend-atoms` (or `phi recommend-atoms --json`).
-- New MCP read-only tool: `phi_recommend_cognitive_atoms`.
-- New MCP read-only resource: `phios://cognition/atoms`.
-- Deterministic sector-to-atom mapping rules convert sector signals into atom overrides:
-  - `geometry_balance` -> `epistemic_style`
-  - `vacuum_proximity` -> `creativity_level`
-  - `observer_entropy` -> `uncertainty_handling` and `error_posture`
-  - `collector_activity` -> `cognitive_rhythm`
-  - `mirror_alignment` -> `collaboration_posture`
-  - `emotion_field` -> `communication_style`
-- Optional additive integration: the Issue #76 cognitive-architecture tool/resource now include `atom_recommendation` metadata.
-- This remains additive, read-only, experimental, and advisory; PhiKernel remains source of truth.
-
-Phase 22 additions (Issue #80 living cognitive ecosystem figure fitness):
-- New shell figure fitness commands:
-  - `phi agents figures`
-  - `phi agents figures --top <n>`
-  - `phi agents figures --sector <sector>`
-  - `phi agents evolve [--top <n>] [--sector <sector>] [--task-key <key>] [--skill <skill>] [--min-coherence <v>]`
-- New MCP tools:
-  - `phi_record_figure_outcome` (capability-gated write)
-  - `phi_figure_fitness_report` (read-only)
-  - `phi_recommend_figure_for_task` (read-only)
-- New read-only MCP resources:
-  - `phios://figures/fitness`
-  - `phios://figures/fitness/{figure}`
-  - `phios://figures/recommendation/{task_key}`
-- `phios://dispatch/graph/last`
-- Storage model is local-first and inspectable under `~/.phios/journal/visual_bloom/narratives/figure_fitness_records.json` with append-only-like `figure_outcomes` entries.
-- Deterministic report metrics include `grade_success_rate`, `avg_merge_time_minutes`, `avg_coherence`, `redispatch_rate`, and `close_rate`.
-- This remains additive and experimental; write path is explicitly capability-gated (`figure_fitness_write`), and recommendations are advisory only.
-
-Phase 23 additions (Issue #82 golden lattice dependency navigator):
-- New deterministic dispatch-graph optimizer service: `phios/services/dispatch_graph.py`.
-- New shell command:
-  - `phi dispatch optimize --graph <json> [--json]`
-- New MCP read-only tool:
-  - `phi_optimize_dispatch_graph`
-- New read-only MCP resource:
-  - `phios://dispatch/graph/last`
-- Graph model supports node fields such as: `id`, `label`, `dependencies`, `estimated_cost`, `sector`, `skills`, `figure`, `atom_overrides`, and `priority`.
-- Deterministic optimization rules:
-  - dependency correctness via topological ordering first
-  - ready-node ranking by depth(desc), priority(desc), estimated_cost(asc), id(asc)
-  - parallel wave construction for dependency-safe batching
-  - bottleneck detection by fan-out
-- The optimizer remains additive, experimental, and advisory; no autonomous execution.
-
-Phase 11 additions:
-- Stable capstone/collection-family rollups under `phios://capstones/*` for syllabi, atlas cohorts, field-library families, dossier families, and storyboard families.
-- Richer deterministic learning browse families (`capstones`, `collections_family`, `learning_programs`, `comparative_learning`, `study_tracks`) via stable browse preset surfaces.
-- New bounded read-only synthesis tool `phi_capstone_summary` for capstone/family rollup aggregation grounded in local metadata only.
-- Discovery now includes capstone/family visibility and counts (`capstone_rollups`, `collection_family_rollups`, `learning_browse_families`, `capstone_surface_counts`).
-- Broader runtime-gated Phase 11 client-path hook added for discovery → browse preset → rollup reads → summary invocation flow expansion when SDK runtime allows.
-
-Phase 12 additions:
-- Stable archive-wide catalog resources for learning/capstones/programs/collections under `phios://catalogs/*` with deterministic read-only schema-marked payloads.
-- Richer observatory-family and learning-family browse groups (`observatory_families`, `learning_families`, `collection_families`, `capstone_families`, `archive_families`) via browse preset resources.
-- New bounded read-only summary tool `phi_catalog_summary` for catalog synthesis grounded only in local catalog metadata.
-- Discovery now includes catalog/family visibility fields (`catalog_resources`, `observatory_family_groups`, `catalog_surface_counts`, `browse_family_groups`).
-- Broader runtime-gated Phase 12 client-path hook added for discovery → family browse → catalog/rollup reads → summary invocation flow expansion when SDK runtime allows.
-
-Phase 13 additions:
-- Stable cross-catalog learning map resources under `phios://maps/*` (`learning`, `capstones`, `programs`, `collections`) with deterministic metadata-driven relationships and schema markers.
-- Learning-map payloads expose grounded availability and family metadata (`generated_at`, `count`, `families`, `linked_catalogs`, `family_counts`, `tag_coverage`, `artifact_family_counts`, `dominant_sector_counts`, `route_available`, `longitudinal_available`, `diagnostics_available`) with graceful sparse/no-data defaults.
-- Richer archive-family discovery and browse surfaces via additional grouped browse presets/resources (`archive_groups`, `learning_maps`, `cross_catalog`, `program_families`).
-- New bounded read-only summary tool `phi_learning_map_summary` for cross-catalog map synthesis grounded strictly in local metadata; `phi_catalog_summary` also supports optional additive `include_map_counts`.
-- Discovery now includes cross-catalog/learning-map visibility (`learning_maps`, `archive_family_groups`, `cross_catalog_groups`, `map_surface_counts`) plus grouped counts for easier deterministic client routing.
-- Broader runtime-gated Phase 13 client-path hook added for discovery → family browse → rollup/catalog/map reads → session/archive reads → bounded summary flow expansion when SDK runtime allows.
-- All map/browse/summary surfaces are additive and non-truth-bearing; PhiKernel remains source of truth.
-
-
-Phase 14 additions:
-- Stable archive-wide dashboard resources under `phios://dashboards/*` (`discovery`, `archive`, `learning`, `capstones`) with deterministic read-only metadata summaries.
-- Stable family navigation resources under `phios://families/*` (`overview`, `learning`, `capstones`) for cross-surface relationship orientation across collections/programs/capstones/catalogs/maps.
-- New bounded read-only synthesis tool `phi_discovery_dashboard_summary` for dashboard/family synthesis from existing MCP metadata only.
-- Discovery now includes dashboard/family visibility fields (`dashboard_resources`, `family_resources`, `family_navigation_groups`, `dashboard_surface_counts`) for easier client routing.
-- Runtime-gated SDK-backed client harness coverage is expanded toward discovery → family browse → rollup → catalog → map → dashboard → session/archive → bounded summary flow, with pulse deny posture assertions where runtime support is available.
-- All dashboard/browse/summary surfaces remain additive and non-truth-bearing; PhiKernel remains source of truth.
-
-
-Phase 15 additions:
-- Stable archive-wide navigation console resources under `phios://consoles/*` (`navigation`, `archive`, `learning`, `capstones`) with deterministic read-only metadata summaries over existing dashboards/families/maps.
-- Richer family dashboard summary resources under `phios://families/*` (`dashboard_overview`, `dashboard_learning`, `dashboard_capstones`) to clarify relationships across families, catalogs, maps, and dashboards.
-- New bounded read-only synthesis tool `phi_navigation_console_summary` for console-level client routing summaries grounded only in existing MCP metadata/resources.
-- Additive enhancements to `phi_discovery_dashboard_summary` with optional `family_dashboard` and `include_family_dashboard_counts` arguments.
-- Discovery now includes Phase 15 console/family-dashboard visibility (`console_resources`, `family_dashboard_resources`, `console_surface_counts`, `family_dashboard_counts`) for clearer deterministic client routing.
-- Runtime-gated SDK-backed client harness coverage is expanded toward discovery → family browse → rollup → catalog → map → dashboard → console → session/archive → bounded summary flow, with pulse deny posture assertions where runtime support is available.
-- All console/dashboard/summary surfaces remain additive and non-truth-bearing; PhiKernel remains source of truth.
-
-Framing discipline is preserved in MCP outputs and prompts:
-- `C*` is treated as theoretical.
-- bio-vacuum targets are experimental.
-- Hunter's C remains unconfirmed.
-
-## First Day with PhiOS
+Run the interactive/operator shell:
 
 ```bash
-phi doctor
-phi init --passphrase "change-me" --sovereign-name "Tal-Aren-Vox" --user-label "Ori"
-phi pulse once
-phi status
-phi coherence
-phi ask "How should I begin?"
+phi
 ```
 
-## Command reference (v0.3)
+---
 
-- `phi help`
-- `phi version`
-- `phi doctor [--json]`
-- `phi init --passphrase <value> --sovereign-name <name> --user-label <label> [--resonant-label <label>] [--json]`
-- `phi pulse once [--checkpoint <path>] [--passphrase <value>] [--json]`
-- `phi observatory [--json]`
-- `phi observatory export <path.json>`
-- `phi z map [--json]`
-- `phi mind [--json]`
-- `phi mind map [--json]`
-- `phi mind export <path.json>`
-- `phi session start [--json]`
-- `phi session checkin [--json]`
-- `phi session export <path.json>`
-- `phi bio list [--json]`
-- `phi bio add --name <name> --compound <compound> --source <source> [--dose <dose>] [--unit <unit>] [--timing <timing>] [--notes <notes>] [--json]`
-- `phi bio show [--json]`
-- `phi bio export <path.json>`
-- `phi view --mode sonic`
-- `phi view --mode sonic --live --refresh-seconds 2 --duration 60`
-- `phi view --mode sonic --journal --label morning`
-- `phi view --mode sonic --live --journal --label focus`
-- `phi view --mode sonic --replay <session_id>`
-- `phi view --mode sonic --preset stable --lens ritual`
-- `phi view --mode sonic --live --preset diagnostic --audio-reactive`
-- `phi view --mode sonic --journal --collection morning`
-- `phi view --browse-collections`
-- `phi view --browse-collection morning`
-- `phi view --compare <session_a[:state_idx]> <session_b[:state_idx]>`
-- `phi view --mode sonic --replay <session_id> --state-idx <n>`
-- `phi view --mode sonic --replay <session_id> --next-state`
-- `phi view --mode sonic --replay <session_id> --prev-state`
-- `phi view --mode sonic --compare <left> <right> --export-report <path.json>`
-- `phi status [--json]`
-- `phi coherence [--json]`
-- `phi coherence live`
-- `phi ask <prompt> [--json]`
-- `phi sovereign export <path.json>`
-- `phi sovereign verify <path>`
-- `phi sovereign compare <path_a> <path_b>`
-- `phi sovereign annotate <path> <note>`
-- `phi brainc status`
-- `phi tbrc status`
-- `phi memory [status|search <query>|recent]`
-- `phi archive [timeline|add|export]`
-- `phi kg [stats|search <concept>]`
-- `phi sync [status|push|pull|both]`
+## Example: bounded local service contract
 
-
-## Hemavit Observatory
-
-PhiOS can interpret PhiKernel runtime state through a Hemavit / TIEKAT observatory lens.
-This layer is symbolic interpretation and operator workflow composition.
-It does **not** replace PhiKernel's coherence engine or runtime source-of-truth.
+The following verifies four facts from **one loopback HTTP response**:
 
 ```bash
-phi observatory
-phi z map
-phi observatory export ./phi_observatory_snapshot.json
+phi-spine \
+  --allow reality.verify \
+  --allow reality.local_http.read \
+  --allow reality.local_http.semantic.read \
+  verify-claim \
+  --kind local_http_json_multi_contract \
+  --statement "The local model endpoint satisfies the bounded model-list contract." \
+  --http-url http://127.0.0.1:11434/api/tags \
+  --expected-http-status 200 \
+  --json-clause '{"pointer":"/models","type":"array"}' \
+  --json-clause '{"pointer":"/models","predicate":"array_length_gte","bound":1}' \
+  --json-clause '{"pointer":"/models/0/name","type":"string"}' \
+  --json-clause '{"pointer":"/models/0/name","predicate":"string_non_empty"}'
 ```
 
+A supported result establishes only those clauses for that captured response.
 
-## Ψ_mind Observatory
+It does **not** automatically establish:
 
-PhiOS can interpret PhiKernel runtime state through a `Ψ_mind` observatory lens.
-This layer is symbolic interpretation and operator workflow composition.
-It does **not** replace PhiKernel's coherence engine or runtime source-of-truth.
+- model loadability;
+- successful inference;
+- database health;
+- authentication correctness;
+- remote reachability;
+- firewall reachability;
+- general application health.
+
+That distinction is the point.
+
+---
+
+## Optional PhiKernel integration
+
+PhiOS also contains adapter paths for PhiKernel-backed runtime state.
+
+That integration is optional and default-off. Where enabled, PhiKernel remains the source of truth for the runtime data it provides; PhiOS does not silently promote shadow/compare results into authoritative state.
+
+Useful migration material:
+
+- [PhiKernel migration runbook](docs/kernel-migration-v50.md)
+
+---
+
+## MCP interface
+
+`phi-mcp` exposes local resources, tools, prompts, browsing surfaces, observatory summaries, and capability-gated actions.
+
+The MCP layer is an interface over PhiOS capabilities. It does not bypass the underlying authority model.
+
+Because the MCP surface is broad and evolving, use discovery rather than treating this README as an exhaustive registry.
+
+Start with:
 
 ```bash
-phi mind
-phi mind map
-phi mind export ./phi_mind_snapshot.json
+phi-mcp
 ```
 
+and inspect the available client discovery surfaces from your MCP client.
 
-## Session Layer
+---
 
-PhiOS Session Layer is a composition surface across runtime + observatory + mind views.
-It unifies startup and daily check-in workflows while keeping PhiKernel as source-of-truth.
+## Development checks
 
-It uses symbolic interpretation terms for operator check-ins, including:
-- `observer_state`
-- `self_alignment`
-- `information_density` (`G_info(I)`)
-- `entropy_load` (`η S_ent`)
-- `emergence_pressure` (`T_emerge`)
+Before merging changes:
 
 ```bash
-phi session start
-phi session checkin
-phi session export ./phi_session_snapshot.json
+ruff check phios/
+mypy phios/ --ignore-missing-imports
+pytest -q
+bash scripts/policy_no_telemetry_runtime.sh
 ```
 
+Current CI enforces the same core checks.
 
-## Bioeffector Layer
+---
 
-PhiOS can track compounds / extracts / herbal supports as part of operator workflow.
-This is a local workflow and observatory layer for session correlation, not substrate truth.
-It does **not** replace PhiKernel runtime truth and does **not** constitute medical advice.
+## Repository map
 
-```bash
-phi bio add --name "Lion's Mane" --compound "Erinacine A" --source "mycelium" --dose 500 --unit mg --timing morning
-phi bio list
-phi bio show
-phi bio export ./phi_bio_snapshot.json
+```text
+phios/
+├─ core/       legacy/current core services
+├─ shell/      operator shell
+├─ mcp/        MCP interface
+├─ spine/      authority-aware Spine runtime
+├─ mandala/    typed contracts and receipts
+├─ soma/       bounded perception/evidence
+└─ reality/    Reality Gate verification
+
+docs/          design notes, versioned contracts, migration material
+tests/         regression and contract tests
+scripts/       development and policy helpers
 ```
 
+---
 
-## Visual Bloom Adapter
+## Historical material
 
-PhiOS can render a local visual bloom snapshot from live PhiKernel telemetry.
-This is an operator-facing visual lens and composition layer, not a second runtime engine.
+PhiOS has changed quickly.
 
-```bash
-phi view --mode sonic
-phi view --mode sonic --live
-phi view --mode sonic --live --refresh-seconds 1.5 --duration 120
-phi view --mode sonic --journal --label morning
-phi view --mode sonic --live --journal --label focus
-phi view --mode sonic --replay 20260101T120000Z_123456
-phi view --mode sonic --preset stable --lens ritual
-phi view --mode sonic --live --preset diagnostic --audio-reactive
-phi view --mode sonic --journal --collection morning
-phi view --browse-collections
-phi view --browse-collection morning
-phi view --compare 20260101T120000Z_123456:0 20260102T073000Z_654321:0
-phi view --mode sonic --replay 20260101T120000Z_123456 --state-idx 3
-phi view --mode sonic --replay 20260101T120000Z_123456 --next-state
-phi view --mode sonic --compare 20260101T120000Z_123456:0 20260102T073000Z_654321:0 --export-report ./phi_compare_report.json
-phi view --gallery
-phi view --gallery --collection morning
-phi view --mode sonic --compare 20260101T120000Z_123456:0 20260102T073000Z_654321:0 --save-compare morning_pair
-phi view --browse-compares
-phi view --mode sonic --load-compare morning_pair
-phi view --mode sonic --compare 20260101T120000Z_123456:0 20260102T073000Z_654321:0 --export-bundle ./exports/morning_pair_bundle
-phi view --gallery --search morning --filter-mode live --filter-preset stable
-phi view --mode sonic --compare 20260101T120000Z_123456:0 20260102T073000Z_654321:0 --export-bundle ./exports/morning_pair_bundle --with-integrity --bundle-label morning_pair
-phi view --create-narrative morning_story --narrative-title "Morning Story" --narrative-summary "Operator shift arc"
-phi view --add-to-narrative morning_story --session 20260101T120000Z_123456:0 --entry-note "Initial field posture"
-phi view --add-to-narrative morning_story --compare 20260101T120000Z_123456:0 20260102T073000Z_654321:0 --entry-note "Stability delta"
-phi view --browse-narratives
-phi view --load-narrative morning_story
-phi view --export-atlas morning_story ./exports/morning_story_atlas --with-integrity
-phi view --create-constellation sky_map --constellation-title "Sky Map" --constellation-summary "Cross-shift threads" --tags coherence,bridge
-phi view --add-to-constellation sky_map --narrative morning_story --entry-note "Primary arc" --tags anchor
-phi view --add-to-constellation sky_map --compare-set morning_pair --entry-note "Key delta"
-phi view --browse-constellations
-phi view --load-constellation sky_map
-phi view --export-constellation sky_map ./exports/sky_map --with-integrity
-phi view --link-narrative morning_story --link-type narrative --target-ref evening_story --entry-note "continuation" --tags bridge
-phi view --create-pathway shift_journey --pathway-title "Shift Journey" --pathway-summary "Guided arc" --tags coherence,experimental
-phi view --add-to-pathway shift_journey --session 20260101T120000Z_123456:0 --step-note "Entry baseline"
-phi view --add-to-pathway shift_journey --narrative morning_story --step-note "Narrative anchor"
-phi view --add-to-pathway shift_journey --atlas ./exports/morning_story_atlas --step-note "Atlas handoff"
-phi view --add-to-pathway shift_journey --constellation sky_map --step-note "Cross-link context"
-phi view --browse-pathways
-phi view --load-pathway shift_journey
-phi view --export-pathway shift_journey ./exports/shift_journey --with-integrity
-phi view --search coherence --search-tags coherence --search-type pathway --search-bio experimental
-```
+Some older documents and changelog entries preserve historical names, experimental concepts, and earlier architectural framing. They are retained as project history, not as the current source of truth.
 
-Snapshot mode generates a one-shot artifact from current PhiKernel state.
-Live mode writes the HTML artifact once, then updates a local JSON params file on interval while the page performs in-place polling (no full page reload).
+For current behavior, prefer:
 
-Optional journaling writes reproducible visual-state archives under `~/.phios/journal/visual_bloom/<session_id>/` with `session.json` and `latest.params.json`. Replay mode renders a saved state locally without polling PhiKernel.
+1. the code on `main`;
+2. current tests;
+3. the latest versioned Spine contract docs;
+4. this README.
 
-Phase 5 adds optional preset packs and named visual lenses (`stable`, `ritual`, `diagnostic`, `bloom`) that shape rendering interpretation deterministically without changing kernel truth.
+---
 
-Phase 6 adds named archive collections and local browse/compare workflows. You can tag sessions with `--collection`, browse collections/sessions from disk, and compare two saved states side-by-side without polling PhiKernel.
+## Contributing
 
-Phase 7 adds replay state stepping (`--state-idx`, `--next-state`, `--prev-state`), concise compare diff metrics, and optional JSON report export via `--export-report` for local observatory comparisons.
+See [CONTRIBUTING.md](CONTRIBUTING.md).
 
-Phase 8 adds a static archive gallery (`--gallery`), saved compare sets (`--save-compare`, `--browse-compares`, `--load-compare`), and portable observatory compare bundles (`--export-bundle`).
+The short version:
 
-Phase 9 adds richer gallery filtering/search (`--search`, `--filter-mode`, `--filter-preset`, `--filter-lens`, `--filter-audio`, `--filter-label`, `--filter-session`), preview metadata on sessions/bundles, and optional bundle integrity metadata (`--with-integrity`, `--bundle-label`).
+- keep capability separate from authority;
+- add tests for new contracts;
+- fail closed;
+- document new dependencies and license impact;
+- do not weaken provenance or evidence boundaries for convenience.
 
-Phase 10 adds curated narratives/storyboards and portable Field Atlas export (`--create-narrative`, `--add-to-narrative`, `--browse-narratives`, `--load-narrative`, `--export-atlas`) so saved sessions/compares can be assembled into ordered observatory arcs.
+---
 
-Phase 11 adds thematic tags (`--tags`), cross-narrative links (`--link-narrative`, `--link-type`, `--target-ref`), and constellation maps (`--create-constellation`, `--add-to-constellation`, `--browse-constellations`, `--load-constellation`, `--export-constellation`) for multi-artifact curation.
+## License
 
-Phase 12 adds curated operator pathways/journeys (`--create-pathway`, `--add-to-pathway`, `--browse-pathways`, `--load-pathway`, `--export-pathway`) and local metadata search (`--search`, `--search-tags`, `--search-type`, `--search-bio`) across sessions/compares/narratives/atlases/constellations/pathways.
+PhiOS project-owned code and documentation are released under the **MIT License** unless otherwise noted.
 
+See:
 
-### Experimental bio-resonance framing (careful distinction)
+- [LICENSE](LICENSE)
+- [PHI_COMMONS.md](PHI_COMMONS.md)
+- [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)
+- [MODEL_LICENSES.md](MODEL_LICENSES.md)
 
-PhiOS uses **explicitly experimental** bio-resonance metadata for operator interpretation only:
+---
 
-- `C_STAR_THEORETICAL = φ / 2 ≈ 0.809016994...`
-- `BIO_VACUUM_TARGET = 0.81055`
-- `BIO_VACUUM_BAND_LOW = 0.807`
-- `BIO_VACUUM_BAND_HIGH = 0.813`
-- `BIO_VACUUM_STATUS = "experimental"`
-- `HUNTER_C_STATUS = "unconfirmed"`
-- `BIO_MODEL_PROVENANCE = "proxy-calibrated, not empirically confirmed"`
+## Project principles
 
-Important: PhiOS does **not** present `BIO_VACUUM_TARGET` as a proven physical constant or as validated Hunter's C. This layer is optional, additive, and used for cautious operator-side annotation/search/journey guidance.
+PhiOS does not require an external manifesto to explain its direction.
 
-Audio-reactive coupling is optional and off by default (`--audio-reactive`). If local audio support is unavailable, PhiOS continues gracefully without audio modulation.
+The principles are visible in the architecture:
 
-State references support optional indexing syntax (`<session_id>:<state_idx>`). If omitted, replay/compare defaults to the latest state. Older archives without new metadata fields still replay/compare with safe defaults.
+**Sovereign. Coherent. Local. Free.**
 
-Compare bundle manifest (`bundle_manifest.json`) uses a stable schema with: `bundle_version`, `manifest_version`, `bundle_type`, `bundle_label`, `bundle_created_at`, `source_refs`, `included_files`, `integrity_mode`, optional `file_hashes_sha256`, `report_schema_version`, `compatibility_version`, and `compatibility_notes`.
-
-Field Atlas manifest (`atlas_manifest.json`) includes: `atlas_version`, `manifest_version`, `atlas_type`, `narrative_name`, `bundle_created_at`, `entry_count`, `included_files`, `integrity_mode`, optional `file_hashes_sha256`, `preview`, `compatibility_version`, and `compatibility_notes`.
-
-Constellation manifest (`constellation_manifest.json`) includes: `constellation_version`, `manifest_version`, `constellation_type`, `constellation_name`, `bundle_created_at`, `entry_count`, `link_count`, `tags`, `included_files`, `integrity_mode`, optional `file_hashes_sha256`, `preview`, `compatibility_version`, and `compatibility_notes`.
-
-Pathway manifest (`pathway_manifest.json`) includes: `pathway_version`, `manifest_version`, `pathway_type`, `pathway_name`, `bundle_created_at`, `step_count`, `tags`, `bio_context`, `included_files`, `integrity_mode`, optional `file_hashes_sha256`, `preview`, `compatibility_version`, and `compatibility_notes`.
-
-The adapter reads PhiKernel field_state, maps it into visual parameters, renders a local HTML artifact,
-and opens it in the default browser.
-
-## Security posture
-
-- Local-first by default.
-- Unknown command passthrough executes without `shell=True` to reduce injection risk.
-- PhiKernel adapter commands execute with `shell=False` and strict JSON parsing.
-- Sovereign export validates output path shape (`.json`, no `..` traversal segments).
-- No runtime tracking code and no mandatory cloud dependencies.
-
-
-## Phase 13: Branching Journeys, Recommendations, and Golden Kernels
-
-Phase 13 adds additive local curation surfaces while preserving existing snapshot/live/replay/compare/gallery/bundle/narrative/atlas/constellation/pathway flows.
-
-### Exact theoretical and experimental framing
-
-- `PHI = (1 + sqrt(5)) / 2`
-- `C_STAR_THEORETICAL = PHI / 2 = (1 + sqrt(5)) / 4`
-- Symbolic equivalence (documentational): `C_STAR_THEORETICAL = cos(36°) = sin(54°)`
-- `BIO_VACUUM_TARGET = 0.81055`
-- `BIO_VACUUM_BAND_LOW = 0.807`
-- `BIO_VACUUM_BAND_HIGH = 0.813`
-- `BIO_VACUUM_STATUS = "experimental"`
-- `HUNTER_C_STATUS = "unconfirmed"`
-- `BIO_MODEL_PROVENANCE = "proxy-calibrated, not empirically confirmed"`
-
-This repository treats the bio target and golden kernels as optional experimental operator tooling, not empirical proof and not runtime source-of-truth logic.
-
-### Experimental golden kernels
-
-`phios.ml.golden_kernels` includes:
-
-- `golden_rbf(...)`
-- `golden_angular_rbf(...)`
-- `golden_periodic(...)`
-- `golden_target_angle_score(...)`
-
-These are used only for local similarity/recommendation hints. They are not a claim of universal kernel optimality.
-
-### New CLI additions
-
-- `phi view --link-pathway-step <pathway> --from-step <id> --to-step <id> --branch-label <label>`
-- `phi view --recommend-for <ref>`
-- `phi view --dashboard [--output <path.html>] [--search <query>]`
-
-### Backward compatibility
-
-All new branching/recommendation/dashboard/golden-kernel data is additive. Older artifacts without tags, preview metadata, integrity metadata, bio metadata, or branching metadata continue to load with safe defaults.
-
-
-## Phase 14: Golden Lattice, Adaptive Affinity, and Strategy Benchmarks
-
-Phase 14 extends local recommendation tooling with an **experimental** 4D golden-lattice layer and adaptive local affinity scoring. These additions are optional and are not used for PhiKernel core truth logic.
-
-### New experimental ML modules
-
-- `phios.ml.golden_lattice`:
-  - `build_lattice_4d_nodes(...)`
-  - `golden_lattice_kernel_l1(...)`
-  - `golden_lattice_sparse_graph(...)`
-  - `golden_lattice_resonance_score(...)`
-  - `estimate_local_scales(...)`
-  - `adaptive_golden_affinity(...)`
-  - `update_memory_weights(...)`
-- `phios.ml.benchmark_recommendations`:
-  - local exploratory strategy comparison and JSON summary helpers.
-
-### Recommendation strategy options
-
-`phi view --recommend-for <ref> --recommend-strategy <name>` now supports:
-
-- `golden_rbf`
-- `golden_angular`
-- `golden_lattice_l1`
-- `adaptive_golden_affinity`
-- `baseline_rbf`
-- `baseline_cosine`
-
-Optional benchmark summary:
-
-- `phi view --benchmark-recommendations`
-- `phi view --benchmark-recommendations --recommend-strategy golden_rbf,baseline_rbf`
-
-### Scientific framing (unchanged and explicit)
-
-- `C_STAR_THEORETICAL` remains a theoretical reference from `PHI`,
-- `BIO_VACUUM_TARGET` remains **experimental**,
-- `HUNTER_C_STATUS` remains **unconfirmed**,
-- lattice/adaptive scores are **experimental local similarity utilities**, not empirical proofs.
-
-### Backward compatibility
-
-Recommendation metadata is additive (strategy/score-type fields), and older artifacts without these fields continue to load safely.
-
-
-## Phase 14.1: Experimental Golden Atlas Navigation
-
-This phase adds `phios.ml.golden_atlas` as an optional local navigation layer over lattice/state-space metadata.
-
-Key points:
-- Atlas route costs use monotone increasing travel cost (distance-based), not `(phi/2)^distance` as direct Dijkstra cost.
-- Golden decay/coupling remains a similarity annotation, separate from traversal cost.
-- Targets supported include:
-  - theoretical attractor region around `C_STAR_THEORETICAL`
-  - experimental bio band `[BIO_VACUUM_BAND_LOW, BIO_VACUUM_BAND_HIGH]`
-  - explicit node targets
-- Scientific framing remains explicit: theoretical C* vs experimental bio target and unconfirmed Hunter's C.
-
-CLI additions:
-- `phi view --atlas`
-- `phi view --atlas --atlas-target theoretical|bio_band|node`
-- `phi view --atlas --atlas-node <idx>`
-- `phi view --atlas --atlas-start-ref <session_ref>`
-- `phi view --atlas --atlas-max-l1-radius <int>`
-- `phi view --atlas --atlas-heat-mode target_proximity|path_density|connectivity|bio_band_proximity`
-
-Golden Atlas is experimental and optional local guidance only; it does not alter core PhiKernel truth logic.
-
-
-## Phase 15: Sector Ontology and Insight Packs
-
-Phase 15 introduces a formal **experimental sector ontology** derived from HG/HB equation scaffolds for observatory UI/analysis context.
-
-### Sector ontology (symbolic/interpretive)
-
-- Added `phios.core.sectors` with HG/HB family sector definitions and metadata.
-- This ontology is a symbolic observatory schema and is **not** an empirically validated physical law layer.
-
-### Sector-aware atlas and dashboard surfacing
-
-- Atlas heat modes now include sector-aware options:
-  - `geometry_balance`
-  - `vacuum_proximity`
-  - `observer_entropy`
-  - `collector_activity`
-  - `mirror_alignment`
-  - `emotion_field`
-- Dashboard includes sector summary panels based on available local metadata with graceful fallback.
-
-### Insight-pack export
-
-- New export flow:
-  - `phi view --export-insight-pack <pathway> <output-dir>`
-  - `--insight-pack-title <title>`
-  - `--insight-pack-include-atlas`
-  - `--insight-pack-heat-mode <mode>`
-- Insight packs are static/local bundles with pathway + branch context, sector summaries, recommendations, optional atlas summary, and framing metadata.
-
-### Sector CLI helpers
-
-- `phi view --list-sectors`
-- `phi view --list-sectors --sector-family HG`
-
-### Framing reminder
-
-- `C_STAR_THEORETICAL` remains theoretical.
-- `BIO_VACUUM_TARGET` and bio band remain experimental.
-- `HUNTER_C_STATUS` remains unconfirmed.
-- Sector ontology, atlas navigation, and insight packs are optional interpretive/operator layers and do not alter PhiKernel truth logic.
-
-
-## Phase 16: Branch Replay, Sector Overlays, and Route Compare Bundles
-
-Phase 16 adds branch-aware journey replay, sector overlays in replay/map contexts, richer recommendation diagnostics, and static route-compare bundles.
-
-### Branch-aware replay
-
-- `phi view --branch-replay <pathway>` renders static branch-aware replay context with:
-  - current ordered steps
-  - outgoing branch labels/notes
-  - recommended next-step hints
-  - sector overlay summaries
-
-### Route compare bundles
-
-- `phi view --export-route-compare <start-ref> <output-dir>`
-- Optional flags:
-  - `--route-compare-title <title>`
-  - `--route-compare-heat-mode <mode>`
-  - `--route-compare-include-sector-overlays`
-
-Export includes static artifacts such as:
-- `route_compare_manifest.json`
-- `route_compare_index.html`
-- `theoretical_route.json`
-- `bio_band_route.json`
-- `route_diff_summary.json`
-- `strategy_diagnostics.json`
-- optional `sector_overlay_summary.json`
-
-### Strategy diagnostics
-
-- `phi view --show-strategy-diagnostics <ref>`
-
-Diagnostics remain local exploratory summaries (agreement/overlap behavior), not claims of strategy superiority.
-
-### Scientific framing reminder
-
-- Theoretical attractor routes are reference structures.
-- Bio-band routes are experimental guidance structures.
-- Hunter’s C remains unconfirmed.
-- These overlays/comparisons are interpretive observatory layers and do not alter PhiKernel truth logic.
-
-
-## Phase 17: Portable Observatory Storyboards
-
-Phase 17 adds static storyboard bundles that combine insight packs, branch replay context, route compare outputs, thematic filters, and comparative summaries.
-
-### Storyboard workflows
-
-- `phi view --create-storyboard <name>`
-- `phi view --browse-storyboards`
-- `phi view --load-storyboard <name>`
-- `phi view --add-to-storyboard <name> --section-type <type> --artifact-ref <ref>`
-- `phi view --export-storyboard <name> <output-dir>`
-
-Filter flags:
-- `--storyboard-filter-tags <comma,separated>`
-- `--storyboard-filter-sector <sector>`
-- `--storyboard-filter-type <type>`
-
-### Storyboard export artifacts
-
-- `storyboard_manifest.json`
-- `storyboard_index.html`
-- `storyboard.json`
-- `sections/section_*.json`
-- `comparative_summary.json`
-- preview metadata and optional integrity hashes
-
-### Comparative report intent
-
-Storyboards and comparative summaries are deterministic local observatory curation layers:
-- they do not alter PhiKernel truth logic,
-- they do not validate physical laws,
-- theoretical attractor references are structural,
-- bio-band references are experimental guidance,
-- Hunter’s C remains unconfirmed.
-
-
-## Phase 18: Atlas Gallery, Route Timelines, Sector Snapshots, and Longitudinal Summaries
-
-Phase 18 adds archive-wide atlas gallery views, storyboard-linked route timeline surfacing, sector-comparison dashboard snapshots, and optional longitudinal summary exports over repeated archive artifacts.
-
-### Atlas gallery and longitudinal workflows
-
-- `phi view --atlas-gallery`
-- `phi view --export-longitudinal-summary <output-dir>`
-
-Optional filters/titles:
-- `--longitudinal-title <title>`
-- `--longitudinal-filter-tags <comma,separated>`
-- `--longitudinal-filter-sector <sector>`
-- `--longitudinal-filter-target <theoretical|bio_band|node>`
-
-### Longitudinal export artifacts
-
-- `longitudinal_manifest.json`
-- `longitudinal_index.html`
-- `longitudinal_summary.json`
-- `sector_snapshot.json`
-- `atlas_gallery_summary.json`
-- preview metadata and optional integrity hashes
-
-### Scientific framing reminder
-
-- Atlas galleries, route timelines, sector snapshots, and longitudinal summaries are local interpretive curation layers.
-- Theoretical attractor references are structural.
-- Bio-band references remain experimental guidance.
-- Hunter’s C remains unconfirmed.
-- None of these reports alter PhiKernel truth logic.
-
-
-## Phase 19: Cross-Report Observatory Dossiers
-
-Phase 19 adds portable static/local dossier bundles that unify storyboards, route-compare bundles, atlas-gallery outputs, longitudinal summaries, and archive-wide thematic curation into one cross-report navigation layer.
-
-### Dossier workflows
-
-- `phi view --create-dossier <name>`
-- `phi view --browse-dossiers`
-- `phi view --load-dossier <name>`
-- `phi view --add-to-dossier <name> --section-type <type> --artifact-ref <ref>`
-- `phi view --export-dossier <name> <output-dir>`
-
-Optional dossier filters:
-- `--dossier-tags <comma,separated>`
-- `--dossier-filter-tags <comma,separated>`
-- `--dossier-filter-sector <sector>`
-- `--dossier-filter-type <type>`
-- `--dossier-filter-target <theoretical|bio_band|node>`
-
-### Dossier export artifacts
-
-- `dossier_manifest.json`
-- `dossier_index.html`
-- `dossier.json`
-- `sections/section_*.json`
-- `dossier_summary.json`
-- optional sector/diagnostics/route-context summaries
-- preview metadata and optional integrity hashes
-
-### Scientific framing reminder
-
-- Dossiers and curation filters are local interpretive observatory layers.
-- Theoretical attractor references are structural.
-- Bio-band references remain experimental guidance.
-- Hunter’s C remains unconfirmed.
-- Dossiers do not alter PhiKernel truth logic.
-
-
-## Phase 20: Archive-wide Field Libraries
-
-Phase 20 adds static local Field Libraries that organize dossiers, storyboards, route-compare bundles, longitudinal summaries, and related artifacts into reusable thematic collections with lightweight local indexing/navigation.
-
-### Field library workflows
-
-- `phi view --create-field-library <name>`
-- `phi view --browse-field-libraries`
-- `phi view --load-field-library <name>`
-- `phi view --add-to-field-library <name> --section-type <type> --artifact-ref <ref>`
-- `phi view --export-field-library <name> <output-dir>`
-
-Optional field-library filters:
-- `--field-library-tags <comma,separated>`
-- `--field-library-filter-tags <comma,separated>`
-- `--field-library-filter-sector <sector>`
-- `--field-library-filter-type <type>`
-- `--field-library-filter-target <theoretical|bio_band|node>`
-
-### Field library export artifacts
-
-- `field_library_manifest.json`
-- `field_library_index.html`
-- `field_library.json`
-- `collections/collection_*.json`
-- `field_library_summary.json`
-- optional sector/diagnostics/route-context summaries
-- preview metadata and optional integrity hashes
-
-### Scientific framing reminder
-
-- Field libraries and thematic collections are local interpretive observatory layers.
-- Theoretical attractor references are structural.
-- Bio-band references remain experimental guidance.
-- Hunter’s C remains unconfirmed.
-- Field libraries do not alter PhiKernel truth logic.
-
-## Phase 21: Observatory Shelves + Cross-Library Catalog
-
-Phase 21 adds additive, static/local Observatory Shelves and cross-library Catalog views that sit above field libraries, dossiers, storyboards, and related observatory artifacts for archive-scale browsing.
-
-### Shelf workflows
-
-- `phi view --create-shelf <name>`
-- `phi view --browse-shelves`
-- `phi view --load-shelf <name>`
-- `phi view --add-to-shelf <name> --section-type <type> --artifact-ref <ref>`
-- `phi view --export-shelf <name> <output-dir>`
-
-Optional shelf filters/tags:
-- `--shelf-title <title>`
-- `--shelf-summary <summary>`
-- `--shelf-tags <comma,separated>`
-- `--shelf-filter-tags <comma,separated>`
-- `--shelf-filter-sector <sector>`
-- `--shelf-filter-type <type>`
-
-### Catalog workflows
-
-- `phi view --browse-catalog`
-- `phi view --browse-catalog --catalog-filter-tags <comma,separated>`
-- `phi view --browse-catalog --catalog-filter-sector <sector>`
-- `phi view --browse-catalog --catalog-filter-type <type>`
-- `phi view --browse-catalog --catalog-group-by <artifact_type|collection|sector_family|dominant_sector|target_mode|heat_mode|has_bio|has_diagnostics>`
-- `phi view --browse-catalog --output <path.html>` (static local catalog page)
-
-### Shelf export artifacts
-
-- `shelf_manifest.json`
-- `shelf_index.html`
-- `shelf.json`
-- `items/item_*.json`
-- `shelf_summary.json`
-- optional sector/diagnostics/route-context summaries
-- preview metadata and optional integrity hashes
-
-### Scientific framing reminder
-
-- Shelves, catalogs, collections, route comparisons, and longitudinal summaries are local observatory interpretation and curation only.
-- `C_STAR_THEORETICAL = PHI / 2 = (1 + sqrt(5)) / 4` is a structural/theoretical reference.
-- `BIO_VACUUM_TARGET = 0.81055` with `[BIO_VACUUM_BAND_LOW, BIO_VACUUM_BAND_HIGH] = [0.807, 0.813]` remains experimental guidance.
-- `BIO_VACUUM_STATUS = "experimental"` and `HUNTER_C_STATUS = "unconfirmed"` remain explicit.
-- Shelf/catalog layers do not alter PhiKernel truth logic.
-
-### Backward compatibility note
-
-Older field libraries, dossiers, storyboards, route-compare bundles, longitudinal summaries, insight packs, pathways, atlas exports, sessions, compare sets, narratives, and constellations continue loading with safe defaults even when shelf/catalog metadata is absent.
-
-## Phase 22: Observatory Reading Rooms + Themed Collection Maps
-
-Phase 22 adds additive, static/local Reading Rooms and Collection Maps above shelves/field libraries to provide curated archive entry points with deterministic metadata navigation.
-
-### Reading room workflows
-
-- `phi view --create-reading-room <name>`
-- `phi view --browse-reading-rooms`
-- `phi view --load-reading-room <name>`
-- `phi view --add-to-reading-room <name> --section-type <type> --artifact-ref <ref>`
-- `phi view --export-reading-room <name> <output-dir>`
-
-Optional reading-room fields:
-- `--reading-room-title <title>`
-- `--reading-room-summary <summary>`
-- `--reading-room-tags <comma,separated>`
-
-### Collection map workflows
-
-- `phi view --create-collection-map <name>`
-- `phi view --browse-collection-maps`
-- `phi view --load-collection-map <name>`
-- `phi view --export-collection-map <name> <output-dir>`
-- `--collection-map-tags <comma,separated>`
-- `--collection-map-filter-tags <comma,separated>`
-- `--collection-map-filter-sector <sector>`
-- `--collection-map-filter-type <type>`
-- `--collection-map-group-by <field>`
-
-### Reading room export artifacts
-
-- `reading_room_manifest.json`
-- `reading_room_index.html`
-- `reading_room.json`
-- `sections/section_*.json`
-- `reading_room_summary.json`
-- optional sector/diagnostics/route-context summaries
-- preview metadata and optional integrity hashes
-
-### Collection map export artifacts
-
-- `collection_map_manifest.json`
-- `collection_map_index.html`
-- `collection_map.json`
-- `collection_map_summary.json`
-- preview metadata and optional integrity hashes
-
-### Scientific framing reminder
-
-- Reading rooms, collection maps, shelves, catalogs, and downstream curation artifacts remain local interpretive layers only.
-- `C_STAR_THEORETICAL = PHI / 2 = (1 + sqrt(5)) / 4` is structural/theoretical framing.
-- `BIO_VACUUM_TARGET = 0.81055` and `[BIO_VACUUM_BAND_LOW, BIO_VACUUM_BAND_HIGH] = [0.807, 0.813]` remain experimental guidance.
-- `BIO_VACUUM_STATUS = "experimental"` and `HUNTER_C_STATUS = "unconfirmed"` remain explicit.
-- These layers do not alter PhiKernel truth logic.
-
-### Backward compatibility note
-
-Older artifacts (field libraries, dossiers, storyboards, route-compare bundles, longitudinal summaries, insight packs, pathways, atlas exports, sessions, compare sets, narratives, constellations, shelves, catalogs) continue loading with safe defaults even when reading-room/collection-map metadata is absent.
-
-## Phase 23: Observatory Study Halls + Comparative Thematic Pathways
-
-Phase 23 adds additive, static/local Study Halls and Thematic Pathways above reading rooms and collection maps to support archive-wide learning/exploration with deterministic metadata navigation.
-
-### Study hall workflows
-
-- `phi view --create-study-hall <name>`
-- `phi view --browse-study-halls`
-- `phi view --load-study-hall <name>`
-- `phi view --add-to-study-hall <name> --section-type <type> --artifact-ref <ref>`
-- `phi view --export-study-hall <name> <output-dir>`
-- `--study-hall-title <title>`
-- `--study-hall-summary <summary>`
-- `--study-hall-tags <comma,separated>`
-
-### Comparative thematic pathway workflows
-
-- `phi view --create-thematic-pathway <name>`
-- `phi view --browse-thematic-pathways`
-- `phi view --load-thematic-pathway <name>`
-- `phi view --export-thematic-pathway <name> <output-dir>`
-- `--thematic-pathway-tags <comma,separated>`
-- `--thematic-pathway-filter-tags <comma,separated>`
-- `--thematic-pathway-filter-sector <sector>`
-- `--thematic-pathway-filter-type <type>`
-- `--thematic-pathway-group-by <field>`
-
-### Study hall export artifacts
-
-- `study_hall_manifest.json`
-- `study_hall_index.html`
-- `study_hall.json`
-- `modules/module_*.json`
-- `study_hall_summary.json`
-- optional sector/diagnostics/route-context summaries
-- preview metadata and optional integrity hashes
-
-### Thematic pathway export artifacts
-
-- `thematic_pathway_manifest.json`
-- `thematic_pathway_index.html`
-- `thematic_pathway.json`
-- `thematic_pathway_summary.json`
-- preview metadata and optional integrity hashes
-
-### Scientific framing reminder
-
-- Study halls, thematic pathways, reading rooms, collection maps, shelves, catalogs, and related curation artifacts are local observatory interpretation only.
-- `C_STAR_THEORETICAL = PHI / 2 = (1 + sqrt(5)) / 4` remains structural/theoretical framing.
-- `BIO_VACUUM_TARGET = 0.81055` and `[BIO_VACUUM_BAND_LOW, BIO_VACUUM_BAND_HIGH] = [0.807, 0.813]` remain experimental guidance.
-- `BIO_VACUUM_STATUS = "experimental"` and `HUNTER_C_STATUS = "unconfirmed"` remain explicit.
-- These layers do not alter PhiKernel truth logic.
-
-### Backward compatibility note
-
-Older reading rooms, collection maps, field libraries, dossiers, storyboards, route-compare bundles, longitudinal summaries, insight packs, pathways, atlas exports, sessions, compare sets, narratives, constellations, shelves, and catalogs continue loading with safe defaults when study-hall/thematic-pathway metadata is absent.
-
-## Phase 24: Observatory Curricula + Comparative Journey Ensembles
-
-Phase 24 adds additive, static/local Curricula and Comparative Journey Ensembles above study halls and thematic pathways to support reusable archive-wide learning tracks and deterministic comparative exploration.
-
-### Curriculum workflows
-
-- `phi view --create-curriculum <name>`
-- `phi view --browse-curricula`
-- `phi view --load-curriculum <name>`
-- `phi view --add-to-curriculum <name> --section-type <type> --artifact-ref <ref>`
-- `phi view --export-curriculum <name> <output-dir>`
-- `--curriculum-title <title>`
-- `--curriculum-summary <summary>`
-- `--curriculum-tags <comma,separated>`
-
-### Comparative journey ensemble workflows
-
-- `phi view --create-journey-ensemble <name>`
-- `phi view --browse-journey-ensembles`
-- `phi view --load-journey-ensemble <name>`
-- `phi view --export-journey-ensemble <name> <output-dir>`
-- `--journey-ensemble-tags <comma,separated>`
-- `--journey-ensemble-filter-tags <comma,separated>`
-- `--journey-ensemble-filter-sector <sector>`
-- `--journey-ensemble-filter-type <type>`
-- `--journey-ensemble-group-by <field>`
-
-### Curriculum export artifacts
-
-- `curriculum_manifest.json`
-- `curriculum_index.html`
-- `curriculum.json`
-- `units/unit_*.json`
-- `curriculum_summary.json`
-- optional sector/diagnostics/route-context summaries
-- preview metadata and optional integrity hashes
-
-### Journey ensemble export artifacts
-
-- `journey_ensemble_manifest.json`
-- `journey_ensemble_index.html`
-- `journey_ensemble.json`
-- `journey_ensemble_summary.json`
-- preview metadata and optional integrity hashes
-
-### Scientific framing reminder
-
-- Curricula, comparative journey ensembles, study halls, thematic pathways, reading rooms, collection maps, shelves, catalogs, and related curation artifacts are local observatory interpretation only.
-- `C_STAR_THEORETICAL = PHI / 2 = (1 + sqrt(5)) / 4` remains structural/theoretical framing.
-- `BIO_VACUUM_TARGET = 0.81055` and `[BIO_VACUUM_BAND_LOW, BIO_VACUUM_BAND_HIGH] = [0.807, 0.813]` remain experimental guidance.
-- `BIO_VACUUM_STATUS = "experimental"` and `HUNTER_C_STATUS = "unconfirmed"` remain explicit.
-- These layers do not alter PhiKernel truth logic.
-
-### Backward compatibility note
-
-Older study halls, thematic pathways, reading rooms, collection maps, field libraries, dossiers, storyboards, route-compare bundles, longitudinal summaries, insight packs, pathways, atlas exports, sessions, compare sets, narratives, constellations, shelves, and catalogs continue loading with safe defaults when curriculum/journey-ensemble metadata is absent.
-
-## Phase 25: Observatory Syllabi + Comparative Atlas Cohorts
-
-Phase 25 adds additive, static/local Syllabi and Comparative Atlas Cohorts above curricula and journey ensembles to support reusable program-level tracks and deterministic cross-sequence comparison.
-
-### Syllabus workflows
-
-- `phi view --create-syllabus <name>`
-- `phi view --browse-syllabi`
-- `phi view --load-syllabus <name>`
-- `phi view --add-to-syllabus <name> --section-type <type> --artifact-ref <ref>`
-- `phi view --export-syllabus <name> <output-dir>`
-- `--syllabus-title <title>`
-- `--syllabus-summary <summary>`
-- `--syllabus-tags <comma,separated>`
-
-### Comparative atlas cohort workflows
-
-- `phi view --create-atlas-cohort <name>`
-- `phi view --browse-atlas-cohorts`
-- `phi view --load-atlas-cohort <name>`
-- `phi view --export-atlas-cohort <name> <output-dir>`
-- `--atlas-cohort-tags <comma,separated>`
-- `--atlas-cohort-filter-tags <comma,separated>`
-- `--atlas-cohort-filter-sector <sector>`
-- `--atlas-cohort-filter-type <type>`
-- `--atlas-cohort-group-by <field>`
-
-### Syllabus export artifacts
-
-- `syllabus_manifest.json`
-- `syllabus_index.html`
-- `syllabus.json`
-- `modules/module_*.json`
-- `syllabus_summary.json`
-- optional sector/diagnostics/route-context summaries
-- preview metadata and optional integrity hashes
-
-### Atlas cohort export artifacts
-
-- `atlas_cohort_manifest.json`
-- `atlas_cohort_index.html`
-- `atlas_cohort.json`
-- `atlas_cohort_summary.json`
-- preview metadata and optional integrity hashes
-
-### Scientific framing reminder
-
-- Syllabi, atlas cohorts, curricula, journey ensembles, study halls, thematic pathways, reading rooms, collection maps, shelves, catalogs, and related curation artifacts are local observatory interpretation only.
-- `C_STAR_THEORETICAL = PHI / 2 = (1 + sqrt(5)) / 4` remains structural/theoretical framing.
-- `BIO_VACUUM_TARGET = 0.81055` and `[BIO_VACUUM_BAND_LOW, BIO_VACUUM_BAND_HIGH] = [0.807, 0.813]` remain experimental guidance.
-- `BIO_VACUUM_STATUS = "experimental"` and `HUNTER_C_STATUS = "unconfirmed"` remain explicit.
-- These layers do not alter PhiKernel truth logic.
-
-### Backward compatibility note
-
-Older curricula, journey ensembles, study halls, thematic pathways, reading rooms, collection maps, field libraries, dossiers, storyboards, route-compare bundles, longitudinal summaries, insight packs, pathways, atlas exports, sessions, compare sets, narratives, constellations, shelves, and catalogs continue loading with safe defaults when syllabus/atlas-cohort metadata is absent.
+Build tools that help people without quietly taking authority away from them.
