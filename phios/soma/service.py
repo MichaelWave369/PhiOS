@@ -25,8 +25,14 @@ from .models import (
     NativeEvidence,
     ObservationResult,
     ScreenBurstResult,
+    ScreenEnhancementResult,
     ScreenObservationResult,
     ScreenRecoveryResult,
+)
+from .enhancement import (
+    ScreenEnhancementError,
+    ScreenEnhancementProvider,
+    ScreenEnhancementSpec,
 )
 from .multishot import FrameSharpnessScorer, SharpnessScoreError
 from .recovery import ScreenCrop, ScreenRecoveryError, ScreenRecoveryProvider
@@ -1391,4 +1397,377 @@ class SomaPerceptionService:
             observation_sha256=selected.sha256,
             requested_frames=frame_count,
             valid_frames=len(valid),
+        )
+
+
+    def enhance_screen_evidence(
+        self,
+        *,
+        evidence_ref: str,
+        provider: ScreenEnhancementProvider,
+        spec: ScreenEnhancementSpec,
+    ) -> ScreenEnhancementResult:
+        permission = "perception.screen.enhance"
+        source_id = f"screen-enhancement:{evidence_ref}"
+        parameters = spec.to_dict()
+
+        packet = MandalaPacket.create(
+            task_id=self.task_id,
+            gate=Gate.PERCEPTION,
+            origin=OriginRef(
+                kind=OriginKind.SUBSYSTEM,
+                identifier="soma.screen-enhancement",
+            ),
+            payload={
+                "source_id": source_id,
+                "input_evidence_ref": evidence_ref,
+                "enhancement": parameters,
+            },
+            authority=self.authority,
+            evidence_refs=(evidence_ref,),
+            claims=(
+                {
+                    "kind": "derived_enhancement_request",
+                    "source_id": source_id,
+                    "epistemic_status": "derived_observation",
+                },
+            ),
+            allowed_destinations=(Gate.DELIBERATION, Gate.MEMORY),
+        )
+
+        if not self.authority.allows(permission):
+            gate_receipt = self._gate_receipt(
+                packet,
+                status=MandalaStatus.BLOCKED,
+                reason=f"screen enhancement blocked: missing explicit grant {permission}",
+            )
+            receipt = PerceptionReceipt(
+                **receipt_meta(
+                    packet,
+                    status=MandalaStatus.BLOCKED,
+                    produced_by="soma.screen-enhancement",
+                    parent_receipt_id=gate_receipt.receipt_id,
+                ),
+                native_evidence_ref=None,
+                acuity_status=AcuityStatus.UNAVAILABLE.value,
+                limitations=(
+                    f"missing_grant:{permission}",
+                    "sensitive_evidence_not_read",
+                    "enhancement_does_not_increase_authority",
+                ),
+                source_id=source_id,
+                native_preserved=True,
+                acquisition_method="screen_enhancement",
+                acquisition_status="blocked",
+                source_locator=evidence_ref,
+                input_evidence_ref=evidence_ref,
+                enhancement_method=spec.method,
+                enhancement_parameters=parameters,
+                enhancement_backend=provider.name,
+            )
+            self.ledger.append(receipt)
+            return ScreenEnhancementResult(
+                packet=packet,
+                receipt=receipt,
+                input_evidence_ref=evidence_ref,
+                derived_evidence=None,
+                observation_evidence_ref=None,
+                observation_sha256=None,
+                enhancement_method=spec.method,
+                enhancement_parameters=parameters,
+            )
+
+        try:
+            spec.validate()
+        except ScreenEnhancementError as exc:
+            gate_receipt = self._gate_receipt(
+                packet,
+                status=MandalaStatus.BLOCKED,
+                reason=f"screen enhancement blocked: {exc.code}",
+            )
+            receipt = PerceptionReceipt(
+                **receipt_meta(
+                    packet,
+                    status=MandalaStatus.BLOCKED,
+                    produced_by="soma.screen-enhancement",
+                    parent_receipt_id=gate_receipt.receipt_id,
+                ),
+                native_evidence_ref=None,
+                acuity_status=AcuityStatus.UNAVAILABLE.value,
+                limitations=(exc.code,),
+                source_id=source_id,
+                native_preserved=True,
+                acquisition_method="screen_enhancement",
+                acquisition_status="blocked",
+                source_locator=evidence_ref,
+                input_evidence_ref=evidence_ref,
+                enhancement_method=spec.method,
+                enhancement_parameters=parameters,
+                enhancement_backend=provider.name,
+            )
+            self.ledger.append(receipt)
+            return ScreenEnhancementResult(
+                packet=packet,
+                receipt=receipt,
+                input_evidence_ref=evidence_ref,
+                derived_evidence=None,
+                observation_evidence_ref=None,
+                observation_sha256=None,
+                enhancement_method=spec.method,
+                enhancement_parameters=parameters,
+            )
+
+        try:
+            source_bytes = self.evidence.read_bytes(evidence_ref)
+        except (ValueError, FileNotFoundError, RuntimeError):
+            gate_receipt = self._gate_receipt(
+                packet,
+                status=MandalaStatus.BLOCKED,
+                reason="screen enhancement blocked: source_evidence_unavailable",
+            )
+            receipt = PerceptionReceipt(
+                **receipt_meta(
+                    packet,
+                    status=MandalaStatus.BLOCKED,
+                    produced_by="soma.screen-enhancement",
+                    parent_receipt_id=gate_receipt.receipt_id,
+                ),
+                native_evidence_ref=None,
+                acuity_status=AcuityStatus.UNAVAILABLE.value,
+                limitations=("source_evidence_unavailable",),
+                source_id=source_id,
+                native_preserved=False,
+                acquisition_method="screen_enhancement",
+                acquisition_status="blocked",
+                source_locator=evidence_ref,
+                input_evidence_ref=evidence_ref,
+                enhancement_method=spec.method,
+                enhancement_parameters=parameters,
+                enhancement_backend=provider.name,
+            )
+            self.ledger.append(receipt)
+            return ScreenEnhancementResult(
+                packet=packet,
+                receipt=receipt,
+                input_evidence_ref=evidence_ref,
+                derived_evidence=None,
+                observation_evidence_ref=None,
+                observation_sha256=None,
+                enhancement_method=spec.method,
+                enhancement_parameters=parameters,
+            )
+
+        gate_receipt = self._gate_receipt(
+            packet,
+            status=MandalaStatus.ACCEPTED,
+            reason="source evidence admitted for bounded deterministic enhancement",
+        )
+
+        try:
+            frame = provider.enhance(source_bytes, spec=spec)
+        except ScreenEnhancementError as exc:
+            status = (
+                MandalaStatus.BLOCKED
+                if exc.code == "input_too_large"
+                else MandalaStatus.QUARANTINED
+            )
+            receipt = PerceptionReceipt(
+                **receipt_meta(
+                    packet,
+                    status=status,
+                    produced_by="soma.screen-enhancement",
+                    parent_receipt_id=gate_receipt.receipt_id,
+                ),
+                native_evidence_ref=None,
+                acuity_status=AcuityStatus.UNAVAILABLE.value,
+                limitations=(
+                    exc.code,
+                    "source_evidence_preserved",
+                    "no_derived_observation_promoted",
+                ),
+                source_id=source_id,
+                native_preserved=True,
+                acquisition_method="screen_enhancement",
+                acquisition_status=status.value.lower(),
+                source_locator=evidence_ref,
+                input_evidence_ref=evidence_ref,
+                enhancement_method=spec.method,
+                enhancement_parameters=parameters,
+                enhancement_backend=provider.name,
+            )
+            self.ledger.append(receipt)
+            return ScreenEnhancementResult(
+                packet=packet,
+                receipt=receipt,
+                input_evidence_ref=evidence_ref,
+                derived_evidence=None,
+                observation_evidence_ref=None,
+                observation_sha256=None,
+                enhancement_method=spec.method,
+                enhancement_parameters=parameters,
+            )
+        except Exception:  # noqa: BLE001 - provider boundary
+            receipt = PerceptionReceipt(
+                **receipt_meta(
+                    packet,
+                    status=MandalaStatus.QUARANTINED,
+                    produced_by="soma.screen-enhancement",
+                    parent_receipt_id=gate_receipt.receipt_id,
+                ),
+                native_evidence_ref=None,
+                acuity_status=AcuityStatus.UNAVAILABLE.value,
+                limitations=(
+                    "enhancement_backend_error",
+                    "source_evidence_preserved",
+                    "no_derived_observation_promoted",
+                ),
+                source_id=source_id,
+                native_preserved=True,
+                acquisition_method="screen_enhancement",
+                acquisition_status="quarantined",
+                source_locator=evidence_ref,
+                input_evidence_ref=evidence_ref,
+                enhancement_method=spec.method,
+                enhancement_parameters=parameters,
+                enhancement_backend=provider.name,
+            )
+            self.ledger.append(receipt)
+            return ScreenEnhancementResult(
+                packet=packet,
+                receipt=receipt,
+                input_evidence_ref=evidence_ref,
+                derived_evidence=None,
+                observation_evidence_ref=None,
+                observation_sha256=None,
+                enhancement_method=spec.method,
+                enhancement_parameters=parameters,
+            )
+
+        contract_error: str | None = None
+        if not frame.data:
+            contract_error = "empty_enhancement_output"
+        elif frame.media_type != "image/png" or frame.suffix.lower() != ".png":
+            contract_error = "unsupported_enhancement_format"
+        elif (
+            frame.input_width != frame.output_width
+            or frame.input_height != frame.output_height
+        ):
+            contract_error = "enhancement_dimensions_changed"
+
+        if contract_error is not None:
+            preserved = None
+            if frame.data:
+                preserved = self.evidence.put_bytes(
+                    frame.data,
+                    media_type=frame.media_type,
+                    suffix=frame.suffix,
+                )
+            receipt = PerceptionReceipt(
+                **receipt_meta(
+                    packet,
+                    status=MandalaStatus.QUARANTINED,
+                    produced_by="soma.screen-enhancement",
+                    parent_receipt_id=gate_receipt.receipt_id,
+                ),
+                native_evidence_ref=None,
+                acuity_status=AcuityStatus.UNAVAILABLE.value,
+                limitations=(
+                    contract_error,
+                    "source_evidence_preserved",
+                    "derived_output_not_promoted",
+                ),
+                source_id=source_id,
+                native_preserved=True,
+                acquisition_method="screen_enhancement",
+                acquisition_status="quarantined",
+                source_locator=evidence_ref,
+                input_evidence_ref=evidence_ref,
+                enhancement_method=spec.method,
+                enhancement_parameters=parameters,
+                enhancement_backend=frame.backend,
+                derived_evidence_refs=(
+                    (preserved.evidence_ref,) if preserved is not None else ()
+                ),
+                derivation_chain=(
+                    (
+                        {
+                            "step": "unsharp_mask_attempt",
+                            "input_evidence_ref": evidence_ref,
+                            "output_evidence_ref": preserved.evidence_ref,
+                            "parameters": parameters,
+                            "promoted": False,
+                        },
+                    )
+                    if preserved is not None
+                    else ()
+                ),
+            )
+            self.ledger.append(receipt)
+            return ScreenEnhancementResult(
+                packet=packet,
+                receipt=receipt,
+                input_evidence_ref=evidence_ref,
+                derived_evidence=preserved,
+                observation_evidence_ref=None,
+                observation_sha256=None,
+                enhancement_method=spec.method,
+                enhancement_parameters=parameters,
+            )
+
+        derived = self.evidence.put_bytes(
+            frame.data,
+            media_type=frame.media_type,
+            suffix=frame.suffix,
+        )
+        receipt = PerceptionReceipt(
+            **receipt_meta(
+                packet,
+                status=MandalaStatus.ACCEPTED,
+                produced_by="soma.screen-enhancement",
+                parent_receipt_id=gate_receipt.receipt_id,
+            ),
+            native_evidence_ref=None,
+            acuity_status=AcuityStatus.RECOVERED.value,
+            limitations=(
+                "derived_observation_not_truth",
+                "enhancement_may_amplify_artifacts",
+                "enhancement_does_not_recover_lost_information",
+                "derived_evidence_never_replaces_source",
+                "enhancement_does_not_increase_authority",
+                "no_semantic_interpretation",
+            ),
+            source_id=source_id,
+            observation_sha256=derived.sha256,
+            native_preserved=True,
+            media_type=derived.media_type,
+            acquisition_method="screen_enhancement",
+            acquisition_status="accepted",
+            source_locator=evidence_ref,
+            input_evidence_ref=evidence_ref,
+            enhancement_method=spec.method,
+            enhancement_parameters=parameters,
+            enhancement_backend=frame.backend,
+            recovery_steps=("deterministic_sharpen",),
+            derived_evidence_refs=(derived.evidence_ref,),
+            observation_evidence_ref=derived.evidence_ref,
+            derivation_chain=(
+                {
+                    "step": "deterministic_sharpen",
+                    "input_evidence_ref": evidence_ref,
+                    "output_evidence_ref": derived.evidence_ref,
+                    "method": spec.method,
+                    "parameters": parameters,
+                },
+            ),
+        )
+        self.ledger.append(receipt)
+        return ScreenEnhancementResult(
+            packet=packet,
+            receipt=receipt,
+            input_evidence_ref=evidence_ref,
+            derived_evidence=derived,
+            observation_evidence_ref=derived.evidence_ref,
+            observation_sha256=derived.sha256,
+            enhancement_method=spec.method,
+            enhancement_parameters=parameters,
         )

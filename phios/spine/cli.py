@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 
 from phios.mandala import MANDALA_CONTRACT_VERSION, Gate, MandalaStatus
-from phios.soma import ScreenCrop, ScreenRegion
+from phios.soma import ScreenCrop, ScreenEnhancementSpec, ScreenRegion
 
 from . import __version__ as SPINE_VERSION
 from .runtime import PhiOSSpine
@@ -17,7 +17,7 @@ def _runtime(args: argparse.Namespace) -> PhiOSSpine:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="phi-spine", description="PhiOS Spine v0.7")
+    parser = argparse.ArgumentParser(prog="phi-spine", description="PhiOS Spine v0.8")
     parser.add_argument("--state-root", help="Override the PhiOS Spine local state root")
     parser.add_argument(
         "--allow",
@@ -28,7 +28,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     sub = parser.add_subparsers(dest="command", required=True)
 
-    sub.add_parser("status", help="Show the v0.7 spine and Mandala contract state")
+    sub.add_parser("status", help="Show the v0.8 spine and Mandala contract state")
     sub.add_parser("list", help="List registered capabilities")
 
     perceive = sub.add_parser(
@@ -83,6 +83,16 @@ def build_parser() -> argparse.ArgumentParser:
     perceive_burst.add_argument("--max-pixels", type=int, default=8_294_400)
     perceive_burst.add_argument("--max-total-pixels", type=int, default=33_177_600)
 
+    enhance_screen = sub.add_parser(
+        "enhance-screen",
+        help="Create a bounded deterministic sharpened derivative from preserved evidence",
+    )
+    enhance_screen.add_argument("--evidence-ref", required=True)
+    enhance_screen.add_argument("--radius", type=float, default=1.5)
+    enhance_screen.add_argument("--percent", type=int, default=150)
+    enhance_screen.add_argument("--threshold", type=int, default=3)
+    enhance_screen.add_argument("--max-pixels", type=int, default=16_777_216)
+
     recover_screen = sub.add_parser(
         "recover-screen",
         help="Derive a tight crop and/or native enlargement from preserved screen evidence",
@@ -127,7 +137,7 @@ def main() -> int:
                     "core_lifecycle": runtime.core.lifecycle.value,
                     "gates": [gate.value for gate in Gate],
                     "statuses": [status.value for status in MandalaStatus],
-                    "north_gate": "soma.text.v0.1+soma.file.v0.1+soma.screen.v0.1+soma.recovery.v0.1+soma.multishot.v0.1",
+                    "north_gate": "soma.text.v0.1+soma.file.v0.1+soma.screen.v0.1+soma.recovery.v0.1+soma.multishot.v0.1+soma.enhancement.v0.1",
                 },
                 indent=2,
             )
@@ -196,6 +206,24 @@ def main() -> int:
         return (
             0
             if burst_result.receipt.status
+            in {MandalaStatus.ACCEPTED, MandalaStatus.DEGRADED}
+            else 2
+        )
+
+    if args.command == "enhance-screen":
+        enhancement_result = runtime.enhance_screen_evidence(
+            evidence_ref=args.evidence_ref,
+            spec=ScreenEnhancementSpec(
+                radius=args.radius,
+                percent=args.percent,
+                threshold=args.threshold,
+                max_pixels=args.max_pixels,
+            ),
+        )
+        print(json.dumps(enhancement_result.to_dict(), indent=2))
+        return (
+            0
+            if enhancement_result.receipt.status
             in {MandalaStatus.ACCEPTED, MandalaStatus.DEGRADED}
             else 2
         )
