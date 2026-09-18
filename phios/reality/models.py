@@ -7,12 +7,15 @@ from typing import Any
 
 from phios.mandala import MandalaPacket, RealityReceipt
 
+from .local_http import local_http_url_error
+
 
 class RealityClaimKind(StrEnum):
     SOURCE_CONTAINS_TEXT = "source_contains_text"
     WORLD_STATE = "world_state"
     LOCAL_INTERFACE_STATE = "local_interface_state"
     LOCAL_TCP_LISTENER_STATE = "local_tcp_listener_state"
+    LOCAL_HTTP_RESPONSE_STATE = "local_http_response_state"
 
 
 class RealityVerdict(StrEnum):
@@ -35,6 +38,10 @@ class RealityClaim:
     local_port: int | None = None
     local_address: str | None = None
     expected_listening: bool | None = None
+    http_url: str | None = None
+    expected_http_status: int | None = None
+    http_timeout_seconds: float = 2.0
+    http_max_body_bytes: int = 65_536
 
     @classmethod
     def create(
@@ -50,6 +57,10 @@ class RealityClaim:
         local_port: int | None = None,
         local_address: str | None = None,
         expected_listening: bool | None = None,
+        http_url: str | None = None,
+        expected_http_status: int | None = None,
+        http_timeout_seconds: float = 2.0,
+        http_max_body_bytes: int = 65_536,
     ) -> "RealityClaim":
         return cls(
             claim_id=str(uuid.uuid4()),
@@ -63,6 +74,10 @@ class RealityClaim:
             local_port=local_port,
             local_address=local_address,
             expected_listening=expected_listening,
+            http_url=http_url,
+            expected_http_status=expected_http_status,
+            http_timeout_seconds=http_timeout_seconds,
+            http_max_body_bytes=http_max_body_bytes,
         )
 
     def validation_errors(self) -> tuple[str, ...]:
@@ -92,6 +107,19 @@ class RealityClaim:
             if self.expected_listening is None:
                 errors.append("local_tcp_claim_requires_expected_state")
 
+        if self.kind is RealityClaimKind.LOCAL_HTTP_RESPONSE_STATE:
+            url_error = local_http_url_error(self.http_url)
+            if url_error is not None:
+                errors.append(url_error)
+            if self.expected_http_status is None:
+                errors.append("local_http_claim_requires_expected_status")
+            elif not 100 <= self.expected_http_status <= 599:
+                errors.append("local_http_claim_invalid_expected_status")
+            if not 0.1 <= self.http_timeout_seconds <= 10.0:
+                errors.append("local_http_claim_invalid_timeout")
+            if not 1 <= self.http_max_body_bytes <= 1_048_576:
+                errors.append("local_http_claim_invalid_body_budget")
+
         return tuple(errors)
 
     def to_dict(self) -> dict[str, Any]:
@@ -107,6 +135,10 @@ class RealityClaim:
             "local_port": self.local_port,
             "local_address": self.local_address,
             "expected_listening": self.expected_listening,
+            "http_url": self.http_url,
+            "expected_http_status": self.expected_http_status,
+            "http_timeout_seconds": self.http_timeout_seconds,
+            "http_max_body_bytes": self.http_max_body_bytes,
         }
 
 

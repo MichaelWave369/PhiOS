@@ -18,7 +18,7 @@ def _runtime(args: argparse.Namespace) -> PhiOSSpine:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="phi-spine", description="PhiOS Spine v0.12")
+    parser = argparse.ArgumentParser(prog="phi-spine", description="PhiOS Spine v0.13")
     parser.add_argument("--state-root", help="Override the PhiOS Spine local state root")
     parser.add_argument(
         "--allow",
@@ -29,7 +29,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     sub = parser.add_subparsers(dest="command", required=True)
 
-    sub.add_parser("status", help="Show the v0.12 spine and Mandala contract state")
+    sub.add_parser("status", help="Show the v0.13 spine and Mandala contract state")
     sub.add_parser("list", help="List registered capabilities")
 
     perceive = sub.add_parser(
@@ -159,6 +159,17 @@ def build_parser() -> argparse.ArgumentParser:
         choices=["yes", "no"],
         help="Required for local_tcp_listener_state claims",
     )
+    verify_claim.add_argument(
+        "--http-url",
+        help="Required loopback HTTP URL for local_http_response_state claims",
+    )
+    verify_claim.add_argument(
+        "--expected-http-status",
+        type=int,
+        help="Required exact HTTP status for local_http_response_state claims",
+    )
+    verify_claim.add_argument("--http-timeout", type=float, default=2.0)
+    verify_claim.add_argument("--http-max-body-bytes", type=int, default=65_536)
     verify_claim.add_argument("--max-evidence-bytes", type=int, default=1_048_576)
 
     run = sub.add_parser("run", help="Plan, authorize, execute, and receipt a capability")
@@ -194,10 +205,11 @@ def main() -> int:
                     "gates": [gate.value for gate in Gate],
                     "statuses": [status.value for status in MandalaStatus],
                     "north_gate": "soma.text.v0.1+soma.file.v0.1+soma.screen.v0.1+soma.recovery.v0.1+soma.multishot.v0.1+soma.enhancement.v0.1+soma.ocr.v0.1",
-                    "reality_gate": "reality.bounded-evidence.v0.3",
+                    "reality_gate": "reality.bounded-evidence.v0.4",
                     "world_verifiers": [
                         "local-interface-state.v0.1",
                         "local-tcp-listener-state.v0.1",
+                        "local-http-response-contract.v0.1",
                     ],
                 },
                 indent=2,
@@ -367,6 +379,10 @@ def main() -> int:
                 if args.expected_listening == "no"
                 else None
             ),
+            http_url=args.http_url,
+            expected_http_status=args.expected_http_status,
+            http_timeout_seconds=args.http_timeout,
+            http_max_body_bytes=args.http_max_body_bytes,
         )
         verification_result = runtime.verify_reality(
             claims=(claim,),

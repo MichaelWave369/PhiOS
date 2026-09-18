@@ -18,6 +18,11 @@ from phios.mandala import (
 from phios.mandala.receipts import receipt_meta
 from phios.soma.evidence import NativeEvidenceStore
 
+from .local_http import (
+    LocalHttpObservationError,
+    LocalHttpStateProvider,
+    UnavailableLocalHttpStateProvider,
+)
 from .local_network import (
     InterfaceObservationError,
     InterfaceStateProvider,
@@ -48,6 +53,7 @@ class RealityVerificationService:
         authority: AuthorityContext,
         interface_provider: InterfaceStateProvider | None = None,
         tcp_listener_provider: TcpListenerStateProvider | None = None,
+        local_http_provider: LocalHttpStateProvider | None = None,
     ) -> None:
         self.evidence = evidence
         self.ledger = ledger
@@ -56,6 +62,9 @@ class RealityVerificationService:
         self.interface_provider = interface_provider or PsutilInterfaceStateProvider()
         self.tcp_listener_provider = (
             tcp_listener_provider or PsutilTcpListenerStateProvider()
+        )
+        self.local_http_provider = (
+            local_http_provider or UnavailableLocalHttpStateProvider()
         )
 
     @staticmethod
@@ -83,7 +92,7 @@ class RealityVerificationService:
             payload={
                 "claim_count": len(claims),
                 "claims": [claim.to_dict() for claim in claims],
-                "verification_method": "bounded-evidence-v0.3",
+                "verification_method": "bounded-evidence-v0.4",
             },
             authority=self.authority,
             evidence_refs=evidence_refs,
@@ -455,6 +464,120 @@ class RealityVerificationService:
             (observation_evidence.evidence_ref,),
         )
 
+    def _local_http_response_state(
+        self,
+        claim: RealityClaim,
+        *,
+        provider: LocalHttpStateProvider,
+    ) -> tuple[dict[str, Any], tuple[str, ...]]:
+        permission = "reality.local_http.read"
+        assert claim.http_url is not None
+        assert claim.expected_http_status is not None
+
+        if not self.authority.allows(permission):
+            return (
+                {
+                    "claim_id": claim.claim_id,
+                    "kind": claim.kind.value,
+                    "statement": claim.statement,
+                    "verdict": RealityVerdict.BLOCKED.value,
+                    "reason": f"missing_grant:{permission}",
+                    "scope": "local_http_response_state",
+                    "http_url": claim.http_url,
+                    "expected_http_status": claim.expected_http_status,
+                    "observation_evidence_ref": None,
+                },
+                (),
+            )
+
+        try:
+            observation = provider.observe(
+                url=claim.http_url,
+                timeout_seconds=claim.http_timeout_seconds,
+                max_body_bytes=claim.http_max_body_bytes,
+            )
+        except LocalHttpObservationError as exc:
+            return (
+                {
+                    "claim_id": claim.claim_id,
+                    "kind": claim.kind.value,
+                    "statement": claim.statement,
+                    "verdict": RealityVerdict.UNRESOLVED.value,
+                    "reason": exc.code,
+                    "scope": "local_http_response_state",
+                    "http_url": claim.http_url,
+                    "expected_http_status": claim.expected_http_status,
+                    "observation_evidence_ref": None,
+                },
+                (),
+            )
+        except Exception:  # noqa: BLE001 - provider boundary
+            return (
+                {
+                    "claim_id": claim.claim_id,
+                    "kind": claim.kind.value,
+                    "statement": claim.statement,
+                    "verdict": RealityVerdict.UNRESOLVED.value,
+                    "reason": "local_http_provider_error",
+                    "scope": "local_http_response_state",
+                    "http_url": claim.http_url,
+                    "expected_http_status": claim.expected_http_status,
+                    "observation_evidence_ref": None,
+                },
+                (),
+            )
+
+        observation_bytes = json.dumps(
+            observation.to_dict(),
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=False,
+        ).encode("utf-8")
+        observation_evidence = self.evidence.put_bytes(
+            observation_bytes,
+            media_type="application/json; charset=utf-8",
+            suffix=".json",
+        )
+
+        matched = observation.status_code == claim.expected_http_status
+        verdict = (
+            RealityVerdict.SUPPORTED
+            if matched
+            else RealityVerdict.CONTRADICTED
+        )
+        reason = (
+            "direct_local_http_observation_matches_expected_status"
+            if matched
+            else "direct_local_http_observation_conflicts_with_expected_status"
+        )
+
+        return (
+            {
+                "claim_id": claim.claim_id,
+                "kind": claim.kind.value,
+                "statement": claim.statement,
+                "verdict": verdict.value,
+                "reason": reason,
+                "scope": "local_http_response_state",
+                "http_url": observation.url,
+                "method": observation.method,
+                "expected_http_status": claim.expected_http_status,
+                "observed_http_status": observation.status_code,
+                "response_headers": dict(observation.headers),
+                "body_sha256": observation.body_sha256,
+                "body_bytes_observed": observation.body_bytes_observed,
+                "body_truncated": observation.body_truncated,
+                "body_digest_scope": observation.body_digest_scope,
+                "redirect_followed": observation.redirect_followed,
+                "elapsed_ms": observation.elapsed_ms,
+                "provider": observation.provider,
+                "provider_version": observation.provider_version,
+                "captured_at_utc": observation.captured_at_utc,
+                "observation_evidence_ref": observation_evidence.evidence_ref,
+            },
+            (observation_evidence.evidence_ref,),
+        )
+
     def verify(
         self,
         *,
@@ -462,6 +585,7 @@ class RealityVerificationService:
         max_evidence_bytes: int = 1_048_576,
         interface_provider: InterfaceStateProvider | None = None,
         tcp_listener_provider: TcpListenerStateProvider | None = None,
+        local_http_provider: LocalHttpStateProvider | None = None,
     ) -> RealityVerificationResult:
         permission = "reality.verify"
         packet = self._packet(claims)
@@ -469,6 +593,7 @@ class RealityVerificationService:
         selected_tcp_listener_provider = (
             tcp_listener_provider or self.tcp_listener_provider
         )
+        selected_local_http_provider = local_http_provider or self.local_http_provider
 
         if not self.authority.allows(permission):
             gate_receipt = self._gate_receipt(
@@ -499,7 +624,7 @@ class RealityVerificationService:
                 unresolved_contradictions=(),
                 unresolved_claims=tuple(claim.claim_id for claim in claims),
                 verdict_summary={RealityVerdict.BLOCKED.value: len(claims)},
-                verification_method="bounded-evidence-v0.3",
+                verification_method="bounded-evidence-v0.4",
                 promotion_status="not_promoted",
                 limitations=(
                     f"missing_grant:{permission}",
@@ -562,7 +687,7 @@ class RealityVerificationService:
                 unresolved_contradictions=(),
                 unresolved_claims=tuple(claim.claim_id for claim in claims),
                 verdict_summary={RealityVerdict.BLOCKED.value: len(claims)},
-                verification_method="bounded-evidence-v0.3",
+                verification_method="bounded-evidence-v0.4",
                 promotion_status="not_promoted",
                 limitations=invalid_global
                 + tuple(
@@ -619,6 +744,15 @@ class RealityVerificationService:
                 used.extend(claim_used)
                 continue
 
+            if claim.kind is RealityClaimKind.LOCAL_HTTP_RESPONSE_STATE:
+                result, claim_used = self._local_http_response_state(
+                    claim,
+                    provider=selected_local_http_provider,
+                )
+                results.append(result)
+                used.extend(claim_used)
+                continue
+
             results.append(
                 {
                     "claim_id": claim.claim_id,
@@ -665,7 +799,7 @@ class RealityVerificationService:
             unresolved_contradictions=contradicted,
             unresolved_claims=unresolved,
             verdict_summary=dict(counts),
-            verification_method="bounded-evidence-v0.3",
+            verification_method="bounded-evidence-v0.4",
             promotion_status="not_promoted",
             limitations=(
                 "lexical_source_support_is_not_world_state_verification",
@@ -673,6 +807,9 @@ class RealityVerificationService:
                 "generic_world_state_requires_independent_verifier",
                 "local_interface_state_uses_direct_host_observation",
                 "local_tcp_listener_state_uses_direct_host_observation",
+                "local_http_response_state_uses_provider_observation",
+                "http_status_is_not_application_health",
+                "live_http_transport_is_adapter_scoped",
                 "host_observation_is_point_in_time",
                 "verification_does_not_grant_action_authority",
                 "no_automatic_memory_promotion",
