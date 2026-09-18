@@ -24,8 +24,11 @@ from phios.mandala.receipts import receipt_meta
 from phios.soma import (
     FileObservationResult,
     ObservationResult,
+    PillowEdgeSharpnessScorer,
     PillowScreenCaptureProvider,
     PillowScreenRecoveryProvider,
+    FrameSharpnessScorer,
+    ScreenBurstResult,
     ScreenCaptureProvider,
     ScreenObservationResult,
     ScreenRecoveryProvider,
@@ -139,6 +142,27 @@ class PhiOSSpine:
             provider=capture_provider,
             max_pixels=max_pixels,
             reacquire_attempts=reacquire_attempts,
+        )
+
+    def perceive_screen_burst(
+        self,
+        *,
+        region: ScreenRegion,
+        provider: ScreenCaptureProvider | None = None,
+        scorer: FrameSharpnessScorer | None = None,
+        frame_count: int = 3,
+        max_pixels: int = 8_294_400,
+        max_total_pixels: int = 33_177_600,
+    ) -> ScreenBurstResult:
+        capture_provider = provider or PillowScreenCaptureProvider()
+        sharpness_scorer = scorer or PillowEdgeSharpnessScorer()
+        return self.soma.perceive_screen_burst(
+            region=region,
+            provider=capture_provider,
+            scorer=sharpness_scorer,
+            frame_count=frame_count,
+            max_pixels=max_pixels,
+            max_total_pixels=max_total_pixels,
         )
 
     def recover_screen_evidence(

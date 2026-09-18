@@ -10,8 +10,14 @@ from .models import (
     FileObservationResult,
     NativeEvidence,
     ObservationResult,
+    ScreenBurstResult,
     ScreenObservationResult,
     ScreenRecoveryResult,
+)
+from .multishot import (
+    FrameSharpnessScorer,
+    PillowEdgeSharpnessScorer,
+    SharpnessScoreError,
 )
 from .recovery import (
     PillowScreenRecoveryProvider,
@@ -36,10 +42,13 @@ __all__ = [
     "FileAcquisitionError",
     "FileObservationResult",
     "FileSourcePolicy",
+    "FrameSharpnessScorer",
     "NativeEvidence",
     "ObservationResult",
+    "PillowEdgeSharpnessScorer",
     "PillowScreenCaptureProvider",
     "PillowScreenRecoveryProvider",
+    "ScreenBurstResult",
     "ScreenCaptureError",
     "ScreenCaptureProvider",
     "ScreenCrop",
@@ -49,5 +58,6 @@ __all__ = [
     "ScreenRecoveryProvider",
     "ScreenRecoveryResult",
     "ScreenRegion",
+    "SharpnessScoreError",
     "SomaPerceptionService",
 ]

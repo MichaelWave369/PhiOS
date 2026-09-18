@@ -24,9 +24,11 @@ from .models import (
     FileObservationResult,
     NativeEvidence,
     ObservationResult,
+    ScreenBurstResult,
     ScreenObservationResult,
     ScreenRecoveryResult,
 )
+from .multishot import FrameSharpnessScorer, SharpnessScoreError
 from .recovery import ScreenCrop, ScreenRecoveryError, ScreenRecoveryProvider
 from .screen import CapturedFrame, ScreenCaptureError, ScreenCaptureProvider, ScreenRegion
 
@@ -1048,4 +1050,345 @@ class SomaPerceptionService:
             observation_evidence_ref=final_evidence.evidence_ref,
             observation_sha256=final_evidence.sha256,
             recovery_steps=tuple(recovery_steps),
+        )
+
+
+    def perceive_screen_burst(
+        self,
+        *,
+        region: ScreenRegion,
+        provider: ScreenCaptureProvider,
+        scorer: FrameSharpnessScorer,
+        frame_count: int = 3,
+        max_pixels: int = 8_294_400,
+        max_total_pixels: int = 33_177_600,
+    ) -> ScreenBurstResult:
+        required = (
+            "perception.screen.capture",
+            "perception.screen.multishot",
+        )
+        region_data = region.to_dict()
+        source_id = (
+            f"screen-burst:{region.x},{region.y},"
+            f"{region.width}x{region.height}:{frame_count}"
+        )
+        packet = self._packet(
+            source_id=source_id,
+            source_kind=OriginKind.DEVICE,
+            native=None,
+            payload_extra={
+                "capture_region": region_data,
+                "capture_backend": provider.name,
+                "frame_count": frame_count,
+                "max_pixels": max_pixels,
+                "max_total_pixels": max_total_pixels,
+                "selection_method": scorer.name,
+            },
+        )
+
+        missing = tuple(permission for permission in required if not self.authority.allows(permission))
+        if missing:
+            gate_receipt = self._gate_receipt(
+                packet,
+                status=MandalaStatus.BLOCKED,
+                reason="screen burst blocked: missing explicit grant(s)",
+            )
+            receipt = PerceptionReceipt(
+                **receipt_meta(
+                    packet,
+                    status=MandalaStatus.BLOCKED,
+                    produced_by="soma.screen-burst",
+                    parent_receipt_id=gate_receipt.receipt_id,
+                ),
+                native_evidence_ref=None,
+                acuity_status=AcuityStatus.UNAVAILABLE.value,
+                limitations=tuple(f"missing_grant:{item}" for item in missing)
+                + ("visibility_does_not_imply_permission",),
+                source_id=source_id,
+                native_preserved=False,
+                acquisition_method="screen_multishot",
+                acquisition_status="blocked",
+                source_locator=source_id,
+                capture_region=region_data,
+                capture_backend=provider.name,
+                selection_method=scorer.name,
+            )
+            self.ledger.append(receipt)
+            return ScreenBurstResult(
+                packet=packet,
+                receipt=receipt,
+                frame_evidence=(),
+                frame_records=(),
+                selected_evidence_ref=None,
+                observation_sha256=None,
+                requested_frames=frame_count,
+                valid_frames=0,
+            )
+
+        try:
+            region.validate(max_pixels=max_pixels)
+            if frame_count < 2 or frame_count > 8:
+                raise ScreenCaptureError(
+                    "invalid_frame_count",
+                    "screen burst frame_count must be between 2 and 8",
+                )
+            if max_total_pixels <= 0:
+                raise ScreenCaptureError(
+                    "invalid_total_pixel_budget",
+                    "max_total_pixels must be positive",
+                )
+            if region.width * region.height * frame_count > max_total_pixels:
+                raise ScreenCaptureError(
+                    "burst_too_large",
+                    f"burst exceeds max_total_pixels={max_total_pixels}",
+                )
+        except ScreenCaptureError as exc:
+            gate_receipt = self._gate_receipt(
+                packet,
+                status=MandalaStatus.BLOCKED,
+                reason=f"screen burst blocked: {exc.code}",
+            )
+            receipt = PerceptionReceipt(
+                **receipt_meta(
+                    packet,
+                    status=MandalaStatus.BLOCKED,
+                    produced_by="soma.screen-burst",
+                    parent_receipt_id=gate_receipt.receipt_id,
+                ),
+                native_evidence_ref=None,
+                acuity_status=AcuityStatus.UNAVAILABLE.value,
+                limitations=(exc.code,),
+                source_id=source_id,
+                native_preserved=False,
+                acquisition_method="screen_multishot",
+                acquisition_status="blocked",
+                source_locator=source_id,
+                capture_region=region_data,
+                capture_backend=provider.name,
+                selection_method=scorer.name,
+            )
+            self.ledger.append(receipt)
+            return ScreenBurstResult(
+                packet=packet,
+                receipt=receipt,
+                frame_evidence=(),
+                frame_records=(),
+                selected_evidence_ref=None,
+                observation_sha256=None,
+                requested_frames=frame_count,
+                valid_frames=0,
+            )
+
+        gate_receipt = self._gate_receipt(
+            packet,
+            status=MandalaStatus.ACCEPTED,
+            reason="explicit screen capture and multishot grants accepted",
+        )
+
+        frame_evidence: list[NativeEvidence] = []
+        records: list[dict[str, Any]] = []
+        valid: list[tuple[int, NativeEvidence, float]] = []
+
+        for index in range(frame_count):
+            try:
+                frame = provider.capture(region)
+            except ScreenCaptureError as exc:
+                records.append(
+                    {
+                        "index": index,
+                        "status": "capture_failed",
+                        "reason": exc.code,
+                        "evidence_ref": None,
+                        "score": None,
+                    }
+                )
+                continue
+            except Exception:  # noqa: BLE001 - provider boundary
+                records.append(
+                    {
+                        "index": index,
+                        "status": "capture_failed",
+                        "reason": "capture_backend_error",
+                        "evidence_ref": None,
+                        "score": None,
+                    }
+                )
+                continue
+
+            if not frame.data:
+                records.append(
+                    {
+                        "index": index,
+                        "status": "invalid",
+                        "reason": "empty_capture",
+                        "evidence_ref": None,
+                        "score": None,
+                    }
+                )
+                continue
+
+            evidence = self.evidence.put_bytes(
+                frame.data,
+                media_type=frame.media_type,
+                suffix=frame.suffix,
+            )
+            frame_evidence.append(evidence)
+
+            if frame.media_type != "image/png" or frame.suffix.lower() != ".png":
+                records.append(
+                    {
+                        "index": index,
+                        "status": "invalid",
+                        "reason": "unsupported_capture_format",
+                        "evidence_ref": evidence.evidence_ref,
+                        "score": None,
+                    }
+                )
+                continue
+
+            if frame.width != region.width or frame.height != region.height:
+                records.append(
+                    {
+                        "index": index,
+                        "status": "invalid",
+                        "reason": "capture_dimensions_mismatch",
+                        "evidence_ref": evidence.evidence_ref,
+                        "score": None,
+                    }
+                )
+                continue
+
+            try:
+                score = scorer.score(frame.data)
+            except SharpnessScoreError:
+                records.append(
+                    {
+                        "index": index,
+                        "status": "invalid",
+                        "reason": "sharpness_score_failed",
+                        "evidence_ref": evidence.evidence_ref,
+                        "score": None,
+                    }
+                )
+                continue
+            except Exception:  # noqa: BLE001 - scorer boundary
+                records.append(
+                    {
+                        "index": index,
+                        "status": "invalid",
+                        "reason": "sharpness_scorer_error",
+                        "evidence_ref": evidence.evidence_ref,
+                        "score": None,
+                    }
+                )
+                continue
+
+            score_value = float(score)
+            records.append(
+                {
+                    "index": index,
+                    "status": "valid",
+                    "reason": None,
+                    "evidence_ref": evidence.evidence_ref,
+                    "score": score_value,
+                }
+            )
+            valid.append((index, evidence, score_value))
+
+        if not valid:
+            has_preserved = bool(frame_evidence)
+            status = MandalaStatus.QUARANTINED if has_preserved else MandalaStatus.DEGRADED
+            receipt = PerceptionReceipt(
+                **receipt_meta(
+                    packet,
+                    status=status,
+                    produced_by="soma.screen-burst",
+                    parent_receipt_id=gate_receipt.receipt_id,
+                ),
+                native_evidence_ref=None,
+                acuity_status=AcuityStatus.UNAVAILABLE.value,
+                limitations=(
+                    "no_valid_burst_frame",
+                    "no_observation_fabricated",
+                    "preserved_frames_not_promoted",
+                ),
+                source_id=source_id,
+                native_preserved=has_preserved,
+                acquisition_method="screen_multishot",
+                acquisition_status=status.value.lower(),
+                source_locator=source_id,
+                capture_region=region_data,
+                capture_backend=provider.name,
+                capture_attempts=frame_count,
+                burst_frame_refs=tuple(item.evidence_ref for item in frame_evidence),
+                burst_frame_records=tuple(records),
+                selection_method=scorer.name,
+            )
+            self.ledger.append(receipt)
+            return ScreenBurstResult(
+                packet=packet,
+                receipt=receipt,
+                frame_evidence=tuple(frame_evidence),
+                frame_records=tuple(records),
+                selected_evidence_ref=None,
+                observation_sha256=None,
+                requested_frames=frame_count,
+                valid_frames=0,
+            )
+
+        selected_index, selected, _ = max(valid, key=lambda item: (item[2], -item[0]))
+        partial = len(valid) != frame_count
+        status = MandalaStatus.DEGRADED if partial else MandalaStatus.ACCEPTED
+        limitations = [
+            "multishot_selection_is_heuristic",
+            "selected_frame_remains_native_evidence",
+            "no_frame_fusion",
+            "no_semantic_interpretation",
+            "selection_does_not_increase_authority",
+        ]
+        if partial:
+            limitations.append("partial_burst")
+
+        receipt = PerceptionReceipt(
+            **receipt_meta(
+                packet,
+                status=status,
+                produced_by="soma.screen-burst",
+                parent_receipt_id=gate_receipt.receipt_id,
+            ),
+            native_evidence_ref=selected.evidence_ref,
+            acuity_status=AcuityStatus.RECOVERED.value,
+            limitations=tuple(limitations),
+            source_id=source_id,
+            native_sha256=selected.sha256,
+            observation_sha256=selected.sha256,
+            native_preserved=True,
+            media_type=selected.media_type,
+            acquisition_method="screen_multishot",
+            acquisition_status="degraded" if partial else "accepted",
+            source_locator=source_id,
+            capture_region=region_data,
+            capture_backend=provider.name,
+            capture_attempts=frame_count,
+            recovery_steps=("select_best_native_frame",),
+            burst_frame_refs=tuple(item.evidence_ref for item in frame_evidence),
+            burst_frame_records=tuple(records),
+            selected_evidence_ref=selected.evidence_ref,
+            observation_evidence_ref=selected.evidence_ref,
+            selection_method=scorer.name,
+        )
+        self.ledger.append(receipt)
+
+        selected_record = next(item for item in records if item["index"] == selected_index)
+        selected_record["selected"] = True
+
+        return ScreenBurstResult(
+            packet=packet,
+            receipt=receipt,
+            frame_evidence=tuple(frame_evidence),
+            frame_records=tuple(records),
+            selected_evidence_ref=selected.evidence_ref,
+            observation_sha256=selected.sha256,
+            requested_frames=frame_count,
+            valid_frames=len(valid),
         )

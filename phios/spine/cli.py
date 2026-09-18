@@ -17,7 +17,7 @@ def _runtime(args: argparse.Namespace) -> PhiOSSpine:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="phi-spine", description="PhiOS Spine v0.6")
+    parser = argparse.ArgumentParser(prog="phi-spine", description="PhiOS Spine v0.7")
     parser.add_argument("--state-root", help="Override the PhiOS Spine local state root")
     parser.add_argument(
         "--allow",
@@ -28,7 +28,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     sub = parser.add_subparsers(dest="command", required=True)
 
-    sub.add_parser("status", help="Show the v0.6 spine and Mandala contract state")
+    sub.add_parser("status", help="Show the v0.7 spine and Mandala contract state")
     sub.add_parser("list", help="List registered capabilities")
 
     perceive = sub.add_parser(
@@ -70,6 +70,18 @@ def build_parser() -> argparse.ArgumentParser:
     perceive_screen.add_argument("--height", type=int, required=True)
     perceive_screen.add_argument("--max-pixels", type=int, default=8_294_400)
     perceive_screen.add_argument("--reacquire-attempts", type=int, default=1)
+
+    perceive_burst = sub.add_parser(
+        "perceive-screen-burst",
+        help="Capture a bounded burst and select the sharpest valid native frame",
+    )
+    perceive_burst.add_argument("--x", type=int, required=True)
+    perceive_burst.add_argument("--y", type=int, required=True)
+    perceive_burst.add_argument("--width", type=int, required=True)
+    perceive_burst.add_argument("--height", type=int, required=True)
+    perceive_burst.add_argument("--frames", type=int, default=3)
+    perceive_burst.add_argument("--max-pixels", type=int, default=8_294_400)
+    perceive_burst.add_argument("--max-total-pixels", type=int, default=33_177_600)
 
     recover_screen = sub.add_parser(
         "recover-screen",
@@ -115,7 +127,7 @@ def main() -> int:
                     "core_lifecycle": runtime.core.lifecycle.value,
                     "gates": [gate.value for gate in Gate],
                     "statuses": [status.value for status in MandalaStatus],
-                    "north_gate": "soma.text.v0.1+soma.file.v0.1+soma.screen.v0.1+soma.recovery.v0.1",
+                    "north_gate": "soma.text.v0.1+soma.file.v0.1+soma.screen.v0.1+soma.recovery.v0.1+soma.multishot.v0.1",
                 },
                 indent=2,
             )
@@ -164,6 +176,26 @@ def main() -> int:
         return (
             0
             if screen_result.receipt.status
+            in {MandalaStatus.ACCEPTED, MandalaStatus.DEGRADED}
+            else 2
+        )
+
+    if args.command == "perceive-screen-burst":
+        burst_result = runtime.perceive_screen_burst(
+            region=ScreenRegion(
+                x=args.x,
+                y=args.y,
+                width=args.width,
+                height=args.height,
+            ),
+            frame_count=args.frames,
+            max_pixels=args.max_pixels,
+            max_total_pixels=args.max_total_pixels,
+        )
+        print(json.dumps(burst_result.to_dict(), indent=2))
+        return (
+            0
+            if burst_result.receipt.status
             in {MandalaStatus.ACCEPTED, MandalaStatus.DEGRADED}
             else 2
         )
