@@ -8,7 +8,11 @@ from typing import Any
 from phios.mandala import MandalaPacket, RealityReceipt
 
 from .local_http import local_http_url_error
-from .local_json import JSON_TYPE_NAMES, json_pointer_error
+from .local_json import (
+    JSON_TYPE_NAMES,
+    json_pointer_error,
+    json_structural_predicate_error,
+)
 
 
 class RealityClaimKind(StrEnum):
@@ -18,6 +22,7 @@ class RealityClaimKind(StrEnum):
     LOCAL_TCP_LISTENER_STATE = "local_tcp_listener_state"
     LOCAL_HTTP_RESPONSE_STATE = "local_http_response_state"
     LOCAL_HTTP_JSON_CONTRACT = "local_http_json_contract"
+    LOCAL_HTTP_JSON_PREDICATE = "local_http_json_predicate"
 
 
 class RealityVerdict(StrEnum):
@@ -46,6 +51,8 @@ class RealityClaim:
     http_max_body_bytes: int = 65_536
     json_pointer: str | None = None
     expected_json_type: str | None = None
+    json_predicate_kind: str | None = None
+    json_predicate_bound: int | None = None
 
     @classmethod
     def create(
@@ -67,6 +74,8 @@ class RealityClaim:
         http_max_body_bytes: int = 65_536,
         json_pointer: str | None = None,
         expected_json_type: str | None = None,
+        json_predicate_kind: str | None = None,
+        json_predicate_bound: int | None = None,
     ) -> "RealityClaim":
         return cls(
             claim_id=str(uuid.uuid4()),
@@ -86,6 +95,8 @@ class RealityClaim:
             http_max_body_bytes=http_max_body_bytes,
             json_pointer=json_pointer,
             expected_json_type=expected_json_type,
+            json_predicate_kind=json_predicate_kind,
+            json_predicate_bound=json_predicate_bound,
         )
 
     def validation_errors(self) -> tuple[str, ...]:
@@ -118,6 +129,7 @@ class RealityClaim:
         if self.kind in {
             RealityClaimKind.LOCAL_HTTP_RESPONSE_STATE,
             RealityClaimKind.LOCAL_HTTP_JSON_CONTRACT,
+            RealityClaimKind.LOCAL_HTTP_JSON_PREDICATE,
         }:
             url_error = local_http_url_error(self.http_url)
             if url_error is not None:
@@ -131,14 +143,27 @@ class RealityClaim:
             if not 1 <= self.http_max_body_bytes <= 1_048_576:
                 errors.append("local_http_claim_invalid_body_budget")
 
-        if self.kind is RealityClaimKind.LOCAL_HTTP_JSON_CONTRACT:
+        if self.kind in {
+            RealityClaimKind.LOCAL_HTTP_JSON_CONTRACT,
+            RealityClaimKind.LOCAL_HTTP_JSON_PREDICATE,
+        }:
             pointer_error = json_pointer_error(self.json_pointer)
             if pointer_error is not None:
                 errors.append(pointer_error)
+
+        if self.kind is RealityClaimKind.LOCAL_HTTP_JSON_CONTRACT:
             if self.expected_json_type is None:
                 errors.append("local_http_json_claim_requires_expected_type")
             elif self.expected_json_type not in JSON_TYPE_NAMES:
                 errors.append("local_http_json_claim_invalid_expected_type")
+
+        if self.kind is RealityClaimKind.LOCAL_HTTP_JSON_PREDICATE:
+            predicate_error = json_structural_predicate_error(
+                self.json_predicate_kind,
+                self.json_predicate_bound,
+            )
+            if predicate_error is not None:
+                errors.append(predicate_error)
 
         return tuple(errors)
 
@@ -161,6 +186,8 @@ class RealityClaim:
             "http_max_body_bytes": self.http_max_body_bytes,
             "json_pointer": self.json_pointer,
             "expected_json_type": self.expected_json_type,
+            "json_predicate_kind": self.json_predicate_kind,
+            "json_predicate_bound": self.json_predicate_bound,
         }
 
 
