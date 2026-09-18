@@ -6,6 +6,7 @@ from pathlib import Path
 
 from phios.mandala import MANDALA_CONTRACT_VERSION, Gate, MandalaStatus
 
+from . import __version__ as SPINE_VERSION
 from .runtime import PhiOSSpine
 
 
@@ -64,7 +65,7 @@ def main() -> int:
         print(
             json.dumps(
                 {
-                    "version": "0.3.0",
+                    "version": SPINE_VERSION,
                     "state_root": str(runtime.state_root),
                     "capability_count": len(runtime.registry.list()),
                     "legacy_ledger": str(runtime.ledger.path),

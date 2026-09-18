@@ -49,7 +49,7 @@ def test_normalization_marks_recovered_without_mutating_native(tmp_path: Path) -
         transforms=("strip_utf8_bom", "normalize_newlines"),
     )
 
-    assert Path(result.evidence.path).read_text(encoding="utf-8") == native_text
+    assert Path(result.evidence.path).read_bytes().decode("utf-8") == native_text
     assert result.observation_text == "line one\nline two\n"
     assert result.receipt.acuity_status == AcuityStatus.RECOVERED.value
     assert result.receipt.transforms == ("strip_utf8_bom", "normalize_newlines")
