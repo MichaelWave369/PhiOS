@@ -57,9 +57,10 @@ def test_pyproject_has_homepage_url():
     assert "Homepage = \"https://github.com/MichaelWave369/PhiOS\"" in text
 
 
-def test_pyproject_has_manifesto_url():
+def test_pyproject_uses_current_project_urls():
     text = Path("pyproject.toml").read_text(encoding="utf-8")
-    assert "Manifesto = \"https://enterthefield.org/phios\"" in text
+    assert 'Repository = "https://github.com/MichaelWave369/PhiOS"' in text
+    assert "enterthefield.org/phios" not in text
 
 
 def test_phi_entrypoint_defined_in_pyproject():
