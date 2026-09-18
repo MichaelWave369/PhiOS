@@ -158,6 +158,21 @@ def test_non_multi_claim_rejects_multi_clause_payload() -> None:
     )
 
 
+def test_clause_mapping_rejects_unknown_keys() -> None:
+    try:
+        JsonContractClause.from_mapping(
+            {
+                "pointer": "/models",
+                "predicte": "array_length_gte",
+                "bound": 1,
+            }
+        )
+    except ValueError as exc:
+        assert "unsupported JSON clause keys: predicte" in str(exc)
+    else:
+        raise AssertionError("unknown clause key should fail closed")
+
+
 def test_clause_requires_exactly_one_mode() -> None:
     neither = JsonContractClause(pointer="/models")
     both = JsonContractClause(
