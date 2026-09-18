@@ -33,9 +33,9 @@ dev = [
   "build>=1.2.2",
   "twine>=5.1.1",
   "requests>=2.32.0",
-  "pytest>=8.0.0",
-  "ruff>=0.6.0",
-  "mypy>=1.11.0",
+  "pytest==9.0.2",
+  "ruff==0.15.6",
+  "mypy==1.19.1",
 ]
 
 [project.scripts]
