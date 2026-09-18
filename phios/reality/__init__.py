@@ -1,5 +1,12 @@
 """Reality Gate verification primitives for PhiOS."""
 
+from .local_http import (
+    LocalHttpObservation,
+    LocalHttpObservationError,
+    LocalHttpStateProvider,
+    UnavailableLocalHttpStateProvider,
+    local_http_url_error,
+)
 from .local_network import (
     InterfaceObservation,
     InterfaceObservationError,
@@ -24,6 +31,9 @@ __all__ = [
     "InterfaceObservation",
     "InterfaceObservationError",
     "InterfaceStateProvider",
+    "LocalHttpObservation",
+    "LocalHttpObservationError",
+    "LocalHttpStateProvider",
     "PsutilInterfaceStateProvider",
     "PsutilTcpListenerStateProvider",
     "RealityClaim",
@@ -34,4 +44,6 @@ __all__ = [
     "TcpListenerObservation",
     "TcpListenerObservationError",
     "TcpListenerStateProvider",
+    "UnavailableLocalHttpStateProvider",
+    "local_http_url_error",
 ]

@@ -23,6 +23,7 @@ from phios.mandala import (
 from phios.mandala.receipts import receipt_meta
 from phios.reality import (
     InterfaceStateProvider,
+    LocalHttpStateProvider,
     RealityClaim,
     RealityVerificationResult,
     RealityVerificationService,
@@ -208,12 +209,14 @@ class PhiOSSpine:
         max_evidence_bytes: int = 1_048_576,
         interface_provider: InterfaceStateProvider | None = None,
         tcp_listener_provider: TcpListenerStateProvider | None = None,
+        local_http_provider: LocalHttpStateProvider | None = None,
     ) -> RealityVerificationResult:
         return self.reality.verify(
             claims=claims,
             max_evidence_bytes=max_evidence_bytes,
             interface_provider=interface_provider,
             tcp_listener_provider=tcp_listener_provider,
+            local_http_provider=local_http_provider,
         )
 
     def enhance_screen_evidence(
