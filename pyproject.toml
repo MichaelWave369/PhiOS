@@ -43,7 +43,7 @@ phi = "phios.shell.phi_session:main"
 phi-mcp = "phios.mcp.server:main"
 
 [tool.setuptools]
-packages = ["phios", "phios.shell", "phios.core", "phios.display", "phios.desktop", "phios.adapters", "phios.services", "phios.templates", "phios.ml", "phios.mcp", "phios.mcp.resources", "phios.mcp.tools", "phios.mcp.prompts"]
+packages = ["phios", "phios.shell", "phios.core", "phios.display", "phios.desktop", "phios.adapters", "phios.services", "phios.templates", "phios.ml", "phios.mcp", "phios.mcp.resources", "phios.mcp.tools", "phios.mcp.prompts", "phios.spine"]
 
 [tool.setuptools.dynamic]
 version = {attr = "phios.__version__"}
