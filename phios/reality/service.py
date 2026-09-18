@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections import Counter
 import json
-import time
+from time import monotonic, sleep
 from typing import Any
 
 from phios.mandala import (
@@ -1880,12 +1880,12 @@ class RealityVerificationService:
                     previous_start_monotonic + claim.minimum_interval_seconds
                 )
                 while True:
-                    remaining = deadline - time.monotonic()
+                    remaining = deadline - monotonic()
                     if remaining <= 0:
                         break
-                    time.sleep(remaining)
+                    sleep(remaining)
 
-            started_monotonic = time.monotonic()
+            started_monotonic = monotonic()
             interval_since_previous = (
                 None
                 if previous_start_monotonic is None
