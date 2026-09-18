@@ -68,3 +68,25 @@ class FileObservationResult:
         if include_observation:
             data["observation_text"] = self.observation_text
         return data
+
+
+@dataclass(frozen=True, kw_only=True)
+class ScreenObservationResult:
+    packet: MandalaPacket
+    evidence: NativeEvidence | None
+    receipt: PerceptionReceipt
+    region: dict[str, int]
+    capture_backend: str
+    capture_attempts: int
+    observation_sha256: str | None
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "packet": self.packet.to_dict(),
+            "evidence": self.evidence.to_dict() if self.evidence is not None else None,
+            "receipt": self.receipt.to_dict(),
+            "region": dict(self.region),
+            "capture_backend": self.capture_backend,
+            "capture_attempts": self.capture_attempts,
+            "observation_sha256": self.observation_sha256,
+        }

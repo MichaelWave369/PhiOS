@@ -19,7 +19,14 @@ from phios.mandala.receipts import receipt_meta
 
 from .acquisition import BoundedTextFileAdapter, FileAcquisitionError, FileSourcePolicy
 from .evidence import NativeEvidenceStore
-from .models import AcuityStatus, FileObservationResult, NativeEvidence, ObservationResult
+from .models import (
+    AcuityStatus,
+    FileObservationResult,
+    NativeEvidence,
+    ObservationResult,
+    ScreenObservationResult,
+)
+from .screen import CapturedFrame, ScreenCaptureError, ScreenCaptureProvider, ScreenRegion
 
 SUPPORTED_TRANSFORMS = (
     "strip_utf8_bom",
@@ -394,4 +401,282 @@ class SomaPerceptionService:
             observation_text=observation,
             relative_path=acquired.relative_path,
             source_root_ref=root_ref,
+        )
+
+
+    def perceive_screen(
+        self,
+        *,
+        region: ScreenRegion,
+        provider: ScreenCaptureProvider,
+        max_pixels: int = 8_294_400,
+        reacquire_attempts: int = 1,
+    ) -> ScreenObservationResult:
+        permission = "perception.screen.capture"
+        region_data = region.to_dict()
+        source_id = (
+            f"screen-region:{region.x},{region.y},"
+            f"{region.width}x{region.height}"
+        )
+        packet = self._packet(
+            source_id=source_id,
+            source_kind=OriginKind.DEVICE,
+            native=None,
+            payload_extra={
+                "capture_region": region_data,
+                "capture_backend": provider.name,
+                "max_pixels": max_pixels,
+                "reacquire_attempts": reacquire_attempts,
+            },
+        )
+
+        if not self.authority.allows(permission):
+            gate_receipt = self._gate_receipt(
+                packet,
+                status=MandalaStatus.BLOCKED,
+                reason=f"screen capture blocked: missing explicit grant {permission}",
+            )
+            receipt = PerceptionReceipt(
+                **receipt_meta(
+                    packet,
+                    status=MandalaStatus.BLOCKED,
+                    produced_by="soma.screen",
+                    parent_receipt_id=gate_receipt.receipt_id,
+                ),
+                native_evidence_ref=None,
+                acuity_status=AcuityStatus.UNAVAILABLE.value,
+                limitations=(
+                    f"missing_grant:{permission}",
+                    "native_evidence_unavailable",
+                    "visibility_does_not_imply_permission",
+                ),
+                source_id=source_id,
+                native_preserved=False,
+                acquisition_method="screen_region",
+                acquisition_status="blocked",
+                source_locator=source_id,
+                capture_region=region_data,
+                capture_backend=provider.name,
+                capture_attempts=0,
+            )
+            self.ledger.append(receipt)
+            return ScreenObservationResult(
+                packet=packet,
+                evidence=None,
+                receipt=receipt,
+                region=region_data,
+                capture_backend=provider.name,
+                capture_attempts=0,
+                observation_sha256=None,
+            )
+
+        try:
+            region.validate(max_pixels=max_pixels)
+            if reacquire_attempts < 0 or reacquire_attempts > 2:
+                raise ScreenCaptureError(
+                    "invalid_reacquire_attempts",
+                    "reacquire_attempts must be between 0 and 2",
+                )
+        except ScreenCaptureError as exc:
+            gate_receipt = self._gate_receipt(
+                packet,
+                status=MandalaStatus.BLOCKED,
+                reason=f"screen capture blocked: {exc.code}",
+            )
+            receipt = PerceptionReceipt(
+                **receipt_meta(
+                    packet,
+                    status=MandalaStatus.BLOCKED,
+                    produced_by="soma.screen",
+                    parent_receipt_id=gate_receipt.receipt_id,
+                ),
+                native_evidence_ref=None,
+                acuity_status=AcuityStatus.UNAVAILABLE.value,
+                limitations=(
+                    exc.code,
+                    "native_evidence_unavailable",
+                    "visibility_does_not_imply_permission",
+                ),
+                source_id=source_id,
+                native_preserved=False,
+                acquisition_method="screen_region",
+                acquisition_status="blocked",
+                source_locator=source_id,
+                capture_region=region_data,
+                capture_backend=provider.name,
+                capture_attempts=0,
+            )
+            self.ledger.append(receipt)
+            return ScreenObservationResult(
+                packet=packet,
+                evidence=None,
+                receipt=receipt,
+                region=region_data,
+                capture_backend=provider.name,
+                capture_attempts=0,
+                observation_sha256=None,
+            )
+
+        gate_receipt = self._gate_receipt(
+            packet,
+            status=MandalaStatus.ACCEPTED,
+            reason="explicit screen capture grant and region policy accepted",
+        )
+
+        total_attempts = 1 + reacquire_attempts
+        last_code = "capture_failed"
+        last_bad_frame: CapturedFrame | None = None
+        attempts_used = 0
+
+        for attempt in range(1, total_attempts + 1):
+            attempts_used = attempt
+            try:
+                frame = provider.capture(region)
+            except ScreenCaptureError as exc:
+                last_code = exc.code
+                continue
+            except Exception:  # noqa: BLE001 - provider boundary
+                last_code = "capture_backend_error"
+                continue
+
+            if not frame.data:
+                last_code = "empty_capture"
+                continue
+            if frame.media_type != "image/png" or frame.suffix.lower() != ".png":
+                last_code = "unsupported_capture_format"
+                last_bad_frame = frame
+                continue
+            if frame.width != region.width or frame.height != region.height:
+                last_code = "capture_dimensions_mismatch"
+                last_bad_frame = frame
+                continue
+
+            native = self.evidence.put_bytes(
+                frame.data,
+                media_type=frame.media_type,
+                suffix=frame.suffix,
+            )
+            recovered = attempt > 1
+            recovery_steps = ("reacquire_same_region",) if recovered else ()
+            receipt = PerceptionReceipt(
+                **receipt_meta(
+                    packet,
+                    status=MandalaStatus.ACCEPTED,
+                    produced_by="soma.screen",
+                    parent_receipt_id=gate_receipt.receipt_id,
+                ),
+                native_evidence_ref=native.evidence_ref,
+                acuity_status=(
+                    AcuityStatus.RECOVERED.value if recovered else AcuityStatus.NATIVE.value
+                ),
+                limitations=(
+                    "observation_not_truth",
+                    "screen_capture_contains_no_interpretation",
+                    "enhancement_does_not_increase_authority",
+                ),
+                source_id=source_id,
+                native_sha256=native.sha256,
+                observation_sha256=native.sha256,
+                native_preserved=True,
+                media_type=native.media_type,
+                acquisition_method="screen_region",
+                acquisition_status="accepted",
+                source_locator=source_id,
+                capture_region=region_data,
+                capture_backend=frame.backend,
+                capture_attempts=attempt,
+                recovery_steps=recovery_steps,
+            )
+            self.ledger.append(receipt)
+            return ScreenObservationResult(
+                packet=packet,
+                evidence=native,
+                receipt=receipt,
+                region=region_data,
+                capture_backend=frame.backend,
+                capture_attempts=attempt,
+                observation_sha256=native.sha256,
+            )
+
+        if last_bad_frame is not None:
+            native = self.evidence.put_bytes(
+                last_bad_frame.data,
+                media_type=last_bad_frame.media_type,
+                suffix=last_bad_frame.suffix,
+            )
+            receipt = PerceptionReceipt(
+                **receipt_meta(
+                    packet,
+                    status=MandalaStatus.QUARANTINED,
+                    produced_by="soma.screen",
+                    parent_receipt_id=gate_receipt.receipt_id,
+                ),
+                native_evidence_ref=native.evidence_ref,
+                acuity_status=AcuityStatus.UNAVAILABLE.value,
+                limitations=(
+                    last_code,
+                    "native_evidence_preserved",
+                    "screen_capture_not_interpreted",
+                ),
+                source_id=source_id,
+                native_sha256=native.sha256,
+                observation_sha256=None,
+                native_preserved=True,
+                media_type=native.media_type,
+                acquisition_method="screen_region",
+                acquisition_status="quarantined",
+                source_locator=source_id,
+                capture_region=region_data,
+                capture_backend=last_bad_frame.backend,
+                capture_attempts=attempts_used,
+                recovery_steps=(
+                    ("reacquire_same_region",) if attempts_used > 1 else ()
+                ),
+            )
+            self.ledger.append(receipt)
+            return ScreenObservationResult(
+                packet=packet,
+                evidence=native,
+                receipt=receipt,
+                region=region_data,
+                capture_backend=last_bad_frame.backend,
+                capture_attempts=attempts_used,
+                observation_sha256=None,
+            )
+
+        receipt = PerceptionReceipt(
+            **receipt_meta(
+                packet,
+                status=MandalaStatus.DEGRADED,
+                produced_by="soma.screen",
+                parent_receipt_id=gate_receipt.receipt_id,
+            ),
+            native_evidence_ref=None,
+            acuity_status=AcuityStatus.UNAVAILABLE.value,
+            limitations=(
+                last_code,
+                "native_evidence_unavailable",
+                "no_observation_fabricated",
+            ),
+            source_id=source_id,
+            native_preserved=False,
+            acquisition_method="screen_region",
+            acquisition_status="unavailable",
+            source_locator=source_id,
+            capture_region=region_data,
+            capture_backend=provider.name,
+            capture_attempts=attempts_used,
+            recovery_steps=(
+                ("reacquire_same_region",) if attempts_used > 1 else ()
+            ),
+        )
+        self.ledger.append(receipt)
+        return ScreenObservationResult(
+            packet=packet,
+            evidence=None,
+            receipt=receipt,
+            region=region_data,
+            capture_backend=provider.name,
+            capture_attempts=attempts_used,
+            observation_sha256=None,
         )

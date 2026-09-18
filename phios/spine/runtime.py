@@ -21,7 +21,15 @@ from phios.mandala import (
     PhiCoreState,
 )
 from phios.mandala.receipts import receipt_meta
-from phios.soma import FileObservationResult, ObservationResult, SomaPerceptionService
+from phios.soma import (
+    FileObservationResult,
+    ObservationResult,
+    PillowScreenCaptureProvider,
+    ScreenCaptureProvider,
+    ScreenObservationResult,
+    ScreenRegion,
+    SomaPerceptionService,
+)
 
 from .collaborator import PhiVesselAdapter
 from .executor import ExecutorRegistry, text_artifact_handler
@@ -111,6 +119,22 @@ class PhiOSSpine:
             relative_path=relative_path,
             transforms=transforms,
             max_bytes=max_bytes,
+        )
+
+    def perceive_screen(
+        self,
+        *,
+        region: ScreenRegion,
+        provider: ScreenCaptureProvider | None = None,
+        max_pixels: int = 8_294_400,
+        reacquire_attempts: int = 1,
+    ) -> ScreenObservationResult:
+        capture_provider = provider or PillowScreenCaptureProvider()
+        return self.soma.perceive_screen(
+            region=region,
+            provider=capture_provider,
+            max_pixels=max_pixels,
+            reacquire_attempts=reacquire_attempts,
         )
 
     def _action_packet(self, plan: Any, capability: Capability) -> MandalaPacket:
