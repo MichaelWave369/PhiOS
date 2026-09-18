@@ -2243,27 +2243,27 @@ class RealityVerificationService:
                 if previous_start_monotonic is None
                 else started_monotonic - previous_start_monotonic
             )
-            lower_bound_satisfied = (
-                None
-                if interval_since_previous is None
-                else interval_since_previous >= claim.minimum_interval_seconds
-            )
-            upper_bound_satisfied = (
-                None
-                if interval_since_previous is None
-                else interval_since_previous <= claim.maximum_interval_seconds
-            )
-            cadence_satisfied = (
-                None
-                if interval_since_previous is None
-                else bool(lower_bound_satisfied and upper_bound_satisfied)
-            )
-            previous_start_monotonic = started_monotonic
             persisted_interval = (
                 None
                 if interval_since_previous is None
                 else round(interval_since_previous, 9)
             )
+            lower_bound_satisfied = (
+                None
+                if persisted_interval is None
+                else persisted_interval >= claim.minimum_interval_seconds
+            )
+            upper_bound_satisfied = (
+                None
+                if persisted_interval is None
+                else persisted_interval <= claim.maximum_interval_seconds
+            )
+            cadence_satisfied = (
+                None
+                if persisted_interval is None
+                else bool(lower_bound_satisfied and upper_bound_satisfied)
+            )
+            previous_start_monotonic = started_monotonic
 
             try:
                 observation = provider.observe(
