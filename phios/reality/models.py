@@ -359,7 +359,7 @@ class RealityClaim:
             and self.repeat_observation_count is not None
         ):
             errors.append(
-                "repeat_observation_count_only_for_repeated_or_timed_mixed_contract"
+                "repeat_observation_count_only_for_repeated_mixed_contract"
             )
 
         if (
