@@ -252,12 +252,11 @@ python -m pip install -e ".[ocr]"
 
 ## Quick start
 
-Inspect available surfaces:
+Inspect the shell and Spine surfaces:
 
 ```bash
 phi --help
 phi-spine --help
-phi-mcp --help
 ```
 
 Check the Spine contract state:
