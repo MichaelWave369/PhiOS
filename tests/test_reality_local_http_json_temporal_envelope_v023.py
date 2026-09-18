@@ -280,6 +280,18 @@ def test_temporal_envelope_interval_and_span_bounds() -> None:
     ).validation_errors()
 
 
+def test_temporal_envelope_feasibility_uses_nine_decimal_precision() -> None:
+    claim = _claim(
+        count=4,
+        minimum_interval=0.1,
+        maximum_interval=0.1,
+        minimum_span=0.3,
+        maximum_span=0.3,
+    )
+
+    assert claim.validation_errors() == ()
+
+
 def test_temporal_envelope_rejects_mathematically_infeasible_span() -> None:
     claim = _claim(
         count=3,
