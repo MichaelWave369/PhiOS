@@ -9,8 +9,12 @@ from .local_http import (
     local_http_url_error,
 )
 from .local_json import (
+    JSON_STRUCTURAL_PREDICATES,
     JSON_TYPE_NAMES,
+    evaluate_json_structural_predicate,
     json_pointer_error,
+    json_structural_predicate_error,
+    json_structural_predicate_expected_type,
     json_type_matches,
     json_type_name,
     resolve_json_pointer,
@@ -37,6 +41,7 @@ from .models import (
 from .service import RealityVerificationService
 
 __all__ = [
+    "JSON_STRUCTURAL_PREDICATES",
     "JSON_TYPE_NAMES",
     "InterfaceObservation",
     "InterfaceObservationError",
@@ -56,7 +61,10 @@ __all__ = [
     "TcpListenerObservationError",
     "TcpListenerStateProvider",
     "UnavailableLocalHttpStateProvider",
+    "evaluate_json_structural_predicate",
     "json_pointer_error",
+    "json_structural_predicate_error",
+    "json_structural_predicate_expected_type",
     "json_type_matches",
     "json_type_name",
     "local_http_url_error",
