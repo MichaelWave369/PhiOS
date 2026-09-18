@@ -21,7 +21,7 @@ from phios.mandala import (
     PhiCoreState,
 )
 from phios.mandala.receipts import receipt_meta
-from phios.soma import ObservationResult, SomaPerceptionService
+from phios.soma import FileObservationResult, ObservationResult, SomaPerceptionService
 
 from .collaborator import PhiVesselAdapter
 from .executor import ExecutorRegistry, text_artifact_handler
@@ -96,6 +96,21 @@ class PhiOSSpine:
             text=text,
             transforms=transforms,
             source_kind=source_kind,
+        )
+
+    def perceive_file(
+        self,
+        *,
+        source_root: Path,
+        relative_path: str,
+        transforms: tuple[str, ...] = (),
+        max_bytes: int = 1_048_576,
+    ) -> FileObservationResult:
+        return self.soma.perceive_file(
+            source_root=source_root,
+            relative_path=relative_path,
+            transforms=transforms,
+            max_bytes=max_bytes,
         )
 
     def _action_packet(self, plan: Any, capability: Capability) -> MandalaPacket:

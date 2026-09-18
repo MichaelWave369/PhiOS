@@ -16,7 +16,7 @@ def _runtime(args: argparse.Namespace) -> PhiOSSpine:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="phi-spine", description="PhiOS Spine v0.3")
+    parser = argparse.ArgumentParser(prog="phi-spine", description="PhiOS Spine v0.4")
     parser.add_argument("--state-root", help="Override the PhiOS Spine local state root")
     parser.add_argument(
         "--allow",
@@ -27,7 +27,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     sub = parser.add_subparsers(dest="command", required=True)
 
-    sub.add_parser("status", help="Show the v0.3 spine and Mandala contract state")
+    sub.add_parser("status", help="Show the v0.4 spine and Mandala contract state")
     sub.add_parser("list", help="List registered capabilities")
 
     perceive = sub.add_parser(
@@ -37,6 +37,21 @@ def build_parser() -> argparse.ArgumentParser:
     perceive.add_argument("--source-id", required=True)
     perceive.add_argument("--text", required=True)
     perceive.add_argument(
+        "--transform",
+        action="append",
+        default=[],
+        choices=["strip_utf8_bom", "normalize_newlines"],
+        help="Apply one deterministic recovery transform (repeatable)",
+    )
+
+    perceive_file = sub.add_parser(
+        "perceive-file",
+        help="Acquire one bounded text-like file through the SOMA North Gate",
+    )
+    perceive_file.add_argument("--root", required=True, help="Explicit source root")
+    perceive_file.add_argument("--path", required=True, help="Path relative to --root")
+    perceive_file.add_argument("--max-bytes", type=int, default=1_048_576)
+    perceive_file.add_argument(
         "--transform",
         action="append",
         default=[],
@@ -76,7 +91,7 @@ def main() -> int:
                     "core_lifecycle": runtime.core.lifecycle.value,
                     "gates": [gate.value for gate in Gate],
                     "statuses": [status.value for status in MandalaStatus],
-                    "north_gate": "soma.text.v0.1",
+                    "north_gate": "soma.text.v0.1+soma.file.v0.1",
                 },
                 indent=2,
             )
@@ -95,6 +110,20 @@ def main() -> int:
         )
         print(json.dumps(result.to_dict(), indent=2))
         return 0 if result.receipt.status in {MandalaStatus.ACCEPTED, MandalaStatus.DEGRADED} else 2
+
+    if args.command == "perceive-file":
+        file_result = runtime.perceive_file(
+            source_root=Path(args.root).expanduser(),
+            relative_path=args.path,
+            transforms=tuple(args.transform),
+            max_bytes=args.max_bytes,
+        )
+        print(json.dumps(file_result.to_dict(), indent=2))
+        return (
+            0
+            if file_result.receipt.status in {MandalaStatus.ACCEPTED, MandalaStatus.DEGRADED}
+            else 2
+        )
 
     if args.command == "run":
         payload = json.loads(args.input)

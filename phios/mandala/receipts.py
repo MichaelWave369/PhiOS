@@ -84,6 +84,10 @@ class PerceptionReceipt(ReceiptEnvelope):
     observation_sha256: str | None = None
     native_preserved: bool = False
     media_type: str | None = None
+    acquisition_method: str | None = None
+    acquisition_status: str | None = None
+    source_locator: str | None = None
+    source_root_ref: str | None = None
     receipt_type: str = field(init=False, default="PerceptionReceipt")
 
 
