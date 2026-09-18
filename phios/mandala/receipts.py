@@ -96,6 +96,10 @@ class PerceptionReceipt(ReceiptEnvelope):
     observation_evidence_ref: str | None = None
     derivation_chain: tuple[dict[str, Any], ...] = field(default_factory=tuple)
     recovery_backend: str | None = None
+    burst_frame_refs: tuple[str, ...] = field(default_factory=tuple)
+    burst_frame_records: tuple[dict[str, Any], ...] = field(default_factory=tuple)
+    selected_evidence_ref: str | None = None
+    selection_method: str | None = None
     receipt_type: str = field(init=False, default="PerceptionReceipt")
 
 

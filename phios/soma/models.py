@@ -112,3 +112,27 @@ class ScreenRecoveryResult:
             "observation_sha256": self.observation_sha256,
             "recovery_steps": list(self.recovery_steps),
         }
+
+
+@dataclass(frozen=True, kw_only=True)
+class ScreenBurstResult:
+    packet: MandalaPacket
+    receipt: PerceptionReceipt
+    frame_evidence: tuple[NativeEvidence, ...]
+    frame_records: tuple[dict[str, Any], ...]
+    selected_evidence_ref: str | None
+    observation_sha256: str | None
+    requested_frames: int
+    valid_frames: int
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "packet": self.packet.to_dict(),
+            "receipt": self.receipt.to_dict(),
+            "frame_evidence": [item.to_dict() for item in self.frame_evidence],
+            "frame_records": [dict(item) for item in self.frame_records],
+            "selected_evidence_ref": self.selected_evidence_ref,
+            "observation_sha256": self.observation_sha256,
+            "requested_frames": self.requested_frames,
+            "valid_frames": self.valid_frames,
+        }
