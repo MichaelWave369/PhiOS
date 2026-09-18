@@ -9,12 +9,16 @@ from .local_http import (
     local_http_url_error,
 )
 from .local_json import (
+    JSON_SCALAR_PREDICATES,
     JSON_STRUCTURAL_PREDICATES,
     JsonContractClause,
     JSON_TYPE_NAMES,
     evaluate_json_contract_clause,
+    evaluate_json_scalar_predicate,
     evaluate_json_structural_predicate,
     json_pointer_error,
+    json_scalar_predicate_error,
+    json_scalar_predicate_expected_type,
     json_structural_predicate_error,
     json_structural_predicate_expected_type,
     json_type_matches,
@@ -43,6 +47,7 @@ from .models import (
 from .service import RealityVerificationService
 
 __all__ = [
+    "JSON_SCALAR_PREDICATES",
     "JSON_STRUCTURAL_PREDICATES",
     "JsonContractClause",
     "JSON_TYPE_NAMES",
@@ -65,8 +70,11 @@ __all__ = [
     "TcpListenerStateProvider",
     "UnavailableLocalHttpStateProvider",
     "evaluate_json_contract_clause",
+    "evaluate_json_scalar_predicate",
     "evaluate_json_structural_predicate",
     "json_pointer_error",
+    "json_scalar_predicate_error",
+    "json_scalar_predicate_expected_type",
     "json_structural_predicate_error",
     "json_structural_predicate_expected_type",
     "json_type_matches",
