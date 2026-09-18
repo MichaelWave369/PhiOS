@@ -59,6 +59,8 @@ The persisted timing measurement is:
 
 `elapsed_since_previous_start_seconds`
 
+Intervals are rounded to 9 decimal places before both cadence evaluation and persistence. The Boolean bound outcomes are therefore reproducible from the evidence record itself rather than depending on hidden extra precision.
+
 Absolute monotonic timestamps are not persisted.
 
 Wall-clock capture timestamps remain provenance only and do not establish cadence.
