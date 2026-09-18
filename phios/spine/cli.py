@@ -209,7 +209,8 @@ def main() -> int:
                     "world_verifiers": [
                         "local-interface-state.v0.1",
                         "local-tcp-listener-state.v0.1",
-                        "local-http-response-contract.v0.1",\n                        "local-http-response-stdlib-loopback.v0.1",
+                        "local-http-response-contract.v0.1",
+                        "local-http-response-stdlib-loopback.v0.1",
                     ],
                 },
                 indent=2,
