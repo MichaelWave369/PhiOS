@@ -26,10 +26,14 @@ from phios.soma import (
     ObservationResult,
     PillowEdgeSharpnessScorer,
     PillowScreenCaptureProvider,
+    PillowUnsharpMaskProvider,
     PillowScreenRecoveryProvider,
     FrameSharpnessScorer,
     ScreenBurstResult,
     ScreenCaptureProvider,
+    ScreenEnhancementProvider,
+    ScreenEnhancementResult,
+    ScreenEnhancementSpec,
     ScreenObservationResult,
     ScreenRecoveryProvider,
     ScreenRecoveryResult,
@@ -163,6 +167,21 @@ class PhiOSSpine:
             frame_count=frame_count,
             max_pixels=max_pixels,
             max_total_pixels=max_total_pixels,
+        )
+
+    def enhance_screen_evidence(
+        self,
+        *,
+        evidence_ref: str,
+        spec: ScreenEnhancementSpec | None = None,
+        provider: ScreenEnhancementProvider | None = None,
+    ) -> ScreenEnhancementResult:
+        enhancement_provider = provider or PillowUnsharpMaskProvider()
+        enhancement_spec = spec or ScreenEnhancementSpec()
+        return self.soma.enhance_screen_evidence(
+            evidence_ref=evidence_ref,
+            provider=enhancement_provider,
+            spec=enhancement_spec,
         )
 
     def recover_screen_evidence(

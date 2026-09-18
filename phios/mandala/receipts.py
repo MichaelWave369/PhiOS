@@ -100,6 +100,10 @@ class PerceptionReceipt(ReceiptEnvelope):
     burst_frame_records: tuple[dict[str, Any], ...] = field(default_factory=tuple)
     selected_evidence_ref: str | None = None
     selection_method: str | None = None
+    input_evidence_ref: str | None = None
+    enhancement_method: str | None = None
+    enhancement_parameters: dict[str, Any] = field(default_factory=dict)
+    enhancement_backend: str | None = None
     receipt_type: str = field(init=False, default="PerceptionReceipt")
 
 

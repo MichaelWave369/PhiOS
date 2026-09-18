@@ -136,3 +136,31 @@ class ScreenBurstResult:
             "requested_frames": self.requested_frames,
             "valid_frames": self.valid_frames,
         }
+
+
+@dataclass(frozen=True, kw_only=True)
+class ScreenEnhancementResult:
+    packet: MandalaPacket
+    receipt: PerceptionReceipt
+    input_evidence_ref: str
+    derived_evidence: NativeEvidence | None
+    observation_evidence_ref: str | None
+    observation_sha256: str | None
+    enhancement_method: str
+    enhancement_parameters: dict[str, Any]
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "packet": self.packet.to_dict(),
+            "receipt": self.receipt.to_dict(),
+            "input_evidence_ref": self.input_evidence_ref,
+            "derived_evidence": (
+                self.derived_evidence.to_dict()
+                if self.derived_evidence is not None
+                else None
+            ),
+            "observation_evidence_ref": self.observation_evidence_ref,
+            "observation_sha256": self.observation_sha256,
+            "enhancement_method": self.enhancement_method,
+            "enhancement_parameters": dict(self.enhancement_parameters),
+        }
