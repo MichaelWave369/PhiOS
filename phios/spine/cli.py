@@ -5,7 +5,12 @@ import json
 from pathlib import Path
 
 from phios.mandala import MANDALA_CONTRACT_VERSION, Gate, MandalaStatus
-from phios.reality import RealityClaim, RealityClaimKind, StdlibLoopbackHttpStateProvider
+from phios.reality import (
+    JSON_TYPE_NAMES,
+    RealityClaim,
+    RealityClaimKind,
+    StdlibLoopbackHttpStateProvider,
+)
 from phios.soma import OcrSpec, ScreenCrop, ScreenEnhancementSpec, ScreenRegion
 
 from . import __version__ as SPINE_VERSION
@@ -18,7 +23,7 @@ def _runtime(args: argparse.Namespace) -> PhiOSSpine:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="phi-spine", description="PhiOS Spine v0.14")
+    parser = argparse.ArgumentParser(prog="phi-spine", description="PhiOS Spine v0.15")
     parser.add_argument("--state-root", help="Override the PhiOS Spine local state root")
     parser.add_argument(
         "--allow",
@@ -29,7 +34,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     sub = parser.add_subparsers(dest="command", required=True)
 
-    sub.add_parser("status", help="Show the v0.14 spine and Mandala contract state")
+    sub.add_parser("status", help="Show the v0.15 spine and Mandala contract state")
     sub.add_parser("list", help="List registered capabilities")
 
     perceive = sub.add_parser(
@@ -161,15 +166,24 @@ def build_parser() -> argparse.ArgumentParser:
     )
     verify_claim.add_argument(
         "--http-url",
-        help="Required loopback HTTP URL for local_http_response_state claims",
+        help="Required loopback HTTP URL for local HTTP claim kinds",
     )
     verify_claim.add_argument(
         "--expected-http-status",
         type=int,
-        help="Required exact HTTP status for local_http_response_state claims",
+        help="Required exact HTTP status for local HTTP claim kinds",
     )
     verify_claim.add_argument("--http-timeout", type=float, default=2.0)
     verify_claim.add_argument("--http-max-body-bytes", type=int, default=65_536)
+    verify_claim.add_argument(
+        "--json-pointer",
+        help="Required RFC-6901-style pointer for local_http_json_contract claims",
+    )
+    verify_claim.add_argument(
+        "--expected-json-type",
+        choices=sorted(JSON_TYPE_NAMES),
+        help="Required JSON type at --json-pointer for local_http_json_contract claims",
+    )
     verify_claim.add_argument("--max-evidence-bytes", type=int, default=1_048_576)
 
     run = sub.add_parser("run", help="Plan, authorize, execute, and receipt a capability")
@@ -205,12 +219,13 @@ def main() -> int:
                     "gates": [gate.value for gate in Gate],
                     "statuses": [status.value for status in MandalaStatus],
                     "north_gate": "soma.text.v0.1+soma.file.v0.1+soma.screen.v0.1+soma.recovery.v0.1+soma.multishot.v0.1+soma.enhancement.v0.1+soma.ocr.v0.1",
-                    "reality_gate": "reality.bounded-evidence.v0.4",
+                    "reality_gate": "reality.bounded-evidence.v0.5",
                     "world_verifiers": [
                         "local-interface-state.v0.1",
                         "local-tcp-listener-state.v0.1",
                         "local-http-response-contract.v0.1",
                         "local-http-response-stdlib-loopback.v0.1",
+                        "local-http-json-contract.v0.1",
                     ],
                 },
                 indent=2,
@@ -384,13 +399,19 @@ def main() -> int:
             expected_http_status=args.expected_http_status,
             http_timeout_seconds=args.http_timeout,
             http_max_body_bytes=args.http_max_body_bytes,
+            json_pointer=args.json_pointer,
+            expected_json_type=args.expected_json_type,
         )
         verification_result = runtime.verify_reality(
             claims=(claim,),
             max_evidence_bytes=args.max_evidence_bytes,
             local_http_provider=(
                 StdlibLoopbackHttpStateProvider()
-                if args.kind == RealityClaimKind.LOCAL_HTTP_RESPONSE_STATE.value
+                if args.kind
+                in {
+                    RealityClaimKind.LOCAL_HTTP_RESPONSE_STATE.value,
+                    RealityClaimKind.LOCAL_HTTP_JSON_CONTRACT.value,
+                }
                 else None
             ),
         )

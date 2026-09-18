@@ -76,9 +76,12 @@ class LocalHttpObservation:
     provider: str
     provider_version: str | None
     captured_at_utc: str
+    body: bytes | None = None
 
     def to_dict(self) -> dict[str, Any]:
-        return asdict(self)
+        data = asdict(self)
+        data.pop("body", None)
+        return data
 
 
 class LocalHttpStateProvider(Protocol):
@@ -250,6 +253,7 @@ class StdlibLoopbackHttpStateProvider:
                     provider=self.name,
                     provider_version=platform.python_version(),
                     captured_at_utc=datetime.now(UTC).isoformat(),
+                    body=body,
                 )
             except (TimeoutError, socket.timeout):
                 last_code = "local_http_timeout"
