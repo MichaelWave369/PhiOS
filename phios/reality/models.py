@@ -540,8 +540,14 @@ class RealityClaim:
                 assert isinstance(max_interval, (int, float))
                 assert isinstance(min_span, (int, float))
                 assert isinstance(max_span, (int, float))
-                implied_min_span = (count - 1) * float(min_interval)
-                implied_max_span = (count - 1) * float(max_interval)
+                implied_min_span = round(
+                    (count - 1) * float(min_interval),
+                    9,
+                )
+                implied_max_span = round(
+                    (count - 1) * float(max_interval),
+                    9,
+                )
                 if (
                     float(max_span) < implied_min_span
                     or float(min_span) > implied_max_span
