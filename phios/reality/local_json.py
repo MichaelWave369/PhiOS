@@ -329,6 +329,194 @@ def evaluate_json_scalar_predicate(
 
 
 @dataclass(frozen=True, kw_only=True)
+class JsonMixedContractClause:
+    pointer: str
+    expected_json_type: str | None = None
+    structural_predicate: str | None = None
+    structural_bound: int | None = None
+    scalar_predicate: str | None = None
+    scalar_operand: str | None = None
+
+    @classmethod
+    def from_mapping(cls, value: dict[str, Any]) -> "JsonMixedContractClause":
+        allowed_keys = {
+            "pointer",
+            "type",
+            "predicate",
+            "bound",
+            "scalar_predicate",
+            "operand",
+        }
+        unknown_keys = sorted(set(value) - allowed_keys)
+        if unknown_keys:
+            joined = ",".join(unknown_keys)
+            raise ValueError(f"unsupported mixed JSON clause keys: {joined}")
+        return cls(
+            pointer=str(value.get("pointer", "")),
+            expected_json_type=(
+                str(value["type"])
+                if value.get("type") is not None
+                else None
+            ),
+            structural_predicate=(
+                str(value["predicate"])
+                if value.get("predicate") is not None
+                else None
+            ),
+            structural_bound=value.get("bound"),
+            scalar_predicate=(
+                str(value["scalar_predicate"])
+                if value.get("scalar_predicate") is not None
+                else None
+            ),
+            scalar_operand=(
+                str(value["operand"])
+                if value.get("operand") is not None
+                else None
+            ),
+        )
+
+    @property
+    def requires_value_read(self) -> bool:
+        return self.scalar_predicate is not None
+
+    def validation_errors(self) -> tuple[str, ...]:
+        errors: list[str] = []
+        pointer_error = json_pointer_error(self.pointer)
+        if pointer_error is not None:
+            errors.append(pointer_error)
+
+        modes = (
+            self.expected_json_type is not None,
+            self.structural_predicate is not None,
+            self.scalar_predicate is not None,
+        )
+        if sum(modes) != 1:
+            errors.append("local_http_json_mixed_clause_requires_exactly_one_mode")
+            return tuple(errors)
+
+        if self.expected_json_type is not None:
+            if self.expected_json_type not in JSON_TYPE_NAMES:
+                errors.append("local_http_json_mixed_clause_invalid_expected_type")
+            if self.structural_bound is not None:
+                errors.append("local_http_json_mixed_clause_type_disallows_bound")
+            if self.scalar_operand is not None:
+                errors.append("local_http_json_mixed_clause_type_disallows_operand")
+            return tuple(errors)
+
+        if self.structural_predicate is not None:
+            if self.scalar_operand is not None:
+                errors.append("local_http_json_mixed_clause_structural_disallows_operand")
+            predicate_error = json_structural_predicate_error(
+                self.structural_predicate,
+                self.structural_bound,
+            )
+            if predicate_error is not None:
+                errors.append(predicate_error)
+            return tuple(errors)
+
+        if self.structural_bound is not None:
+            errors.append("local_http_json_mixed_clause_scalar_disallows_bound")
+        scalar_error = json_scalar_predicate_error(
+            self.scalar_predicate,
+            self.scalar_operand,
+        )
+        if scalar_error is not None:
+            errors.append(scalar_error)
+        return tuple(errors)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "pointer": self.pointer,
+            "expected_json_type": self.expected_json_type,
+            "structural_predicate": self.structural_predicate,
+            "structural_bound": self.structural_bound,
+            "scalar_predicate": self.scalar_predicate,
+            "scalar_operand": self.scalar_operand,
+        }
+
+
+def evaluate_json_mixed_contract_clause(
+    document: Any,
+    clause: JsonMixedContractClause,
+) -> dict[str, Any]:
+    pointer_exists, value = resolve_json_pointer(document, clause.pointer)
+    if clause.expected_json_type is not None:
+        mode = "type"
+    elif clause.structural_predicate is not None:
+        mode = "structural"
+    else:
+        mode = "scalar"
+
+    result: dict[str, Any] = {
+        "pointer": clause.pointer,
+        "pointer_exists": pointer_exists,
+        "mode": mode,
+        "expected_json_type": clause.expected_json_type,
+        "structural_predicate": clause.structural_predicate,
+        "structural_bound": clause.structural_bound,
+        "scalar_predicate": clause.scalar_predicate,
+        "scalar_operand": clause.scalar_operand,
+        "observed_json_type": None,
+        "type_matches": None,
+        "measurement_name": None,
+        "measurement": None,
+        "predicate_matches": None,
+        "clause_matches": False,
+    }
+    if not pointer_exists:
+        return result
+
+    if mode == "type":
+        assert clause.expected_json_type is not None
+        observed_type = json_type_name(value)
+        matched = json_type_matches(value, clause.expected_json_type)
+        result["observed_json_type"] = observed_type
+        result["type_matches"] = matched
+        result["clause_matches"] = matched
+        return result
+
+    if mode == "structural":
+        assert clause.structural_predicate is not None
+        evaluation = evaluate_json_structural_predicate(
+            value,
+            predicate=clause.structural_predicate,
+            bound=clause.structural_bound,
+        )
+        for key in (
+            "expected_json_type",
+            "observed_json_type",
+            "type_matches",
+            "measurement_name",
+            "measurement",
+            "predicate_matches",
+        ):
+            result[key] = evaluation[key]
+        result["clause_matches"] = bool(
+            evaluation["type_matches"] and evaluation["predicate_matches"]
+        )
+        return result
+
+    assert clause.scalar_predicate is not None
+    evaluation = evaluate_json_scalar_predicate(
+        value,
+        predicate=clause.scalar_predicate,
+        operand=clause.scalar_operand,
+    )
+    for key in (
+        "expected_json_type",
+        "observed_json_type",
+        "type_matches",
+        "predicate_matches",
+    ):
+        result[key] = evaluation[key]
+    result["clause_matches"] = bool(
+        evaluation["type_matches"] and evaluation["predicate_matches"]
+    )
+    return result
+
+
+@dataclass(frozen=True, kw_only=True)
 class JsonContractClause:
     pointer: str
     expected_json_type: str | None = None
