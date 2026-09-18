@@ -10,6 +10,7 @@ from phios.mandala import MandalaPacket, RealityReceipt
 from .local_http import local_http_url_error
 from .local_json import (
     JSON_TYPE_NAMES,
+    JsonContractClause,
     json_pointer_error,
     json_structural_predicate_error,
 )
@@ -23,6 +24,7 @@ class RealityClaimKind(StrEnum):
     LOCAL_HTTP_RESPONSE_STATE = "local_http_response_state"
     LOCAL_HTTP_JSON_CONTRACT = "local_http_json_contract"
     LOCAL_HTTP_JSON_PREDICATE = "local_http_json_predicate"
+    LOCAL_HTTP_JSON_MULTI_CONTRACT = "local_http_json_multi_contract"
 
 
 class RealityVerdict(StrEnum):
@@ -53,6 +55,7 @@ class RealityClaim:
     expected_json_type: str | None = None
     json_predicate_kind: str | None = None
     json_predicate_bound: int | None = None
+    json_contract_clauses: tuple[JsonContractClause, ...] = ()
 
     @classmethod
     def create(
@@ -76,6 +79,7 @@ class RealityClaim:
         expected_json_type: str | None = None,
         json_predicate_kind: str | None = None,
         json_predicate_bound: int | None = None,
+        json_contract_clauses: tuple[JsonContractClause, ...] = (),
     ) -> "RealityClaim":
         return cls(
             claim_id=str(uuid.uuid4()),
@@ -97,6 +101,7 @@ class RealityClaim:
             expected_json_type=expected_json_type,
             json_predicate_kind=json_predicate_kind,
             json_predicate_bound=json_predicate_bound,
+            json_contract_clauses=tuple(json_contract_clauses),
         )
 
     def validation_errors(self) -> tuple[str, ...]:
@@ -130,6 +135,7 @@ class RealityClaim:
             RealityClaimKind.LOCAL_HTTP_RESPONSE_STATE,
             RealityClaimKind.LOCAL_HTTP_JSON_CONTRACT,
             RealityClaimKind.LOCAL_HTTP_JSON_PREDICATE,
+            RealityClaimKind.LOCAL_HTTP_JSON_MULTI_CONTRACT,
         }:
             url_error = local_http_url_error(self.http_url)
             if url_error is not None:
@@ -165,6 +171,13 @@ class RealityClaim:
             if predicate_error is not None:
                 errors.append(predicate_error)
 
+        if self.kind is RealityClaimKind.LOCAL_HTTP_JSON_MULTI_CONTRACT:
+            if not 1 <= len(self.json_contract_clauses) <= 8:
+                errors.append("local_http_json_multi_contract_requires_1_to_8_clauses")
+            for index, clause in enumerate(self.json_contract_clauses):
+                for error in clause.validation_errors():
+                    errors.append(f"json_clause_{index}:{error}")
+
         return tuple(errors)
 
     def to_dict(self) -> dict[str, Any]:
@@ -188,6 +201,9 @@ class RealityClaim:
             "expected_json_type": self.expected_json_type,
             "json_predicate_kind": self.json_predicate_kind,
             "json_predicate_bound": self.json_predicate_bound,
+            "json_contract_clauses": [
+                clause.to_dict() for clause in self.json_contract_clauses
+            ],
         }
 
 
