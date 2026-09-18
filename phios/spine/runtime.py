@@ -25,8 +25,12 @@ from phios.soma import (
     FileObservationResult,
     ObservationResult,
     PillowScreenCaptureProvider,
+    PillowScreenRecoveryProvider,
     ScreenCaptureProvider,
     ScreenObservationResult,
+    ScreenRecoveryProvider,
+    ScreenRecoveryResult,
+    ScreenCrop,
     ScreenRegion,
     SomaPerceptionService,
 )
@@ -135,6 +139,24 @@ class PhiOSSpine:
             provider=capture_provider,
             max_pixels=max_pixels,
             reacquire_attempts=reacquire_attempts,
+        )
+
+    def recover_screen_evidence(
+        self,
+        *,
+        evidence_ref: str,
+        crop: ScreenCrop | None = None,
+        scale: int = 1,
+        max_output_pixels: int = 16_777_216,
+        provider: ScreenRecoveryProvider | None = None,
+    ) -> ScreenRecoveryResult:
+        recovery_provider = provider or PillowScreenRecoveryProvider()
+        return self.soma.recover_screen_evidence(
+            evidence_ref=evidence_ref,
+            provider=recovery_provider,
+            crop=crop,
+            scale=scale,
+            max_output_pixels=max_output_pixels,
         )
 
     def _action_packet(self, plan: Any, capability: Capability) -> MandalaPacket:

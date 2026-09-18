@@ -11,6 +11,14 @@ from .models import (
     NativeEvidence,
     ObservationResult,
     ScreenObservationResult,
+    ScreenRecoveryResult,
+)
+from .recovery import (
+    PillowScreenRecoveryProvider,
+    ScreenCrop,
+    ScreenRecoveryError,
+    ScreenRecoveryFrames,
+    ScreenRecoveryProvider,
 )
 from .screen import (
     CapturedFrame,
@@ -31,9 +39,15 @@ __all__ = [
     "NativeEvidence",
     "ObservationResult",
     "PillowScreenCaptureProvider",
+    "PillowScreenRecoveryProvider",
     "ScreenCaptureError",
     "ScreenCaptureProvider",
+    "ScreenCrop",
     "ScreenObservationResult",
+    "ScreenRecoveryError",
+    "ScreenRecoveryFrames",
+    "ScreenRecoveryProvider",
+    "ScreenRecoveryResult",
     "ScreenRegion",
     "SomaPerceptionService",
 ]

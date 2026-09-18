@@ -63,3 +63,18 @@ class NativeEvidenceStore:
             media_type="text/plain; charset=utf-8",
             suffix=".txt",
         )
+
+    def read_bytes(self, evidence_ref: str) -> bytes:
+        prefix = "evidence:sha256:"
+        if not evidence_ref.startswith(prefix):
+            raise ValueError("unsupported evidence reference")
+        digest = evidence_ref[len(prefix):]
+        if len(digest) != 64 or any(char not in "0123456789abcdef" for char in digest):
+            raise ValueError("invalid evidence digest")
+
+        matches = sorted(self.root.glob(f"{digest}.*"))
+        if not matches:
+            raise FileNotFoundError("evidence reference is unavailable")
+        if len(matches) > 1:
+            raise RuntimeError("evidence reference is ambiguous")
+        return matches[0].read_bytes()

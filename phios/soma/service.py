@@ -25,7 +25,9 @@ from .models import (
     NativeEvidence,
     ObservationResult,
     ScreenObservationResult,
+    ScreenRecoveryResult,
 )
+from .recovery import ScreenCrop, ScreenRecoveryError, ScreenRecoveryProvider
 from .screen import CapturedFrame, ScreenCaptureError, ScreenCaptureProvider, ScreenRegion
 
 SUPPORTED_TRANSFORMS = (
@@ -679,4 +681,371 @@ class SomaPerceptionService:
             capture_backend=provider.name,
             capture_attempts=attempts_used,
             observation_sha256=None,
+        )
+
+
+    def recover_screen_evidence(
+        self,
+        *,
+        evidence_ref: str,
+        provider: ScreenRecoveryProvider,
+        crop: ScreenCrop | None = None,
+        scale: int = 1,
+        max_output_pixels: int = 16_777_216,
+    ) -> ScreenRecoveryResult:
+        permission = "perception.screen.recover"
+        source_id = f"screen-evidence:{evidence_ref}"
+        recovery_steps: list[str] = []
+        if crop is not None:
+            recovery_steps.append("tight_crop")
+        if scale > 1:
+            recovery_steps.append(f"native_enlarge_x{scale}")
+
+        packet = MandalaPacket.create(
+            task_id=self.task_id,
+            gate=Gate.PERCEPTION,
+            origin=OriginRef(
+                kind=OriginKind.SUBSYSTEM,
+                identifier="soma.screen-recovery",
+            ),
+            payload={
+                "source_id": source_id,
+                "native_evidence_ref": evidence_ref,
+                "crop": crop.to_dict() if crop is not None else None,
+                "scale": scale,
+                "max_output_pixels": max_output_pixels,
+            },
+            authority=self.authority,
+            evidence_refs=(evidence_ref,),
+            claims=(
+                {
+                    "kind": "acuity_recovery_request",
+                    "source_id": source_id,
+                    "epistemic_status": "derived_observation",
+                },
+            ),
+            allowed_destinations=(Gate.DELIBERATION, Gate.MEMORY),
+        )
+
+        if not self.authority.allows(permission):
+            gate_receipt = self._gate_receipt(
+                packet,
+                status=MandalaStatus.BLOCKED,
+                reason=f"screen recovery blocked: missing explicit grant {permission}",
+            )
+            receipt = PerceptionReceipt(
+                **receipt_meta(
+                    packet,
+                    status=MandalaStatus.BLOCKED,
+                    produced_by="soma.screen-recovery",
+                    parent_receipt_id=gate_receipt.receipt_id,
+                ),
+                native_evidence_ref=evidence_ref,
+                acuity_status=AcuityStatus.UNAVAILABLE.value,
+                limitations=(
+                    f"missing_grant:{permission}",
+                    "sensitive_evidence_not_read",
+                    "enhancement_does_not_increase_authority",
+                ),
+                source_id=source_id,
+                native_preserved=True,
+                acquisition_method="screen_recovery",
+                acquisition_status="blocked",
+                source_locator=evidence_ref,
+                recovery_steps=tuple(recovery_steps),
+                recovery_backend=provider.name,
+            )
+            self.ledger.append(receipt)
+            return ScreenRecoveryResult(
+                packet=packet,
+                receipt=receipt,
+                native_evidence_ref=evidence_ref,
+                derived_evidence=(),
+                observation_evidence_ref=None,
+                observation_sha256=None,
+                recovery_steps=tuple(recovery_steps),
+            )
+
+        if crop is None and scale == 1:
+            gate_receipt = self._gate_receipt(
+                packet,
+                status=MandalaStatus.BLOCKED,
+                reason="screen recovery blocked: no_recovery_requested",
+            )
+            receipt = PerceptionReceipt(
+                **receipt_meta(
+                    packet,
+                    status=MandalaStatus.BLOCKED,
+                    produced_by="soma.screen-recovery",
+                    parent_receipt_id=gate_receipt.receipt_id,
+                ),
+                native_evidence_ref=evidence_ref,
+                acuity_status=AcuityStatus.UNAVAILABLE.value,
+                limitations=("no_recovery_requested",),
+                source_id=source_id,
+                native_preserved=True,
+                acquisition_method="screen_recovery",
+                acquisition_status="blocked",
+                source_locator=evidence_ref,
+                recovery_backend=provider.name,
+            )
+            self.ledger.append(receipt)
+            return ScreenRecoveryResult(
+                packet=packet,
+                receipt=receipt,
+                native_evidence_ref=evidence_ref,
+                derived_evidence=(),
+                observation_evidence_ref=None,
+                observation_sha256=None,
+                recovery_steps=(),
+            )
+
+        if scale < 1 or scale > 4 or max_output_pixels <= 0:
+            code = "invalid_scale" if scale < 1 or scale > 4 else "invalid_pixel_budget"
+            gate_receipt = self._gate_receipt(
+                packet,
+                status=MandalaStatus.BLOCKED,
+                reason=f"screen recovery blocked: {code}",
+            )
+            receipt = PerceptionReceipt(
+                **receipt_meta(
+                    packet,
+                    status=MandalaStatus.BLOCKED,
+                    produced_by="soma.screen-recovery",
+                    parent_receipt_id=gate_receipt.receipt_id,
+                ),
+                native_evidence_ref=evidence_ref,
+                acuity_status=AcuityStatus.UNAVAILABLE.value,
+                limitations=(code,),
+                source_id=source_id,
+                native_preserved=True,
+                acquisition_method="screen_recovery",
+                acquisition_status="blocked",
+                source_locator=evidence_ref,
+                recovery_steps=tuple(recovery_steps),
+                recovery_backend=provider.name,
+            )
+            self.ledger.append(receipt)
+            return ScreenRecoveryResult(
+                packet=packet,
+                receipt=receipt,
+                native_evidence_ref=evidence_ref,
+                derived_evidence=(),
+                observation_evidence_ref=None,
+                observation_sha256=None,
+                recovery_steps=tuple(recovery_steps),
+            )
+
+        if crop is not None:
+            try:
+                crop.validate_shape()
+            except ScreenRecoveryError as exc:
+                gate_receipt = self._gate_receipt(
+                    packet,
+                    status=MandalaStatus.BLOCKED,
+                    reason=f"screen recovery blocked: {exc.code}",
+                )
+                receipt = PerceptionReceipt(
+                    **receipt_meta(
+                        packet,
+                        status=MandalaStatus.BLOCKED,
+                        produced_by="soma.screen-recovery",
+                        parent_receipt_id=gate_receipt.receipt_id,
+                    ),
+                    native_evidence_ref=evidence_ref,
+                    acuity_status=AcuityStatus.UNAVAILABLE.value,
+                    limitations=(exc.code,),
+                    source_id=source_id,
+                    native_preserved=True,
+                    acquisition_method="screen_recovery",
+                    acquisition_status="blocked",
+                    source_locator=evidence_ref,
+                    recovery_steps=tuple(recovery_steps),
+                    recovery_backend=provider.name,
+                )
+                self.ledger.append(receipt)
+                return ScreenRecoveryResult(
+                    packet=packet,
+                    receipt=receipt,
+                    native_evidence_ref=evidence_ref,
+                    derived_evidence=(),
+                    observation_evidence_ref=None,
+                    observation_sha256=None,
+                    recovery_steps=tuple(recovery_steps),
+                )
+
+        try:
+            native_bytes = self.evidence.read_bytes(evidence_ref)
+        except (ValueError, FileNotFoundError, RuntimeError):
+            gate_receipt = self._gate_receipt(
+                packet,
+                status=MandalaStatus.BLOCKED,
+                reason="screen recovery blocked: native_evidence_unavailable",
+            )
+            receipt = PerceptionReceipt(
+                **receipt_meta(
+                    packet,
+                    status=MandalaStatus.BLOCKED,
+                    produced_by="soma.screen-recovery",
+                    parent_receipt_id=gate_receipt.receipt_id,
+                ),
+                native_evidence_ref=evidence_ref,
+                acuity_status=AcuityStatus.UNAVAILABLE.value,
+                limitations=("native_evidence_unavailable",),
+                source_id=source_id,
+                native_preserved=False,
+                acquisition_method="screen_recovery",
+                acquisition_status="blocked",
+                source_locator=evidence_ref,
+                recovery_steps=tuple(recovery_steps),
+                recovery_backend=provider.name,
+            )
+            self.ledger.append(receipt)
+            return ScreenRecoveryResult(
+                packet=packet,
+                receipt=receipt,
+                native_evidence_ref=evidence_ref,
+                derived_evidence=(),
+                observation_evidence_ref=None,
+                observation_sha256=None,
+                recovery_steps=tuple(recovery_steps),
+            )
+
+        gate_receipt = self._gate_receipt(
+            packet,
+            status=MandalaStatus.ACCEPTED,
+            reason="native screen evidence admitted for deterministic acuity recovery",
+        )
+
+        try:
+            frames = provider.recover(
+                native_bytes,
+                crop=crop,
+                scale=scale,
+                max_output_pixels=max_output_pixels,
+            )
+        except ScreenRecoveryError as exc:
+            status = (
+                MandalaStatus.BLOCKED
+                if exc.code
+                in {
+                    "invalid_crop",
+                    "crop_out_of_bounds",
+                    "invalid_scale",
+                    "invalid_pixel_budget",
+                    "output_too_large",
+                    "no_recovery_requested",
+                }
+                else MandalaStatus.QUARANTINED
+            )
+            receipt = PerceptionReceipt(
+                **receipt_meta(
+                    packet,
+                    status=status,
+                    produced_by="soma.screen-recovery",
+                    parent_receipt_id=gate_receipt.receipt_id,
+                ),
+                native_evidence_ref=evidence_ref,
+                acuity_status=AcuityStatus.UNAVAILABLE.value,
+                limitations=(
+                    exc.code,
+                    "native_evidence_preserved",
+                    "no_derived_observation_promoted",
+                ),
+                source_id=source_id,
+                native_preserved=True,
+                acquisition_method="screen_recovery",
+                acquisition_status=status.value.lower(),
+                source_locator=evidence_ref,
+                recovery_steps=tuple(recovery_steps),
+                recovery_backend=provider.name,
+            )
+            self.ledger.append(receipt)
+            return ScreenRecoveryResult(
+                packet=packet,
+                receipt=receipt,
+                native_evidence_ref=evidence_ref,
+                derived_evidence=(),
+                observation_evidence_ref=None,
+                observation_sha256=None,
+                recovery_steps=tuple(recovery_steps),
+            )
+
+        derived = []
+        chain: list[dict[str, Any]] = []
+        parent_ref = evidence_ref
+
+        if frames.cropped is not None:
+            crop_evidence = self.evidence.put_bytes(
+                frames.cropped.data,
+                media_type=frames.cropped.media_type,
+                suffix=frames.cropped.suffix,
+            )
+            derived.append(crop_evidence)
+            chain.append(
+                {
+                    "step": "tight_crop",
+                    "input_evidence_ref": parent_ref,
+                    "output_evidence_ref": crop_evidence.evidence_ref,
+                    "crop": crop.to_dict() if crop is not None else None,
+                }
+            )
+            parent_ref = crop_evidence.evidence_ref
+
+        if frames.enlarged is not None:
+            enlarge_evidence = self.evidence.put_bytes(
+                frames.enlarged.data,
+                media_type=frames.enlarged.media_type,
+                suffix=frames.enlarged.suffix,
+            )
+            derived.append(enlarge_evidence)
+            chain.append(
+                {
+                    "step": f"native_enlarge_x{scale}",
+                    "input_evidence_ref": parent_ref,
+                    "output_evidence_ref": enlarge_evidence.evidence_ref,
+                    "method": "nearest_neighbor_pixel_replication",
+                }
+            )
+            parent_ref = enlarge_evidence.evidence_ref
+
+        final = frames.final
+        final_evidence = derived[-1]
+        receipt = PerceptionReceipt(
+            **receipt_meta(
+                packet,
+                status=MandalaStatus.ACCEPTED,
+                produced_by="soma.screen-recovery",
+                parent_receipt_id=gate_receipt.receipt_id,
+            ),
+            native_evidence_ref=evidence_ref,
+            acuity_status=AcuityStatus.RECOVERED.value,
+            limitations=(
+                "derived_observation_not_truth",
+                "derived_evidence_never_replaces_native",
+                "enhancement_does_not_increase_authority",
+                "no_semantic_interpretation",
+            ),
+            source_id=source_id,
+            observation_sha256=final_evidence.sha256,
+            native_preserved=True,
+            media_type=final.media_type,
+            acquisition_method="screen_recovery",
+            acquisition_status="accepted",
+            source_locator=evidence_ref,
+            recovery_steps=tuple(recovery_steps),
+            derived_evidence_refs=tuple(item.evidence_ref for item in derived),
+            observation_evidence_ref=final_evidence.evidence_ref,
+            derivation_chain=tuple(chain),
+            recovery_backend=provider.name,
+        )
+        self.ledger.append(receipt)
+        return ScreenRecoveryResult(
+            packet=packet,
+            receipt=receipt,
+            native_evidence_ref=evidence_ref,
+            derived_evidence=tuple(derived),
+            observation_evidence_ref=final_evidence.evidence_ref,
+            observation_sha256=final_evidence.sha256,
+            recovery_steps=tuple(recovery_steps),
         )

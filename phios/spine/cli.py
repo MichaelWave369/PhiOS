@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 
 from phios.mandala import MANDALA_CONTRACT_VERSION, Gate, MandalaStatus
-from phios.soma import ScreenRegion
+from phios.soma import ScreenCrop, ScreenRegion
 
 from . import __version__ as SPINE_VERSION
 from .runtime import PhiOSSpine
@@ -17,7 +17,7 @@ def _runtime(args: argparse.Namespace) -> PhiOSSpine:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="phi-spine", description="PhiOS Spine v0.5")
+    parser = argparse.ArgumentParser(prog="phi-spine", description="PhiOS Spine v0.6")
     parser.add_argument("--state-root", help="Override the PhiOS Spine local state root")
     parser.add_argument(
         "--allow",
@@ -28,7 +28,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     sub = parser.add_subparsers(dest="command", required=True)
 
-    sub.add_parser("status", help="Show the v0.5 spine and Mandala contract state")
+    sub.add_parser("status", help="Show the v0.6 spine and Mandala contract state")
     sub.add_parser("list", help="List registered capabilities")
 
     perceive = sub.add_parser(
@@ -71,6 +71,18 @@ def build_parser() -> argparse.ArgumentParser:
     perceive_screen.add_argument("--max-pixels", type=int, default=8_294_400)
     perceive_screen.add_argument("--reacquire-attempts", type=int, default=1)
 
+    recover_screen = sub.add_parser(
+        "recover-screen",
+        help="Derive a tight crop and/or native enlargement from preserved screen evidence",
+    )
+    recover_screen.add_argument("--evidence-ref", required=True)
+    recover_screen.add_argument("--crop-x", type=int)
+    recover_screen.add_argument("--crop-y", type=int)
+    recover_screen.add_argument("--crop-width", type=int)
+    recover_screen.add_argument("--crop-height", type=int)
+    recover_screen.add_argument("--scale", type=int, default=1)
+    recover_screen.add_argument("--max-output-pixels", type=int, default=16_777_216)
+
     run = sub.add_parser("run", help="Plan, authorize, execute, and receipt a capability")
     run.add_argument("capability_id")
     run.add_argument("--input", default="{}", help="JSON object payload")
@@ -103,7 +115,7 @@ def main() -> int:
                     "core_lifecycle": runtime.core.lifecycle.value,
                     "gates": [gate.value for gate in Gate],
                     "statuses": [status.value for status in MandalaStatus],
-                    "north_gate": "soma.text.v0.1+soma.file.v0.1+soma.screen.v0.1",
+                    "north_gate": "soma.text.v0.1+soma.file.v0.1+soma.screen.v0.1+soma.recovery.v0.1",
                 },
                 indent=2,
             )
@@ -152,6 +164,43 @@ def main() -> int:
         return (
             0
             if screen_result.receipt.status
+            in {MandalaStatus.ACCEPTED, MandalaStatus.DEGRADED}
+            else 2
+        )
+
+    if args.command == "recover-screen":
+        crop_values = (
+            args.crop_x,
+            args.crop_y,
+            args.crop_width,
+            args.crop_height,
+        )
+        if any(value is not None for value in crop_values) and not all(
+            value is not None for value in crop_values
+        ):
+            parser.error(
+                "--crop-x, --crop-y, --crop-width, and --crop-height must be supplied together"
+            )
+        crop = (
+            ScreenCrop(
+                x=args.crop_x,
+                y=args.crop_y,
+                width=args.crop_width,
+                height=args.crop_height,
+            )
+            if all(value is not None for value in crop_values)
+            else None
+        )
+        recovery_result = runtime.recover_screen_evidence(
+            evidence_ref=args.evidence_ref,
+            crop=crop,
+            scale=args.scale,
+            max_output_pixels=args.max_output_pixels,
+        )
+        print(json.dumps(recovery_result.to_dict(), indent=2))
+        return (
+            0
+            if recovery_result.receipt.status
             in {MandalaStatus.ACCEPTED, MandalaStatus.DEGRADED}
             else 2
         )
