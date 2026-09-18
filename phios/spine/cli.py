@@ -71,7 +71,7 @@ def _json_mixed_contract_clauses(
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="phi-spine", description="PhiOS Spine v0.19")
+    parser = argparse.ArgumentParser(prog="phi-spine", description="PhiOS Spine v0.20")
     parser.add_argument("--state-root", help="Override the PhiOS Spine local state root")
     parser.add_argument(
         "--allow",
@@ -82,7 +82,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     sub = parser.add_subparsers(dest="command", required=True)
 
-    sub.add_parser("status", help="Show the v0.19 spine and Mandala contract state")
+    sub.add_parser("status", help="Show the v0.20 spine and Mandala contract state")
     sub.add_parser("list", help="List registered capabilities")
 
     perceive = sub.add_parser(
@@ -274,6 +274,14 @@ def build_parser() -> argparse.ArgumentParser:
             'or {"pointer":"/ready","scalar_predicate":"boolean_is_true"}'
         ),
     )
+    verify_claim.add_argument(
+        "--observation-count",
+        type=int,
+        help=(
+            "Required 2-5 provider observations for "
+            "local_http_json_repeated_mixed_contract"
+        ),
+    )
     verify_claim.add_argument("--max-evidence-bytes", type=int, default=1_048_576)
 
     run = sub.add_parser("run", help="Plan, authorize, execute, and receipt a capability")
@@ -309,7 +317,7 @@ def main() -> int:
                     "gates": [gate.value for gate in Gate],
                     "statuses": [status.value for status in MandalaStatus],
                     "north_gate": "soma.text.v0.1+soma.file.v0.1+soma.screen.v0.1+soma.recovery.v0.1+soma.multishot.v0.1+soma.enhancement.v0.1+soma.ocr.v0.1",
-                    "reality_gate": "reality.bounded-evidence.v0.9",
+                    "reality_gate": "reality.bounded-evidence.v0.10",
                     "world_verifiers": [
                         "local-interface-state.v0.1",
                         "local-tcp-listener-state.v0.1",
@@ -320,6 +328,7 @@ def main() -> int:
                         "local-http-json-multi-contract.v0.1",
                         "local-http-json-scalar-predicate.v0.1",
                         "local-http-json-mixed-contract.v0.1",
+                        "local-http-json-repeated-mixed-contract.v0.1",
                     ],
                 },
                 indent=2,
@@ -509,6 +518,7 @@ def main() -> int:
             json_scalar_predicate_kind=args.json_scalar_predicate,
             json_scalar_operand=args.json_scalar_operand,
             json_mixed_contract_clauses=json_mixed_contract_clauses,
+            repeat_observation_count=args.observation_count,
         )
         verification_result = runtime.verify_reality(
             claims=(claim,),
@@ -523,6 +533,7 @@ def main() -> int:
                     RealityClaimKind.LOCAL_HTTP_JSON_MULTI_CONTRACT.value,
                     RealityClaimKind.LOCAL_HTTP_JSON_SCALAR_PREDICATE.value,
                     RealityClaimKind.LOCAL_HTTP_JSON_MIXED_CONTRACT.value,
+                    RealityClaimKind.LOCAL_HTTP_JSON_REPEATED_MIXED_CONTRACT.value,
                 }
                 else None
             ),
