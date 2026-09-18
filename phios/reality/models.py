@@ -257,8 +257,8 @@ class RealityClaim:
                 errors.append("local_http_json_mixed_contract_disallows_legacy_fields")
             if not 1 <= len(self.json_mixed_contract_clauses) <= 8:
                 errors.append("local_http_json_mixed_contract_requires_1_to_8_clauses")
-            for index, clause in enumerate(self.json_mixed_contract_clauses):
-                for error in clause.validation_errors():
+            for index, mixed_clause in enumerate(self.json_mixed_contract_clauses):
+                for error in mixed_clause.validation_errors():
                     errors.append(f"json_mixed_clause_{index}:{error}")
 
         return tuple(errors)
