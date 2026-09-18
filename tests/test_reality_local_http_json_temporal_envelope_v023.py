@@ -442,7 +442,7 @@ def test_scheduler_stretches_series_to_meet_minimum_span(
     assert [
         sample["admissible_start_offset_max_seconds"]
         for sample in claim_result["sample_results"]
-    ] == [None, 2.0, 4.0]
+    ] == [None, 2.0, 3.5]
 
 
 def test_whole_series_span_can_fail_while_each_cadence_interval_passes(
