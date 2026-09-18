@@ -43,6 +43,7 @@ from phios.soma import (
     ScreenCrop,
     ScreenRegion,
     SomaPerceptionService,
+    TesseractOcrProvider,
 )
 
 from .collaborator import PhiVesselAdapter
