@@ -79,6 +79,11 @@ class PerceptionReceipt(ReceiptEnvelope):
     transforms: tuple[str, ...] = field(default_factory=tuple)
     acuity_status: str = "unknown"
     limitations: tuple[str, ...] = field(default_factory=tuple)
+    source_id: str | None = None
+    native_sha256: str | None = None
+    observation_sha256: str | None = None
+    native_preserved: bool = False
+    media_type: str | None = None
     receipt_type: str = field(init=False, default="PerceptionReceipt")
 
 

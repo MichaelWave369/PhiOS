@@ -44,7 +44,7 @@ phi-mcp = "phios.mcp.server:main"
 phi-spine = "phios.spine.cli:main"
 
 [tool.setuptools]
-packages = ["phios", "phios.shell", "phios.core", "phios.display", "phios.desktop", "phios.adapters", "phios.services", "phios.templates", "phios.ml", "phios.mcp", "phios.mcp.resources", "phios.mcp.tools", "phios.mcp.prompts", "phios.spine", "phios.mandala"]
+packages = ["phios", "phios.shell", "phios.core", "phios.display", "phios.desktop", "phios.adapters", "phios.services", "phios.templates", "phios.ml", "phios.mcp", "phios.mcp.resources", "phios.mcp.tools", "phios.mcp.prompts", "phios.spine", "phios.mandala", "phios.soma"]
 
 [tool.setuptools.dynamic]
 version = {attr = "phios.__version__"}
