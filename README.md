@@ -117,7 +117,7 @@ because computers have been exploiting that kind of optimism for decades.
 
 ## Current Spine verification ladder
 
-The current merged Spine line is **v0.20**.
+The current merged Spine line is **v0.21**.
 
 | Version | Capability |
 |---|---|
@@ -132,6 +132,7 @@ The current merged Spine line is **v0.20**.
 | v0.18 | bounded Boolean and numeric scalar predicates |
 | v0.19 | same-snapshot mixed type / structural / scalar contracts |
 | v0.20 | bounded repeated mixed observations across 2-5 discrete samples |
+| v0.21 | explicit minimum monotonic spacing between repeated observations |
 
 The v0.17 same-snapshot contract can evaluate **1–8 bounded clauses from one HTTP observation**:
 
@@ -162,7 +163,8 @@ All clauses describe the **same captured response**, not several requests made a
 
 See:
 
-- [Spine v0.20 overview](README_SPINE_V0.20.md)
+- [Spine v0.21 overview](README_SPINE_V0.21.md)
+- [Spine v0.21 timed observation contract](docs/PHIOS_SPINE_V0.21_TIMED_MIXED_OBSERVATION.md)
 - [Spine v0.20 repeated observation contract](docs/PHIOS_SPINE_V0.20_REPEATED_MIXED_OBSERVATION.md)
 - [Spine v0.19 mixed contract](docs/PHIOS_SPINE_V0.19_JSON_MIXED_CONTRACT.md)
 - [Spine v0.18 scalar predicate contract](docs/PHIOS_SPINE_V0.18_JSON_SCALAR_PREDICATES.md)
@@ -175,6 +177,9 @@ v0.18 adds a stronger semantic boundary for scalar values. Boolean and numeric v
 v0.19 composes type, structural, and scalar clauses against one captured response. Value-read authority is required only when the mixed contract actually contains a scalar clause.
 
 v0.20 can evaluate that same mixed contract across 2-5 discrete observations. Repetition requires the separate `reality.local_http.repeat.read` grant. No minimum sampling interval is enforced, so repeated support does not establish continuous health between observations.
+
+v0.21 adds an explicit 0.05-10 second minimum interval between provider invocation starts. Timing requires `reality.local_http.timing.wait` and uses a monotonic clock; wall-clock capture timestamps do not establish spacing.
+
 
 
 
