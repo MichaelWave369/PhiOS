@@ -8,6 +8,20 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from phios.mandala import (
+    AbortReceipt,
+    ActionReceipt,
+    Gate,
+    GateReceipt,
+    MandalaPacket,
+    MandalaReceiptLedger,
+    MandalaStatus,
+    OriginKind,
+    OriginRef,
+    PhiCoreState,
+)
+from phios.mandala.receipts import receipt_meta
+
 from .collaborator import PhiVesselAdapter
 from .executor import ExecutorRegistry, text_artifact_handler
 from .gate import PermissionGate
@@ -17,19 +31,30 @@ from .registry import CapabilityRegistry
 
 
 class PhiOSSpine:
-    """First vertical slice of PhiOS authority-aware execution."""
+    """Authority-aware execution spine with Mandala v0.1 contracts."""
 
     def __init__(
         self,
         state_root: Path | None = None,
         allowed_permissions: Iterable[str] = (),
+        task_id: str | None = None,
     ) -> None:
         self.state_root = (state_root or Path.home() / ".phios" / "spine-v0.1").expanduser()
+        allowed = tuple(dict.fromkeys(allowed_permissions))
         self.registry = CapabilityRegistry()
-        self.gate = PermissionGate(allowed_permissions)
+        self.gate = PermissionGate(allowed)
         self.executors = ExecutorRegistry()
         self.vessel = PhiVesselAdapter()
         self.ledger = RealityLedger(self.state_root / "ledger" / "receipts.jsonl")
+        self.mandala_ledger = MandalaReceiptLedger(
+            self.state_root / "ledger" / "mandala-receipts.jsonl"
+        )
+        self.core = PhiCoreState.initialize(
+            task_id=task_id,
+            authority_ceiling=allowed,
+            explicit_grants=allowed,
+            ledger_pointer=str(self.mandala_ledger.path),
+        ).activate()
         self._register_builtins()
 
     def _register_builtins(self) -> None:
@@ -51,10 +76,57 @@ class PhiOSSpine:
         encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
         return hashlib.sha256(encoded).hexdigest()
 
+    def _action_packet(self, plan: Any, capability: Capability) -> MandalaPacket:
+        return MandalaPacket.create(
+            task_id=self.core.task_id,
+            gate=Gate.ACTION,
+            origin=OriginRef(
+                kind=OriginKind.SUBSYSTEM,
+                identifier=plan.planner,
+            ),
+            payload=plan.payload,
+            authority=self.core.authority,
+            claims=(
+                {
+                    "kind": "action_request",
+                    "capability_id": capability.id,
+                },
+            ),
+            allowed_destinations=(Gate.MEMORY,),
+        )
+
+    def _gate_receipt(
+        self,
+        packet: MandalaPacket,
+        *,
+        allowed: bool,
+        reason: str,
+    ) -> GateReceipt:
+        return GateReceipt(
+            **receipt_meta(
+                packet,
+                status=MandalaStatus.ACCEPTED if allowed else MandalaStatus.BLOCKED,
+                produced_by="phios.action_gate",
+            ),
+            gate=Gate.ACTION,
+            reason=reason,
+            provenance_refs=packet.evidence_refs,
+            authority=packet.authority.to_dict(),
+        )
+
     def run(self, capability_id: str, payload: dict[str, Any]) -> ExecutionReceipt:
         plan = self.vessel.plan(capability_id=capability_id, payload=payload)
         capability = self.registry.get(plan.capability_id)
+        packet = self._action_packet(plan, capability)
         decision = self.gate.evaluate(capability)
+
+        gate_receipt = self._gate_receipt(
+            packet,
+            allowed=decision.allowed,
+            reason=decision.reason,
+        )
+        self.mandala_ledger.append(gate_receipt)
+
         receipt = ExecutionReceipt(
             schema_version="phios.execution_receipt.v0.1",
             receipt_id=str(uuid.uuid4()),
@@ -65,8 +137,26 @@ class PhiOSSpine:
             permissions_requested=list(decision.requested),
             permission_status="allowed" if decision.allowed else "denied",
             execution_status="not_executed",
+            packet_id=packet.packet_id,
+            gate_receipt_id=gate_receipt.receipt_id,
         )
+
         if not decision.allowed:
+            action_receipt = ActionReceipt(
+                **receipt_meta(
+                    packet,
+                    status=MandalaStatus.BLOCKED,
+                    produced_by="phios.action_gate",
+                    parent_receipt_id=gate_receipt.receipt_id,
+                ),
+                approved_grant=decision.granted,
+                side_effect={"capability_id": capability.id},
+                outcome="not_executed",
+                external_identifiers={},
+            )
+            self.mandala_ledger.append(action_receipt)
+            receipt.action_receipt_id = action_receipt.receipt_id
+            receipt.mandala_status = action_receipt.status.value
             receipt.error = decision.reason
             self.ledger.append(receipt)
             return receipt
@@ -76,9 +166,52 @@ class PhiOSSpine:
             receipt.execution_status = "succeeded"
             receipt.artifact_path = str(artifact.path)
             receipt.artifact_sha256 = artifact.sha256
+            action_receipt = ActionReceipt(
+                **receipt_meta(
+                    packet,
+                    status=MandalaStatus.ACCEPTED,
+                    produced_by="phios.action_gate",
+                    parent_receipt_id=gate_receipt.receipt_id,
+                ),
+                approved_grant=decision.granted,
+                side_effect={"capability_id": capability.id},
+                outcome="succeeded",
+                external_identifiers={
+                    "artifact_path": str(artifact.path),
+                    "artifact_sha256": artifact.sha256,
+                },
+            )
+            self.mandala_ledger.append(action_receipt)
         except Exception as exc:  # noqa: BLE001 - executor boundary receipts arbitrary failures
             receipt.execution_status = "failed"
             receipt.error = f"{type(exc).__name__}: {exc}"
+            action_receipt = ActionReceipt(
+                **receipt_meta(
+                    packet,
+                    status=MandalaStatus.ABORTED,
+                    produced_by="phios.action_gate",
+                    parent_receipt_id=gate_receipt.receipt_id,
+                ),
+                approved_grant=decision.granted,
+                side_effect={"capability_id": capability.id},
+                outcome="failed",
+                external_identifiers={},
+            )
+            self.mandala_ledger.append(action_receipt)
+            abort_receipt = AbortReceipt(
+                **receipt_meta(
+                    packet,
+                    status=MandalaStatus.ABORTED,
+                    produced_by="phios.runtime",
+                    parent_receipt_id=action_receipt.receipt_id,
+                ),
+                terminal_reason=receipt.error,
+                eligible_artifacts=(),
+                quarantined_artifacts=(),
+            )
+            self.mandala_ledger.append(abort_receipt)
 
+        receipt.action_receipt_id = action_receipt.receipt_id
+        receipt.mandala_status = action_receipt.status.value
         self.ledger.append(receipt)
         return receipt

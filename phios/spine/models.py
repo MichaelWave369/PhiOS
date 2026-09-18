@@ -52,6 +52,10 @@ class ExecutionReceipt:
     artifact_path: str | None = None
     artifact_sha256: str | None = None
     error: str | None = None
+    packet_id: str | None = None
+    gate_receipt_id: str | None = None
+    action_receipt_id: str | None = None
+    mandala_status: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
