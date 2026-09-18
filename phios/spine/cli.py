@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 
 from phios.mandala import MANDALA_CONTRACT_VERSION, Gate, MandalaStatus
-from phios.reality import RealityClaim, RealityClaimKind
+from phios.reality import RealityClaim, RealityClaimKind, StdlibLoopbackHttpStateProvider
 from phios.soma import OcrSpec, ScreenCrop, ScreenEnhancementSpec, ScreenRegion
 
 from . import __version__ as SPINE_VERSION
@@ -18,7 +18,7 @@ def _runtime(args: argparse.Namespace) -> PhiOSSpine:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="phi-spine", description="PhiOS Spine v0.13")
+    parser = argparse.ArgumentParser(prog="phi-spine", description="PhiOS Spine v0.14")
     parser.add_argument("--state-root", help="Override the PhiOS Spine local state root")
     parser.add_argument(
         "--allow",
@@ -29,7 +29,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     sub = parser.add_subparsers(dest="command", required=True)
 
-    sub.add_parser("status", help="Show the v0.13 spine and Mandala contract state")
+    sub.add_parser("status", help="Show the v0.14 spine and Mandala contract state")
     sub.add_parser("list", help="List registered capabilities")
 
     perceive = sub.add_parser(
@@ -210,6 +210,7 @@ def main() -> int:
                         "local-interface-state.v0.1",
                         "local-tcp-listener-state.v0.1",
                         "local-http-response-contract.v0.1",
+                        "local-http-response-stdlib-loopback.v0.1",
                     ],
                 },
                 indent=2,
@@ -387,6 +388,11 @@ def main() -> int:
         verification_result = runtime.verify_reality(
             claims=(claim,),
             max_evidence_bytes=args.max_evidence_bytes,
+            local_http_provider=(
+                StdlibLoopbackHttpStateProvider()
+                if args.kind == RealityClaimKind.LOCAL_HTTP_RESPONSE_STATE.value
+                else None
+            ),
         )
         print(json.dumps(verification_result.to_dict(), indent=2))
         return (
