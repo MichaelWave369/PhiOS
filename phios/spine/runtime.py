@@ -21,6 +21,11 @@ from phios.mandala import (
     PhiCoreState,
 )
 from phios.mandala.receipts import receipt_meta
+from phios.reality import (
+    RealityClaim,
+    RealityVerificationResult,
+    RealityVerificationService,
+)
 from phios.soma import (
     FileObservationResult,
     ObservationResult,
@@ -81,6 +86,12 @@ class PhiOSSpine:
         ).activate()
         self.soma = SomaPerceptionService(
             state_root=self.state_root,
+            ledger=self.mandala_ledger,
+            task_id=self.core.task_id,
+            authority=self.core.authority,
+        )
+        self.reality = RealityVerificationService(
+            evidence=self.soma.evidence,
             ledger=self.mandala_ledger,
             task_id=self.core.task_id,
             authority=self.core.authority,
@@ -186,6 +197,17 @@ class PhiOSSpine:
             evidence_ref=evidence_ref,
             provider=ocr_provider,
             spec=ocr_spec,
+        )
+
+    def verify_reality(
+        self,
+        *,
+        claims: tuple[RealityClaim, ...],
+        max_evidence_bytes: int = 1_048_576,
+    ) -> RealityVerificationResult:
+        return self.reality.verify(
+            claims=claims,
+            max_evidence_bytes=max_evidence_bytes,
         )
 
     def enhance_screen_evidence(

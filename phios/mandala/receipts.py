@@ -132,6 +132,11 @@ class RealityReceipt(ReceiptEnvelope):
     claims_checked: tuple[dict[str, Any], ...] = field(default_factory=tuple)
     evidence_used: tuple[str, ...] = field(default_factory=tuple)
     unresolved_contradictions: tuple[str, ...] = field(default_factory=tuple)
+    unresolved_claims: tuple[str, ...] = field(default_factory=tuple)
+    verdict_summary: dict[str, int] = field(default_factory=dict)
+    verification_method: str | None = None
+    promotion_status: str = "not_promoted"
+    limitations: tuple[str, ...] = field(default_factory=tuple)
     receipt_type: str = field(init=False, default="RealityReceipt")
 
 
