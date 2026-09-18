@@ -12,6 +12,7 @@ from .local_json import (
     JSON_TYPE_NAMES,
     JsonContractClause,
     JsonMixedContractClause,
+    JsonNumericTransitionClause,
     json_pointer_error,
     json_scalar_predicate_error,
     json_structural_predicate_error,
@@ -34,6 +35,9 @@ class RealityClaimKind(StrEnum):
     LOCAL_HTTP_JSON_CADENCED_MIXED_CONTRACT = "local_http_json_cadenced_mixed_contract"
     LOCAL_HTTP_JSON_TEMPORAL_ENVELOPE_MIXED_CONTRACT = (
         "local_http_json_temporal_envelope_mixed_contract"
+    )
+    LOCAL_HTTP_JSON_NUMERIC_TRANSITION_CONTRACT = (
+        "local_http_json_numeric_transition_contract"
     )
 
 
@@ -74,6 +78,7 @@ class RealityClaim:
     maximum_interval_seconds: float | None = None
     minimum_series_span_seconds: float | None = None
     maximum_series_span_seconds: float | None = None
+    json_numeric_transition_clauses: tuple[JsonNumericTransitionClause, ...] = ()
 
     @classmethod
     def create(
@@ -106,6 +111,9 @@ class RealityClaim:
         maximum_interval_seconds: float | None = None,
         minimum_series_span_seconds: float | None = None,
         maximum_series_span_seconds: float | None = None,
+        json_numeric_transition_clauses: tuple[
+            JsonNumericTransitionClause, ...
+        ] = (),
     ) -> "RealityClaim":
         return cls(
             claim_id=str(uuid.uuid4()),
@@ -136,6 +144,9 @@ class RealityClaim:
             maximum_interval_seconds=maximum_interval_seconds,
             minimum_series_span_seconds=minimum_series_span_seconds,
             maximum_series_span_seconds=maximum_series_span_seconds,
+            json_numeric_transition_clauses=tuple(
+                json_numeric_transition_clauses
+            ),
         )
 
     def validation_errors(self) -> tuple[str, ...]:
@@ -176,6 +187,7 @@ class RealityClaim:
             RealityClaimKind.LOCAL_HTTP_JSON_TIMED_MIXED_CONTRACT,
             RealityClaimKind.LOCAL_HTTP_JSON_CADENCED_MIXED_CONTRACT,
             RealityClaimKind.LOCAL_HTTP_JSON_TEMPORAL_ENVELOPE_MIXED_CONTRACT,
+            RealityClaimKind.LOCAL_HTTP_JSON_NUMERIC_TRANSITION_CONTRACT,
         }:
             url_error = local_http_url_error(self.http_url)
             if url_error is not None:
@@ -558,11 +570,57 @@ class RealityClaim:
 
         if (
             self.kind
+            is RealityClaimKind.LOCAL_HTTP_JSON_NUMERIC_TRANSITION_CONTRACT
+        ):
+            if any(
+                value is not None
+                for value in (
+                    self.json_pointer,
+                    self.expected_json_type,
+                    self.json_predicate_kind,
+                    self.json_predicate_bound,
+                    self.json_scalar_predicate_kind,
+                    self.json_scalar_operand,
+                )
+            ) or self.json_contract_clauses or self.json_mixed_contract_clauses:
+                errors.append(
+                    "local_http_json_numeric_transition_contract_disallows_other_semantic_fields"
+                )
+            if not 1 <= len(self.json_numeric_transition_clauses) <= 8:
+                errors.append(
+                    "local_http_json_numeric_transition_contract_requires_1_to_8_clauses"
+                )
+            for index, transition_clause in enumerate(
+                self.json_numeric_transition_clauses
+            ):
+                for error in transition_clause.validation_errors():
+                    errors.append(f"json_numeric_transition_clause_{index}:{error}")
+            if (
+                isinstance(self.repeat_observation_count, bool)
+                or not isinstance(self.repeat_observation_count, int)
+                or not 2 <= self.repeat_observation_count <= 5
+            ):
+                errors.append(
+                    "local_http_json_numeric_transition_contract_requires_2_to_5_observations"
+                )
+
+        if (
+            self.kind
+            is not RealityClaimKind.LOCAL_HTTP_JSON_NUMERIC_TRANSITION_CONTRACT
+            and self.json_numeric_transition_clauses
+        ):
+            errors.append(
+                "json_numeric_transition_clauses_only_for_numeric_transition_contract"
+            )
+
+        if (
+            self.kind
             not in {
                 RealityClaimKind.LOCAL_HTTP_JSON_REPEATED_MIXED_CONTRACT,
                 RealityClaimKind.LOCAL_HTTP_JSON_TIMED_MIXED_CONTRACT,
                 RealityClaimKind.LOCAL_HTTP_JSON_CADENCED_MIXED_CONTRACT,
                 RealityClaimKind.LOCAL_HTTP_JSON_TEMPORAL_ENVELOPE_MIXED_CONTRACT,
+                RealityClaimKind.LOCAL_HTTP_JSON_NUMERIC_TRANSITION_CONTRACT,
             }
             and self.repeat_observation_count is not None
         ):
@@ -643,6 +701,10 @@ class RealityClaim:
             "maximum_interval_seconds": self.maximum_interval_seconds,
             "minimum_series_span_seconds": self.minimum_series_span_seconds,
             "maximum_series_span_seconds": self.maximum_series_span_seconds,
+            "json_numeric_transition_clauses": [
+                clause.to_dict()
+                for clause in self.json_numeric_transition_clauses
+            ],
         }
 
 
