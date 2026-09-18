@@ -154,7 +154,11 @@ def json_structural_predicate_error(
 
     if bound is None:
         return "local_http_json_predicate_requires_bound"
-    if type(bound) is not int or not 0 <= bound <= 1_000_000:
+    if (
+        isinstance(bound, bool)
+        or not isinstance(bound, int)
+        or not 0 <= bound <= 1_000_000
+    ):
         return "local_http_json_predicate_invalid_bound"
     return None
 
