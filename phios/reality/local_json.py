@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from dataclasses import dataclass
 from decimal import Decimal
 from typing import Any
 
@@ -212,4 +213,120 @@ def evaluate_json_structural_predicate(
         result["predicate_matches"] = measurement >= bound
     else:
         result["predicate_matches"] = measurement <= bound
+    return result
+
+
+@dataclass(frozen=True, kw_only=True)
+class JsonContractClause:
+    pointer: str
+    expected_json_type: str | None = None
+    predicate: str | None = None
+    bound: int | None = None
+
+    @classmethod
+    def from_mapping(cls, value: dict[str, Any]) -> "JsonContractClause":
+        allowed_keys = {"pointer", "type", "predicate", "bound"}
+        unknown_keys = sorted(set(value) - allowed_keys)
+        if unknown_keys:
+            joined = ",".join(unknown_keys)
+            raise ValueError(f"unsupported JSON clause keys: {joined}")
+        return cls(
+            pointer=str(value.get("pointer", "")),
+            expected_json_type=(
+                str(value["type"])
+                if value.get("type") is not None
+                else None
+            ),
+            predicate=(
+                str(value["predicate"])
+                if value.get("predicate") is not None
+                else None
+            ),
+            bound=value.get("bound"),
+        )
+
+    def validation_errors(self) -> tuple[str, ...]:
+        errors: list[str] = []
+        pointer_error = json_pointer_error(self.pointer)
+        if pointer_error is not None:
+            errors.append(pointer_error)
+
+        has_type = self.expected_json_type is not None
+        has_predicate = self.predicate is not None
+        if has_type == has_predicate:
+            errors.append("local_http_json_multi_clause_requires_exactly_one_mode")
+            return tuple(errors)
+
+        if has_type:
+            if self.expected_json_type not in JSON_TYPE_NAMES:
+                errors.append("local_http_json_multi_clause_invalid_expected_type")
+            if self.bound is not None:
+                errors.append("local_http_json_multi_clause_type_disallows_bound")
+            return tuple(errors)
+
+        predicate_error = json_structural_predicate_error(
+            self.predicate,
+            self.bound,
+        )
+        if predicate_error is not None:
+            errors.append(predicate_error)
+        return tuple(errors)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "pointer": self.pointer,
+            "expected_json_type": self.expected_json_type,
+            "predicate": self.predicate,
+            "bound": self.bound,
+        }
+
+
+def evaluate_json_contract_clause(
+    document: Any,
+    clause: JsonContractClause,
+) -> dict[str, Any]:
+    pointer_exists, value = resolve_json_pointer(document, clause.pointer)
+    result: dict[str, Any] = {
+        "pointer": clause.pointer,
+        "pointer_exists": pointer_exists,
+        "mode": "type" if clause.expected_json_type is not None else "predicate",
+        "expected_json_type": clause.expected_json_type,
+        "predicate": clause.predicate,
+        "bound": clause.bound,
+        "observed_json_type": None,
+        "type_matches": None,
+        "measurement_name": None,
+        "measurement": None,
+        "predicate_matches": None,
+        "clause_matches": False,
+    }
+    if not pointer_exists:
+        return result
+
+    if clause.expected_json_type is not None:
+        observed_type = json_type_name(value)
+        matched = json_type_matches(value, clause.expected_json_type)
+        result["observed_json_type"] = observed_type
+        result["type_matches"] = matched
+        result["clause_matches"] = matched
+        return result
+
+    assert clause.predicate is not None
+    evaluation = evaluate_json_structural_predicate(
+        value,
+        predicate=clause.predicate,
+        bound=clause.bound,
+    )
+    for key in (
+        "expected_json_type",
+        "observed_json_type",
+        "type_matches",
+        "measurement_name",
+        "measurement",
+        "predicate_matches",
+    ):
+        result[key] = evaluation[key]
+    result["clause_matches"] = bool(
+        evaluation["type_matches"] and evaluation["predicate_matches"]
+    )
     return result
