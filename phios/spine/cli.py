@@ -18,7 +18,7 @@ def _runtime(args: argparse.Namespace) -> PhiOSSpine:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="phi-spine", description="PhiOS Spine v0.10")
+    parser = argparse.ArgumentParser(prog="phi-spine", description="PhiOS Spine v0.11")
     parser.add_argument("--state-root", help="Override the PhiOS Spine local state root")
     parser.add_argument(
         "--allow",
@@ -29,7 +29,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     sub = parser.add_subparsers(dest="command", required=True)
 
-    sub.add_parser("status", help="Show the v0.10 spine and Mandala contract state")
+    sub.add_parser("status", help="Show the v0.11 spine and Mandala contract state")
     sub.add_parser("list", help="List registered capabilities")
 
     perceive = sub.add_parser(
@@ -136,6 +136,15 @@ def build_parser() -> argparse.ArgumentParser:
         help="Required for source_contains_text claims",
     )
     verify_claim.add_argument("--case-sensitive", action="store_true")
+    verify_claim.add_argument(
+        "--interface-name",
+        help="Required for local_interface_state claims",
+    )
+    verify_claim.add_argument(
+        "--expected-state",
+        choices=["up", "down"],
+        help="Required for local_interface_state claims",
+    )
     verify_claim.add_argument("--max-evidence-bytes", type=int, default=1_048_576)
 
     run = sub.add_parser("run", help="Plan, authorize, execute, and receipt a capability")
@@ -171,7 +180,8 @@ def main() -> int:
                     "gates": [gate.value for gate in Gate],
                     "statuses": [status.value for status in MandalaStatus],
                     "north_gate": "soma.text.v0.1+soma.file.v0.1+soma.screen.v0.1+soma.recovery.v0.1+soma.multishot.v0.1+soma.enhancement.v0.1+soma.ocr.v0.1",
-                    "reality_gate": "reality.bounded-text-evidence.v0.1",
+                    "reality_gate": "reality.bounded-evidence.v0.2",
+                    "world_verifier": "local-interface-state.v0.1",
                 },
                 indent=2,
             )
@@ -323,6 +333,14 @@ def main() -> int:
             evidence_refs=tuple(args.evidence_ref),
             expected_text=args.expected_text,
             case_sensitive=args.case_sensitive,
+            interface_name=args.interface_name,
+            expected_is_up=(
+                True
+                if args.expected_state == "up"
+                else False
+                if args.expected_state == "down"
+                else None
+            ),
         )
         verification_result = runtime.verify_reality(
             claims=(claim,),

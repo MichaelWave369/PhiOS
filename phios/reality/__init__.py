@@ -1,5 +1,11 @@
 """Reality Gate verification primitives for PhiOS."""
 
+from .local_network import (
+    InterfaceObservation,
+    InterfaceObservationError,
+    InterfaceStateProvider,
+    PsutilInterfaceStateProvider,
+)
 from .models import (
     RealityClaim,
     RealityClaimKind,
@@ -9,6 +15,10 @@ from .models import (
 from .service import RealityVerificationService
 
 __all__ = [
+    "InterfaceObservation",
+    "InterfaceObservationError",
+    "InterfaceStateProvider",
+    "PsutilInterfaceStateProvider",
     "RealityClaim",
     "RealityClaimKind",
     "RealityVerdict",

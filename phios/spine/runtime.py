@@ -22,6 +22,7 @@ from phios.mandala import (
 )
 from phios.mandala.receipts import receipt_meta
 from phios.reality import (
+    InterfaceStateProvider,
     RealityClaim,
     RealityVerificationResult,
     RealityVerificationService,
@@ -204,10 +205,12 @@ class PhiOSSpine:
         *,
         claims: tuple[RealityClaim, ...],
         max_evidence_bytes: int = 1_048_576,
+        interface_provider: InterfaceStateProvider | None = None,
     ) -> RealityVerificationResult:
         return self.reality.verify(
             claims=claims,
             max_evidence_bytes=max_evidence_bytes,
+            interface_provider=interface_provider,
         )
 
     def enhance_screen_evidence(

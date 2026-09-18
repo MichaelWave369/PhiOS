@@ -11,6 +11,7 @@ from phios.mandala import MandalaPacket, RealityReceipt
 class RealityClaimKind(StrEnum):
     SOURCE_CONTAINS_TEXT = "source_contains_text"
     WORLD_STATE = "world_state"
+    LOCAL_INTERFACE_STATE = "local_interface_state"
 
 
 class RealityVerdict(StrEnum):
@@ -28,6 +29,8 @@ class RealityClaim:
     evidence_refs: tuple[str, ...] = ()
     expected_text: str | None = None
     case_sensitive: bool = False
+    interface_name: str | None = None
+    expected_is_up: bool | None = None
 
     @classmethod
     def create(
@@ -38,6 +41,8 @@ class RealityClaim:
         evidence_refs: tuple[str, ...] = (),
         expected_text: str | None = None,
         case_sensitive: bool = False,
+        interface_name: str | None = None,
+        expected_is_up: bool | None = None,
     ) -> "RealityClaim":
         return cls(
             claim_id=str(uuid.uuid4()),
@@ -46,6 +51,8 @@ class RealityClaim:
             evidence_refs=tuple(dict.fromkeys(evidence_refs)),
             expected_text=expected_text,
             case_sensitive=case_sensitive,
+            interface_name=interface_name,
+            expected_is_up=expected_is_up,
         )
 
     def validation_errors(self) -> tuple[str, ...]:
@@ -59,6 +66,12 @@ class RealityClaim:
             if self.expected_text is None or not self.expected_text.strip():
                 errors.append("source_claim_requires_expected_text")
 
+        if self.kind is RealityClaimKind.LOCAL_INTERFACE_STATE:
+            if self.interface_name is None or not self.interface_name.strip():
+                errors.append("local_interface_claim_requires_interface_name")
+            if self.expected_is_up is None:
+                errors.append("local_interface_claim_requires_expected_state")
+
         return tuple(errors)
 
     def to_dict(self) -> dict[str, Any]:
@@ -69,6 +82,8 @@ class RealityClaim:
             "evidence_refs": list(self.evidence_refs),
             "expected_text": self.expected_text,
             "case_sensitive": self.case_sensitive,
+            "interface_name": self.interface_name,
+            "expected_is_up": self.expected_is_up,
         }
 
 

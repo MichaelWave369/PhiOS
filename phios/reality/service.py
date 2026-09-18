@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections import Counter
+import json
 from typing import Any
 
 from phios.mandala import (
@@ -17,6 +18,11 @@ from phios.mandala import (
 from phios.mandala.receipts import receipt_meta
 from phios.soma.evidence import NativeEvidenceStore
 
+from .local_network import (
+    InterfaceObservationError,
+    InterfaceStateProvider,
+    PsutilInterfaceStateProvider,
+)
 from .models import (
     RealityClaim,
     RealityClaimKind,
@@ -35,11 +41,13 @@ class RealityVerificationService:
         ledger: MandalaReceiptLedger,
         task_id: str,
         authority: AuthorityContext,
+        interface_provider: InterfaceStateProvider | None = None,
     ) -> None:
         self.evidence = evidence
         self.ledger = ledger
         self.task_id = task_id
         self.authority = authority
+        self.interface_provider = interface_provider or PsutilInterfaceStateProvider()
 
     @staticmethod
     def _normalize_text(text: str, *, case_sensitive: bool) -> str:
@@ -66,7 +74,7 @@ class RealityVerificationService:
             payload={
                 "claim_count": len(claims),
                 "claims": [claim.to_dict() for claim in claims],
-                "verification_method": "bounded-text-evidence-v0.1",
+                "verification_method": "bounded-evidence-v0.2",
             },
             authority=self.authority,
             evidence_refs=evidence_refs,
@@ -209,14 +217,135 @@ class RealityVerificationService:
             "scope": "world_state",
         }
 
+    def _local_interface_state(
+        self,
+        claim: RealityClaim,
+        *,
+        provider: InterfaceStateProvider,
+    ) -> tuple[dict[str, Any], tuple[str, ...]]:
+        permission = "reality.local_interface.read"
+        assert claim.interface_name is not None
+        assert claim.expected_is_up is not None
+
+        if not self.authority.allows(permission):
+            return (
+                {
+                    "claim_id": claim.claim_id,
+                    "kind": claim.kind.value,
+                    "statement": claim.statement,
+                    "verdict": RealityVerdict.BLOCKED.value,
+                    "reason": f"missing_grant:{permission}",
+                    "scope": "local_interface_state",
+                    "interface_name": claim.interface_name,
+                    "expected_is_up": claim.expected_is_up,
+                    "observation_evidence_ref": None,
+                },
+                (),
+            )
+
+        try:
+            observation = provider.observe(claim.interface_name)
+        except InterfaceObservationError:
+            return (
+                {
+                    "claim_id": claim.claim_id,
+                    "kind": claim.kind.value,
+                    "statement": claim.statement,
+                    "verdict": RealityVerdict.UNRESOLVED.value,
+                    "reason": "local_interface_observation_unavailable",
+                    "scope": "local_interface_state",
+                    "interface_name": claim.interface_name,
+                    "expected_is_up": claim.expected_is_up,
+                    "observation_evidence_ref": None,
+                },
+                (),
+            )
+        except Exception:  # noqa: BLE001 - provider boundary
+            return (
+                {
+                    "claim_id": claim.claim_id,
+                    "kind": claim.kind.value,
+                    "statement": claim.statement,
+                    "verdict": RealityVerdict.UNRESOLVED.value,
+                    "reason": "local_interface_provider_error",
+                    "scope": "local_interface_state",
+                    "interface_name": claim.interface_name,
+                    "expected_is_up": claim.expected_is_up,
+                    "observation_evidence_ref": None,
+                },
+                (),
+            )
+
+        if observation is None:
+            return (
+                {
+                    "claim_id": claim.claim_id,
+                    "kind": claim.kind.value,
+                    "statement": claim.statement,
+                    "verdict": RealityVerdict.UNRESOLVED.value,
+                    "reason": "local_interface_not_found",
+                    "scope": "local_interface_state",
+                    "interface_name": claim.interface_name,
+                    "expected_is_up": claim.expected_is_up,
+                    "observation_evidence_ref": None,
+                },
+                (),
+            )
+
+        observation_data = observation.to_dict()
+        observation_bytes = json.dumps(
+            observation_data,
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=False,
+        ).encode("utf-8")
+        observation_evidence = self.evidence.put_bytes(
+            observation_bytes,
+            media_type="application/json; charset=utf-8",
+            suffix=".json",
+        )
+
+        matched = observation.is_up is claim.expected_is_up
+        verdict = (
+            RealityVerdict.SUPPORTED
+            if matched
+            else RealityVerdict.CONTRADICTED
+        )
+        reason = (
+            "direct_local_interface_observation_matches_expected_state"
+            if matched
+            else "direct_local_interface_observation_conflicts_with_expected_state"
+        )
+
+        return (
+            {
+                "claim_id": claim.claim_id,
+                "kind": claim.kind.value,
+                "statement": claim.statement,
+                "verdict": verdict.value,
+                "reason": reason,
+                "scope": "local_interface_state",
+                "interface_name": observation.interface_name,
+                "expected_is_up": claim.expected_is_up,
+                "observed_is_up": observation.is_up,
+                "provider": observation.provider,
+                "provider_version": observation.provider_version,
+                "captured_at_utc": observation.captured_at_utc,
+                "observation_evidence_ref": observation_evidence.evidence_ref,
+            },
+            (observation_evidence.evidence_ref,),
+        )
+
     def verify(
         self,
         *,
         claims: tuple[RealityClaim, ...],
         max_evidence_bytes: int = 1_048_576,
+        interface_provider: InterfaceStateProvider | None = None,
     ) -> RealityVerificationResult:
         permission = "reality.verify"
         packet = self._packet(claims)
+        selected_interface_provider = interface_provider or self.interface_provider
 
         if not self.authority.allows(permission):
             gate_receipt = self._gate_receipt(
@@ -247,7 +376,7 @@ class RealityVerificationService:
                 unresolved_contradictions=(),
                 unresolved_claims=tuple(claim.claim_id for claim in claims),
                 verdict_summary={RealityVerdict.BLOCKED.value: len(claims)},
-                verification_method="bounded-text-evidence-v0.1",
+                verification_method="bounded-evidence-v0.2",
                 promotion_status="not_promoted",
                 limitations=(
                     f"missing_grant:{permission}",
@@ -310,7 +439,7 @@ class RealityVerificationService:
                 unresolved_contradictions=(),
                 unresolved_claims=tuple(claim.claim_id for claim in claims),
                 verdict_summary={RealityVerdict.BLOCKED.value: len(claims)},
-                verification_method="bounded-text-evidence-v0.1",
+                verification_method="bounded-evidence-v0.2",
                 promotion_status="not_promoted",
                 limitations=invalid_global
                 + tuple(
@@ -349,6 +478,15 @@ class RealityVerificationService:
                 results.append(self._world_state(claim))
                 continue
 
+            if claim.kind is RealityClaimKind.LOCAL_INTERFACE_STATE:
+                result, claim_used = self._local_interface_state(
+                    claim,
+                    provider=selected_interface_provider,
+                )
+                results.append(result)
+                used.extend(claim_used)
+                continue
+
             results.append(
                 {
                     "claim_id": claim.claim_id,
@@ -363,7 +501,9 @@ class RealityVerificationService:
         verdicts = [item["verdict"] for item in results]
         counts = Counter(str(item) for item in verdicts)
 
-        if RealityVerdict.CONTRADICTED.value in verdicts:
+        if RealityVerdict.BLOCKED.value in verdicts:
+            status = MandalaStatus.BLOCKED
+        elif RealityVerdict.CONTRADICTED.value in verdicts:
             status = MandalaStatus.DISPUTED
         elif RealityVerdict.UNRESOLVED.value in verdicts:
             status = MandalaStatus.UNKNOWN
@@ -393,12 +533,14 @@ class RealityVerificationService:
             unresolved_contradictions=contradicted,
             unresolved_claims=unresolved,
             verdict_summary=dict(counts),
-            verification_method="bounded-text-evidence-v0.1",
+            verification_method="bounded-evidence-v0.2",
             promotion_status="not_promoted",
             limitations=(
                 "lexical_source_support_is_not_world_state_verification",
                 "source_content_support_does_not_establish_world_truth",
-                "world_state_requires_independent_verifier",
+                "generic_world_state_requires_independent_verifier",
+                "local_interface_state_uses_direct_host_observation",
+                "host_observation_is_point_in_time",
                 "verification_does_not_grant_action_authority",
                 "no_automatic_memory_promotion",
             ),
