@@ -21,6 +21,7 @@ from phios.mandala import (
     PhiCoreState,
 )
 from phios.mandala.receipts import receipt_meta
+from phios.soma import ObservationResult, SomaPerceptionService
 
 from .collaborator import PhiVesselAdapter
 from .executor import ExecutorRegistry, text_artifact_handler
@@ -31,7 +32,7 @@ from .registry import CapabilityRegistry
 
 
 class PhiOSSpine:
-    """Authority-aware execution spine with Mandala v0.1 contracts."""
+    """Authority-aware execution spine with Mandala gates and SOMA perception."""
 
     def __init__(
         self,
@@ -55,6 +56,12 @@ class PhiOSSpine:
             explicit_grants=allowed,
             ledger_pointer=str(self.mandala_ledger.path),
         ).activate()
+        self.soma = SomaPerceptionService(
+            state_root=self.state_root,
+            ledger=self.mandala_ledger,
+            task_id=self.core.task_id,
+            authority=self.core.authority,
+        )
         self._register_builtins()
 
     def _register_builtins(self) -> None:
@@ -75,6 +82,21 @@ class PhiOSSpine:
     def _hash_payload(payload: dict[str, Any]) -> str:
         encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
         return hashlib.sha256(encoded).hexdigest()
+
+    def perceive_text(
+        self,
+        *,
+        source_id: str,
+        text: str,
+        transforms: tuple[str, ...] = (),
+        source_kind: OriginKind = OriginKind.HUMAN,
+    ) -> ObservationResult:
+        return self.soma.perceive_text(
+            source_id=source_id,
+            text=text,
+            transforms=transforms,
+            source_kind=source_kind,
+        )
 
     def _action_packet(self, plan: Any, capability: Capability) -> MandalaPacket:
         return MandalaPacket.create(
