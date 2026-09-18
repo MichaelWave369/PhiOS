@@ -71,7 +71,7 @@ def _json_mixed_contract_clauses(
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="phi-spine", description="PhiOS Spine v0.22")
+    parser = argparse.ArgumentParser(prog="phi-spine", description="PhiOS Spine v0.23")
     parser.add_argument("--state-root", help="Override the PhiOS Spine local state root")
     parser.add_argument(
         "--allow",
@@ -82,7 +82,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     sub = parser.add_subparsers(dest="command", required=True)
 
-    sub.add_parser("status", help="Show the v0.22 spine and Mandala contract state")
+    sub.add_parser("status", help="Show the v0.23 spine and Mandala contract state")
     sub.add_parser("list", help="List registered capabilities")
 
     perceive = sub.add_parser(
@@ -278,8 +278,8 @@ def build_parser() -> argparse.ArgumentParser:
         "--observation-count",
         type=int,
         help=(
-            "Required 2-5 provider observations for repeated, timed, or "
-            "cadenced mixed-contract claims"
+            "Required 2-5 provider observations for repeated, timed, "
+            "cadenced, or temporal-envelope mixed-contract claims"
         ),
     )
     verify_claim.add_argument(
@@ -287,7 +287,8 @@ def build_parser() -> argparse.ArgumentParser:
         type=float,
         help=(
             "Required 0.05-10 second minimum spacing between provider "
-            "invocation starts for timed or cadenced mixed-contract claims"
+            "invocation starts for timed, cadenced, or temporal-envelope "
+            "mixed-contract claims"
         ),
     )
     verify_claim.add_argument(
@@ -295,7 +296,24 @@ def build_parser() -> argparse.ArgumentParser:
         type=float,
         help=(
             "Required 0.05-10 second maximum spacing between provider "
-            "invocation starts for local_http_json_cadenced_mixed_contract"
+            "invocation starts for cadenced or temporal-envelope "
+            "mixed-contract claims"
+        ),
+    )
+    verify_claim.add_argument(
+        "--minimum-series-span-seconds",
+        type=float,
+        help=(
+            "Required 0.05-40 second minimum first-to-last provider-start "
+            "span for local_http_json_temporal_envelope_mixed_contract"
+        ),
+    )
+    verify_claim.add_argument(
+        "--maximum-series-span-seconds",
+        type=float,
+        help=(
+            "Required 0.05-40 second maximum first-to-last provider-start "
+            "span for local_http_json_temporal_envelope_mixed_contract"
         ),
     )
     verify_claim.add_argument("--max-evidence-bytes", type=int, default=1_048_576)
@@ -333,7 +351,7 @@ def main() -> int:
                     "gates": [gate.value for gate in Gate],
                     "statuses": [status.value for status in MandalaStatus],
                     "north_gate": "soma.text.v0.1+soma.file.v0.1+soma.screen.v0.1+soma.recovery.v0.1+soma.multishot.v0.1+soma.enhancement.v0.1+soma.ocr.v0.1",
-                    "reality_gate": "reality.bounded-evidence.v0.12",
+                    "reality_gate": "reality.bounded-evidence.v0.13",
                     "world_verifiers": [
                         "local-interface-state.v0.1",
                         "local-tcp-listener-state.v0.1",
@@ -347,6 +365,7 @@ def main() -> int:
                         "local-http-json-repeated-mixed-contract.v0.1",
                         "local-http-json-timed-mixed-contract.v0.1",
                         "local-http-json-cadenced-mixed-contract.v0.1",
+                        "local-http-json-temporal-envelope-mixed-contract.v0.1",
                     ],
                 },
                 indent=2,
@@ -539,6 +558,8 @@ def main() -> int:
             repeat_observation_count=args.observation_count,
             minimum_interval_seconds=args.minimum_interval_seconds,
             maximum_interval_seconds=args.maximum_interval_seconds,
+            minimum_series_span_seconds=args.minimum_series_span_seconds,
+            maximum_series_span_seconds=args.maximum_series_span_seconds,
         )
         verification_result = runtime.verify_reality(
             claims=(claim,),
@@ -556,6 +577,7 @@ def main() -> int:
                     RealityClaimKind.LOCAL_HTTP_JSON_REPEATED_MIXED_CONTRACT.value,
                     RealityClaimKind.LOCAL_HTTP_JSON_TIMED_MIXED_CONTRACT.value,
                     RealityClaimKind.LOCAL_HTTP_JSON_CADENCED_MIXED_CONTRACT.value,
+                    RealityClaimKind.LOCAL_HTTP_JSON_TEMPORAL_ENVELOPE_MIXED_CONTRACT.value,
                 }
                 else None
             ),
