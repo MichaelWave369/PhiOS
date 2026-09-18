@@ -262,6 +262,7 @@ class RealityVerificationService:
                 claim_results=blocked,
             )
 
+        invalid_global: tuple[str, ...]
         if max_evidence_bytes <= 0:
             invalid_global = ("invalid_evidence_byte_budget",)
         else:
