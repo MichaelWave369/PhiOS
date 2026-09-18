@@ -6,6 +6,9 @@ Dreamteam attribution: PHI369 Labs, contributors, and field builders.
 
 ## Unreleased
 
+- Began the Phi Commons era: project-owned PhiOS code and documentation are now released under MIT unless otherwise noted.
+- Preserved the exact pre-MIT public state on `archive/pre-phi-commons-license-2026-09-17`; historical GPLv3 rights remain intact.
+- Added `PHI_COMMONS.md`, `LICENSE_HISTORY.md`, `THIRD_PARTY_NOTICES.md`, and `MODEL_LICENSES.md`.
 - Added kernel migration runbook (`docs/kernel-migration-v50.md`) for controlled operator-reviewed legacy -> `tiekat_v50` campaigns.
 - Added advisory rollout guardrails for contributors/agents in `AGENTS.md`.
 - Added `scripts/kernel_rollout_campaign.sh` helper for repeatable shadow/promoted/rollback evaluation + review artifact generation.
