@@ -106,7 +106,7 @@ class TesseractOcrProvider:
         values: list[float] = []
         for raw in list(data.get("conf", [])):
             try:
-                value = float(raw)
+                value = float(str(raw))
             except (TypeError, ValueError):
                 continue
             if math.isfinite(value) and 0.0 <= value <= 100.0:
