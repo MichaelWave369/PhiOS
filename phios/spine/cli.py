@@ -178,7 +178,7 @@ def build_parser() -> argparse.ArgumentParser:
     verify_claim.add_argument("--http-max-body-bytes", type=int, default=65_536)
     verify_claim.add_argument(
         "--json-pointer",
-        help="Required RFC-6901-style pointer for local_http_json_contract claims",
+        help="Required RFC-6901-style pointer for semantic local HTTP JSON claims",
     )
     verify_claim.add_argument(
         "--expected-json-type",
