@@ -171,7 +171,23 @@ class RealityClaim:
             if predicate_error is not None:
                 errors.append(predicate_error)
 
+        if (
+            self.kind is not RealityClaimKind.LOCAL_HTTP_JSON_MULTI_CONTRACT
+            and self.json_contract_clauses
+        ):
+            errors.append("json_contract_clauses_only_for_multi_contract")
+
         if self.kind is RealityClaimKind.LOCAL_HTTP_JSON_MULTI_CONTRACT:
+            if any(
+                value is not None
+                for value in (
+                    self.json_pointer,
+                    self.expected_json_type,
+                    self.json_predicate_kind,
+                    self.json_predicate_bound,
+                )
+            ):
+                errors.append("local_http_json_multi_contract_disallows_single_fields")
             if not 1 <= len(self.json_contract_clauses) <= 8:
                 errors.append("local_http_json_multi_contract_requires_1_to_8_clauses")
             for index, clause in enumerate(self.json_contract_clauses):
