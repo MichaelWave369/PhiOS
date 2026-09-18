@@ -12,6 +12,7 @@ from .local_json import (
     JSON_TYPE_NAMES,
     JsonContractClause,
     json_pointer_error,
+    json_scalar_predicate_error,
     json_structural_predicate_error,
 )
 
@@ -25,6 +26,7 @@ class RealityClaimKind(StrEnum):
     LOCAL_HTTP_JSON_CONTRACT = "local_http_json_contract"
     LOCAL_HTTP_JSON_PREDICATE = "local_http_json_predicate"
     LOCAL_HTTP_JSON_MULTI_CONTRACT = "local_http_json_multi_contract"
+    LOCAL_HTTP_JSON_SCALAR_PREDICATE = "local_http_json_scalar_predicate"
 
 
 class RealityVerdict(StrEnum):
@@ -56,6 +58,8 @@ class RealityClaim:
     json_predicate_kind: str | None = None
     json_predicate_bound: int | None = None
     json_contract_clauses: tuple[JsonContractClause, ...] = ()
+    json_scalar_predicate_kind: str | None = None
+    json_scalar_operand: str | None = None
 
     @classmethod
     def create(
@@ -80,6 +84,8 @@ class RealityClaim:
         json_predicate_kind: str | None = None,
         json_predicate_bound: int | None = None,
         json_contract_clauses: tuple[JsonContractClause, ...] = (),
+        json_scalar_predicate_kind: str | None = None,
+        json_scalar_operand: str | None = None,
     ) -> "RealityClaim":
         return cls(
             claim_id=str(uuid.uuid4()),
@@ -102,6 +108,8 @@ class RealityClaim:
             json_predicate_kind=json_predicate_kind,
             json_predicate_bound=json_predicate_bound,
             json_contract_clauses=tuple(json_contract_clauses),
+            json_scalar_predicate_kind=json_scalar_predicate_kind,
+            json_scalar_operand=json_scalar_operand,
         )
 
     def validation_errors(self) -> tuple[str, ...]:
@@ -136,6 +144,7 @@ class RealityClaim:
             RealityClaimKind.LOCAL_HTTP_JSON_CONTRACT,
             RealityClaimKind.LOCAL_HTTP_JSON_PREDICATE,
             RealityClaimKind.LOCAL_HTTP_JSON_MULTI_CONTRACT,
+            RealityClaimKind.LOCAL_HTTP_JSON_SCALAR_PREDICATE,
         }:
             url_error = local_http_url_error(self.http_url)
             if url_error is not None:
@@ -152,6 +161,7 @@ class RealityClaim:
         if self.kind in {
             RealityClaimKind.LOCAL_HTTP_JSON_CONTRACT,
             RealityClaimKind.LOCAL_HTTP_JSON_PREDICATE,
+            RealityClaimKind.LOCAL_HTTP_JSON_SCALAR_PREDICATE,
         }:
             pointer_error = json_pointer_error(self.json_pointer)
             if pointer_error is not None:
@@ -170,6 +180,32 @@ class RealityClaim:
             )
             if predicate_error is not None:
                 errors.append(predicate_error)
+
+        if self.kind is RealityClaimKind.LOCAL_HTTP_JSON_SCALAR_PREDICATE:
+            scalar_error = json_scalar_predicate_error(
+                self.json_scalar_predicate_kind,
+                self.json_scalar_operand,
+            )
+            if scalar_error is not None:
+                errors.append(scalar_error)
+            if any(
+                value is not None
+                for value in (
+                    self.expected_json_type,
+                    self.json_predicate_kind,
+                    self.json_predicate_bound,
+                )
+            ):
+                errors.append("local_http_json_scalar_predicate_disallows_other_modes")
+
+        if (
+            self.kind is not RealityClaimKind.LOCAL_HTTP_JSON_SCALAR_PREDICATE
+            and (
+                self.json_scalar_predicate_kind is not None
+                or self.json_scalar_operand is not None
+            )
+        ):
+            errors.append("json_scalar_predicate_fields_only_for_scalar_claim")
 
         if (
             self.kind is not RealityClaimKind.LOCAL_HTTP_JSON_MULTI_CONTRACT
@@ -220,6 +256,8 @@ class RealityClaim:
             "json_contract_clauses": [
                 clause.to_dict() for clause in self.json_contract_clauses
             ],
+            "json_scalar_predicate_kind": self.json_scalar_predicate_kind,
+            "json_scalar_operand": self.json_scalar_operand,
         }
 
 

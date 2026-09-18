@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from typing import Any
 
 JSON_TYPE_NAMES = frozenset(
@@ -213,6 +213,118 @@ def evaluate_json_structural_predicate(
         result["predicate_matches"] = measurement >= bound
     else:
         result["predicate_matches"] = measurement <= bound
+    return result
+
+
+JSON_SCALAR_PREDICATES = frozenset(
+    {
+        "boolean_is_true",
+        "boolean_is_false",
+        "integer_eq",
+        "integer_gte",
+        "integer_lte",
+        "number_eq",
+        "number_gte",
+        "number_lte",
+    }
+)
+
+_JSON_SCALAR_PREDICATE_EXPECTED_TYPES = {
+    "boolean_is_true": "boolean",
+    "boolean_is_false": "boolean",
+    "integer_eq": "integer",
+    "integer_gte": "integer",
+    "integer_lte": "integer",
+    "number_eq": "number",
+    "number_gte": "number",
+    "number_lte": "number",
+}
+
+
+def _decimal_operand(operand: str) -> Decimal:
+    if not operand or len(operand) > 64:
+        raise ValueError("invalid scalar operand")
+    try:
+        value = Decimal(operand)
+    except InvalidOperation as exc:
+        raise ValueError("invalid scalar operand") from exc
+    if not value.is_finite():
+        raise ValueError("invalid scalar operand")
+    return value
+
+
+def json_scalar_predicate_error(
+    predicate: str | None,
+    operand: str | None,
+) -> str | None:
+    if predicate is None:
+        return "local_http_json_scalar_predicate_requires_kind"
+    if predicate not in JSON_SCALAR_PREDICATES:
+        return "local_http_json_scalar_predicate_invalid_kind"
+
+    if predicate.startswith("boolean_"):
+        if operand is not None:
+            return "local_http_json_scalar_predicate_disallows_operand"
+        return None
+
+    if operand is None:
+        return "local_http_json_scalar_predicate_requires_operand"
+    try:
+        numeric = _decimal_operand(operand)
+    except ValueError:
+        return "local_http_json_scalar_predicate_invalid_operand"
+
+    if predicate.startswith("integer_") and numeric != numeric.to_integral_value():
+        return "local_http_json_scalar_predicate_requires_integer_operand"
+    return None
+
+
+def json_scalar_predicate_expected_type(predicate: str) -> str:
+    return _JSON_SCALAR_PREDICATE_EXPECTED_TYPES[predicate]
+
+
+def evaluate_json_scalar_predicate(
+    value: Any,
+    *,
+    predicate: str,
+    operand: str | None,
+) -> dict[str, Any]:
+    expected_type = json_scalar_predicate_expected_type(predicate)
+    observed_type = json_type_name(value)
+    type_matches = json_type_matches(value, expected_type)
+    result: dict[str, Any] = {
+        "predicate": predicate,
+        "expected_json_type": expected_type,
+        "observed_json_type": observed_type,
+        "type_matches": type_matches,
+        "predicate_matches": False,
+    }
+    if not type_matches:
+        return result
+
+    if predicate == "boolean_is_true":
+        assert isinstance(value, bool)
+        result["predicate_matches"] = value is True
+        return result
+    if predicate == "boolean_is_false":
+        assert isinstance(value, bool)
+        result["predicate_matches"] = value is False
+        return result
+
+    assert operand is not None
+    expected = _decimal_operand(operand)
+    if isinstance(value, int):
+        observed = Decimal(value)
+    else:
+        assert isinstance(value, Decimal)
+        observed = value
+
+    if predicate.endswith("_eq"):
+        result["predicate_matches"] = observed == expected
+    elif predicate.endswith("_gte"):
+        result["predicate_matches"] = observed >= expected
+    else:
+        result["predicate_matches"] = observed <= expected
     return result
 
 

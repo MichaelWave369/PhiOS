@@ -117,7 +117,7 @@ because computers have been exploiting that kind of optimism for decades.
 
 ## Current Spine verification ladder
 
-The current merged Spine line is **v0.17**.
+The current merged Spine line is **v0.18**.
 
 | Version | Capability |
 |---|---|
@@ -129,8 +129,9 @@ The current merged Spine line is **v0.17**.
 | v0.15 | JSON pointer + type verification |
 | v0.16 | bounded structural JSON predicates |
 | v0.17 | same-snapshot multi-clause JSON contracts |
+| v0.18 | bounded Boolean and numeric scalar predicates |
 
-The latest semantic contract can evaluate **1–8 bounded clauses from one HTTP observation**:
+The v0.17 same-snapshot contract can evaluate **1–8 bounded clauses from one HTTP observation**:
 
 ```text
 one GET
@@ -159,10 +160,14 @@ All clauses describe the **same captured response**, not several requests made a
 
 See:
 
-- [Spine v0.17 overview](README_SPINE_V0.17.md)
-- [Spine v0.17 contract details](docs/PHIOS_SPINE_V0.17_JSON_MULTI_CONTRACT.md)
+- [Spine v0.18 overview](README_SPINE_V0.18.md)
+- [Spine v0.18 scalar predicate contract](docs/PHIOS_SPINE_V0.18_JSON_SCALAR_PREDICATES.md)
+- [Spine v0.17 same-snapshot contract](docs/PHIOS_SPINE_V0.17_JSON_MULTI_CONTRACT.md)
 
 Older Spine documents remain in the repository as the versioned design trail.
+
+v0.18 adds a stronger semantic boundary for scalar values. Boolean and numeric values may be inspected only with the separate `reality.local_http.semantic.value.read` grant. The observed scalar is used transiently for comparison and is not persisted in semantic evidence.
+
 
 ---
 
