@@ -422,7 +422,7 @@ class JsonNumericTransitionClause:
 def extract_json_numeric_transition_value(
     document: Any,
     clause: JsonNumericTransitionClause,
-) -> tuple[dict[str, Any], Decimal | None]:
+) -> tuple[dict[str, Any], int | Decimal | None]:
     pointer_exists, value = resolve_json_pointer(document, clause.pointer)
     expected_type = clause.expected_json_type
     result: dict[str, Any] = {
@@ -444,9 +444,9 @@ def extract_json_numeric_transition_value(
     if not type_matches:
         return result, None
 
-    numeric = _numeric_decimal(value)
+    assert isinstance(value, (int, Decimal)) and not isinstance(value, bool)
     result["value_available"] = True
-    return result, numeric
+    return result, value
 
 
 def evaluate_json_numeric_transition_pair(
