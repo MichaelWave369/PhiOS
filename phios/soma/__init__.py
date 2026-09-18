@@ -17,10 +17,19 @@ from .models import (
     FileObservationResult,
     NativeEvidence,
     ObservationResult,
+    OcrObservationResult,
     ScreenBurstResult,
     ScreenEnhancementResult,
     ScreenObservationResult,
     ScreenRecoveryResult,
+)
+from .ocr import (
+    PNG_SIGNATURE,
+    OcrEngineError,
+    OcrEngineResult,
+    OcrProvider,
+    OcrSpec,
+    TesseractOcrProvider,
 )
 from .multishot import (
     FrameSharpnessScorer,
@@ -54,6 +63,12 @@ __all__ = [
     "FrameSharpnessScorer",
     "NativeEvidence",
     "ObservationResult",
+    "OcrEngineError",
+    "OcrEngineResult",
+    "OcrObservationResult",
+    "OcrProvider",
+    "OcrSpec",
+    "PNG_SIGNATURE",
     "PillowEdgeSharpnessScorer",
     "PillowScreenCaptureProvider",
     "PillowScreenRecoveryProvider",
@@ -74,4 +89,5 @@ __all__ = [
     "ScreenRegion",
     "SharpnessScoreError",
     "SomaPerceptionService",
+    "TesseractOcrProvider",
 ]

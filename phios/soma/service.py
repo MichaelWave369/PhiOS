@@ -13,6 +13,7 @@ from phios.mandala import (
     MandalaStatus,
     OriginKind,
     OriginRef,
+    OcrReceipt,
     PerceptionReceipt,
 )
 from phios.mandala.receipts import receipt_meta
@@ -24,6 +25,7 @@ from .models import (
     FileObservationResult,
     NativeEvidence,
     ObservationResult,
+    OcrObservationResult,
     ScreenBurstResult,
     ScreenEnhancementResult,
     ScreenObservationResult,
@@ -35,6 +37,7 @@ from .enhancement import (
     ScreenEnhancementSpec,
 )
 from .multishot import FrameSharpnessScorer, SharpnessScoreError
+from .ocr import OcrEngineError, OcrProvider, OcrSpec, PNG_SIGNATURE
 from .recovery import ScreenCrop, ScreenRecoveryError, ScreenRecoveryProvider
 from .screen import CapturedFrame, ScreenCaptureError, ScreenCaptureProvider, ScreenRegion
 
@@ -1770,4 +1773,344 @@ class SomaPerceptionService:
             observation_sha256=derived.sha256,
             enhancement_method=spec.method,
             enhancement_parameters=parameters,
+        )
+
+
+    def ocr_screen_evidence(
+        self,
+        *,
+        evidence_ref: str,
+        provider: OcrProvider,
+        spec: OcrSpec,
+    ) -> OcrObservationResult:
+        permission = "perception.ocr.read"
+        source_id = f"ocr:{evidence_ref}"
+        spec_data = spec.to_dict()
+
+        packet = MandalaPacket.create(
+            task_id=self.task_id,
+            gate=Gate.PERCEPTION,
+            origin=OriginRef(
+                kind=OriginKind.SUBSYSTEM,
+                identifier="soma.ocr",
+            ),
+            payload={
+                "source_id": source_id,
+                "source_evidence_ref": evidence_ref,
+                "ocr": spec_data,
+            },
+            authority=self.authority,
+            evidence_refs=(evidence_ref,),
+            claims=(
+                {
+                    "kind": "ocr_interpretation_request",
+                    "source_id": source_id,
+                    "epistemic_status": "engine_interpretation",
+                },
+            ),
+            allowed_destinations=(Gate.DELIBERATION, Gate.MEMORY),
+        )
+
+        if not self.authority.allows(permission):
+            gate_receipt = self._gate_receipt(
+                packet,
+                status=MandalaStatus.BLOCKED,
+                reason=f"OCR blocked: missing explicit grant {permission}",
+            )
+            receipt = OcrReceipt(
+                **receipt_meta(
+                    packet,
+                    status=MandalaStatus.BLOCKED,
+                    produced_by="soma.ocr",
+                    parent_receipt_id=gate_receipt.receipt_id,
+                ),
+                source_evidence_ref=evidence_ref,
+                output_evidence_ref=None,
+                engine=provider.name,
+                engine_version=None,
+                language=spec.language,
+                page_segmentation_mode=spec.page_segmentation_mode,
+                limitations=(
+                    f"missing_grant:{permission}",
+                    "source_evidence_not_read",
+                    "ocr_output_is_interpretation",
+                ),
+                interpretation_status="blocked",
+            )
+            self.ledger.append(receipt)
+            return OcrObservationResult(
+                packet=packet,
+                receipt=receipt,
+                source_evidence_ref=evidence_ref,
+                text_evidence=None,
+                text=None,
+            )
+
+        try:
+            spec.validate()
+        except OcrEngineError as exc:
+            gate_receipt = self._gate_receipt(
+                packet,
+                status=MandalaStatus.BLOCKED,
+                reason=f"OCR blocked: {exc.code}",
+            )
+            receipt = OcrReceipt(
+                **receipt_meta(
+                    packet,
+                    status=MandalaStatus.BLOCKED,
+                    produced_by="soma.ocr",
+                    parent_receipt_id=gate_receipt.receipt_id,
+                ),
+                source_evidence_ref=evidence_ref,
+                output_evidence_ref=None,
+                engine=provider.name,
+                engine_version=None,
+                language=spec.language,
+                page_segmentation_mode=spec.page_segmentation_mode,
+                limitations=(exc.code,),
+                interpretation_status="blocked",
+            )
+            self.ledger.append(receipt)
+            return OcrObservationResult(
+                packet=packet,
+                receipt=receipt,
+                source_evidence_ref=evidence_ref,
+                text_evidence=None,
+                text=None,
+            )
+
+        try:
+            source_bytes = self.evidence.read_bytes(evidence_ref)
+        except (ValueError, FileNotFoundError, RuntimeError):
+            gate_receipt = self._gate_receipt(
+                packet,
+                status=MandalaStatus.BLOCKED,
+                reason="OCR blocked: source_evidence_unavailable",
+            )
+            receipt = OcrReceipt(
+                **receipt_meta(
+                    packet,
+                    status=MandalaStatus.BLOCKED,
+                    produced_by="soma.ocr",
+                    parent_receipt_id=gate_receipt.receipt_id,
+                ),
+                source_evidence_ref=evidence_ref,
+                output_evidence_ref=None,
+                engine=provider.name,
+                engine_version=None,
+                language=spec.language,
+                page_segmentation_mode=spec.page_segmentation_mode,
+                limitations=("source_evidence_unavailable",),
+                interpretation_status="blocked",
+            )
+            self.ledger.append(receipt)
+            return OcrObservationResult(
+                packet=packet,
+                receipt=receipt,
+                source_evidence_ref=evidence_ref,
+                text_evidence=None,
+                text=None,
+            )
+
+        if not source_bytes.startswith(PNG_SIGNATURE):
+            gate_receipt = self._gate_receipt(
+                packet,
+                status=MandalaStatus.BLOCKED,
+                reason="OCR blocked: unsupported_ocr_media",
+            )
+            receipt = OcrReceipt(
+                **receipt_meta(
+                    packet,
+                    status=MandalaStatus.BLOCKED,
+                    produced_by="soma.ocr",
+                    parent_receipt_id=gate_receipt.receipt_id,
+                ),
+                source_evidence_ref=evidence_ref,
+                output_evidence_ref=None,
+                engine=provider.name,
+                engine_version=None,
+                language=spec.language,
+                page_segmentation_mode=spec.page_segmentation_mode,
+                limitations=(
+                    "unsupported_ocr_media",
+                    "v0.9_accepts_png_evidence_only",
+                ),
+                interpretation_status="blocked",
+            )
+            self.ledger.append(receipt)
+            return OcrObservationResult(
+                packet=packet,
+                receipt=receipt,
+                source_evidence_ref=evidence_ref,
+                text_evidence=None,
+                text=None,
+            )
+
+        gate_receipt = self._gate_receipt(
+            packet,
+            status=MandalaStatus.ACCEPTED,
+            reason="image evidence admitted for permissioned OCR interpretation",
+        )
+
+        try:
+            engine_result = provider.read(source_bytes, spec=spec)
+        except OcrEngineError as exc:
+            status = (
+                MandalaStatus.DEGRADED
+                if exc.code == "ocr_engine_unavailable"
+                else MandalaStatus.QUARANTINED
+            )
+            receipt = OcrReceipt(
+                **receipt_meta(
+                    packet,
+                    status=status,
+                    produced_by="soma.ocr",
+                    parent_receipt_id=gate_receipt.receipt_id,
+                ),
+                source_evidence_ref=evidence_ref,
+                output_evidence_ref=None,
+                engine=provider.name,
+                engine_version=None,
+                language=spec.language,
+                page_segmentation_mode=spec.page_segmentation_mode,
+                limitations=(
+                    exc.code,
+                    "source_evidence_preserved",
+                    "no_symbolic_interpretation_promoted",
+                ),
+                interpretation_status=status.value.lower(),
+            )
+            self.ledger.append(receipt)
+            return OcrObservationResult(
+                packet=packet,
+                receipt=receipt,
+                source_evidence_ref=evidence_ref,
+                text_evidence=None,
+                text=None,
+            )
+        except Exception:  # noqa: BLE001 - OCR provider boundary
+            receipt = OcrReceipt(
+                **receipt_meta(
+                    packet,
+                    status=MandalaStatus.QUARANTINED,
+                    produced_by="soma.ocr",
+                    parent_receipt_id=gate_receipt.receipt_id,
+                ),
+                source_evidence_ref=evidence_ref,
+                output_evidence_ref=None,
+                engine=provider.name,
+                engine_version=None,
+                language=spec.language,
+                page_segmentation_mode=spec.page_segmentation_mode,
+                limitations=(
+                    "ocr_provider_error",
+                    "source_evidence_preserved",
+                    "no_symbolic_interpretation_promoted",
+                ),
+                interpretation_status="quarantined",
+            )
+            self.ledger.append(receipt)
+            return OcrObservationResult(
+                packet=packet,
+                receipt=receipt,
+                source_evidence_ref=evidence_ref,
+                text_evidence=None,
+                text=None,
+            )
+
+        valid_confidences = tuple(
+            value
+            for value in engine_result.confidences
+            if 0.0 <= value <= 100.0
+        )
+        confidence_mean = (
+            sum(valid_confidences) / len(valid_confidences)
+            if valid_confidences
+            else None
+        )
+        confidence_min = min(valid_confidences) if valid_confidences else None
+        confidence_max = max(valid_confidences) if valid_confidences else None
+        text = engine_result.text
+        stripped = text.strip()
+
+        base_limitations = [
+            "ocr_output_is_interpretation",
+            "ocr_text_not_truth",
+            "confidence_is_engine_metadata_not_probability_of_truth",
+            "source_evidence_unchanged",
+            "ocr_does_not_increase_authority",
+            "no_reality_gate_promotion",
+        ]
+
+        if not stripped:
+            receipt = OcrReceipt(
+                **receipt_meta(
+                    packet,
+                    status=MandalaStatus.DEGRADED,
+                    produced_by="soma.ocr",
+                    parent_receipt_id=gate_receipt.receipt_id,
+                ),
+                source_evidence_ref=evidence_ref,
+                output_evidence_ref=None,
+                engine=engine_result.engine,
+                engine_version=engine_result.engine_version,
+                language=spec.language,
+                page_segmentation_mode=spec.page_segmentation_mode,
+                character_count=0,
+                token_count=0,
+                confidence_count=len(valid_confidences),
+                confidence_mean=confidence_mean,
+                confidence_min=confidence_min,
+                confidence_max=confidence_max,
+                limitations=tuple(base_limitations + ["no_text_detected"]),
+                interpretation_status="degraded",
+            )
+            self.ledger.append(receipt)
+            return OcrObservationResult(
+                packet=packet,
+                receipt=receipt,
+                source_evidence_ref=evidence_ref,
+                text_evidence=None,
+                text="",
+            )
+
+        text_evidence = self.evidence.put_text(text)
+        limitations = list(base_limitations)
+        status = MandalaStatus.ACCEPTED
+        if not valid_confidences:
+            status = MandalaStatus.DEGRADED
+            limitations.append("confidence_unavailable")
+
+        receipt = OcrReceipt(
+            **receipt_meta(
+                packet,
+                status=status,
+                produced_by="soma.ocr",
+                parent_receipt_id=gate_receipt.receipt_id,
+            ),
+            source_evidence_ref=evidence_ref,
+            output_evidence_ref=text_evidence.evidence_ref,
+            engine=engine_result.engine,
+            engine_version=engine_result.engine_version,
+            language=spec.language,
+            page_segmentation_mode=spec.page_segmentation_mode,
+            text_sha256=text_evidence.sha256,
+            character_count=len(text),
+            token_count=len(stripped.split()),
+            confidence_count=len(valid_confidences),
+            confidence_mean=confidence_mean,
+            confidence_min=confidence_min,
+            confidence_max=confidence_max,
+            limitations=tuple(limitations),
+            interpretation_status=(
+                "accepted" if status is MandalaStatus.ACCEPTED else "degraded"
+            ),
+        )
+        self.ledger.append(receipt)
+        return OcrObservationResult(
+            packet=packet,
+            receipt=receipt,
+            source_evidence_ref=evidence_ref,
+            text_evidence=text_evidence,
+            text=text,
         )

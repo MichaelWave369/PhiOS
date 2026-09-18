@@ -30,6 +30,7 @@ Manifesto = "https://enterthefield.org/phios"
 
 [project.optional-dependencies]
 screen = ["Pillow>=10.0"]
+ocr = ["Pillow>=10.0", "pytesseract>=0.3.10"]
 
 dev = [
   "build>=1.2.2",
