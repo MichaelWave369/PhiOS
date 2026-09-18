@@ -3003,13 +3003,15 @@ class RealityVerificationService:
             temporal_envelope_satisfied
             and supported_count == claim.repeat_observation_count
         )
-        implied_minimum_series_span_seconds = (
+        implied_minimum_series_span_seconds = round(
             (claim.repeat_observation_count - 1)
-            * claim.minimum_interval_seconds
+            * claim.minimum_interval_seconds,
+            9,
         )
-        implied_maximum_series_span_seconds = (
+        implied_maximum_series_span_seconds = round(
             (claim.repeat_observation_count - 1)
-            * claim.maximum_interval_seconds
+            * claim.maximum_interval_seconds,
+            9,
         )
         series_evidence_record = {
             "semantic_contract": {
