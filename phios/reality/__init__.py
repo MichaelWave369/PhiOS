@@ -4,6 +4,7 @@ from .local_http import (
     LocalHttpObservation,
     LocalHttpObservationError,
     LocalHttpStateProvider,
+    StdlibLoopbackHttpStateProvider,
     UnavailableLocalHttpStateProvider,
     local_http_url_error,
 )
@@ -41,6 +42,7 @@ __all__ = [
     "RealityVerdict",
     "RealityVerificationResult",
     "RealityVerificationService",
+    "StdlibLoopbackHttpStateProvider",
     "TcpListenerObservation",
     "TcpListenerObservationError",
     "TcpListenerStateProvider",
