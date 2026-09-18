@@ -11,6 +11,7 @@ from .local_http import local_http_url_error
 from .local_json import (
     JSON_TYPE_NAMES,
     JsonContractClause,
+    JsonMixedContractClause,
     json_pointer_error,
     json_scalar_predicate_error,
     json_structural_predicate_error,
@@ -27,6 +28,7 @@ class RealityClaimKind(StrEnum):
     LOCAL_HTTP_JSON_PREDICATE = "local_http_json_predicate"
     LOCAL_HTTP_JSON_MULTI_CONTRACT = "local_http_json_multi_contract"
     LOCAL_HTTP_JSON_SCALAR_PREDICATE = "local_http_json_scalar_predicate"
+    LOCAL_HTTP_JSON_MIXED_CONTRACT = "local_http_json_mixed_contract"
 
 
 class RealityVerdict(StrEnum):
@@ -60,6 +62,7 @@ class RealityClaim:
     json_contract_clauses: tuple[JsonContractClause, ...] = ()
     json_scalar_predicate_kind: str | None = None
     json_scalar_operand: str | None = None
+    json_mixed_contract_clauses: tuple[JsonMixedContractClause, ...] = ()
 
     @classmethod
     def create(
@@ -86,6 +89,7 @@ class RealityClaim:
         json_contract_clauses: tuple[JsonContractClause, ...] = (),
         json_scalar_predicate_kind: str | None = None,
         json_scalar_operand: str | None = None,
+        json_mixed_contract_clauses: tuple[JsonMixedContractClause, ...] = (),
     ) -> "RealityClaim":
         return cls(
             claim_id=str(uuid.uuid4()),
@@ -110,6 +114,7 @@ class RealityClaim:
             json_contract_clauses=tuple(json_contract_clauses),
             json_scalar_predicate_kind=json_scalar_predicate_kind,
             json_scalar_operand=json_scalar_operand,
+            json_mixed_contract_clauses=tuple(json_mixed_contract_clauses),
         )
 
     def validation_errors(self) -> tuple[str, ...]:
@@ -145,6 +150,7 @@ class RealityClaim:
             RealityClaimKind.LOCAL_HTTP_JSON_PREDICATE,
             RealityClaimKind.LOCAL_HTTP_JSON_MULTI_CONTRACT,
             RealityClaimKind.LOCAL_HTTP_JSON_SCALAR_PREDICATE,
+            RealityClaimKind.LOCAL_HTTP_JSON_MIXED_CONTRACT,
         }:
             url_error = local_http_url_error(self.http_url)
             if url_error is not None:
@@ -213,6 +219,12 @@ class RealityClaim:
         ):
             errors.append("json_contract_clauses_only_for_multi_contract")
 
+        if (
+            self.kind is not RealityClaimKind.LOCAL_HTTP_JSON_MIXED_CONTRACT
+            and self.json_mixed_contract_clauses
+        ):
+            errors.append("json_mixed_contract_clauses_only_for_mixed_contract")
+
         if self.kind is RealityClaimKind.LOCAL_HTTP_JSON_MULTI_CONTRACT:
             if any(
                 value is not None
@@ -229,6 +241,25 @@ class RealityClaim:
             for index, clause in enumerate(self.json_contract_clauses):
                 for error in clause.validation_errors():
                     errors.append(f"json_clause_{index}:{error}")
+
+        if self.kind is RealityClaimKind.LOCAL_HTTP_JSON_MIXED_CONTRACT:
+            if any(
+                value is not None
+                for value in (
+                    self.json_pointer,
+                    self.expected_json_type,
+                    self.json_predicate_kind,
+                    self.json_predicate_bound,
+                    self.json_scalar_predicate_kind,
+                    self.json_scalar_operand,
+                )
+            ) or self.json_contract_clauses:
+                errors.append("local_http_json_mixed_contract_disallows_legacy_fields")
+            if not 1 <= len(self.json_mixed_contract_clauses) <= 8:
+                errors.append("local_http_json_mixed_contract_requires_1_to_8_clauses")
+            for index, clause in enumerate(self.json_mixed_contract_clauses):
+                for error in clause.validation_errors():
+                    errors.append(f"json_mixed_clause_{index}:{error}")
 
         return tuple(errors)
 
@@ -258,6 +289,9 @@ class RealityClaim:
             ],
             "json_scalar_predicate_kind": self.json_scalar_predicate_kind,
             "json_scalar_operand": self.json_scalar_operand,
+            "json_mixed_contract_clauses": [
+                clause.to_dict() for clause in self.json_mixed_contract_clauses
+            ],
         }
 
 
