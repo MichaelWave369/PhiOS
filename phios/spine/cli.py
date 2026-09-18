@@ -11,6 +11,7 @@ from phios.reality import (
     JSON_TYPE_NAMES,
     JsonContractClause,
     JsonMixedContractClause,
+    JsonNumericTransitionClause,
     RealityClaim,
     RealityClaimKind,
     StdlibLoopbackHttpStateProvider,
@@ -70,8 +71,32 @@ def _json_mixed_contract_clauses(
     return tuple(clauses)
 
 
+def _json_numeric_transition_clauses(
+    parser: argparse.ArgumentParser,
+    raw_clauses: list[str],
+) -> tuple[JsonNumericTransitionClause, ...]:
+    clauses: list[JsonNumericTransitionClause] = []
+    for index, raw in enumerate(raw_clauses):
+        try:
+            value = json.loads(raw)
+        except json.JSONDecodeError as exc:
+            parser.error(
+                f"--json-transition-clause {index} is not valid JSON: {exc.msg}"
+            )
+        if not isinstance(value, dict):
+            parser.error(
+                f"--json-transition-clause {index} must decode to a JSON object"
+            )
+        try:
+            clause = JsonNumericTransitionClause.from_mapping(value)
+        except ValueError as exc:
+            parser.error(f"--json-transition-clause {index}: {exc}")
+        clauses.append(clause)
+    return tuple(clauses)
+
+
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="phi-spine", description="PhiOS Spine v0.23")
+    parser = argparse.ArgumentParser(prog="phi-spine", description="PhiOS Spine v0.24")
     parser.add_argument("--state-root", help="Override the PhiOS Spine local state root")
     parser.add_argument(
         "--allow",
@@ -82,7 +107,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     sub = parser.add_subparsers(dest="command", required=True)
 
-    sub.add_parser("status", help="Show the v0.23 spine and Mandala contract state")
+    sub.add_parser("status", help="Show the v0.24 spine and Mandala contract state")
     sub.add_parser("list", help="List registered capabilities")
 
     perceive = sub.add_parser(
@@ -275,11 +300,23 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     verify_claim.add_argument(
+        "--json-transition-clause",
+        action="append",
+        default=[],
+        metavar="JSON",
+        help=(
+            "Repeatable numeric transition clause for "
+            "local_http_json_numeric_transition_contract. "
+            'Example: {"pointer":"/queue_depth",'
+            '"predicate":"integer_non_increasing"}'
+        ),
+    )
+    verify_claim.add_argument(
         "--observation-count",
         type=int,
         help=(
             "Required 2-5 provider observations for repeated, timed, "
-            "cadenced, or temporal-envelope mixed-contract claims"
+            "cadenced, temporal-envelope, or numeric-transition claims"
         ),
     )
     verify_claim.add_argument(
@@ -351,7 +388,7 @@ def main() -> int:
                     "gates": [gate.value for gate in Gate],
                     "statuses": [status.value for status in MandalaStatus],
                     "north_gate": "soma.text.v0.1+soma.file.v0.1+soma.screen.v0.1+soma.recovery.v0.1+soma.multishot.v0.1+soma.enhancement.v0.1+soma.ocr.v0.1",
-                    "reality_gate": "reality.bounded-evidence.v0.13",
+                    "reality_gate": "reality.bounded-evidence.v0.14",
                     "world_verifiers": [
                         "local-interface-state.v0.1",
                         "local-tcp-listener-state.v0.1",
@@ -366,6 +403,7 @@ def main() -> int:
                         "local-http-json-timed-mixed-contract.v0.1",
                         "local-http-json-cadenced-mixed-contract.v0.1",
                         "local-http-json-temporal-envelope-mixed-contract.v0.1",
+                        "local-http-json-numeric-transition-contract.v0.1",
                     ],
                 },
                 indent=2,
@@ -520,6 +558,10 @@ def main() -> int:
             parser,
             args.json_mixed_clause,
         )
+        json_numeric_transition_clauses = _json_numeric_transition_clauses(
+            parser,
+            args.json_transition_clause,
+        )
         claim = RealityClaim.create(
             kind=RealityClaimKind(args.kind),
             statement=args.statement,
@@ -560,6 +602,7 @@ def main() -> int:
             maximum_interval_seconds=args.maximum_interval_seconds,
             minimum_series_span_seconds=args.minimum_series_span_seconds,
             maximum_series_span_seconds=args.maximum_series_span_seconds,
+            json_numeric_transition_clauses=json_numeric_transition_clauses,
         )
         verification_result = runtime.verify_reality(
             claims=(claim,),
@@ -578,6 +621,7 @@ def main() -> int:
                     RealityClaimKind.LOCAL_HTTP_JSON_TIMED_MIXED_CONTRACT.value,
                     RealityClaimKind.LOCAL_HTTP_JSON_CADENCED_MIXED_CONTRACT.value,
                     RealityClaimKind.LOCAL_HTTP_JSON_TEMPORAL_ENVELOPE_MIXED_CONTRACT.value,
+                    RealityClaimKind.LOCAL_HTTP_JSON_NUMERIC_TRANSITION_CONTRACT.value,
                 }
                 else None
             ),
