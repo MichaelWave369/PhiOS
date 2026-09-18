@@ -129,7 +129,9 @@ def _claim(
         statement="The same bounded contract matches repeated local observations.",
         http_url="http://127.0.0.1:11434/api/state",
         expected_http_status=200,
-        json_mixed_contract_clauses=clauses or _mixed_clauses(),
+        json_mixed_contract_clauses=(
+            clauses if clauses is not None else _mixed_clauses()
+        ),
         repeat_observation_count=count,
     )
 
@@ -183,6 +185,28 @@ def test_repeated_contract_requires_two_to_five_observations() -> None:
     )
     assert _claim(count=2).validation_errors() == ()
     assert _claim(count=5).validation_errors() == ()
+
+
+def test_repeated_contract_requires_one_to_eight_clauses() -> None:
+    empty = _claim(clauses=())
+    nine = _claim(
+        clauses=tuple(
+            JsonMixedContractClause(
+                pointer=f"/field{index}",
+                expected_json_type="string",
+            )
+            for index in range(9)
+        )
+    )
+
+    assert (
+        "local_http_json_repeated_mixed_contract_requires_1_to_8_clauses"
+        in empty.validation_errors()
+    )
+    assert (
+        "local_http_json_repeated_mixed_contract_requires_1_to_8_clauses"
+        in nine.validation_errors()
+    )
 
 
 def test_repeat_count_is_rejected_on_non_repeated_claim() -> None:
