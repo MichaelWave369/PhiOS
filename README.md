@@ -117,7 +117,7 @@ because computers have been exploiting that kind of optimism for decades.
 
 ## Current Spine verification ladder
 
-The current merged Spine line is **v0.23**.
+The current merged Spine line is **v0.24**.
 
 | Version | Capability |
 |---|---|
@@ -135,6 +135,7 @@ The current merged Spine line is **v0.23**.
 | v0.21 | explicit minimum monotonic spacing between repeated observations |
 | v0.22 | bounded monotonic cadence window between repeated observations |
 | v0.23 | bounded first-to-last temporal envelope across cadenced observations |
+| v0.24 | bounded numeric transition predicates across adjacent observations |
 
 The v0.17 same-snapshot contract can evaluate **1–8 bounded clauses from one HTTP observation**:
 
@@ -165,7 +166,8 @@ All clauses describe the **same captured response**, not several requests made a
 
 See:
 
-- [Spine v0.23 overview](README_SPINE_V0.23.md)
+- [Spine v0.24 overview](README_SPINE_V0.24.md)
+- [Spine v0.24 numeric-transition contract](docs/PHIOS_SPINE_V0.24_NUMERIC_TRANSITION_CONTRACT.md)
 - [Spine v0.23 temporal-envelope contract](docs/PHIOS_SPINE_V0.23_TEMPORAL_ENVELOPE.md)
 - [Spine v0.22 cadence-window contract](docs/PHIOS_SPINE_V0.22_CADENCED_MIXED_OBSERVATION.md)
 - [Spine v0.21 timed observation contract](docs/PHIOS_SPINE_V0.21_TIMED_MIXED_OBSERVATION.md)
@@ -187,6 +189,9 @@ v0.21 adds an explicit 0.05-10 second minimum interval between provider invocati
 v0.22 adds an inclusive minimum/maximum cadence window between provider invocation starts. Cadence requires the separate `reality.local_http.timing.cadence` grant. Semantic success cannot override a missed cadence bound.
 
 v0.23 adds an explicit first-to-last provider-start span window above cadence. Temporal-envelope control requires `reality.local_http.timing.envelope`, rejects impossible cadence/span combinations before I/O, and schedules each next start to preserve future feasibility when possible.
+
+v0.24 adds numeric transition predicates across adjacent observations. Cross-snapshot comparison requires `reality.local_http.semantic.transition.read` in addition to scalar value authority. Observed numbers remain transient; evidence persists only types, derived ordering, and transition outcomes. No timing semantics are implied.
+
 
 
 

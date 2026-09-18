@@ -27,7 +27,9 @@ from .local_http import (
 from .local_json import (
     evaluate_json_contract_clause,
     evaluate_json_mixed_contract_clause,
+    evaluate_json_numeric_transition_pair,
     evaluate_json_scalar_predicate,
+    extract_json_numeric_transition_value,
     evaluate_json_structural_predicate,
     json_scalar_predicate_expected_type,
     json_structural_predicate_expected_type,
@@ -105,7 +107,7 @@ class RealityVerificationService:
             payload={
                 "claim_count": len(claims),
                 "claims": [claim.to_dict() for claim in claims],
-                "verification_method": "bounded-evidence-v0.13",
+                "verification_method": "bounded-evidence-v0.14",
             },
             authority=self.authority,
             evidence_refs=evidence_refs,
@@ -3121,6 +3123,390 @@ class RealityVerificationService:
             used_refs,
         )
 
+    def _local_http_json_numeric_transition_contract(
+        self,
+        claim: RealityClaim,
+        *,
+        provider: LocalHttpStateProvider,
+    ) -> tuple[dict[str, Any], tuple[str, ...]]:
+        assert claim.http_url is not None
+        assert claim.expected_http_status is not None
+        assert claim.json_numeric_transition_clauses
+        assert claim.repeat_observation_count is not None
+
+        permissions = [
+            "reality.local_http.read",
+            "reality.local_http.semantic.read",
+            "reality.local_http.repeat.read",
+            "reality.local_http.semantic.value.read",
+            "reality.local_http.semantic.transition.read",
+        ]
+        for permission in permissions:
+            if not self.authority.allows(permission):
+                return (
+                    {
+                        "claim_id": claim.claim_id,
+                        "kind": claim.kind.value,
+                        "statement": claim.statement,
+                        "verdict": RealityVerdict.BLOCKED.value,
+                        "reason": f"missing_grant:{permission}",
+                        "scope": "local_http_json_numeric_transition_contract",
+                        "http_url": claim.http_url,
+                        "expected_http_status": claim.expected_http_status,
+                        "observation_count_requested": claim.repeat_observation_count,
+                        "transition_clause_count": len(
+                            claim.json_numeric_transition_clauses
+                        ),
+                        "series_evidence_ref": None,
+                    },
+                    (),
+                )
+
+        sample_results: list[dict[str, Any]] = []
+        sample_evidence_refs: list[str] = []
+        runtime_values: list[list[tuple[str, Any | None]]] = [
+            [] for _ in claim.json_numeric_transition_clauses
+        ]
+
+        for sample_index in range(claim.repeat_observation_count):
+            try:
+                observation = provider.observe(
+                    url=claim.http_url,
+                    timeout_seconds=claim.http_timeout_seconds,
+                    max_body_bytes=claim.http_max_body_bytes,
+                )
+            except LocalHttpObservationError as exc:
+                for values in runtime_values:
+                    values.append(("unresolved", None))
+                sample_results.append(
+                    {
+                        "sample_index": sample_index,
+                        "verdict": RealityVerdict.UNRESOLVED.value,
+                        "reason": exc.code,
+                        "json_valid": None,
+                        "transition_inputs": [],
+                        "observation_evidence_ref": None,
+                    }
+                )
+                continue
+            except Exception:  # noqa: BLE001 - provider boundary
+                for values in runtime_values:
+                    values.append(("unresolved", None))
+                sample_results.append(
+                    {
+                        "sample_index": sample_index,
+                        "verdict": RealityVerdict.UNRESOLVED.value,
+                        "reason": "local_http_provider_error",
+                        "json_valid": None,
+                        "transition_inputs": [],
+                        "observation_evidence_ref": None,
+                    }
+                )
+                continue
+
+            json_valid: bool | None = None
+            transition_inputs: list[dict[str, Any]] = []
+
+            if observation.status_code != claim.expected_http_status:
+                sample_verdict = RealityVerdict.CONTRADICTED
+                sample_reason = "local_http_json_numeric_transition_status_mismatch"
+                for values in runtime_values:
+                    values.append(("contradicted", None))
+            elif observation.body_truncated:
+                sample_verdict = RealityVerdict.UNRESOLVED
+                sample_reason = "local_http_json_numeric_transition_body_truncated"
+                for values in runtime_values:
+                    values.append(("unresolved", None))
+            elif observation.body is None:
+                sample_verdict = RealityVerdict.UNRESOLVED
+                sample_reason = "local_http_semantic_body_unavailable"
+                for values in runtime_values:
+                    values.append(("unresolved", None))
+            else:
+                try:
+                    document = strict_json_loads(observation.body)
+                except (UnicodeDecodeError, ValueError):
+                    json_valid = False
+                    sample_verdict = RealityVerdict.CONTRADICTED
+                    sample_reason = "local_http_json_numeric_transition_invalid_json"
+                    for values in runtime_values:
+                        values.append(("contradicted", None))
+                else:
+                    json_valid = True
+                    input_contradicted = False
+                    for clause_index, clause in enumerate(
+                        claim.json_numeric_transition_clauses
+                    ):
+                        metadata, transient_value = (
+                            extract_json_numeric_transition_value(
+                                document,
+                                clause,
+                            )
+                        )
+                        metadata["clause_index"] = clause_index
+                        if not metadata["pointer_exists"]:
+                            input_reason = "pointer_missing"
+                            runtime_state = "contradicted"
+                            input_contradicted = True
+                        elif not metadata["type_matches"]:
+                            input_reason = "type_mismatch"
+                            runtime_state = "contradicted"
+                            input_contradicted = True
+                        else:
+                            input_reason = "value_admitted"
+                            runtime_state = "available"
+
+                        metadata["input_reason"] = input_reason
+                        transition_inputs.append(metadata)
+                        runtime_values[clause_index].append(
+                            (runtime_state, transient_value)
+                        )
+
+                    if input_contradicted:
+                        sample_verdict = RealityVerdict.CONTRADICTED
+                        sample_reason = (
+                            "local_http_json_numeric_transition_input_mismatch"
+                        )
+                    else:
+                        sample_verdict = RealityVerdict.SUPPORTED
+                        sample_reason = (
+                            "local_http_json_numeric_transition_inputs_admitted"
+                        )
+
+            sample_evidence_record = {
+                "sample_index": sample_index,
+                "http_observation": observation.to_dict(),
+                "semantic_contract": {
+                    "expected_http_status": claim.expected_http_status,
+                    "transition_clauses": [
+                        clause.to_dict()
+                        for clause in claim.json_numeric_transition_clauses
+                    ],
+                },
+                "semantic_observation": {
+                    "verdict": sample_verdict.value,
+                    "reason": sample_reason,
+                    "json_valid": json_valid,
+                    "transition_inputs": transition_inputs,
+                },
+            }
+            sample_evidence_bytes = json.dumps(
+                sample_evidence_record,
+                sort_keys=True,
+                separators=(",", ":"),
+                ensure_ascii=False,
+            ).encode("utf-8")
+            sample_evidence = self.evidence.put_bytes(
+                sample_evidence_bytes,
+                media_type="application/json; charset=utf-8",
+                suffix=".json",
+            )
+            sample_evidence_refs.append(sample_evidence.evidence_ref)
+            sample_results.append(
+                {
+                    "sample_index": sample_index,
+                    "verdict": sample_verdict.value,
+                    "reason": sample_reason,
+                    "observed_http_status": observation.status_code,
+                    "json_valid": json_valid,
+                    "transition_inputs": transition_inputs,
+                    "body_sha256": observation.body_sha256,
+                    "body_bytes_observed": observation.body_bytes_observed,
+                    "body_truncated": observation.body_truncated,
+                    "body_digest_scope": observation.body_digest_scope,
+                    "elapsed_ms": observation.elapsed_ms,
+                    "provider": observation.provider,
+                    "provider_version": observation.provider_version,
+                    "captured_at_utc": observation.captured_at_utc,
+                    "observation_evidence_ref": sample_evidence.evidence_ref,
+                }
+            )
+
+        transition_clause_results: list[dict[str, Any]] = []
+        transition_pair_verdicts: list[str] = []
+
+        for clause_index, clause in enumerate(
+            claim.json_numeric_transition_clauses
+        ):
+            pair_results: list[dict[str, Any]] = []
+            values = runtime_values[clause_index]
+            for left_index in range(claim.repeat_observation_count - 1):
+                right_index = left_index + 1
+                left_state, left_value = values[left_index]
+                right_state, right_value = values[right_index]
+
+                pair_result: dict[str, Any] = {
+                    "left_sample_index": left_index,
+                    "right_sample_index": right_index,
+                    "predicate": clause.predicate,
+                    "expected_json_type": clause.expected_json_type,
+                    "comparison_evaluated": False,
+                    "relation": None,
+                    "predicate_matches": None,
+                }
+
+                if "contradicted" in {left_state, right_state}:
+                    pair_verdict = RealityVerdict.CONTRADICTED
+                    pair_reason = "transition_input_contradicted"
+                elif "unresolved" in {left_state, right_state}:
+                    pair_verdict = RealityVerdict.UNRESOLVED
+                    pair_reason = "transition_input_unresolved"
+                else:
+                    assert left_value is not None
+                    assert right_value is not None
+                    comparison = evaluate_json_numeric_transition_pair(
+                        left_value,
+                        right_value,
+                        predicate=clause.predicate,
+                    )
+                    for key in (
+                        "left_observed_json_type",
+                        "right_observed_json_type",
+                        "left_type_matches",
+                        "right_type_matches",
+                        "comparison_evaluated",
+                        "relation",
+                        "predicate_matches",
+                    ):
+                        pair_result[key] = comparison[key]
+
+                    if comparison["predicate_matches"]:
+                        pair_verdict = RealityVerdict.SUPPORTED
+                        pair_reason = "transition_matches"
+                    else:
+                        pair_verdict = RealityVerdict.CONTRADICTED
+                        pair_reason = "transition_mismatch"
+
+                pair_result["verdict"] = pair_verdict.value
+                pair_result["reason"] = pair_reason
+                pair_results.append(pair_result)
+                transition_pair_verdicts.append(pair_verdict.value)
+
+            clause_verdicts = [item["verdict"] for item in pair_results]
+            if RealityVerdict.CONTRADICTED.value in clause_verdicts:
+                clause_verdict = RealityVerdict.CONTRADICTED
+                clause_reason = "numeric_transition_clause_contradicted"
+            elif RealityVerdict.UNRESOLVED.value in clause_verdicts:
+                clause_verdict = RealityVerdict.UNRESOLVED
+                clause_reason = "numeric_transition_clause_unresolved"
+            else:
+                clause_verdict = RealityVerdict.SUPPORTED
+                clause_reason = "numeric_transition_clause_supported"
+
+            transition_clause_results.append(
+                {
+                    "clause_index": clause_index,
+                    "pointer": clause.pointer,
+                    "predicate": clause.predicate,
+                    "expected_json_type": clause.expected_json_type,
+                    "verdict": clause_verdict.value,
+                    "reason": clause_reason,
+                    "pair_count_expected": claim.repeat_observation_count - 1,
+                    "pair_results": pair_results,
+                }
+            )
+
+        sample_verdicts = [item["verdict"] for item in sample_results]
+        sample_supported_count = sample_verdicts.count(
+            RealityVerdict.SUPPORTED.value
+        )
+        sample_contradicted_count = sample_verdicts.count(
+            RealityVerdict.CONTRADICTED.value
+        )
+        sample_unresolved_count = sample_verdicts.count(
+            RealityVerdict.UNRESOLVED.value
+        )
+        transition_supported_count = transition_pair_verdicts.count(
+            RealityVerdict.SUPPORTED.value
+        )
+        transition_contradicted_count = transition_pair_verdicts.count(
+            RealityVerdict.CONTRADICTED.value
+        )
+        transition_unresolved_count = transition_pair_verdicts.count(
+            RealityVerdict.UNRESOLVED.value
+        )
+
+        if sample_contradicted_count or transition_contradicted_count:
+            verdict = RealityVerdict.CONTRADICTED
+            reason = "local_http_json_numeric_transition_contradiction"
+        elif sample_unresolved_count or transition_unresolved_count:
+            verdict = RealityVerdict.UNRESOLVED
+            reason = "local_http_json_numeric_transition_unresolved"
+        else:
+            verdict = RealityVerdict.SUPPORTED
+            reason = "local_http_json_numeric_transition_all_pairs_match"
+
+        all_transitions_match = (
+            transition_supported_count
+            == len(claim.json_numeric_transition_clauses)
+            * (claim.repeat_observation_count - 1)
+        )
+        series_evidence_record = {
+            "semantic_contract": {
+                "expected_http_status": claim.expected_http_status,
+                "repeat_observation_count": claim.repeat_observation_count,
+                "transition_clauses": [
+                    clause.to_dict()
+                    for clause in claim.json_numeric_transition_clauses
+                ],
+                "comparison_scope": "adjacent_observation_pairs",
+            },
+            "transition_observation": {
+                "sample_supported_count": sample_supported_count,
+                "sample_contradicted_count": sample_contradicted_count,
+                "sample_unresolved_count": sample_unresolved_count,
+                "transition_supported_count": transition_supported_count,
+                "transition_contradicted_count": transition_contradicted_count,
+                "transition_unresolved_count": transition_unresolved_count,
+                "all_transitions_match": all_transitions_match,
+                "sample_results": sample_results,
+                "transition_clause_results": transition_clause_results,
+            },
+        }
+        series_evidence_bytes = json.dumps(
+            series_evidence_record,
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=False,
+        ).encode("utf-8")
+        series_evidence = self.evidence.put_bytes(
+            series_evidence_bytes,
+            media_type="application/json; charset=utf-8",
+            suffix=".json",
+        )
+
+        used_refs = tuple(sample_evidence_refs + [series_evidence.evidence_ref])
+        return (
+            {
+                "claim_id": claim.claim_id,
+                "kind": claim.kind.value,
+                "statement": claim.statement,
+                "verdict": verdict.value,
+                "reason": reason,
+                "scope": "local_http_json_numeric_transition_contract",
+                "http_url": claim.http_url,
+                "expected_http_status": claim.expected_http_status,
+                "observation_count_requested": claim.repeat_observation_count,
+                "observation_attempts_completed": len(sample_results),
+                "transition_clause_count": len(
+                    claim.json_numeric_transition_clauses
+                ),
+                "comparison_scope": "adjacent_observation_pairs",
+                "sample_supported_count": sample_supported_count,
+                "sample_contradicted_count": sample_contradicted_count,
+                "sample_unresolved_count": sample_unresolved_count,
+                "transition_supported_count": transition_supported_count,
+                "transition_contradicted_count": transition_contradicted_count,
+                "transition_unresolved_count": transition_unresolved_count,
+                "all_transitions_match": all_transitions_match,
+                "sample_results": sample_results,
+                "transition_clause_results": transition_clause_results,
+                "sample_evidence_refs": sample_evidence_refs,
+                "series_evidence_ref": series_evidence.evidence_ref,
+            },
+            used_refs,
+        )
+
     def verify(
         self,
         *,
@@ -3167,7 +3553,7 @@ class RealityVerificationService:
                 unresolved_contradictions=(),
                 unresolved_claims=tuple(claim.claim_id for claim in claims),
                 verdict_summary={RealityVerdict.BLOCKED.value: len(claims)},
-                verification_method="bounded-evidence-v0.13",
+                verification_method="bounded-evidence-v0.14",
                 promotion_status="not_promoted",
                 limitations=(
                     f"missing_grant:{permission}",
@@ -3230,7 +3616,7 @@ class RealityVerificationService:
                 unresolved_contradictions=(),
                 unresolved_claims=tuple(claim.claim_id for claim in claims),
                 verdict_summary={RealityVerdict.BLOCKED.value: len(claims)},
-                verification_method="bounded-evidence-v0.13",
+                verification_method="bounded-evidence-v0.14",
                 promotion_status="not_promoted",
                 limitations=invalid_global
                 + tuple(
@@ -3388,6 +3774,20 @@ class RealityVerificationService:
                 used.extend(claim_used)
                 continue
 
+            if (
+                claim.kind
+                is RealityClaimKind.LOCAL_HTTP_JSON_NUMERIC_TRANSITION_CONTRACT
+            ):
+                result, claim_used = (
+                    self._local_http_json_numeric_transition_contract(
+                        claim,
+                        provider=selected_local_http_provider,
+                    )
+                )
+                results.append(result)
+                used.extend(claim_used)
+                continue
+
             results.append(
                 {
                     "claim_id": claim.claim_id,
@@ -3434,7 +3834,7 @@ class RealityVerificationService:
             unresolved_contradictions=contradicted,
             unresolved_claims=unresolved,
             verdict_summary=dict(counts),
-            verification_method="bounded-evidence-v0.13",
+            verification_method="bounded-evidence-v0.14",
             promotion_status="not_promoted",
             limitations=(
                 "lexical_source_support_is_not_world_state_verification",
@@ -3486,6 +3886,13 @@ class RealityVerificationService:
                 "temporal_envelope_provider_overrun_can_violate_contract",
                 "temporal_envelope_wall_clock_does_not_establish_span",
                 "temporal_envelope_scalar_observed_values_not_persisted",
+                "numeric_transition_read_requires_separate_grant",
+                "numeric_transition_requires_scalar_value_read_grant",
+                "numeric_transition_values_are_transient_not_persisted",
+                "numeric_transition_compares_adjacent_observations_only",
+                "numeric_transition_relation_is_derived_evidence",
+                "numeric_transition_contract_enforces_no_time_interval",
+                "numeric_transition_success_is_not_application_health",
                 "http_status_is_not_application_health",
                 "live_http_transport_is_adapter_scoped",
                 "host_observation_is_point_in_time",

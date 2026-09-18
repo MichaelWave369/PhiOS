@@ -328,6 +328,174 @@ def evaluate_json_scalar_predicate(
     return result
 
 
+JSON_NUMERIC_TRANSITION_PREDICATES = frozenset(
+    {
+        "integer_non_decreasing",
+        "integer_non_increasing",
+        "integer_strictly_increasing",
+        "integer_strictly_decreasing",
+        "number_non_decreasing",
+        "number_non_increasing",
+        "number_strictly_increasing",
+        "number_strictly_decreasing",
+    }
+)
+
+_JSON_NUMERIC_TRANSITION_EXPECTED_TYPES = {
+    predicate: ("integer" if predicate.startswith("integer_") else "number")
+    for predicate in JSON_NUMERIC_TRANSITION_PREDICATES
+}
+
+
+def json_numeric_transition_predicate_error(
+    predicate: str | None,
+) -> str | None:
+    if predicate is None:
+        return "local_http_json_numeric_transition_requires_predicate"
+    if predicate not in JSON_NUMERIC_TRANSITION_PREDICATES:
+        return "local_http_json_numeric_transition_invalid_predicate"
+    return None
+
+
+def json_numeric_transition_expected_type(predicate: str) -> str:
+    return _JSON_NUMERIC_TRANSITION_EXPECTED_TYPES[predicate]
+
+
+def _numeric_decimal(value: Any) -> Decimal:
+    if isinstance(value, bool):
+        raise TypeError("boolean is not numeric transition data")
+    if isinstance(value, int):
+        return Decimal(value)
+    if isinstance(value, Decimal):
+        return value
+    raise TypeError("value is not numeric transition data")
+
+
+@dataclass(frozen=True, kw_only=True)
+class JsonNumericTransitionClause:
+    pointer: str
+    predicate: str
+
+    @classmethod
+    def from_mapping(
+        cls,
+        value: dict[str, Any],
+    ) -> "JsonNumericTransitionClause":
+        allowed_keys = {"pointer", "predicate"}
+        unknown_keys = sorted(set(value) - allowed_keys)
+        if unknown_keys:
+            joined = ",".join(unknown_keys)
+            raise ValueError(
+                f"unsupported numeric transition clause keys: {joined}"
+            )
+        return cls(
+            pointer=str(value.get("pointer", "")),
+            predicate=str(value.get("predicate", "")),
+        )
+
+    @property
+    def expected_json_type(self) -> str:
+        return json_numeric_transition_expected_type(self.predicate)
+
+    def validation_errors(self) -> tuple[str, ...]:
+        errors: list[str] = []
+        pointer_error = json_pointer_error(self.pointer)
+        if pointer_error is not None:
+            errors.append(pointer_error)
+        predicate_error = json_numeric_transition_predicate_error(self.predicate)
+        if predicate_error is not None:
+            errors.append(predicate_error)
+        return tuple(errors)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "pointer": self.pointer,
+            "predicate": self.predicate,
+            "expected_json_type": (
+                self.expected_json_type
+                if self.predicate in JSON_NUMERIC_TRANSITION_PREDICATES
+                else None
+            ),
+        }
+
+
+def extract_json_numeric_transition_value(
+    document: Any,
+    clause: JsonNumericTransitionClause,
+) -> tuple[dict[str, Any], int | Decimal | None]:
+    pointer_exists, value = resolve_json_pointer(document, clause.pointer)
+    expected_type = clause.expected_json_type
+    result: dict[str, Any] = {
+        "pointer": clause.pointer,
+        "predicate": clause.predicate,
+        "expected_json_type": expected_type,
+        "pointer_exists": pointer_exists,
+        "observed_json_type": None,
+        "type_matches": None,
+        "value_available": False,
+    }
+    if not pointer_exists:
+        return result, None
+
+    observed_type = json_type_name(value)
+    type_matches = json_type_matches(value, expected_type)
+    result["observed_json_type"] = observed_type
+    result["type_matches"] = type_matches
+    if not type_matches:
+        return result, None
+
+    assert isinstance(value, (int, Decimal)) and not isinstance(value, bool)
+    result["value_available"] = True
+    return result, value
+
+
+def evaluate_json_numeric_transition_pair(
+    left_value: Any,
+    right_value: Any,
+    *,
+    predicate: str,
+) -> dict[str, Any]:
+    expected_type = json_numeric_transition_expected_type(predicate)
+    left_type = json_type_name(left_value)
+    right_type = json_type_name(right_value)
+    left_matches = json_type_matches(left_value, expected_type)
+    right_matches = json_type_matches(right_value, expected_type)
+    result: dict[str, Any] = {
+        "predicate": predicate,
+        "expected_json_type": expected_type,
+        "left_observed_json_type": left_type,
+        "right_observed_json_type": right_type,
+        "left_type_matches": left_matches,
+        "right_type_matches": right_matches,
+        "comparison_evaluated": False,
+        "relation": None,
+        "predicate_matches": None,
+    }
+    if not left_matches or not right_matches:
+        return result
+
+    left = _numeric_decimal(left_value)
+    right = _numeric_decimal(right_value)
+    if right < left:
+        relation = "decrease"
+    elif right > left:
+        relation = "increase"
+    else:
+        relation = "equal"
+
+    result["comparison_evaluated"] = True
+    result["relation"] = relation
+    if predicate.endswith("_non_decreasing"):
+        result["predicate_matches"] = right >= left
+    elif predicate.endswith("_non_increasing"):
+        result["predicate_matches"] = right <= left
+    elif predicate.endswith("_strictly_increasing"):
+        result["predicate_matches"] = right > left
+    else:
+        result["predicate_matches"] = right < left
+    return result
+
+
 @dataclass(frozen=True, kw_only=True)
 class JsonMixedContractClause:
     pointer: str
