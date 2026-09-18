@@ -21,7 +21,7 @@ classifiers = [
   "Topic :: Software Development :: Libraries",
   "Topic :: System :: Shells",
 ]
-dependencies = ["psutil>=5.9.0", "mcp>=1.0"]
+dependencies = ["psutil>=5.9.0", "mcp>=1.26,<2"]
 
 [project.urls]
 Homepage = "https://github.com/MichaelWave369/PhiOS"
@@ -33,17 +33,18 @@ dev = [
   "build>=1.2.2",
   "twine>=5.1.1",
   "requests>=2.32.0",
-  "pytest>=8.0.0",
-  "ruff>=0.6.0",
-  "mypy>=1.11.0",
+  "pytest==9.0.2",
+  "ruff==0.15.6",
+  "mypy==1.19.1",
 ]
 
 [project.scripts]
 phi = "phios.shell.phi_session:main"
 phi-mcp = "phios.mcp.server:main"
+phi-spine = "phios.spine.cli:main"
 
 [tool.setuptools]
-packages = ["phios", "phios.shell", "phios.core", "phios.display", "phios.desktop", "phios.adapters", "phios.services", "phios.templates", "phios.ml", "phios.mcp", "phios.mcp.resources", "phios.mcp.tools", "phios.mcp.prompts"]
+packages = ["phios", "phios.shell", "phios.core", "phios.display", "phios.desktop", "phios.adapters", "phios.services", "phios.templates", "phios.ml", "phios.mcp", "phios.mcp.resources", "phios.mcp.tools", "phios.mcp.prompts", "phios.spine"]
 
 [tool.setuptools.dynamic]
 version = {attr = "phios.__version__"}
