@@ -40,7 +40,7 @@ dev = [
 
 [project.scripts]
 phi = "phios.shell.phi_session:main"
-phi-mcp = "phios.mcp.server:main"
+phi-mcp = "phios.mcp.server:main"\nphi-spine = "phios.spine.cli:main"
 
 [tool.setuptools]
 packages = ["phios", "phios.shell", "phios.core", "phios.display", "phios.desktop", "phios.adapters", "phios.services", "phios.templates", "phios.ml", "phios.mcp", "phios.mcp.resources", "phios.mcp.tools", "phios.mcp.prompts", "phios.spine"]
