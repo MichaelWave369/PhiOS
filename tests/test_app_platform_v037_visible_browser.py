@@ -29,6 +29,7 @@ from phios.apps.static_web import plan_static_web_adapter
 from phios.apps.visible_browser import (
     VisibleBrowserExecution,
     VisibleBrowserSessionPlan,
+    VisibleBrowserSessionReceipt,
     VisibleBrowserSessionRequest,
     VisibleBrowserSessionService,
     WaylandBubblewrapRuntimeRunner,
@@ -498,6 +499,9 @@ def test_visible_session_records_display_authority_and_no_gpu_x11(
         assert result.receipt.browser_controls.private_home is True
         assert result.receipt.browser_controls.private_tmp is True
         assert result.receipt.browser_controls.host_network_inherited is True
+        assert VisibleBrowserSessionReceipt.from_dict(
+            result.receipt.to_dict()
+        ) == result.receipt
         assert result.receipt_persisted is True
         assert Path(result.receipt_path).is_file()
     finally:
@@ -546,3 +550,34 @@ def test_non_socket_wayland_path_is_rejected(tmp_path: Path) -> None:
 
     with pytest.raises(ValueError, match="Unix socket"):
         inspect_wayland_socket(path)
+
+
+def test_visible_browser_receipt_rejects_digest_tampering(tmp_path: Path) -> None:
+    sock, path = _wayland_socket(tmp_path)
+    try:
+        receipt, install_root, static_plan, parent, plan = _plans(tmp_path / "case", path)
+        request = VisibleBrowserSessionRequest.from_payloads(
+            plan.to_dict(),
+            parent.to_dict(),
+            static_plan.to_dict(),
+            receipt.to_dict(),
+            approved_visible_browser_plan_sha256=plan.sha256(),
+            approved_parent_browser_plan_sha256=parent.sha256(),
+            approved_static_web_plan_sha256=static_plan.sha256(),
+            approved_browser_permissions=plan.requested_browser_permissions,
+        )
+        result = VisibleBrowserSessionService(
+            runner_factory=lambda a, b, c, d, e: FakeVisibleRunner(a, b, c, d, e)
+        ).run(
+            request,
+            install_root=install_root,
+            session_root=tmp_path / "sessions",
+            receipt_root=tmp_path / "receipts",
+        )
+        payload = result.receipt.to_dict()
+        payload["static_root_sha256"] = "0" * 64
+
+        with pytest.raises(ValueError, match="digest"):
+            VisibleBrowserSessionReceipt.from_dict(payload)
+    finally:
+        sock.close()
