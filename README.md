@@ -183,7 +183,7 @@ Older Spine documents remain in the repository as the versioned design trail.
 
 ## App Platform Alpha
 
-The current App Platform line is **v0.38**. v0.25 introduced strict app manifests and a deterministic registry; v0.26 added bounded public GitHub intake; v0.27 added exact-commit source acquisition; v0.28 added deterministic non-executing build plans; v0.29 added explicitly approved build execution; v0.30 added Linux Bubblewrap containment; v0.31 added SRI-verified dependency staging; v0.32 added verified offline npm builds; v0.33 added artifact-only installation; v0.34 added direct Node/Python runtime launch; v0.35 added deterministic static-web serving; v0.36 added separately approved coordinated headless Chromium sessions; v0.37 added exact Wayland-visible browser sessions; v0.38 adds persistent, revocable XDG desktop launch grants that mint a fresh exact v0.37 display plan on every click.
+The current App Platform line is **v0.39**. v0.25 introduced strict app manifests and a deterministic registry; v0.26 added bounded public GitHub intake; v0.27 added exact-commit source acquisition; v0.28 added deterministic non-executing build plans; v0.29 added explicitly approved build execution; v0.30 added Linux Bubblewrap containment; v0.31 added SRI-verified dependency staging; v0.32 added verified offline npm builds; v0.33 added artifact-only installation; v0.34 added direct Node/Python runtime launch; v0.35 added deterministic static-web serving; v0.36 added separately approved coordinated headless Chromium sessions; v0.37 added exact Wayland-visible browser sessions; v0.38 added persistent, revocable XDG desktop launch grants; v0.39 adds deterministic governed-app catalog discovery and integrates only verified-ready apps into PhiLauncher.
 
 A manifest records:
 
@@ -210,6 +210,8 @@ more.
 
 See:
 
+- [App Platform v0.39 overview](README_APP_PLATFORM_V0.39.md)
+- [App Platform v0.39 desktop app catalog contract](docs/PHIOS_APP_PLATFORM_V0.39_DESKTOP_CATALOG.md)
 - [App Platform v0.38 overview](README_APP_PLATFORM_V0.38.md)
 - [App Platform v0.38 desktop app launch contract](docs/PHIOS_APP_PLATFORM_V0.38_DESKTOP_LAUNCH.md)
 - [App Platform v0.37 overview](README_APP_PLATFORM_V0.37.md)
@@ -501,7 +503,33 @@ phi-app revoke-desktop-app /ABSOLUTE/BUNDLE/PATH \
   --approve-desktop-launch-grant-sha EXACT_GRANT_SHA256
 ```
 
-The next planned rung is **v0.39 Desktop App Catalog Contract**: deterministic discovery and presentation of installed governed apps, grant state, launch/revoke actions, and integration into PhiOS's custom launcher surface.
+Snapshot the current governed desktop app library without granting action authority:
+
+```bash
+phi-app catalog-desktop-apps > desktop-catalog.json
+```
+
+Review the deterministic catalog snapshot:
+
+```bash
+phi-app review-desktop-catalog desktop-catalog.json
+```
+
+v0.39 performs a bounded two-level scan of the v0.38 desktop bundle root, validates each persisted desktop plan/browser plan/static plan/install receipt/grant chain, verifies the bound XDG desktop entry, and recomputes the current installed ancestry before marking an item `ready`.
+
+Malformed or stale bundles remain visible as `blocked` catalog items with deterministic reason codes instead of aborting the whole catalog. Catalog observation does not resolve Wayland, launch an app, revoke a grant, or create new authority.
+
+PhiLauncher now appends only `ready` governed apps to its existing built-in Phi commands. A governed app selection maps directly to the exact argv vector:
+
+```text
+phi-app
+launch-desktop-bundle
+EXACT_BUNDLE_PATH
+```
+
+The launcher no longer reconstructs commands with `selection.split()`, so display labels remain presentation-only and bundle paths containing spaces remain one argument.
+
+The next planned rung is **v0.40 Governed App Update / Rollback Contract**: admit a new version beside the active one, review an exact update plan, atomically switch the desktop grant/entry, retain the previous version, and provide explicit rollback with receipts.
 
 v0.18 adds a stronger semantic boundary for scalar values. Boolean and numeric values may be inspected only with the separate `reality.local_http.semantic.value.read` grant. The observed scalar is used transiently for comparison and is not persisted in semantic evidence.
 
@@ -729,7 +757,7 @@ phios/
 ├─ shell/      operator shell
 ├─ mcp/        MCP interface
 ├─ spine/      authority-aware Spine runtime
-├─ apps/       manifests, intake, dependency broker, offline builds, install/runtime/GUI/desktop adapters, registry
+├─ apps/       manifests, intake, dependency broker, offline builds, install/runtime/GUI/desktop/catalog adapters, registry
 ├─ mandala/    typed contracts and receipts
 ├─ soma/       bounded perception/evidence
 └─ reality/    Reality Gate verification

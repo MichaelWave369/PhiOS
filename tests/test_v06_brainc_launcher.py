@@ -6,6 +6,11 @@ import urllib.error
 from contextlib import redirect_stdout
 from pathlib import Path
 
+from phios.apps.desktop_catalog import (
+    DesktopCatalogIssue,
+    DesktopCatalogItem,
+    DesktopCatalogSnapshot,
+)
 from phios.core.brainc_client import BrainCClient, BrainCResponse, SYSTEM_PROMPT
 from phios.desktop.launcher import PhiLauncher
 from phios.desktop.notifications import PhiNotifier
@@ -183,3 +188,117 @@ def test_notification_history_max_9(monkeypatch):
     for i in range(15):
         notifier.notify(f"k{i}", "title", "body", force=True)
     assert len(notifier.history) == 9
+
+
+
+def _launcher_catalog_snapshot(tmp_path: Path) -> DesktopCatalogSnapshot:
+    ready_bundle = (tmp_path / "bundle with spaces").absolute()
+    blocked_bundle = (tmp_path / "blocked").absolute()
+    ready = DesktopCatalogItem(
+        catalog_key="phi.ready/0123456789abcdef",
+        bundle_path=str(ready_bundle),
+        app_id="phi.ready",
+        app_version="1.0.0",
+        desktop_name="Ready App",
+        desktop_icon="phios-app",
+        desktop_entry_path=str((tmp_path / "phi-ready.desktop").absolute()),
+        desktop_app_plan_sha256="1" * 64,
+        desktop_launch_grant_sha256="2" * 64,
+        grant_status="enabled",
+        identity_verified=True,
+        persistent_launch_grant_present=True,
+        icon_asset_state="metadata_only",
+        status="ready",
+        issues=(),
+    )
+    blocked = DesktopCatalogItem(
+        catalog_key="phi.blocked/fedcba9876543210",
+        bundle_path=str(blocked_bundle),
+        app_id="phi.blocked",
+        app_version="1.0.0",
+        desktop_name="Blocked App",
+        desktop_icon="phios-app",
+        desktop_entry_path=str((tmp_path / "phi-blocked.desktop").absolute()),
+        desktop_app_plan_sha256="3" * 64,
+        desktop_launch_grant_sha256="4" * 64,
+        grant_status="enabled",
+        identity_verified=True,
+        persistent_launch_grant_present=True,
+        icon_asset_state="metadata_only",
+        status="blocked",
+        issues=(DesktopCatalogIssue(code="installed_app_drift"),),
+    )
+    return DesktopCatalogSnapshot(
+        desktop_root=str((tmp_path / "desktop").absolute()),
+        applications_root=str((tmp_path / "applications").absolute()),
+        install_root=str((tmp_path / "installed").absolute()),
+        root_issues=(),
+        items=(blocked, ready),
+        item_count=2,
+        ready_count=1,
+        blocked_count=1,
+    )
+
+
+def test_launcher_catalog_adds_only_ready_governed_apps(monkeypatch, tmp_path):
+    snapshot = _launcher_catalog_snapshot(tmp_path)
+    monkeypatch.setattr(
+        "phios.desktop.launcher.snapshot_desktop_catalog",
+        lambda **_: snapshot,
+    )
+
+    actions = PhiLauncher().generate_governed_app_actions()
+
+    assert len(actions) == 1
+    assert actions[0].label == "Ready App · phi.ready 1.0.0"
+    assert actions[0].argv == (
+        "phi-app",
+        "launch-desktop-bundle",
+        str((tmp_path / "bundle with spaces").absolute()),
+    )
+
+
+def test_launcher_catalog_failure_degrades_to_builtin_actions(monkeypatch):
+    def fail_catalog(**_kwargs):
+        raise ValueError("catalog unavailable")
+
+    monkeypatch.setattr(
+        "phios.desktop.launcher.snapshot_desktop_catalog",
+        fail_catalog,
+    )
+
+    launcher = PhiLauncher()
+    assert launcher.generate_governed_app_actions() == []
+    assert "phi status" in launcher.generate_phi_entries()
+
+
+def test_launcher_uses_exact_argv_for_governed_app(monkeypatch, tmp_path):
+    snapshot = _launcher_catalog_snapshot(tmp_path)
+    monkeypatch.setattr(
+        "phios.desktop.launcher.snapshot_desktop_catalog",
+        lambda **_: snapshot,
+    )
+    monkeypatch.setattr("shutil.which", lambda name: f"/usr/bin/{name}")
+
+    calls = []
+
+    class Result:
+        def __init__(self, stdout: str = "") -> None:
+            self.stdout = stdout
+
+    def fake_run(argv, **kwargs):
+        calls.append((argv, kwargs))
+        if argv[0] == "wofi":
+            return Result("Ready App · phi.ready 1.0.0\n")
+        return Result()
+
+    monkeypatch.setattr("subprocess.run", fake_run)
+    launcher = PhiLauncher()
+    launcher.wofi_dir = tmp_path / "wofi"
+    launcher.launch()
+
+    assert calls[-1][0] == [
+        "phi-app",
+        "launch-desktop-bundle",
+        str((tmp_path / "bundle with spaces").absolute()),
+    ]

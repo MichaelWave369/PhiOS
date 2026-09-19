@@ -19,6 +19,7 @@ from .browser_session import (
 )
 from .build_execution import BuildExecutionRequest, BuildExecutionService
 from .build_plan import plan_build_from_payloads, review_build_plan
+from .desktop_catalog import DesktopCatalogService, review_desktop_catalog
 from .desktop_launch import (
     DesktopAppInstaller,
     DesktopAppLaunchService,
@@ -580,6 +581,32 @@ def _parser() -> argparse.ArgumentParser:
         type=Path,
         default=Path.home() / ".phios" / "apps" / "runtime-receipts",
     )
+
+    catalog_parser = subparsers.add_parser(
+        "catalog-desktop-apps",
+        help="Snapshot governed PhiOS desktop apps without granting launch authority.",
+    )
+    catalog_parser.add_argument(
+        "--desktop-root",
+        type=Path,
+        default=Path.home() / ".local" / "share" / "phios" / "desktop-apps",
+    )
+    catalog_parser.add_argument(
+        "--applications-root",
+        type=Path,
+        default=Path.home() / ".local" / "share" / "applications",
+    )
+    catalog_parser.add_argument(
+        "--install-root",
+        type=Path,
+        default=Path.home() / ".phios" / "apps" / "installed",
+    )
+
+    catalog_review_parser = subparsers.add_parser(
+        "review-desktop-catalog",
+        help="Validate one v0.39 catalog snapshot and expose its non-authoritative summary.",
+    )
+    catalog_review_parser.add_argument("desktop_catalog_json", type=Path)
     return parser
 
 
@@ -1183,6 +1210,34 @@ def main(argv: Sequence[str] | None = None) -> int:
             print(json.dumps({"status": "blocked", "error": str(exc)}, sort_keys=True))
             return 2
         print(json.dumps(revoke_receipt.to_dict(), sort_keys=True, indent=2))
+        return 0
+
+    if args.command == "catalog-desktop-apps":
+        try:
+            catalog_result = DesktopCatalogService().snapshot(
+                desktop_root=args.desktop_root,
+                applications_root=args.applications_root,
+                install_root=args.install_root,
+            )
+        except (OSError, ValueError) as exc:
+            print(json.dumps({"status": "blocked", "error": str(exc)}, sort_keys=True))
+            return 2
+        print(json.dumps(catalog_result.to_dict(), sort_keys=True, indent=2))
+        return 0
+
+    if args.command == "review-desktop-catalog":
+        try:
+            catalog_payload = _load_json_file(args.desktop_catalog_json)
+            if (
+                isinstance(catalog_payload, dict)
+                and set(catalog_payload) == {"snapshot", "receipt"}
+            ):
+                catalog_payload = catalog_payload["snapshot"]
+            catalog_review = review_desktop_catalog(catalog_payload)
+        except (OSError, ValueError) as exc:
+            print(json.dumps({"status": "blocked", "error": str(exc)}, sort_keys=True))
+            return 2
+        print(json.dumps(catalog_review.to_dict(), sort_keys=True, indent=2))
         return 0
 
     return 2
