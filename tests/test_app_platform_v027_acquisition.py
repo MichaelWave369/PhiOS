@@ -56,6 +56,7 @@ def _request() -> SourceAcquisitionRequest:
         repository_url="https://github.com/example/example",
         commit_sha="a" * 40,
         manifest=manifest,
+        approved_commit_sha="a" * 40,
         approved_manifest_sha256=manifest.sha256(),
     )
 
@@ -91,7 +92,20 @@ def test_request_requires_explicit_manifest_digest_approval() -> None:
             repository_url="https://github.com/example/example",
             commit_sha="a" * 40,
             manifest=manifest,
+            approved_commit_sha="a" * 40,
             approved_manifest_sha256="0" * 64,
+        )
+
+
+def test_request_requires_explicit_commit_approval() -> None:
+    manifest = _manifest()
+    with pytest.raises(ValueError, match="Approved commit SHA"):
+        SourceAcquisitionRequest(
+            repository_url="https://github.com/example/example",
+            commit_sha="a" * 40,
+            manifest=manifest,
+            approved_commit_sha="b" * 40,
+            approved_manifest_sha256=manifest.sha256(),
         )
 
 
@@ -111,6 +125,7 @@ def test_request_can_be_reconstructed_from_v026_intake_payload() -> None:
     }
     request = SourceAcquisitionRequest.from_intake_payload(
         payload,
+        approved_commit_sha="b" * 40,
         approved_manifest_sha256=manifest.sha256(),
     )
 
