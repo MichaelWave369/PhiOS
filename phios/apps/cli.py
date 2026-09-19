@@ -131,11 +131,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.command == "review-build-plan":
         try:
             payload = _load_json_file(args.build_plan_json)
-            review = review_build_plan(payload)
+            build_review = review_build_plan(payload)
         except (OSError, ValueError) as exc:
             print(json.dumps({"status": "blocked", "error": str(exc)}, sort_keys=True))
             return 2
-        print(json.dumps(review.to_dict(), sort_keys=True, indent=2))
+        print(json.dumps(build_review.to_dict(), sort_keys=True, indent=2))
         return 0
 
     return 2
