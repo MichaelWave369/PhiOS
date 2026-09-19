@@ -212,3 +212,14 @@ mypy phios/ --ignore-missing-imports
 pytest -q
 bash scripts/policy_no_telemetry_runtime.sh
 ```
+
+
+---
+
+## Next rung
+
+Governed Plan Adoption v0.6 is followed by
+[Governed Action Binding v0.7](PHIOS_GOVERNED_ACTION_BINDING_V0.7.md). v0.7
+binds one exact transition from an immutable adopted plan to an existing Spine
+capability and canonical payload digest, while leaving permission evaluation
+and execution to the existing Spine authority path.
