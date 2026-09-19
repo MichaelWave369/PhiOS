@@ -156,6 +156,98 @@ class GovernedActionBinder:
     def __init__(self) -> None:
         self._plan_gate = GovernedPlanAdoptionGate()
 
+    def validate_binding(self, binding: PlanActionBinding) -> None:
+        """Validate a v0.7 binding without granting or executing anything."""
+
+        if binding.schema != "phios.plan_action_binding.v0.7":
+            raise ActionBindingContractError("unsupported action binding schema")
+        if binding.action_authority is not False:
+            raise ActionBindingContractError(
+                "action binding cannot carry action authority"
+            )
+        if binding.execution_authority is not False:
+            raise ActionBindingContractError(
+                "action binding cannot carry execution authority"
+            )
+        if not binding.plan_id.strip():
+            raise ActionBindingContractError("binding plan_id must be non-empty")
+        if binding.plan_revision < 0:
+            raise ActionBindingContractError(
+                "binding plan_revision must be non-negative"
+            )
+        if binding.transition_index < 0:
+            raise ActionBindingContractError(
+                "binding transition_index must be non-negative"
+            )
+        if not binding.source_state_id.strip() or not binding.target_state_id.strip():
+            raise ActionBindingContractError(
+                "binding source and target state IDs must be non-empty"
+            )
+        if not binding.capability_id.strip():
+            raise ActionBindingContractError(
+                "binding capability_id must be non-empty"
+            )
+        if not binding.capability_version.strip():
+            raise ActionBindingContractError(
+                "binding capability_version must be non-empty"
+            )
+        if binding.capability_risk not in {"read", "low", "medium", "high"}:
+            raise ActionBindingContractError(
+                "binding capability_risk is invalid"
+            )
+        if any(not item.strip() for item in binding.permissions_requested):
+            raise ActionBindingContractError(
+                "binding permissions must be non-empty strings"
+            )
+        if len(set(binding.permissions_requested)) != len(
+            binding.permissions_requested
+        ):
+            raise ActionBindingContractError(
+                "binding permissions must be unique"
+            )
+        for label, digest in (
+            ("plan_state_sha256", binding.plan_state_sha256),
+            ("payload_sha256", binding.payload_sha256),
+            ("grant_sha256", binding.grant_sha256),
+            ("binding_sha256", binding.binding_sha256),
+        ):
+            _require_sha256(digest, label)
+        if not binding.grant_id.strip():
+            raise ActionBindingContractError("binding grant_id must be non-empty")
+        if not binding.authority_source.strip():
+            raise ActionBindingContractError(
+                "binding authority_source must be non-empty"
+            )
+
+        payload: dict[str, object] = {
+            "schema": binding.schema,
+            "plan_id": binding.plan_id,
+            "plan_state_sha256": binding.plan_state_sha256,
+            "plan_revision": binding.plan_revision,
+            "transition_index": binding.transition_index,
+            "source_state_id": binding.source_state_id,
+            "target_state_id": binding.target_state_id,
+            "capability_id": binding.capability_id,
+            "capability_version": binding.capability_version,
+            "capability_risk": binding.capability_risk,
+            "permissions_requested": list(binding.permissions_requested),
+            "payload_sha256": binding.payload_sha256,
+            "grant_id": binding.grant_id,
+            "grant_sha256": binding.grant_sha256,
+            "authority_source": binding.authority_source,
+            "action_authority": False,
+            "execution_authority": False,
+        }
+        if _payload_digest(payload) != binding.binding_sha256:
+            raise ActionBindingContractError(
+                "action binding hash does not match binding contents"
+            )
+
+    def payload_sha256(self, payload: Mapping[str, Any]) -> str:
+        """Return the canonical v0.7 payload digest used by action bindings."""
+
+        return _payload_digest(dict(payload))
+
     def bind(
         self,
         *,
@@ -401,6 +493,18 @@ class GovernedActionBinder:
             execution_authority=False,
             receipt_sha256=_payload_digest(receipt_payload),
         )
+
+
+def _require_sha256(value: str, label: str) -> None:
+    normalized = value.strip().lower()
+    if len(normalized) != 64:
+        raise ActionBindingContractError(f"{label} must be a SHA-256 hex digest")
+    try:
+        int(normalized, 16)
+    except ValueError as exc:
+        raise ActionBindingContractError(
+            f"{label} must be a SHA-256 hex digest"
+        ) from exc
 
 
 def _canonical_json(value: object) -> str:
