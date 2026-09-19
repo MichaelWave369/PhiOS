@@ -317,7 +317,7 @@ scripts/       development and policy helpers
 
 ## Geometric, relational, and dynamic field reasoning
 
-PhiOS now has a three-rung advisory core for reasoning over computational state
+PhiOS now has a four-rung advisory core for reasoning over computational state
 spaces before exact verification.
 
 **Geometric Reasoning v0.1** reduces state spaces through constraints,
