@@ -170,6 +170,12 @@ That is not proof of reachability.
 The bounded search engine performs deterministic breadth-first exploration over
 equivalence classes.
 
+Search is disabled by default. The caller must explicitly set
+`quotient_search_safe=True`, declaring that the chosen equivalence relation
+preserves the transition and goal structure relevant to that search. The
+declaration is not itself proof, but it prevents PhiOS from silently assuming
+that representational equivalence implies identical futures.
+
 When a newly generated state belongs to an already visited class, it is counted
 as:
 
@@ -182,7 +188,7 @@ and is not expanded again.
 Search receipts distinguish:
 
 - `found`
-- `exhausted`
+- `exhausted_under_declared_geometry`
 - `limit_reached`
 
 and record:
@@ -193,6 +199,7 @@ and record:
 - equivalent states skipped;
 - representative path;
 - solution state ID when found;
+- the explicit quotient-search-safety declaration;
 - canonical SHA-256;
 - zero action authority.
 
@@ -208,6 +215,7 @@ v0.1 fails closed around the structural contract.
 - constraint exceptions classify that state as rejected;
 - invariant-evaluation failure raises `GeometryContractError`;
 - expansion or goal-predicate failure raises `GeometryContractError`;
+- quotient search is refused unless quotient safety is explicitly declared;
 - search is bounded by `max_classes`.
 
 The engine does not silently invent geometry when a domain contract cannot be
