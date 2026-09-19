@@ -165,7 +165,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         try:
             plan_payload = _load_json_file(args.build_plan_json)
             receipt_payload = _load_json_file(args.acquisition_receipt_json)
-            request = BuildExecutionRequest.from_payloads(
+            execution_request = BuildExecutionRequest.from_payloads(
                 plan_payload,
                 receipt_payload,
                 approved_plan_sha256=args.approve_plan_sha,
@@ -175,7 +175,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             execution = BuildExecutionService(
                 step_timeout_seconds=args.step_timeout_seconds,
             ).execute(
-                request,
+                execution_request,
                 execution_root=args.execution_root,
                 receipt_root=args.receipt_root,
             )
