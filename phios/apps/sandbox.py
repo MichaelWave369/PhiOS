@@ -11,7 +11,7 @@ import tempfile
 import uuid
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any, Literal, Protocol, cast
 
 from .build_execution import (
@@ -53,6 +53,17 @@ _SANDBOX_ETC_PATHS = (
     "/etc/services",
 )
 _SAFE_VERSION_RE = re.compile(r"^[\x20-\x7e]{1,512}$")
+_SAFE_ENV_KEY_RE = re.compile(r"^[A-Z][A-Z0-9_]{0,63}$")
+_RESERVED_SANDBOX_ENV = {
+    "HOME",
+    "TMPDIR",
+    "TMP",
+    "TEMP",
+    "PATH",
+    "PHIOS_BUILD_EXECUTION",
+    "PHIOS_BUILD_SANDBOX",
+    "PHIOS_EXECUTION_SOURCE",
+}
 
 
 def _mapping(value: Any, label: str) -> dict[str, Any]:
@@ -288,13 +299,74 @@ class BubblewrapSandboxRunner(SubprocessBuildRunner):
         *,
         bwrap_path: str | None = None,
         prlimit_path: str | None = None,
+        extra_read_only_binds: tuple[tuple[Path, str], ...] = (),
+        extra_read_write_binds: tuple[tuple[Path, str], ...] = (),
+        extra_environment: dict[str, str] | None = None,
     ) -> None:
         self.policy = policy
         self.bwrap_path = bwrap_path
         self.prlimit_path = prlimit_path
+        self.extra_read_only_binds = self._validate_auxiliary_binds(
+            extra_read_only_binds,
+            label="read-only",
+        )
+        self.extra_read_write_binds = self._validate_auxiliary_binds(
+            extra_read_write_binds,
+            label="read-write",
+        )
+        targets = [target for _, target in (*self.extra_read_only_binds, *self.extra_read_write_binds)]
+        if len(targets) != len(set(targets)):
+            raise ValueError("Sandbox auxiliary mount targets must be unique")
+        self.extra_environment = self._validate_extra_environment(extra_environment or {})
         self.network_sandbox_enforced = policy.network_mode == "deny"
         self._backend_identity: SandboxBackendIdentity | None = None
         self._resolved_tool_dirs: set[str] = set()
+
+    @staticmethod
+    def _validate_auxiliary_binds(
+        binds: tuple[tuple[Path, str], ...],
+        *,
+        label: str,
+    ) -> tuple[tuple[Path, str], ...]:
+        normalized: list[tuple[Path, str]] = []
+        for host_path, sandbox_target in binds:
+            host = Path(host_path)
+            if host.is_symlink():
+                raise ValueError(f"Sandbox auxiliary {label} host path must not be a symlink")
+            try:
+                resolved_host = host.resolve(strict=True)
+            except OSError as exc:
+                raise ValueError(
+                    f"Sandbox auxiliary {label} host path is unavailable: {host}"
+                ) from exc
+            target = PurePosixPath(sandbox_target)
+            if (
+                not target.is_absolute()
+                or any(part in {"", ".", ".."} for part in target.parts[1:])
+                or not target.as_posix().startswith("/phios/")
+            ):
+                raise ValueError(
+                    "Sandbox auxiliary mount target must be an absolute /phios/... path"
+                )
+            normalized.append((resolved_host, target.as_posix()))
+        return tuple(normalized)
+
+    @staticmethod
+    def _validate_extra_environment(values: dict[str, str]) -> dict[str, str]:
+        normalized: dict[str, str] = {}
+        for key, value in values.items():
+            if not _SAFE_ENV_KEY_RE.fullmatch(key):
+                raise ValueError(f"Invalid sandbox environment key: {key}")
+            if key in _RESERVED_SANDBOX_ENV:
+                raise ValueError(f"Sandbox environment key is reserved: {key}")
+            if (
+                not isinstance(value, str)
+                or len(value) > 4096
+                or any(ord(char) < 32 for char in value)
+            ):
+                raise ValueError(f"Invalid sandbox environment value for {key}")
+            normalized[key] = value
+        return dict(sorted(normalized.items()))
 
     @staticmethod
     def _path_allowed(path: Path) -> bool:
@@ -396,6 +468,10 @@ class BubblewrapSandboxRunner(SubprocessBuildRunner):
             ]
         )
         args.extend(self._system_bind_args())
+        for host_path, sandbox_target in self.extra_read_only_binds:
+            args.extend(("--ro-bind", str(host_path), sandbox_target))
+        for host_path, sandbox_target in self.extra_read_write_binds:
+            args.extend(("--bind", str(host_path), sandbox_target))
         args.extend(
             [
                 "--bind",
@@ -425,6 +501,12 @@ class BubblewrapSandboxRunner(SubprocessBuildRunner):
                 "--setenv",
                 "PATH",
                 self._sandbox_path(executable),
+            ]
+        )
+        for key, value in self.extra_environment.items():
+            args.extend(("--setenv", key, value))
+        args.extend(
+            [
                 prlimit,
                 f"--cpu={self.policy.cpu_seconds}",
                 f"--as={self.policy.address_space_bytes}",
@@ -521,7 +603,7 @@ class BubblewrapSandboxRunner(SubprocessBuildRunner):
             private_dev=True,
             private_tmp=True,
             private_home=True,
-            workspace_only_writable_mount=True,
+            workspace_only_writable_mount=not bool(self.extra_read_write_binds),
             host_system_roots_read_only=True,
             network_namespace_enforced=self.policy.network_mode == "deny",
             host_network_inherited=self.policy.network_mode == "inherit",
