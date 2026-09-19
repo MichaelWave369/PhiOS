@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 from pathlib import Path
 from typing import Any
 
@@ -12,9 +13,10 @@ from phios.apps.build_execution import (
     BuildExecutionService,
     ProcessResult,
     StreamCapture,
+    SubprocessBuildRunner,
     ToolIdentity,
 )
-from phios.apps.build_plan import plan_build_from_payloads
+from phios.apps.build_plan import BuildStep, plan_build_from_payloads
 from phios.apps.manifest import AppManifest
 
 
@@ -382,3 +384,34 @@ def test_execution_workspace_cannot_live_inside_acquired_source(tmp_path: Path) 
         )
 
     assert not (source / ".builds").exists()
+
+
+def test_real_subprocess_runner_uses_argv_and_hashes_output(tmp_path: Path) -> None:
+    runner = SubprocessBuildRunner()
+    env = {"PATH": os.environ.get("PATH", "")}
+
+    identity = runner.probe(
+        logical_tool="python",
+        executable_tool="python",
+        argv=("python", "--version"),
+        cwd=tmp_path,
+        env=env,
+        timeout_seconds=10,
+    )
+    assert identity.version != "output-not-retained"
+    assert identity.logical_tool == "python"
+
+    step = BuildStep(
+        step_id="build",
+        phase="build",
+        tool="python",
+        argv=("python", "-c", "print('phi')"),
+        requires_network=False,
+    )
+    result = runner.run(step, cwd=tmp_path, env=env, timeout_seconds=10)
+
+    assert result.exit_code == 0
+    assert result.timed_out is False
+    assert result.stdout.byte_count == len(b"phi\n")
+    assert result.stdout.sha256 == hashlib.sha256(b"phi\n").hexdigest()
+    assert result.stdout.preview == ""
