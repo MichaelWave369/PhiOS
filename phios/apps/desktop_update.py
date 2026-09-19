@@ -1279,6 +1279,10 @@ def plan_desktop_rollback(
         Path(active.grant.desktop_entry_path),
         "active desktop entry",
     )
+    if Path(target.grant.desktop_entry_path) != entry:
+        raise ValueError("rollback target grant points to a different desktop entry")
+    if target.plan.desktop_entry_filename != active.plan.desktop_entry_filename:
+        raise ValueError("rollback target desktop filename differs from active app")
     rollback_text = render_desktop_entry(target.plan, target.path)
     rollback_entry_sha = hashlib.sha256(rollback_text.encode("utf-8")).hexdigest()
     if rollback_entry_sha != target.grant.desktop_entry_sha256:
