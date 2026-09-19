@@ -675,6 +675,11 @@ def _snapshot_payload(root: Path) -> tuple[str, int, int]:
     return _artifact_set_sha256(ordered), len(ordered), total
 
 
+def snapshot_installed_tree(root: Path) -> tuple[str, int, int]:
+    """Return the deterministic v0.33 file-set digest for an installed tree."""
+    return _snapshot_payload(root)
+
+
 def _write_json_atomic(path: Path, payload: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_name(f".{path.name}.{uuid.uuid4().hex}.tmp")
