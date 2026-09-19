@@ -5,6 +5,7 @@ import json
 import socket
 import uuid
 from pathlib import Path
+from typing import cast
 
 import pytest
 
