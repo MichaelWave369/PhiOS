@@ -646,6 +646,8 @@ class BuildExecutionService:
             raise ValueError("Execution workspace escaped configured execution root")
 
         receipts = (receipt_root or (root / ".phios-receipts")).expanduser().resolve()
+        if receipts == source_root or source_root in receipts.parents:
+            raise ValueError("Receipt root must remain outside the acquired source tree")
         if receipts == source_copy or source_copy in receipts.parents:
             raise ValueError("Receipt root must remain outside the execution source tree")
 
