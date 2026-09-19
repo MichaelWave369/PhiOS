@@ -210,6 +210,8 @@ more.
 
 See:
 
+- [App Platform v0.37 overview](README_APP_PLATFORM_V0.37.md)
+- [App Platform v0.37 visible browser contract](docs/PHIOS_APP_PLATFORM_V0.37_VISIBLE_BROWSER.md)
 - [App Platform v0.36 overview](README_APP_PLATFORM_V0.36.md)
 - [App Platform v0.36 browser session contract](docs/PHIOS_APP_PLATFORM_V0.36_BROWSER_SESSION.md)
 - [App Platform v0.35 overview](README_APP_PLATFORM_V0.35.md)
@@ -661,7 +663,7 @@ phios/
 ├─ shell/      operator shell
 ├─ mcp/        MCP interface
 ├─ spine/      authority-aware Spine runtime
-├─ apps/       manifests, intake, dependency broker, offline builds, install/runtime adapters, registry
+├─ apps/       manifests, intake, dependency broker, offline builds, install/runtime/GUI adapters, registry
 ├─ mandala/    typed contracts and receipts
 ├─ soma/       bounded perception/evidence
 └─ reality/    Reality Gate verification
