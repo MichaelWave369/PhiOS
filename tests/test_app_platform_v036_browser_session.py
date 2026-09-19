@@ -290,7 +290,7 @@ def test_browser_plan_binds_headless_ephemeral_authority(tmp_path: Path) -> None
     assert plan.page_execution_authority is False
     assert plan.display_authority is False
     assert plan.persistent_profile_authority is False
-    assert plan.host_filesystem_authority is False
+    assert plan.host_home_authority is False
     assert review.browser_session_plan_sha256 == plan.sha256()
     assert BrowserSessionPlan.from_dict(plan.to_dict()) == plan
 
@@ -412,7 +412,7 @@ def test_browser_session_records_coordinated_headless_execution(tmp_path: Path) 
     assert result.receipt.browser_network_inherited is True
     assert result.receipt.display_authority is False
     assert result.receipt.persistent_profile_authority is False
-    assert result.receipt.host_filesystem_authority is False
+    assert result.receipt.host_home_authority is False
     assert result.receipt.browser_controls.private_home is True
     assert result.receipt.browser_controls.private_tmp is True
     assert result.receipt.browser_controls.host_network_inherited is True
@@ -483,3 +483,20 @@ def test_browser_session_timeout_is_receipted_without_display_authority(
     assert result.receipt.status == "timed_out"
     assert result.receipt.browser_timed_out is True
     assert result.receipt.display_authority is False
+
+
+def test_browser_window_must_fit_inside_static_serve_authority(tmp_path: Path) -> None:
+    receipt, _, install_root, _ = _install(tmp_path)
+    static_plan = plan_static_web_adapter(
+        receipt.to_dict(),
+        install_root=install_root,
+        loopback_port=9106,
+        serve_seconds=5,
+    )
+
+    with pytest.raises(ValueError, match="exceeds reviewed static serve window"):
+        plan_browser_session(
+            static_plan.to_dict(),
+            session_seconds=5,
+            readiness_timeout_ms=1000,
+        )
