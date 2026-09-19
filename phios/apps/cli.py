@@ -42,6 +42,12 @@ from .runtime import (
     review_installed_runtime,
 )
 from .sandbox import BuildSandboxPolicy, SandboxedBuildExecutionService
+from .static_web import (
+    StaticWebAdapterService,
+    StaticWebServeRequest,
+    plan_static_web_adapter,
+    review_static_web_adapter,
+)
 
 _MAX_INTAKE_RESULT_BYTES = 2 * 1024 * 1024
 
@@ -324,6 +330,43 @@ def _parser() -> argparse.ArgumentParser:
         default=Path.home() / ".phios" / "apps" / "data",
     )
     runtime_launch_parser.add_argument(
+        "--receipt-root",
+        type=Path,
+        default=Path.home() / ".phios" / "apps" / "runtime-receipts",
+    )
+
+    static_plan_parser = subparsers.add_parser(
+        "plan-static-web",
+        help="Map one unchanged install to a reviewed static-web serving plan.",
+    )
+    static_plan_parser.add_argument("install_receipt_json", type=Path)
+    static_plan_parser.add_argument(
+        "--install-root",
+        type=Path,
+        default=Path.home() / ".phios" / "apps" / "installed",
+    )
+    static_plan_parser.add_argument("--loopback-port", type=int, default=8787)
+    static_plan_parser.add_argument("--serve-seconds", type=int, default=300)
+
+    static_review_parser = subparsers.add_parser(
+        "review-static-web",
+        help="Expose the exact v0.35 static-web mapping and loopback serve authority.",
+    )
+    static_review_parser.add_argument("static_web_plan_json", type=Path)
+
+    static_serve_parser = subparsers.add_parser(
+        "serve-static-web",
+        help="Serve one explicitly approved static-web plan on reviewed loopback.",
+    )
+    static_serve_parser.add_argument("static_web_plan_json", type=Path)
+    static_serve_parser.add_argument("install_receipt_json", type=Path)
+    static_serve_parser.add_argument("--approve-static-web-plan-sha", required=True)
+    static_serve_parser.add_argument(
+        "--install-root",
+        type=Path,
+        default=Path.home() / ".phios" / "apps" / "installed",
+    )
+    static_serve_parser.add_argument(
         "--receipt-root",
         type=Path,
         default=Path.home() / ".phios" / "apps" / "runtime-receipts",
@@ -691,6 +734,56 @@ def main(argv: Sequence[str] | None = None) -> int:
             return 2
         print(json.dumps(launch_result.to_dict(), sort_keys=True, indent=2))
         return 0 if launch_result.receipt.status == "exited_success" else 1
+
+    if args.command == "plan-static-web":
+        try:
+            install_payload = _load_json_file(args.install_receipt_json)
+            static_plan = plan_static_web_adapter(
+                install_payload,
+                install_root=args.install_root,
+                loopback_port=args.loopback_port,
+                serve_seconds=args.serve_seconds,
+            )
+        except (OSError, ValueError) as exc:
+            print(json.dumps({"status": "blocked", "error": str(exc)}, sort_keys=True))
+            return 2
+        print(json.dumps(static_plan.to_dict(), sort_keys=True, indent=2))
+        return 0
+
+    if args.command == "review-static-web":
+        try:
+            static_payload = _load_json_file(args.static_web_plan_json)
+            static_review = review_static_web_adapter(static_payload)
+        except (OSError, ValueError) as exc:
+            print(json.dumps({"status": "blocked", "error": str(exc)}, sort_keys=True))
+            return 2
+        print(json.dumps(static_review.to_dict(), sort_keys=True, indent=2))
+        return 0
+
+    if args.command == "serve-static-web":
+        try:
+            static_payload = _load_json_file(args.static_web_plan_json)
+            install_payload = _load_json_file(args.install_receipt_json)
+            static_request = StaticWebServeRequest.from_payloads(
+                static_payload,
+                install_payload,
+                approved_static_web_plan_sha256=args.approve_static_web_plan_sha,
+            )
+            static_result = StaticWebAdapterService().serve(
+                static_request,
+                install_root=args.install_root,
+                receipt_root=args.receipt_root,
+            )
+        except (OSError, ValueError) as exc:
+            print(json.dumps({"status": "blocked", "error": str(exc)}, sort_keys=True))
+            return 2
+        print(json.dumps(static_result.to_dict(), sort_keys=True, indent=2))
+        return (
+            0
+            if static_result.receipt.status
+            in {"serve_window_complete", "server_exited"}
+            else 1
+        )
 
     return 2
 
