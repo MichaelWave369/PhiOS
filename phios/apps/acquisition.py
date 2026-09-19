@@ -300,6 +300,8 @@ class SourceAcquisitionService:
         destination = (app_root / request.commit_sha).resolve()
         if root not in destination.parents:
             raise ValueError("Acquisition destination escaped the configured workspace root")
+        if receipts == destination or destination in receipts.parents:
+            raise ValueError("Receipt root must remain outside the acquired source tree")
         if destination.exists():
             raise ValueError("Acquisition destination already exists")
 
@@ -404,6 +406,8 @@ class SourceAcquisitionService:
             return receipt
         except zipfile.BadZipFile as exc:
             raise ValueError("Downloaded source archive is not a valid ZIP file") from exc
+        except (RuntimeError, NotImplementedError) as exc:
+            raise ValueError("Downloaded source archive uses an unsupported ZIP feature") from exc
         finally:
             if staging.exists():
                 shutil.rmtree(staging, ignore_errors=True)
