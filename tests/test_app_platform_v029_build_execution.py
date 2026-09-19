@@ -354,17 +354,17 @@ def test_build_runs_only_inside_isolated_execution_copy(tmp_path: Path) -> None:
     assert not (source / "dist").exists()
 
 
-def test_receipt_root_cannot_be_inside_execution_source(tmp_path: Path) -> None:
+def test_receipt_root_cannot_mutate_acquired_source(tmp_path: Path) -> None:
     source = tmp_path / "source"
     source.mkdir()
     _, receipt, plan = _locked_node_plan(source)
     request = _request(plan, receipt)
-    execution_root = tmp_path / "executions"
-    nested_receipts = execution_root / plan.app_id / plan.sha256() / "placeholder" / "source"
 
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="outside the acquired source tree"):
         BuildExecutionService(runner=FakeRunner()).execute(
             request,
-            execution_root=execution_root,
-            receipt_root=nested_receipts,
+            execution_root=tmp_path / "executions",
+            receipt_root=source / ".receipts",
         )
+
+    assert not (source / ".receipts").exists()
