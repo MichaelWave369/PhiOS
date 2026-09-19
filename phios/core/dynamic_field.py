@@ -194,6 +194,11 @@ class DynamicField:
     def law(self) -> DynamicFieldLaw:
         return self._law
 
+    def validate_state(self, state: DynamicFieldState) -> None:
+        """Validate a snapshot against this field's immutable governing law."""
+
+        self._validate_state(state)
+
     def initialize(self) -> DynamicFieldState:
         values = tuple(
             sorted(
