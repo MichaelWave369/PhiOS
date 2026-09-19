@@ -95,7 +95,9 @@ class WaylandSocketIdentity:
     display_name: str
     device: int
     inode: int
+    ctime_ns: int
     owner_uid: int
+    owner_gid: int
 
     def __post_init__(self) -> None:
         path = Path(self.host_path)
@@ -107,7 +109,9 @@ class WaylandSocketIdentity:
             raise ValueError("Wayland display name must match socket basename")
         _int(self.device, "Wayland socket device", minimum=0, maximum=2**63 - 1)
         _int(self.inode, "Wayland socket inode", minimum=1, maximum=2**63 - 1)
+        _int(self.ctime_ns, "Wayland socket ctime_ns", minimum=1, maximum=2**63 - 1)
         _int(self.owner_uid, "Wayland socket owner_uid", minimum=0, maximum=2**31 - 1)
+        _int(self.owner_gid, "Wayland socket owner_gid", minimum=0, maximum=2**31 - 1)
 
     @property
     def sandbox_path(self) -> str:
@@ -119,14 +123,24 @@ class WaylandSocketIdentity:
     @classmethod
     def from_dict(cls, value: Any) -> WaylandSocketIdentity:
         data = _mapping(value, "Wayland socket identity")
-        if set(data) != {"host_path", "display_name", "device", "inode", "owner_uid"}:
+        if set(data) != {
+            "host_path",
+            "display_name",
+            "device",
+            "inode",
+            "ctime_ns",
+            "owner_uid",
+            "owner_gid",
+        }:
             raise ValueError("Wayland socket identity contains missing or unknown fields")
         return cls(
             host_path=_string(data["host_path"], "Wayland host_path", maximum=4096),
             display_name=_string(data["display_name"], "Wayland display_name", maximum=128),
             device=data["device"],
             inode=data["inode"],
+            ctime_ns=data["ctime_ns"],
             owner_uid=data["owner_uid"],
+            owner_gid=data["owner_gid"],
         )
 
 
@@ -153,7 +167,9 @@ def inspect_wayland_socket(path_value: Path | str) -> WaylandSocketIdentity:
         display_name=name,
         device=metadata.st_dev,
         inode=metadata.st_ino,
+        ctime_ns=metadata.st_ctime_ns,
         owner_uid=metadata.st_uid,
+        owner_gid=metadata.st_gid,
     )
 
 
@@ -582,7 +598,9 @@ class WaylandDisplayEvidence:
     host_socket_path: str
     host_socket_device: int
     host_socket_inode: int
+    host_socket_ctime_ns: int
     host_socket_owner_uid: int
+    host_socket_owner_gid: int
     sandbox_socket_path: str
     exact_socket_bind: bool
     host_runtime_directory_mounted: bool
@@ -676,7 +694,9 @@ class WaylandBubblewrapRuntimeRunner(BubblewrapRuntimeRunner):
             host_socket_path=self.wayland_socket.host_path,
             host_socket_device=self.wayland_socket.device,
             host_socket_inode=self.wayland_socket.inode,
+            host_socket_ctime_ns=self.wayland_socket.ctime_ns,
             host_socket_owner_uid=self.wayland_socket.owner_uid,
+            host_socket_owner_gid=self.wayland_socket.owner_gid,
             sandbox_socket_path=self.wayland_socket.sandbox_path,
             exact_socket_bind=True,
             host_runtime_directory_mounted=False,
