@@ -339,6 +339,10 @@ class BubblewrapSandboxRunner(SubprocessBuildRunner):
                 raise ValueError(
                     f"Sandbox auxiliary {label} host path is unavailable: {host}"
                 ) from exc
+            if not (resolved_host.is_file() or resolved_host.is_dir()):
+                raise ValueError(
+                    f"Sandbox auxiliary {label} host path must be a regular file or directory"
+                )
             target = PurePosixPath(sandbox_target)
             if (
                 not target.is_absolute()
@@ -468,6 +472,23 @@ class BubblewrapSandboxRunner(SubprocessBuildRunner):
             ]
         )
         args.extend(self._system_bind_args())
+        auxiliary_targets = [
+            target
+            for _, target in (*self.extra_read_only_binds, *self.extra_read_write_binds)
+        ]
+        auxiliary_dirs: set[str] = set()
+        for target in auxiliary_targets:
+            parent = PurePosixPath(target).parent
+            while parent.as_posix().startswith("/phios"):
+                auxiliary_dirs.add(parent.as_posix())
+                if parent.as_posix() == "/phios":
+                    break
+                parent = parent.parent
+        for directory in sorted(
+            auxiliary_dirs,
+            key=lambda value: (len(PurePosixPath(value).parts), value),
+        ):
+            args.extend(("--dir", directory))
         for host_path, sandbox_target in self.extra_read_only_binds:
             args.extend(("--ro-bind", str(host_path), sandbox_target))
         for host_path, sandbox_target in self.extra_read_write_binds:
