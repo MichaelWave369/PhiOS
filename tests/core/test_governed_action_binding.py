@@ -9,7 +9,7 @@ from phios.core.governed_action_binding import (
     ActionBindingGrant,
     GovernedActionBinder,
 )
-from phios.core.governed_plan_adoption import GovernedPlanAdoptionGate
+from phios.core.governed_plan_adoption import (\n    GovernedPlanAdoptionGate,\n    PlanAdoptionContractError,\n)
 from phios.core.field_aware_routing import FieldAwareRouteReceipt
 from phios.spine.models import Capability
 
@@ -212,7 +212,7 @@ def test_invalid_transition_index_is_rejected():
 def test_tampered_plan_is_rejected():
     plan = replace(_plan(), path_ids=("A", "C", "D"))
 
-    with pytest.raises(Exception):
+    with pytest.raises(PlanAdoptionContractError):
         GovernedActionBinder().bind(
             plan=plan,
             transition_index=0,
