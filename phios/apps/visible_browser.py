@@ -12,6 +12,7 @@ from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Callable, Literal, Protocol, cast
+from urllib.parse import urlsplit
 
 from .browser_session import (
     BrowserSessionExecution,
@@ -180,6 +181,24 @@ def _verify_wayland_socket(identity: WaylandSocketIdentity) -> Path:
     return Path(observed.host_path)
 
 
+def _validate_loopback_url(value: Any) -> str:
+    url = _string(value, "visible browser loopback_url", maximum=256)
+    parsed = urlsplit(url)
+    if (
+        parsed.scheme != "http"
+        or parsed.hostname != "127.0.0.1"
+        or parsed.path != "/"
+        or parsed.query
+        or parsed.fragment
+        or parsed.username
+        or parsed.password
+        or parsed.port is None
+        or not 1024 <= parsed.port <= 65535
+    ):
+        raise ValueError("visible browser loopback URL must be plain reviewed 127.0.0.1 HTTP")
+    return url
+
+
 def _visible_browser_argv(browser_tool: str, loopback_url: str) -> tuple[str, ...]:
     if browser_tool not in _BROWSER_TOOLS:
         raise ValueError("visible browser tool must be chromium or chromium-browser")
@@ -248,8 +267,7 @@ class VisibleBrowserSessionPlan:
         _sha256(self.install_receipt_sha256, "install_receipt_sha256")
         _sha256(self.installed_tree_sha256, "installed_tree_sha256")
         _sha256(self.static_root_sha256, "static_root_sha256")
-        if not self.loopback_url.startswith("http://127.0.0.1:") or not self.loopback_url.endswith("/"):
-            raise ValueError("visible browser loopback URL must be reviewed 127.0.0.1 HTTP")
+        _validate_loopback_url(self.loopback_url)
         _int(self.static_serve_seconds, "static_serve_seconds", minimum=1, maximum=3600)
         if self.browser_family != "chromium":
             raise ValueError("v0.37 supports only Chromium-family visible sessions")
@@ -390,7 +408,7 @@ class VisibleBrowserSessionPlan:
                 data["static_root_sha256"],
                 "static_root_sha256",
             ),
-            loopback_url=_string(data["loopback_url"], "loopback_url", maximum=256),
+            loopback_url=_validate_loopback_url(data["loopback_url"]),
             static_serve_seconds=data["static_serve_seconds"],
             browser_family=_string(data["browser_family"], "browser_family", maximum=64),
             browser_tool=_string(data["browser_tool"], "browser_tool", maximum=64),
@@ -610,6 +628,16 @@ class WaylandDisplayEvidence:
     x11_authority: bool
 
     def __post_init__(self) -> None:
+        bool_fields = (
+            self.exact_socket_bind,
+            self.host_runtime_directory_mounted,
+            self.wayland_environment_set,
+            self.display_authority_granted,
+            self.gpu_device_authority,
+            self.x11_authority,
+        )
+        if any(not isinstance(value, bool) for value in bool_fields):
+            raise ValueError("Wayland display evidence authority fields must be boolean")
         if self.transport != "wayland":
             raise ValueError("visible display evidence must use Wayland")
         if not self.exact_socket_bind:
