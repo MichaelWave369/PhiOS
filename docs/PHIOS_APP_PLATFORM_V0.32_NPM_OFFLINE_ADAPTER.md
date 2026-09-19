@@ -262,6 +262,7 @@ The final v0.32 receipt binds:
 - build-execution receipt SHA-256;
 - sandbox receipt SHA-256;
 - network mode;
+- explicit network-namespace-enforced evidence;
 - build status.
 
 ## Explicit non-capabilities
