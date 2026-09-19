@@ -11,6 +11,7 @@ from phios.apps.browser_session import (
     BrowserReadinessEvidence,
     BrowserSessionExecution,
     BrowserSessionPlan,
+    BrowserSessionReceipt,
     BrowserSessionRequest,
     BrowserSessionService,
     plan_browser_session,
@@ -418,6 +419,7 @@ def test_browser_session_records_coordinated_headless_execution(tmp_path: Path) 
     assert result.receipt.browser_controls.host_network_inherited is True
     assert result.receipt.browser_controls.network_allowlist_enforced is False
     assert result.receipt.browser_stdout_byte_count > 0
+    assert BrowserSessionReceipt.from_dict(result.receipt.to_dict()) == result.receipt
     assert result.receipt_persisted is True
     assert Path(result.receipt_path).is_file()
     assert created[0].static_root.name == "dist"
@@ -500,3 +502,28 @@ def test_browser_window_must_fit_inside_static_serve_authority(tmp_path: Path) -
             session_seconds=5,
             readiness_timeout_ms=1000,
         )
+
+
+def test_browser_session_receipt_rejects_digest_tampering(tmp_path: Path) -> None:
+    receipt, install_root, static_plan, plan = _plans(tmp_path, port=9107)
+    request = BrowserSessionRequest.from_payloads(
+        plan.to_dict(),
+        static_plan.to_dict(),
+        receipt.to_dict(),
+        approved_browser_session_plan_sha256=plan.sha256(),
+        approved_static_web_plan_sha256=static_plan.sha256(),
+        approved_browser_permissions=plan.requested_browser_permissions,
+    )
+    result = BrowserSessionService(
+        runner_factory=lambda a, b, c, d: FakeBrowserRunner(a, b, c, d)
+    ).run(
+        request,
+        install_root=install_root,
+        session_root=tmp_path / "sessions",
+        receipt_root=tmp_path / "receipts",
+    )
+    payload = result.receipt.to_dict()
+    payload["static_root_sha256"] = "0" * 64
+
+    with pytest.raises(ValueError, match="digest"):
+        BrowserSessionReceipt.from_dict(payload)
