@@ -315,6 +315,26 @@ scripts/       development and policy helpers
 
 ---
 
+## Geometric reasoning foundation
+
+PhiOS now includes an advisory **Geometric Reasoning v0.1** core primitive for
+reducing state spaces before exact verification.
+
+It can:
+
+- prune states outside declared constraints;
+- collapse symmetry-equivalent states into quotient classes;
+- detect targets incompatible with declared conserved invariants;
+- search one representative per equivalence class instead of blindly expanding
+  every representation.
+
+Geometric receipts are deterministic and always carry
+`action_authority = false`. Reduction does not become permission.
+
+See the [Geometric Reasoning v0.1 contract](docs/PHIOS_GEOMETRIC_REASONING_V0.1.md).
+
+---
+
 ## SOMA and Reality Gate
 
 **SOMA** is the bounded perception layer. Current work includes local file acquisition, screen-region capture, acuity recovery, multishot selection, deterministic sharpening derivatives, and OCR interpretation.
