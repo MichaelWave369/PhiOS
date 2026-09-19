@@ -14,6 +14,7 @@ from phios.apps.gui_session import (
     BubblewrapGuiBrowserRunner,
     GuiBrowserExecution,
     GuiBrowserPlan,
+    GuiBrowserReceipt,
     GuiBrowserRequest,
     GuiBrowserService,
     GuiDisplayEvidence,
@@ -494,6 +495,7 @@ def test_gui_service_records_display_authority_and_bounded_timeout(tmp_path: Pat
     assert result.receipt.display.host_runtime_directory_mounted is False
     assert result.receipt.display.dbus_socket_mounted is False
     assert result.receipt.display.gpu_device_mounted is False
+    assert GuiBrowserReceipt.from_dict(result.receipt.to_dict()) == result.receipt
     assert result.receipt_persisted is True
     assert Path(result.receipt_path).is_file()
     assert created[0].calls == 1
@@ -575,3 +577,38 @@ def test_bubblewrap_gui_runner_records_no_gpu_or_dbus_authority(tmp_path: Path) 
     assert "XDG_RUNTIME_DIR" in command
     assert "/dev/dri" not in command
     assert "DBUS_SESSION_BUS_ADDRESS" not in command
+
+
+def test_gui_receipt_rejects_digest_tampering(tmp_path: Path) -> None:
+    receipt, install_root, _, static = _static_plan(tmp_path)
+    server, path = _wayland_socket(tmp_path)
+    try:
+        plan = plan_gui_browser(
+            static.to_dict(),
+            wayland_socket_path=path,
+            session_seconds=5,
+            readiness_timeout_ms=1000,
+        )
+        request = GuiBrowserRequest.from_payloads(
+            plan.to_dict(),
+            static.to_dict(),
+            receipt.to_dict(),
+            approved_gui_browser_plan_sha256=plan.sha256(),
+            approved_static_web_plan_sha256=static.sha256(),
+            approved_browser_permissions=plan.requested_browser_permissions,
+        )
+        result = GuiBrowserService(
+            runner_factory=lambda *args: FakeGuiRunner(plan)
+        ).run(
+            request,
+            install_root=install_root,
+            session_root=tmp_path / "sessions",
+            receipt_root=tmp_path / "receipts",
+        )
+    finally:
+        server.close()
+
+    payload = result.receipt.to_dict()
+    payload["static_root_sha256"] = "0" * 64
+    with pytest.raises(ValueError, match="digest"):
+        GuiBrowserReceipt.from_dict(payload)
