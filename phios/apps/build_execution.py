@@ -101,6 +101,10 @@ class BuildExecutionRequest:
             raise ValueError("Build plan manifest digest does not match acquisition receipt")
         if self.plan.acquisition_tree_sha256 != self.acquisition.acquisition_tree_sha256:
             raise ValueError("Build plan acquisition tree digest does not match acquisition receipt")
+        if self.plan.source_file_count != self.acquisition.file_count:
+            raise ValueError("Build plan source file count does not match acquisition receipt")
+        if self.plan.source_total_bytes != self.acquisition.total_bytes:
+            raise ValueError("Build plan source byte count does not match acquisition receipt")
 
         if self.approved_plan_sha256 != self.plan.sha256():
             raise ValueError("Approved plan SHA-256 does not match canonical build plan")
