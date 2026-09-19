@@ -469,8 +469,8 @@ class AppIntakeAnalyzer:
             )
             return AppIntakeResult(evidence=evidence, proposal=proposal, manifest_candidate=manifest)
 
-        manifest, basis = self._infer_manifest(snapshot, files)
-        if manifest is None:
+        inferred_manifest, basis = self._infer_manifest(snapshot, files)
+        if inferred_manifest is None:
             return self._no_manifest(
                 evidence,
                 snapshot,
@@ -481,14 +481,14 @@ class AppIntakeAnalyzer:
         proposal = AppIntakeProposal(
             repository_url=snapshot.repository_url,
             status="inferred_candidate",
-            app_id=manifest.app_id,
-            runtime=manifest.entrypoint.runtime,
-            target=manifest.entrypoint.target,
-            name=manifest.name,
-            version=manifest.version,
-            description=manifest.description,
-            license_expression=manifest.source.license_expression,
-            redistribution=manifest.source.redistribution,
+            app_id=inferred_manifest.app_id,
+            runtime=inferred_manifest.entrypoint.runtime,
+            target=inferred_manifest.entrypoint.target,
+            name=inferred_manifest.name,
+            version=inferred_manifest.version,
+            description=inferred_manifest.description,
+            license_expression=inferred_manifest.source.license_expression,
+            redistribution=inferred_manifest.source.redistribution,
             permissions=(),
             permissions_source="not_declared",
             basis=basis
@@ -497,7 +497,11 @@ class AppIntakeAnalyzer:
                 "redistribution remains unknown despite public repository visibility",
             ),
         )
-        return AppIntakeResult(evidence=evidence, proposal=proposal, manifest_candidate=manifest)
+        return AppIntakeResult(
+            evidence=evidence,
+            proposal=proposal,
+            manifest_candidate=inferred_manifest,
+        )
 
     def _infer_manifest(
         self,
