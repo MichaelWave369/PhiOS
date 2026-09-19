@@ -740,7 +740,7 @@ class RuntimeProcessRunner(Protocol):
     def control_evidence(self) -> RuntimeControlEvidence: ...
 
 
-class BubblewrapRuntimeRunner(SubprocessBuildRunner):
+class BubblewrapRuntimeRunner:
     def __init__(
         self,
         policy: RuntimeSandboxPolicy,
@@ -751,11 +751,13 @@ class BubblewrapRuntimeRunner(SubprocessBuildRunner):
         prlimit_path: str | None = None,
     ) -> None:
         self.policy = policy
+        self._subprocess = SubprocessBuildRunner()
         if payload_root.is_symlink():
             raise ValueError("runtime payload root must not be a symlink")
         self.payload_root = payload_root.resolve(strict=True)
         if not self.payload_root.is_dir():
             raise ValueError("runtime payload root must be a directory")
+        self.data_path: Path | None
         if data_path is not None:
             if data_path.is_symlink():
                 raise ValueError("runtime data path must not be a symlink")
@@ -979,7 +981,7 @@ class BubblewrapRuntimeRunner(SubprocessBuildRunner):
         if self._backend_identity is None:
             raise ValueError("Runtime sandbox runner must pass preflight before tool probe")
         argv = (executable_tool, "--version")
-        identity = super().probe(
+        identity = self._subprocess.probe(
             logical_tool=executable_tool,
             executable_tool=executable_tool,
             argv=argv,
@@ -1009,7 +1011,7 @@ class BubblewrapRuntimeRunner(SubprocessBuildRunner):
             executable_path=str(resolved_path),
             argv_tail=plan.runtime_argv[1:],
         )
-        _, result = super()._execute(
+        _, result = self._subprocess._execute(
             executable_tool=command[0],
             argv=command,
             cwd=self.payload_root,
