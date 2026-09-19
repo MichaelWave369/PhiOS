@@ -412,6 +412,7 @@ def _parse_npm_lockfile(content: bytes) -> tuple[int, tuple[DependencyArtifactPl
     packages = _mapping(lock.get("packages"), "npm lockfile packages")
 
     grouped: dict[tuple[str, str, str, str | None], list[str]] = {}
+    package_entry_count = 0
     for lock_key, value in packages.items():
         if not isinstance(lock_key, str):
             raise ValueError("npm lockfile package keys must be strings")
@@ -438,8 +439,8 @@ def _parse_npm_lockfile(content: bytes) -> tuple[int, tuple[DependencyArtifactPl
         package_version = raw_version if isinstance(raw_version, str) and raw_version else None
         group_key = (canonical_url, algorithm, digest_b64, package_version)
         grouped.setdefault(group_key, []).append(lock_key)
-
-        if sum(len(keys) for keys in grouped.values()) > _MAX_DEPENDENCY_ARTIFACTS * 8:
+        package_entry_count += 1
+        if package_entry_count > _MAX_DEPENDENCY_ARTIFACTS * 8:
             raise ValueError("npm lockfile contains too many dependency package entries")
 
     artifacts: list[DependencyArtifactPlan] = []
@@ -661,6 +662,30 @@ class StagedDependencyArtifact:
     lock_keys: tuple[str, ...]
     version: str | None
 
+    def __post_init__(self) -> None:
+        canonical, host = _validated_dependency_url(self.resolved_url)
+        if canonical != self.resolved_url or host != self.host:
+            raise ValueError("Staged dependency URL/host is not canonical")
+        if self.integrity_algorithm not in _SRI_LENGTHS:
+            raise ValueError("Unsupported staged dependency integrity algorithm")
+        try:
+            digest = base64.b64decode(self.integrity_digest_base64, validate=True)
+        except ValueError as exc:
+            raise ValueError("Staged dependency integrity digest is invalid base64") from exc
+        if len(digest) != _SRI_LENGTHS[self.integrity_algorithm]:
+            raise ValueError("Staged dependency integrity digest has the wrong length")
+        _integer(self.byte_count, "staged dependency byte_count", maximum=_MAX_ARTIFACT_BYTES)
+        _sha256(self.sha256, "staged dependency sha256")
+        cas = Path(_string(self.cas_path, "staged dependency cas_path", maximum=4096))
+        if not cas.is_absolute():
+            raise ValueError("staged dependency cas_path must be absolute")
+        if not 1 <= len(self.lock_keys) <= _MAX_LOCK_KEYS_PER_ARTIFACT:
+            raise ValueError("staged dependency lock key count is out of bounds")
+        if tuple(sorted(set(self.lock_keys))) != self.lock_keys:
+            raise ValueError("staged dependency lock keys must be unique and sorted")
+        if self.version is not None:
+            _string(self.version, "staged dependency version", maximum=256)
+
     def body_dict(self) -> dict[str, Any]:
         return {
             "resolved_url": self.resolved_url,
@@ -674,13 +699,62 @@ class StagedDependencyArtifact:
             "version": self.version,
         }
 
+    @classmethod
+    def from_dict(cls, value: Any) -> StagedDependencyArtifact:
+        data = _mapping(value, "staged dependency artifact")
+        expected = {
+            "resolved_url",
+            "host",
+            "integrity_algorithm",
+            "integrity_digest_base64",
+            "byte_count",
+            "sha256",
+            "cas_path",
+            "lock_keys",
+            "version",
+        }
+        if set(data) != expected:
+            raise ValueError("staged dependency artifact contains missing or unknown fields")
+        keys = data["lock_keys"]
+        if not isinstance(keys, list) or not all(isinstance(item, str) for item in keys):
+            raise ValueError("staged dependency lock_keys must be an array of strings")
+        version = data["version"]
+        if version is not None and not isinstance(version, str):
+            raise ValueError("staged dependency version must be string or null")
+        return cls(
+            resolved_url=_string(data["resolved_url"], "staged dependency resolved_url", maximum=2048),
+            host=_canonical_host(_string(data["host"], "staged dependency host", maximum=253)),
+            integrity_algorithm=_string(
+                data["integrity_algorithm"],
+                "staged dependency integrity_algorithm",
+                maximum=16,
+            ),
+            integrity_digest_base64=_string(
+                data["integrity_digest_base64"],
+                "staged dependency integrity_digest_base64",
+                maximum=256,
+            ),
+            byte_count=_integer(
+                data["byte_count"],
+                "staged dependency byte_count",
+                maximum=_MAX_ARTIFACT_BYTES,
+            ),
+            sha256=_sha256(data["sha256"], "staged dependency sha256"),
+            cas_path=_string(data["cas_path"], "staged dependency cas_path", maximum=4096),
+            lock_keys=tuple(keys),
+            version=version,
+        )
+
 
 @dataclass(frozen=True)
 class DependencyReceipt:
     receipt_id: str
     timestamp_utc: str
     app_id: str
+    repository_url: str
     commit_sha: str
+    package_manager: str
+    lockfile_version: int
     build_plan_sha256: str
     source_snapshot_sha256: str
     dependency_plan_sha256: str
@@ -698,7 +772,10 @@ class DependencyReceipt:
             "receipt_id": self.receipt_id,
             "timestamp_utc": self.timestamp_utc,
             "app_id": self.app_id,
+            "repository_url": self.repository_url,
             "commit_sha": self.commit_sha,
+            "package_manager": self.package_manager,
+            "lockfile_version": self.lockfile_version,
             "build_plan_sha256": self.build_plan_sha256,
             "source_snapshot_sha256": self.source_snapshot_sha256,
             "dependency_plan_sha256": self.dependency_plan_sha256,
@@ -723,6 +800,122 @@ class DependencyReceipt:
         result = self.body_dict()
         result["dependency_receipt_sha256"] = self.sha256()
         return result
+
+    @classmethod
+    def from_dict(cls, value: Any) -> DependencyReceipt:
+        data = _mapping(value, "dependency receipt")
+        expected = {
+            "schema_version",
+            "receipt_id",
+            "timestamp_utc",
+            "app_id",
+            "repository_url",
+            "commit_sha",
+            "package_manager",
+            "lockfile_version",
+            "build_plan_sha256",
+            "source_snapshot_sha256",
+            "dependency_plan_sha256",
+            "lockfile_path",
+            "lockfile_sha256",
+            "approved_hosts",
+            "artifacts",
+            "total_bytes",
+            "store_root",
+            "dependency_receipt_sha256",
+        }
+        if set(data) != expected:
+            raise ValueError("dependency receipt contains missing or unknown fields")
+        if data["schema_version"] != DEPENDENCY_RECEIPT_SCHEMA_VERSION:
+            raise ValueError("Unsupported dependency receipt schema")
+        hosts = data["approved_hosts"]
+        artifacts_value = data["artifacts"]
+        if not isinstance(hosts, list) or not all(isinstance(item, str) for item in hosts):
+            raise ValueError("dependency receipt approved_hosts must be an array of strings")
+        if not isinstance(artifacts_value, list):
+            raise ValueError("dependency receipt artifacts must be an array")
+        artifacts = tuple(StagedDependencyArtifact.from_dict(item) for item in artifacts_value)
+        if not 1 <= len(artifacts) <= _MAX_DEPENDENCY_ARTIFACTS:
+            raise ValueError("dependency receipt artifact count is out of bounds")
+        canonical_hosts = tuple(sorted({_canonical_host(host) for host in hosts}))
+        if canonical_hosts != tuple(hosts):
+            raise ValueError("dependency receipt approved_hosts must be unique and sorted")
+        if tuple(sorted({artifact.host for artifact in artifacts})) != canonical_hosts:
+            raise ValueError("dependency receipt hosts must exactly match staged artifact hosts")
+        total_bytes = _integer(
+            data["total_bytes"],
+            "dependency receipt total_bytes",
+            maximum=_MAX_TOTAL_STAGE_BYTES,
+        )
+        if total_bytes != sum(item.byte_count for item in artifacts):
+            raise ValueError("dependency receipt total_bytes does not match artifacts")
+        store_root = Path(_string(data["store_root"], "dependency receipt store_root", maximum=4096))
+        if not store_root.is_absolute():
+            raise ValueError("dependency receipt store_root must be absolute")
+        resolved_store = store_root.resolve()
+        cas_root = resolved_store / "cas" / "sha256"
+        for artifact in artifacts:
+            cas_path = Path(artifact.cas_path).resolve()
+            if cas_root != cas_path and cas_root not in cas_path.parents:
+                raise ValueError("dependency receipt artifact CAS path escaped store root")
+            if cas_path.name != f"{artifact.sha256}.blob":
+                raise ValueError("dependency receipt artifact CAS filename does not match SHA-256")
+        receipt = cls(
+            schema_version=data["schema_version"],
+            receipt_id=_string(data["receipt_id"], "dependency receipt receipt_id", maximum=64),
+            timestamp_utc=_string(
+                data["timestamp_utc"],
+                "dependency receipt timestamp_utc",
+                maximum=128,
+            ),
+            app_id=_string(data["app_id"], "dependency receipt app_id", maximum=64),
+            repository_url=_string(
+                data["repository_url"],
+                "dependency receipt repository_url",
+                maximum=512,
+            ),
+            commit_sha=_string(data["commit_sha"], "dependency receipt commit_sha", maximum=64),
+            package_manager=_string(
+                data["package_manager"],
+                "dependency receipt package_manager",
+                maximum=32,
+            ),
+            lockfile_version=_integer(
+                data["lockfile_version"],
+                "dependency receipt lockfile_version",
+                maximum=10,
+            ),
+            build_plan_sha256=_sha256(
+                data["build_plan_sha256"],
+                "dependency receipt build_plan_sha256",
+            ),
+            source_snapshot_sha256=_sha256(
+                data["source_snapshot_sha256"],
+                "dependency receipt source_snapshot_sha256",
+            ),
+            dependency_plan_sha256=_sha256(
+                data["dependency_plan_sha256"],
+                "dependency receipt dependency_plan_sha256",
+            ),
+            lockfile_path=_string(
+                data["lockfile_path"],
+                "dependency receipt lockfile_path",
+                maximum=64,
+            ),
+            lockfile_sha256=_sha256(
+                data["lockfile_sha256"],
+                "dependency receipt lockfile_sha256",
+            ),
+            approved_hosts=canonical_hosts,
+            artifacts=artifacts,
+            total_bytes=total_bytes,
+            store_root=str(resolved_store),
+        )
+        if receipt.package_manager != "npm" or receipt.lockfile_version not in {2, 3}:
+            raise ValueError("Unsupported dependency receipt package-manager/lockfile version")
+        if data["dependency_receipt_sha256"] != receipt.sha256():
+            raise ValueError("dependency receipt digest does not match canonical receipt")
+        return receipt
 
 
 def _verify_existing_cas(path: Path, expected_sha256: str, expected_bytes: int) -> None:
@@ -768,91 +961,95 @@ class DependencyStagingService:
     ) -> DependencyReceipt:
         plan = request.plan
         root = store_root.expanduser().resolve()
-        cas_root = root / "cas" / "sha256"
+        root.mkdir(parents=True, exist_ok=True)
+        root = root.resolve(strict=True)
+        cas_candidate = root / "cas" / "sha256"
+        cas_candidate.mkdir(parents=True, exist_ok=True)
+        cas_root = cas_candidate.resolve(strict=True)
+        if root != cas_root and root not in cas_root.parents:
+            raise ValueError("Dependency CAS tree escaped configured store root")
+
         receipts = (receipt_root or (root / ".phios-receipts")).expanduser().resolve()
         if receipts == cas_root or cas_root in receipts.parents:
             raise ValueError("Dependency receipt root must remain outside the CAS tree")
 
         staged: list[StagedDependencyArtifact] = []
         total_bytes = 0
-        newly_created: list[Path] = []
         receipt_id = str(uuid.uuid4())
 
-        try:
-            for artifact in plan.artifacts:
-                content = self.downloader.download(
-                    artifact,
-                    approved_hosts=request.approved_hosts,
-                )
-                if len(content) > _MAX_ARTIFACT_BYTES:
-                    raise ValueError("Dependency artifact exceeds bounded size")
-                total_bytes += len(content)
-                if total_bytes > _MAX_TOTAL_STAGE_BYTES:
-                    raise ValueError("Dependency staging exceeds bounded total bytes")
-                _verify_sri(
-                    content,
-                    artifact.integrity_algorithm,
-                    artifact.integrity_digest_base64,
-                )
-                digest = hashlib.sha256(content).hexdigest()
-                destination = cas_root / digest[:2] / f"{digest}.blob"
-                destination.parent.mkdir(parents=True, exist_ok=True)
-
-                if destination.exists():
-                    _verify_existing_cas(destination, digest, len(content))
-                else:
-                    with tempfile.NamedTemporaryFile(
-                        mode="wb",
-                        prefix=".dependency-",
-                        dir=destination.parent,
-                        delete=False,
-                    ) as temp:
-                        temp.write(content)
-                        temp_path = Path(temp.name)
-                    try:
-                        os.chmod(temp_path, 0o444)
-                        temp_path.replace(destination)
-                        newly_created.append(destination)
-                    finally:
-                        if temp_path.exists():
-                            temp_path.unlink()
-
-                staged.append(
-                    StagedDependencyArtifact(
-                        resolved_url=artifact.resolved_url,
-                        host=artifact.host,
-                        integrity_algorithm=artifact.integrity_algorithm,
-                        integrity_digest_base64=artifact.integrity_digest_base64,
-                        byte_count=len(content),
-                        sha256=digest,
-                        cas_path=str(destination),
-                        lock_keys=artifact.lock_keys,
-                        version=artifact.version,
-                    )
-                )
-
-            receipt = DependencyReceipt(
-                receipt_id=receipt_id,
-                timestamp_utc=datetime.now(UTC).isoformat(),
-                app_id=plan.app_id,
-                commit_sha=plan.commit_sha,
-                build_plan_sha256=plan.build_plan_sha256,
-                source_snapshot_sha256=plan.source_snapshot_sha256,
-                dependency_plan_sha256=plan.sha256(),
-                lockfile_path=plan.lockfile_path,
-                lockfile_sha256=plan.lockfile_sha256,
+        for artifact in plan.artifacts:
+            content = self.downloader.download(
+                artifact,
                 approved_hosts=request.approved_hosts,
-                artifacts=tuple(staged),
-                total_bytes=total_bytes,
-                store_root=str(root),
             )
-            receipt_path = receipts / f"dependency-{receipt_id}.json"
-            _write_json_atomic(receipt_path, receipt.to_dict())
-            return receipt
-        except Exception:
-            for path in reversed(newly_created):
+            if len(content) > _MAX_ARTIFACT_BYTES:
+                raise ValueError("Dependency artifact exceeds bounded size")
+            total_bytes += len(content)
+            if total_bytes > _MAX_TOTAL_STAGE_BYTES:
+                raise ValueError("Dependency staging exceeds bounded total bytes")
+            _verify_sri(
+                content,
+                artifact.integrity_algorithm,
+                artifact.integrity_digest_base64,
+            )
+            digest = hashlib.sha256(content).hexdigest()
+            destination = cas_root / digest[:2] / f"{digest}.blob"
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            resolved_parent = destination.parent.resolve(strict=True)
+            if cas_root != resolved_parent and cas_root not in resolved_parent.parents:
+                raise ValueError("Dependency CAS shard escaped configured CAS root")
+            destination = resolved_parent / destination.name
+
+            if destination.exists():
+                _verify_existing_cas(destination, digest, len(content))
+            else:
+                with tempfile.NamedTemporaryFile(
+                    mode="wb",
+                    prefix=".dependency-",
+                    dir=destination.parent,
+                    delete=False,
+                ) as temp:
+                    temp.write(content)
+                    temp_path = Path(temp.name)
                 try:
-                    path.unlink()
-                except OSError:
-                    pass
-            raise
+                    os.chmod(temp_path, 0o444)
+                    temp_path.replace(destination)
+                finally:
+                    if temp_path.exists():
+                        temp_path.unlink()
+
+            staged.append(
+                StagedDependencyArtifact(
+                    resolved_url=artifact.resolved_url,
+                    host=artifact.host,
+                    integrity_algorithm=artifact.integrity_algorithm,
+                    integrity_digest_base64=artifact.integrity_digest_base64,
+                    byte_count=len(content),
+                    sha256=digest,
+                    cas_path=str(destination),
+                    lock_keys=artifact.lock_keys,
+                    version=artifact.version,
+                )
+            )
+
+        receipt = DependencyReceipt(
+            receipt_id=receipt_id,
+            timestamp_utc=datetime.now(UTC).isoformat(),
+            app_id=plan.app_id,
+            repository_url=plan.repository_url,
+            commit_sha=plan.commit_sha,
+            package_manager=plan.package_manager,
+            lockfile_version=plan.lockfile_version,
+            build_plan_sha256=plan.build_plan_sha256,
+            source_snapshot_sha256=plan.source_snapshot_sha256,
+            dependency_plan_sha256=plan.sha256(),
+            lockfile_path=plan.lockfile_path,
+            lockfile_sha256=plan.lockfile_sha256,
+            approved_hosts=request.approved_hosts,
+            artifacts=tuple(staged),
+            total_bytes=total_bytes,
+            store_root=str(root),
+            )
+        receipt_path = receipts / f"dependency-{receipt_id}.json"
+        _write_json_atomic(receipt_path, receipt.to_dict())
+        return receipt
