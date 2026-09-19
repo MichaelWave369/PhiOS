@@ -263,3 +263,14 @@ def test_receipt_root_cannot_contaminate_acquired_source_tree(tmp_path: Path) ->
         )
 
     assert not destination.exists()
+
+
+def test_archive_member_limit_counts_directories_and_files(tmp_path: Path) -> None:
+    content = _zip({"a": b"1"})
+    service = SourceAcquisitionService(
+        provider=FakeArchiveProvider(content),
+        max_members=1,
+    )
+
+    with pytest.raises(ValueError, match="total members"):
+        service.acquire(_request(), workspace_root=tmp_path)
