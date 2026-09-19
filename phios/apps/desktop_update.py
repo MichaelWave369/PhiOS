@@ -1256,7 +1256,11 @@ def plan_desktop_rollback(
         require_active_entry=False,
     )
 
-    marker_path = Path(receipt.retention_marker_path)
+    marker_path = _contained(
+        desktop,
+        Path(receipt.retention_marker_path),
+        "desktop retention marker",
+    )
     marker = DesktopRetentionMarker.from_dict(
         _read_json(marker_path, "desktop retention marker")
     )
@@ -1603,7 +1607,11 @@ class DesktopRollbackService:
         ):
             raise ValueError("rollback target entry changed after review")
 
-        old_marker_path = Path(request.plan.retention_marker_path)
+        old_marker_path = _contained(
+            desktop,
+            Path(request.plan.retention_marker_path),
+            "desktop retention marker",
+        )
         old_marker_bytes = old_marker_path.read_bytes()
         old_marker = DesktopRetentionMarker.from_dict(
             json.loads(old_marker_bytes.decode("utf-8"))
