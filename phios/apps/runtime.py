@@ -241,7 +241,17 @@ class InstalledRuntimePlan:
             raise ValueError("runtime install_path must be absolute")
         _string(self.runtime_kind, "runtime_kind", maximum=32)
         _string(self.adapter, "runtime adapter", maximum=64)
-        _safe_relative(self.entrypoint_target, "runtime entrypoint_target")
+        if self.runtime_kind == "local_http":
+            _string(self.entrypoint_target, "runtime entrypoint_target", maximum=512)
+        else:
+            _safe_relative(self.entrypoint_target, "runtime entrypoint_target")
+        if self.status not in {
+            "ready_for_review",
+            "unsupported_runtime",
+            "unsupported_entrypoint",
+            "unsupported_permissions",
+        }:
+            raise ValueError("unsupported installed runtime plan status")
         if self.sandbox_entrypoint_path is not None:
             if not self.sandbox_entrypoint_path.startswith("/app/"):
                 raise ValueError("sandbox_entrypoint_path must live below /app")
@@ -361,6 +371,15 @@ class InstalledRuntimePlan:
         executable = data["executable_tool"]
         if executable is not None:
             executable = _string(executable, "executable_tool", maximum=64)
+        runtime_kind = _string(data["runtime_kind"], "runtime_kind", maximum=32)
+        entrypoint_target = (
+            _string(data["entrypoint_target"], "runtime entrypoint_target", maximum=512)
+            if runtime_kind == "local_http"
+            else _safe_relative(
+                data["entrypoint_target"],
+                "runtime entrypoint_target",
+            )
+        )
         plan = cls(
             schema_version=data["schema_version"],
             app_id=_string(data["app_id"], "runtime app_id", maximum=64),
@@ -375,12 +394,9 @@ class InstalledRuntimePlan:
                 "installed_tree_sha256",
             ),
             install_path=_string(data["install_path"], "runtime install_path", maximum=4096),
-            runtime_kind=_string(data["runtime_kind"], "runtime_kind", maximum=32),
+            runtime_kind=runtime_kind,
             adapter=_string(data["adapter"], "runtime adapter", maximum=64),
-            entrypoint_target=_safe_relative(
-                data["entrypoint_target"],
-                "runtime entrypoint_target",
-            ),
+            entrypoint_target=entrypoint_target,
             sandbox_entrypoint_path=sandbox_path,
             executable_tool=executable,
             runtime_argv=tuple(
@@ -1098,8 +1114,48 @@ class RuntimeLaunchReceipt:
             (self.stderr_sha256, "stderr_sha256"),
         ):
             _sha256(value, label)
+        if tuple(sorted(self.approved_runtime_permissions)) != self.approved_runtime_permissions:
+            raise ValueError("runtime receipt permissions must be sorted")
+        if len(set(self.approved_runtime_permissions)) != len(
+            self.approved_runtime_permissions
+        ):
+            raise ValueError("runtime receipt permissions must not contain duplicates")
+        for permission in self.approved_runtime_permissions:
+            if not _PERMISSION_RE.fullmatch(permission):
+                raise ValueError(f"Invalid runtime receipt permission: {permission}")
+        if self.network_mode not in {"deny", "inherit"}:
+            raise ValueError("unsupported runtime receipt network mode")
+        if self.data_mode not in {"ephemeral", "persistent"}:
+            raise ValueError("unsupported runtime receipt data mode")
+        if self.policy.network_mode != self.network_mode:
+            raise ValueError("runtime receipt policy network mode mismatch")
+        if not isinstance(self.exit_code, int) or isinstance(self.exit_code, bool):
+            raise ValueError("runtime exit_code must be an integer")
+        _int(self.duration_ms, "runtime duration_ms", minimum=0, maximum=86_400_000)
+        _int(
+            self.stdout_byte_count,
+            "runtime stdout_byte_count",
+            minimum=0,
+            maximum=2**63 - 1,
+        )
+        _int(
+            self.stderr_byte_count,
+            "runtime stderr_byte_count",
+            minimum=0,
+            maximum=2**63 - 1,
+        )
+        if not isinstance(self.timed_out, bool):
+            raise ValueError("runtime timed_out must be boolean")
         if self.status not in {"exited_success", "exited_failure", "timed_out"}:
             raise ValueError("unsupported runtime launch status")
+        if self.status == "timed_out" and not self.timed_out:
+            raise ValueError("timed_out status requires timed_out=true")
+        if self.status != "timed_out" and self.timed_out:
+            raise ValueError("timed_out=true requires timed_out status")
+        if self.status == "exited_success" and self.exit_code != 0:
+            raise ValueError("exited_success requires exit_code 0")
+        if self.status == "exited_failure" and self.exit_code == 0:
+            raise ValueError("exited_failure requires nonzero exit_code")
         if self.network_mode == "deny":
             if not self.controls.network_namespace_enforced:
                 raise ValueError("network-denied runtime receipt requires network namespace evidence")
@@ -1154,6 +1210,166 @@ class RuntimeLaunchReceipt:
         result = self.body_dict()
         result["runtime_receipt_sha256"] = self.sha256()
         return result
+
+    @classmethod
+    def from_dict(cls, value: Any) -> RuntimeLaunchReceipt:
+        data = _mapping(value, "runtime launch receipt")
+        expected = {
+            "schema_version",
+            "receipt_id",
+            "timestamp_utc",
+            "app_id",
+            "app_version",
+            "runtime_plan_sha256",
+            "install_receipt_sha256",
+            "installed_tree_sha256",
+            "manifest_sha256",
+            "runtime_kind",
+            "adapter",
+            "entrypoint_target",
+            "approved_runtime_permissions",
+            "network_mode",
+            "data_mode",
+            "policy",
+            "backend_identity",
+            "controls",
+            "tool_identity",
+            "exit_code",
+            "timed_out",
+            "duration_ms",
+            "stdout_byte_count",
+            "stdout_sha256",
+            "stderr_byte_count",
+            "stderr_sha256",
+            "status",
+            "failure_reason",
+            "runtime_receipt_sha256",
+        }
+        if set(data) != expected:
+            raise ValueError("runtime launch receipt contains missing or unknown fields")
+        permissions = data["approved_runtime_permissions"]
+        if not isinstance(permissions, list):
+            raise ValueError("approved_runtime_permissions must be an array")
+        backend_data = _mapping(data["backend_identity"], "runtime backend identity")
+        if set(backend_data) != {
+            "backend",
+            "executable_path",
+            "version",
+            "version_output_sha256",
+            "platform_system",
+            "platform_machine",
+        }:
+            raise ValueError("runtime backend identity contains missing or unknown fields")
+        tool_data = _mapping(data["tool_identity"], "runtime tool identity")
+        if set(tool_data) != {
+            "logical_tool",
+            "executable_path",
+            "version",
+            "version_output_sha256",
+        }:
+            raise ValueError("runtime tool identity contains missing or unknown fields")
+        failure_reason = data["failure_reason"]
+        if failure_reason is not None:
+            failure_reason = _string(failure_reason, "runtime failure_reason", maximum=512)
+        receipt = cls(
+            schema_version=data["schema_version"],
+            receipt_id=_string(data["receipt_id"], "runtime receipt_id", maximum=64),
+            timestamp_utc=_string(
+                data["timestamp_utc"],
+                "runtime timestamp_utc",
+                maximum=128,
+            ),
+            app_id=_string(data["app_id"], "runtime app_id", maximum=64),
+            app_version=_string(data["app_version"], "runtime app_version", maximum=128),
+            runtime_plan_sha256=_sha256(
+                data["runtime_plan_sha256"],
+                "runtime_plan_sha256",
+            ),
+            install_receipt_sha256=_sha256(
+                data["install_receipt_sha256"],
+                "install_receipt_sha256",
+            ),
+            installed_tree_sha256=_sha256(
+                data["installed_tree_sha256"],
+                "installed_tree_sha256",
+            ),
+            manifest_sha256=_sha256(data["manifest_sha256"], "manifest_sha256"),
+            runtime_kind=_string(data["runtime_kind"], "runtime_kind", maximum=32),
+            adapter=_string(data["adapter"], "runtime adapter", maximum=64),
+            entrypoint_target=_string(
+                data["entrypoint_target"],
+                "runtime entrypoint_target",
+                maximum=512,
+            ),
+            approved_runtime_permissions=tuple(
+                _string(item, "runtime receipt permission", maximum=128)
+                for item in permissions
+            ),
+            network_mode=data["network_mode"],
+            data_mode=data["data_mode"],
+            policy=RuntimeSandboxPolicy.from_dict(data["policy"]),
+            backend_identity=SandboxBackendIdentity(
+                backend=_string(backend_data["backend"], "runtime backend", maximum=64),
+                executable_path=_string(
+                    backend_data["executable_path"],
+                    "runtime backend executable_path",
+                    maximum=4096,
+                ),
+                version=_string(
+                    backend_data["version"],
+                    "runtime backend version",
+                    maximum=512,
+                ),
+                version_output_sha256=_sha256(
+                    backend_data["version_output_sha256"],
+                    "runtime backend version_output_sha256",
+                ),
+                platform_system=_string(
+                    backend_data["platform_system"],
+                    "runtime platform_system",
+                    maximum=128,
+                ),
+                platform_machine=_string(
+                    backend_data["platform_machine"],
+                    "runtime platform_machine",
+                    maximum=128,
+                ),
+            ),
+            controls=RuntimeControlEvidence.from_dict(data["controls"]),
+            tool_identity=ToolIdentity(
+                logical_tool=_string(
+                    tool_data["logical_tool"],
+                    "runtime tool logical_tool",
+                    maximum=64,
+                ),
+                executable_path=_string(
+                    tool_data["executable_path"],
+                    "runtime tool executable_path",
+                    maximum=4096,
+                ),
+                version=_string(
+                    tool_data["version"],
+                    "runtime tool version",
+                    maximum=512,
+                ),
+                version_output_sha256=_sha256(
+                    tool_data["version_output_sha256"],
+                    "runtime tool version_output_sha256",
+                ),
+            ),
+            exit_code=data["exit_code"],
+            timed_out=data["timed_out"],
+            duration_ms=data["duration_ms"],
+            stdout_byte_count=data["stdout_byte_count"],
+            stdout_sha256=_sha256(data["stdout_sha256"], "stdout_sha256"),
+            stderr_byte_count=data["stderr_byte_count"],
+            stderr_sha256=_sha256(data["stderr_sha256"], "stderr_sha256"),
+            status=_string(data["status"], "runtime status", maximum=32),
+            failure_reason=failure_reason,
+        )
+        if data["runtime_receipt_sha256"] != receipt.sha256():
+            raise ValueError("runtime launch receipt digest does not match canonical receipt")
+        return receipt
 
 
 @dataclass(frozen=True)
