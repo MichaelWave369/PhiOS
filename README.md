@@ -183,7 +183,7 @@ Older Spine documents remain in the repository as the versioned design trail.
 
 ## App Platform Alpha
 
-The current App Platform line is **v0.31**. v0.25 introduced strict app manifests and a deterministic registry; v0.26 added bounded public GitHub intake; v0.27 added exact-commit source acquisition; v0.28 added deterministic non-executing build plans; v0.29 added explicitly approved build execution; v0.30 added Linux Bubblewrap containment; v0.31 adds deterministic npm dependency planning, exact host approval, SRI-verified HTTPS staging, a PhiOS content-addressed dependency store, and dependency receipts.
+The current App Platform line is **v0.32**. v0.25 introduced strict app manifests and a deterministic registry; v0.26 added bounded public GitHub intake; v0.27 added exact-commit source acquisition; v0.28 added deterministic non-executing build plans; v0.29 added explicitly approved build execution; v0.30 added Linux Bubblewrap containment; v0.31 added SRI-verified dependency staging; v0.32 adds npm cache preparation from verified local artifacts, separately reviewed offline build plans, and network-denied npm builds.
 
 A manifest records:
 
@@ -210,6 +210,8 @@ more.
 
 See:
 
+- [App Platform v0.32 overview](README_APP_PLATFORM_V0.32.md)
+- [App Platform v0.32 npm offline adapter contract](docs/PHIOS_APP_PLATFORM_V0.32_NPM_OFFLINE_ADAPTER.md)
 - [App Platform v0.31 overview](README_APP_PLATFORM_V0.31.md)
 - [App Platform v0.31 dependency broker contract](docs/PHIOS_APP_PLATFORM_V0.31_DEPENDENCY_BROKER.md)
 - [App Platform v0.30 overview](README_APP_PLATFORM_V0.30.md)
@@ -296,7 +298,30 @@ phi-app stage-dependencies dependency-plan.json \
 
 v0.31 currently supports npm lockfileVersion 2/3. It requires exact HTTPS `resolved` URLs and valid lockfile SRI, requires the approved host set to exactly match the reviewed plan, verifies downloaded bytes before storage, and gives each staged artifact a PhiOS SHA-256 CAS identity.
 
-The staged CAS is evidence-bearing dependency material, **not yet an npm cache**. The next planned rung is an npm offline-cache adapter that uses npm's supported cache interface and then runs `npm ci --offline` inside the v0.30 network-denied sandbox.
+Turn the v0.31 dependency receipt into an isolated npm cache, derive a new offline plan, review it, and execute it with the v0.30 network namespace denied:
+
+```bash
+phi-app prepare-npm-cache dependency-receipt.json \
+  --approve-dependency-receipt-sha EXACT_DEPENDENCY_RECEIPT_SHA256 \
+  > npm-cache-receipt.json
+
+phi-app plan-offline-npm-build build-plan.json npm-cache-receipt.json \
+  > npm-offline-plan.json
+
+phi-app review-offline-npm-build npm-offline-plan.json
+
+phi-app execute-offline-npm-build \
+  npm-offline-plan.json \
+  acquisition-receipt.json \
+  npm-cache-receipt.json \
+  --approve-offline-plan-sha EXACT_OFFLINE_PLAN_SHA256
+```
+
+v0.32 asks npm itself to populate and verify an isolated cache from the already-SRI-verified v0.31 CAS blobs. It then derives a new plan whose dependency step is `npm ci --offline --cache /phios/npm-cache`, removes `build.network.dependencies`, and requires approval of that new plan digest before execution.
+
+The receipted npm cache remains immutable evidence. A fresh copy is mounted read/write for the actual build, while Bubblewrap runs with `network_mode=deny`.
+
+The next planned rung is a build-artifact package/install contract so successful receipted builds can become governed PhiOS applications without yet gaining launch authority.
 
 v0.18 adds a stronger semantic boundary for scalar values. Boolean and numeric values may be inspected only with the separate `reality.local_http.semantic.value.read` grant. The observed scalar is used transiently for comparison and is not persisted in semantic evidence.
 
@@ -524,7 +549,7 @@ phios/
 ├─ shell/      operator shell
 ├─ mcp/        MCP interface
 ├─ spine/      authority-aware Spine runtime
-├─ apps/       manifests, intake, pinned source, dependency broker, sandboxed builds, registry
+├─ apps/       manifests, intake, dependency broker, offline npm builds, install pipeline, registry
 ├─ mandala/    typed contracts and receipts
 ├─ soma/       bounded perception/evidence
 └─ reality/    Reality Gate verification
