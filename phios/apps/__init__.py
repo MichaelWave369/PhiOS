@@ -1,4 +1,4 @@
-"""PhiOS App Platform: governed identity, intake, acquisition, build planning, and registry."""
+"""PhiOS App Platform: governed intake, source, build planning/execution, and registry."""
 
 from .acquisition import (
     SOURCE_ACQUISITION_RECEIPT_SCHEMA_VERSION,
@@ -12,6 +12,19 @@ from .acquisition import (
     SourceTreeEntry,
     review_intake_for_acquisition,
 )
+from .build_execution import (
+    BUILD_EXECUTION_RECEIPT_SCHEMA_VERSION,
+    BUILD_EXECUTION_REQUEST_SCHEMA_VERSION,
+    BuildArtifact,
+    BuildExecutionReceipt,
+    BuildExecutionRequest,
+    BuildExecutionService,
+    BuildStepExecutionReceipt,
+    ProcessResult,
+    StreamCapture,
+    SubprocessBuildRunner,
+    ToolIdentity,
+)
 from .build_plan import (
     BUILD_PLAN_REVIEW_SCHEMA_VERSION,
     BUILD_PLAN_SCHEMA_VERSION,
@@ -22,6 +35,7 @@ from .build_plan import (
     ObservedBuildFile,
     plan_build_from_payloads,
     review_build_plan,
+    snapshot_source_tree,
 )
 from .intake import (
     APP_INTAKE_EVIDENCE_SCHEMA_VERSION,
@@ -49,6 +63,8 @@ __all__ = [
     "APP_INTAKE_PROPOSAL_SCHEMA_VERSION",
     "APP_MANIFEST_SCHEMA_VERSION",
     "APP_REGISTRY_SCHEMA_VERSION",
+    "BUILD_EXECUTION_RECEIPT_SCHEMA_VERSION",
+    "BUILD_EXECUTION_REQUEST_SCHEMA_VERSION",
     "BUILD_PLAN_REVIEW_SCHEMA_VERSION",
     "BUILD_PLAN_SCHEMA_VERSION",
     "SOURCE_ACQUISITION_RECEIPT_SCHEMA_VERSION",
@@ -62,23 +78,33 @@ __all__ = [
     "AppManifest",
     "AppRegistry",
     "AppSource",
+    "BuildArtifact",
+    "BuildExecutionReceipt",
+    "BuildExecutionRequest",
+    "BuildExecutionService",
     "BuildPlan",
     "BuildPlanReview",
     "BuildStep",
+    "BuildStepExecutionReceipt",
     "DistributionState",
     "DownloadedArchive",
     "GitHubCommitArchiveProvider",
     "GitHubPublicRepoProvider",
     "GitHubRepositoryRef",
     "ObservedBuildFile",
+    "ProcessResult",
     "RuntimeKind",
     "SourceAcquisitionReceipt",
     "SourceAcquisitionRequest",
     "SourceAcquisitionReview",
     "SourceAcquisitionService",
     "SourceTreeEntry",
+    "StreamCapture",
+    "SubprocessBuildRunner",
+    "ToolIdentity",
     "inspect_public_github_app",
     "plan_build_from_payloads",
     "review_build_plan",
     "review_intake_for_acquisition",
+    "snapshot_source_tree",
 ]
