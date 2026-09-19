@@ -73,6 +73,20 @@ def _canonical_json(value: dict[str, Any]) -> str:
     return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
 
 
+def _receipt_root_path(path: Path, *, create: bool) -> Path:
+    expanded = path.expanduser()
+    if expanded.is_symlink():
+        raise ValueError("cleanup receipt root must not be a symlink")
+    if create:
+        expanded.mkdir(parents=True, exist_ok=True)
+    if expanded.exists():
+        resolved = expanded.resolve(strict=True)
+        if not resolved.is_dir():
+            raise ValueError("cleanup receipt root must be a directory")
+        return resolved
+    return expanded.resolve(strict=False)
+
+
 def _contained_expected(root: Path, path: Path, label: str) -> Path:
     if not path.is_absolute():
         raise ValueError(f"{label} must be absolute")
@@ -573,7 +587,7 @@ def observe_cleanup_reconciliation(
     desktop = _root(desktop_root, "desktop app bundle root")
     applications = _root(applications_root, "desktop applications root")
     installed = _root(install_root, "installed app root")
-    receipts = _root(receipt_root, "cleanup receipt root", create=True)
+    receipts = _receipt_root_path(receipt_root, create=False)
 
     active_state, active_issues = _observe_active(
         plan,
@@ -1301,7 +1315,7 @@ class CleanupReconciliationService:
     ) -> CleanupReconciliationResult:
         desktop = _root(desktop_root, "desktop app bundle root")
         installed = _root(install_root, "installed app root")
-        receipts = _root(receipt_root, "cleanup receipt root", create=True)
+        receipts = _receipt_root_path(receipt_root, create=True)
 
         current_observation = observe_cleanup_reconciliation(
             request.journal.to_dict(),
