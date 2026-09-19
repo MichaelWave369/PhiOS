@@ -801,15 +801,15 @@ def snapshot_desktop_catalog(
                 child.name,
             ):
                 try:
-                    marker = DesktopRetentionMarker.from_dict(
+                    parsed_marker = DesktopRetentionMarker.from_dict(
                         _read_json(child, "desktop retention marker")
                     )
-                    retained_path = Path(marker.retained_bundle_path)
+                    retained_path = Path(parsed_marker.retained_bundle_path)
                     if (
-                        marker.app_id != app_entry.name
+                        parsed_marker.app_id != app_entry.name
                         or retained_path.parent != app_entry.resolve(strict=True)
                         or child.name
-                        != f".retained-{marker.retained_desktop_plan_sha256[:16]}.json"
+                        != f".retained-{parsed_marker.retained_desktop_plan_sha256[:16]}.json"
                     ):
                         raise ValueError("retention marker path/app binding mismatch")
                 except (OSError, ValueError):
@@ -820,7 +820,7 @@ def snapshot_desktop_catalog(
                         )
                     )
                 else:
-                    retention_markers[str(retained_path)] = marker
+                    retention_markers[str(retained_path)] = parsed_marker
                 continue
             if not child.is_dir() and not child.is_symlink():
                 root_issues.append(
@@ -836,7 +836,7 @@ def snapshot_desktop_catalog(
             bundle_count += 1
             if bundle_count > _MAX_BUNDLES:
                 raise ValueError("desktop catalog exceeds maximum bundle count")
-            marker = retention_markers.get(str(child.resolve(strict=False)))
+            retained_marker = retention_markers.get(str(child.resolve(strict=False)))
             items.append(
                 _inspect_bundle(
                     child,
@@ -844,7 +844,7 @@ def snapshot_desktop_catalog(
                     applications_root=applications,
                     applications_present=applications_present,
                     install_root=install,
-                    retention_marker=marker,
+                    retention_marker=retained_marker,
                 )
             )
 
