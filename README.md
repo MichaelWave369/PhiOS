@@ -22,7 +22,7 @@ It currently has three major surfaces:
 |---|---|---:|
 | **PhiOS Shell / MCP** | operator commands, local workflows, integrations, machine-readable capability surfaces | active |
 | **PhiOS Spine** | authority-aware observation, verification, evidence, and receipts | **v0.24** |
-| **PhiOS App Platform** | governed path from public repository to installed, launchable, updateable desktop app | **v0.41** |
+| **PhiOS App Platform** | governed path from public repository to installed, launchable, updateable desktop app | **v0.42** |
 
 The common pattern is:
 
@@ -120,7 +120,7 @@ Current Spine docs:
 - [Spine v0.24 numeric-transition contract](docs/PHIOS_SPINE_V0.24_NUMERIC_TRANSITION_CONTRACT.md)
 - [Complete Spine version trail](docs/README.md#spine-version-trail)
 
-### App Platform v0.41
+### App Platform v0.42
 
 The App Platform now covers a governed lifecycle from public source through desktop update and rollback:
 
@@ -154,6 +154,8 @@ side-by-side update
 separately approved rollback
     ↓
 explicit retained-version cleanup
+    ↓
+stranded-cleanup reconciliation
 ```
 
 Important boundaries remain explicit:
@@ -179,13 +181,16 @@ update authority
 
 retained version
 ≠ cleanup authority
+
+prepared cleanup journal
+≠ cleanup completed
 ```
 
 Current App Platform docs:
 
-- [App Platform v0.41 overview](README_APP_PLATFORM_V0.41.md)
+- [App Platform v0.42 overview](README_APP_PLATFORM_V0.42.md)
+- [v0.42 cleanup reconciliation contract](docs/PHIOS_APP_PLATFORM_V0.42_CLEANUP_RECONCILIATION.md)
 - [v0.41 retained cleanup contract](docs/PHIOS_APP_PLATFORM_V0.41_RETAINED_CLEANUP.md)
-- [v0.40 update / rollback contract](docs/PHIOS_APP_PLATFORM_V0.40_UPDATE_ROLLBACK.md)
 - [Complete App Platform version trail](docs/README.md#app-platform-version-trail)
 
 ---
@@ -376,7 +381,7 @@ Start here:
 - **[Documentation index](docs/README.md)**
 - [Living specification](docs/PHIOS_LIVING_SPEC.md)
 - [Architecture blueprint](docs/BLUEPRINT.md)
-- [App Platform v0.40](README_APP_PLATFORM_V0.40.md)
+- [App Platform v0.42](README_APP_PLATFORM_V0.42.md)
 - [Spine v0.24](README_SPINE_V0.24.md)
 - [Contributing](CONTRIBUTING.md)
 - [Changelog](CHANGELOG.md)
