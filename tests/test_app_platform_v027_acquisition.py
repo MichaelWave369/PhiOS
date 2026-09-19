@@ -247,3 +247,19 @@ def test_existing_destination_is_never_overwritten(tmp_path: Path) -> None:
         service.acquire(_request(), workspace_root=tmp_path)
 
     assert marker.read_text(encoding="utf-8") == "keep"
+
+
+def test_receipt_root_cannot_contaminate_acquired_source_tree(tmp_path: Path) -> None:
+    request = _request()
+    destination = tmp_path / request.manifest.app_id / request.commit_sha
+    receipt_root = destination / ".receipts"
+    service = SourceAcquisitionService(provider=FakeArchiveProvider(_zip({"a": b"1"})))
+
+    with pytest.raises(ValueError, match="outside the acquired source tree"):
+        service.acquire(
+            request,
+            workspace_root=tmp_path,
+            receipt_root=receipt_root,
+        )
+
+    assert not destination.exists()
