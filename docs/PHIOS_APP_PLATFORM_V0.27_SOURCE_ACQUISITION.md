@@ -63,6 +63,7 @@ The archive download is bounded to 16 MiB compressed in v0.27.
 
 The default source contract allows at most:
 
+- 8,192 total ZIP members;
 - 4,096 regular files;
 - 8 MiB per file;
 - 128 MiB total uncompressed regular-file content.
@@ -78,6 +79,8 @@ Rejected forms include:
 - absolute paths;
 - empty/dot/parent path segments;
 - backslash-based path forms;
+- raw empty, dot, or parent path segments;
+- member paths longer than the bounded path limit;
 - path traversal;
 - members outside the one expected top-level archive root;
 - duplicate relative paths;
