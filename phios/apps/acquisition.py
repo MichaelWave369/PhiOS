@@ -49,6 +49,88 @@ def _require_string(value: Any, label: str, *, maximum: int = 512) -> str:
 
 
 @dataclass(frozen=True)
+class SourceAcquisitionReview:
+    repository_url: str
+    commit_sha: str
+    proposal_status: str
+    permissions_source: str
+    manifest: AppManifest
+
+    @property
+    def manifest_sha256(self) -> str:
+        return self.manifest.sha256()
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "repository_url": self.repository_url,
+            "commit_sha": self.commit_sha,
+            "proposal_status": self.proposal_status,
+            "app_id": self.manifest.app_id,
+            "name": self.manifest.name,
+            "version": self.manifest.version,
+            "runtime": self.manifest.entrypoint.runtime,
+            "target": self.manifest.entrypoint.target,
+            "permissions": list(self.manifest.permissions),
+            "permissions_source": self.permissions_source,
+            "license_expression": self.manifest.source.license_expression,
+            "redistribution": self.manifest.source.redistribution,
+            "manifest_sha256": self.manifest_sha256,
+        }
+
+
+def review_intake_for_acquisition(value: Any) -> SourceAcquisitionReview:
+    payload = _require_dict(value, "intake result")
+    evidence = _require_dict(payload.get("evidence"), "intake result evidence")
+    proposal = _require_dict(payload.get("proposal"), "intake result proposal")
+    manifest_value = payload.get("manifest_candidate")
+    if manifest_value is None:
+        raise ValueError("Intake result does not contain a manifest candidate")
+
+    status = proposal.get("status")
+    if status not in {"declared_manifest", "inferred_candidate"}:
+        raise ValueError(f"Intake proposal status is not acquirable: {status}")
+
+    manifest = AppManifest.from_dict(manifest_value)
+    repository_url = _require_string(
+        evidence.get("repository_url"),
+        "intake evidence repository_url",
+    )
+    commit_sha = _require_string(evidence.get("head_sha"), "intake evidence head_sha", maximum=64)
+    if not _SHA_RE.fullmatch(commit_sha):
+        raise ValueError("Intake evidence head_sha is not a bounded hexadecimal commit identifier")
+
+    proposal_url = _require_string(
+        proposal.get("repository_url"),
+        "intake proposal repository_url",
+    )
+    if GitHubRepositoryRef.parse(repository_url).repository_url.lower() != (
+        GitHubRepositoryRef.parse(proposal_url).repository_url.lower()
+    ):
+        raise ValueError("Intake proposal repository does not match intake evidence repository")
+
+    manifest_ref = GitHubRepositoryRef.parse(manifest.source.repository_url)
+    evidence_ref = GitHubRepositoryRef.parse(repository_url)
+    if manifest_ref.repository_url.lower() != evidence_ref.repository_url.lower():
+        raise ValueError("Manifest source repository does not match intake evidence repository")
+
+    proposal_app_id = proposal.get("app_id")
+    if proposal_app_id != manifest.app_id:
+        raise ValueError("Intake proposal app_id does not match manifest candidate")
+
+    permissions_source = proposal.get("permissions_source")
+    if not isinstance(permissions_source, str) or not permissions_source:
+        raise ValueError("Intake proposal permissions_source must be a non-empty string")
+
+    return SourceAcquisitionReview(
+        repository_url=evidence_ref.repository_url,
+        commit_sha=commit_sha.lower(),
+        proposal_status=str(status),
+        permissions_source=permissions_source,
+        manifest=manifest,
+    )
+
+
+@dataclass(frozen=True)
 class SourceAcquisitionRequest:
     repository_url: str
     commit_sha: str
@@ -86,41 +168,11 @@ class SourceAcquisitionRequest:
         approved_commit_sha: str,
         approved_manifest_sha256: str,
     ) -> SourceAcquisitionRequest:
-        payload = _require_dict(value, "intake result")
-        evidence = _require_dict(payload.get("evidence"), "intake result evidence")
-        proposal = _require_dict(payload.get("proposal"), "intake result proposal")
-        manifest_value = payload.get("manifest_candidate")
-        if manifest_value is None:
-            raise ValueError("Intake result does not contain a manifest candidate")
-
-        status = proposal.get("status")
-        if status not in {"declared_manifest", "inferred_candidate"}:
-            raise ValueError(f"Intake proposal status is not acquirable: {status}")
-
-        manifest = AppManifest.from_dict(manifest_value)
-        repository_url = _require_string(
-            evidence.get("repository_url"),
-            "intake evidence repository_url",
-        )
-        commit_sha = _require_string(evidence.get("head_sha"), "intake evidence head_sha", maximum=64)
-
-        proposal_url = _require_string(
-            proposal.get("repository_url"),
-            "intake proposal repository_url",
-        )
-        if GitHubRepositoryRef.parse(repository_url).repository_url.lower() != (
-            GitHubRepositoryRef.parse(proposal_url).repository_url.lower()
-        ):
-            raise ValueError("Intake proposal repository does not match intake evidence repository")
-
-        proposal_app_id = proposal.get("app_id")
-        if proposal_app_id != manifest.app_id:
-            raise ValueError("Intake proposal app_id does not match manifest candidate")
-
+        review = review_intake_for_acquisition(value)
         return cls(
-            repository_url=repository_url,
-            commit_sha=commit_sha.lower(),
-            manifest=manifest,
+            repository_url=review.repository_url,
+            commit_sha=review.commit_sha,
+            manifest=review.manifest,
             approved_commit_sha=approved_commit_sha.lower(),
             approved_manifest_sha256=approved_manifest_sha256,
         )
