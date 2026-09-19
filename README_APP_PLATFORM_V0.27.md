@@ -17,9 +17,10 @@ The request binds together:
 - repository URL;
 - exact commit SHA from v0.26 evidence;
 - manifest candidate;
+- operator-approved exact commit SHA;
 - operator-approved manifest SHA-256.
 
-A mismatch fails closed before network acquisition.
+Either approval mismatch fails closed before network acquisition.
 
 ## Exact source acquisition
 
