@@ -20,6 +20,7 @@ from phios.apps.sandbox import SandboxBackendIdentity
 from phios.apps.static_web import (
     StaticWebAdapterPlan,
     StaticWebAdapterService,
+    StaticWebServeReceipt,
     StaticWebServeRequest,
     plan_static_web_adapter,
     review_static_web_adapter,
@@ -444,6 +445,7 @@ def test_static_web_service_records_bounded_loopback_session(tmp_path: Path) -> 
     assert result.receipt.controls.network_namespace_enforced is False
     assert result.receipt.controls.installed_payload_read_only is True
     assert result.receipt.controls.persistent_data_writable_mount is False
+    assert StaticWebServeReceipt.from_dict(result.receipt.to_dict()) == result.receipt
     assert result.receipt_persisted is True
     assert Path(result.receipt_path).is_file()
     assert created[0].probed == ["python3"]
@@ -492,3 +494,30 @@ def test_install_package_plan_tampering_blocks_mapping(tmp_path: Path) -> None:
 
     with pytest.raises(ValueError):
         plan_static_web_adapter(receipt.to_dict(), install_root=install_root)
+
+
+def test_static_web_receipt_rejects_digest_tampering(tmp_path: Path) -> None:
+    receipt, _, install_root, _ = _install(tmp_path)
+    plan = plan_static_web_adapter(
+        receipt.to_dict(),
+        install_root=install_root,
+        loopback_port=9005,
+        serve_seconds=3,
+    )
+    request = StaticWebServeRequest.from_payloads(
+        plan.to_dict(),
+        receipt.to_dict(),
+        approved_static_web_plan_sha256=plan.sha256(),
+    )
+    result = StaticWebAdapterService(
+        runner_factory=lambda policy, root: FakeStaticRunner(policy, root)
+    ).serve(
+        request,
+        install_root=install_root,
+        receipt_root=tmp_path / "receipts",
+    )
+    payload = result.receipt.to_dict()
+    payload["static_root_sha256"] = "0" * 64
+
+    with pytest.raises(ValueError, match="digest"):
+        StaticWebServeReceipt.from_dict(payload)
