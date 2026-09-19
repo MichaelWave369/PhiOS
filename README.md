@@ -330,6 +330,10 @@ state / relation costs and bounded least-declared-cost path search.
 resource signals change bounded advisory field values over time under an
 immutable hashed law.
 
+**Field-Aware Routing v0.4** binds one exact validated dynamic-field snapshot
+into explicit non-negative route-cost terms, so preferred paths can change as
+the field changes without changing hard constraints or execution authority.
+
 The critical boundaries are:
 
 ```text
@@ -340,6 +344,10 @@ lower soft field cost
 dynamic field change
 cannot rewrite
 the governing law
+
+route recommendation
+does not become
+execution authority
 ```
 
 Authority therefore remains a gate, not a score, and field adaptation remains
@@ -352,6 +360,7 @@ See:
 - [Geometric Reasoning v0.1](docs/PHIOS_GEOMETRIC_REASONING_V0.1.md)
 - [Relational Field Geometry v0.2](docs/PHIOS_RELATIONAL_FIELD_V0.2.md)
 - [Dynamic Field State v0.3](docs/PHIOS_DYNAMIC_FIELD_V0.3.md)
+- [Field-Aware Routing v0.4](docs/PHIOS_FIELD_AWARE_ROUTING_V0.4.md)
 
 ---
 
