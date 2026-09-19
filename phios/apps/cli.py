@@ -6,7 +6,11 @@ import sys
 from pathlib import Path
 from typing import Any, Sequence
 
-from .acquisition import SourceAcquisitionRequest, SourceAcquisitionService
+from .acquisition import (
+    SourceAcquisitionRequest,
+    SourceAcquisitionService,
+    review_intake_for_acquisition,
+)
 from .intake import inspect_public_github_app
 
 _MAX_INTAKE_RESULT_BYTES = 2 * 1024 * 1024
@@ -36,6 +40,12 @@ def _parser() -> argparse.ArgumentParser:
     )
     inspect_parser.add_argument("repository_url")
 
+    review_parser = subparsers.add_parser(
+        "review-intake",
+        help="Show the exact commit and manifest digest that must be approved for acquisition.",
+    )
+    review_parser.add_argument("intake_json", type=Path)
+
     acquire_parser = subparsers.add_parser(
         "acquire-github",
         help="Acquire one explicitly approved intake result at its exact commit SHA.",
@@ -62,6 +72,16 @@ def main(argv: Sequence[str] | None = None) -> int:
             print(json.dumps({"status": "blocked", "error": str(exc)}, sort_keys=True))
             return 2
         print(json.dumps(result.to_dict(), sort_keys=True, indent=2))
+        return 0
+
+    if args.command == "review-intake":
+        try:
+            payload = _load_json_file(args.intake_json)
+            review = review_intake_for_acquisition(payload)
+        except (OSError, ValueError) as exc:
+            print(json.dumps({"status": "blocked", "error": str(exc)}, sort_keys=True))
+            return 2
+        print(json.dumps(review.to_dict(), sort_keys=True, indent=2))
         return 0
 
     if args.command == "acquire-github":
