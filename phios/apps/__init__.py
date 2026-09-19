@@ -7,8 +7,10 @@ from .acquisition import (
     GitHubCommitArchiveProvider,
     SourceAcquisitionReceipt,
     SourceAcquisitionRequest,
+    SourceAcquisitionReview,
     SourceAcquisitionService,
     SourceTreeEntry,
+    review_intake_for_acquisition,
 )
 from .intake import (
     APP_INTAKE_EVIDENCE_SCHEMA_VERSION,
@@ -54,7 +56,9 @@ __all__ = [
     "RuntimeKind",
     "SourceAcquisitionReceipt",
     "SourceAcquisitionRequest",
+    "SourceAcquisitionReview",
     "SourceAcquisitionService",
     "SourceTreeEntry",
     "inspect_public_github_app",
+    "review_intake_for_acquisition",
 ]
