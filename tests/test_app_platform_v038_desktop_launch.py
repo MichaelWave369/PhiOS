@@ -20,6 +20,8 @@ from phios.apps.desktop_launch import (
     DesktopAppRegistrationRequest,
     DesktopAppRevocationService,
     DesktopLaunchGrant,
+    DesktopLaunchReceipt,
+    DesktopRevokeReceipt,
     plan_desktop_app,
     resolve_current_wayland_socket,
     review_desktop_app,
@@ -472,6 +474,7 @@ def test_one_click_launch_mints_fresh_visible_plan_for_current_socket(
         assert result.receipt.persistent_launch_grant_authority is True
         assert result.receipt.display_authority is True
         assert result.receipt.wayland_socket.host_path == str(first_path.resolve())
+        assert DesktopLaunchReceipt.from_dict(result.receipt.to_dict()) == result.receipt
     finally:
         first.close()
 
@@ -606,6 +609,7 @@ def test_revocation_removes_launcher_and_bundle(tmp_path: Path) -> None:
     )
 
     assert receipt.status == "revoked"
+    assert DesktopRevokeReceipt.from_dict(receipt.to_dict()) == receipt
     assert not bundle.exists()
     assert not entry.exists()
 
@@ -631,3 +635,62 @@ def test_revocation_requires_exact_grant_sha(tmp_path: Path) -> None:
             applications_root=applications_root,
             receipt_root=tmp_path / "revoke-receipts",
         )
+
+
+def test_desktop_launch_receipt_rejects_digest_tampering(tmp_path: Path) -> None:
+    (
+        _,
+        install_root,
+        _,
+        _,
+        _,
+        _,
+        _,
+        _,
+        installed,
+    ) = _register(tmp_path / "app")
+    sock, path = _wayland_socket(tmp_path / "display")
+    try:
+        result = _launch_service().launch(
+            Path(installed.bundle_path),
+            install_root=install_root,
+            session_root=tmp_path / "sessions",
+            receipt_root=tmp_path / "receipts",
+            env={
+                "XDG_RUNTIME_DIR": str(path.parent),
+                "WAYLAND_DISPLAY": path.name,
+            },
+        )
+        payload = result.receipt.to_dict()
+        payload["visible_browser_plan_sha256"] = "0" * 64
+
+        with pytest.raises(ValueError, match="digest"):
+            DesktopLaunchReceipt.from_dict(payload)
+    finally:
+        sock.close()
+
+
+def test_desktop_revoke_receipt_rejects_digest_tampering(tmp_path: Path) -> None:
+    (
+        _,
+        _,
+        _,
+        _,
+        _,
+        _,
+        desktop_root,
+        applications_root,
+        installed,
+    ) = _register(tmp_path / "app")
+    receipt = DesktopAppRevocationService().revoke(
+        Path(installed.bundle_path),
+        approved_desktop_launch_grant_sha256=installed.grant.sha256(),
+        desktop_root=desktop_root,
+        applications_root=applications_root,
+        receipt_root=tmp_path / "revoke-receipts",
+    )
+    payload = receipt.to_dict()
+    payload["desktop_entry_path"] = payload["desktop_entry_path"] + ".changed"
+
+    with pytest.raises(ValueError, match="digest"):
+        DesktopRevokeReceipt.from_dict(payload)
