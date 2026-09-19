@@ -183,7 +183,7 @@ Older Spine documents remain in the repository as the versioned design trail.
 
 ## App Platform Alpha
 
-The current App Platform line is **v0.35**. v0.25 introduced strict app manifests and a deterministic registry; v0.26 added bounded public GitHub intake; v0.27 added exact-commit source acquisition; v0.28 added deterministic non-executing build plans; v0.29 added explicitly approved build execution; v0.30 added Linux Bubblewrap containment; v0.31 added SRI-verified dependency staging; v0.32 added verified offline npm builds; v0.33 added artifact-only installation; v0.34 added direct Node/Python runtime launch; v0.35 adds deterministic built-output/static-web mapping and bounded loopback serving without browser authority.
+The current App Platform line is **v0.36**. v0.25 introduced strict app manifests and a deterministic registry; v0.26 added bounded public GitHub intake; v0.27 added exact-commit source acquisition; v0.28 added deterministic non-executing build plans; v0.29 added explicitly approved build execution; v0.30 added Linux Bubblewrap containment; v0.31 added SRI-verified dependency staging; v0.32 added verified offline npm builds; v0.33 added artifact-only installation; v0.34 added direct Node/Python runtime launch; v0.35 added deterministic built-output/static-web serving; v0.36 adds separately approved coordinated headless Chromium sessions.
 
 A manifest records:
 
@@ -210,6 +210,8 @@ more.
 
 See:
 
+- [App Platform v0.36 overview](README_APP_PLATFORM_V0.36.md)
+- [App Platform v0.36 browser session contract](docs/PHIOS_APP_PLATFORM_V0.36_BROWSER_SESSION.md)
 - [App Platform v0.35 overview](README_APP_PLATFORM_V0.35.md)
 - [App Platform v0.35 static-web runtime adapter contract](docs/PHIOS_APP_PLATFORM_V0.35_STATIC_WEB_ADAPTER.md)
 - [App Platform v0.34 overview](README_APP_PLATFORM_V0.34.md)
@@ -400,9 +402,38 @@ v0.35 currently recognizes only receipted `dist/index.html` and `build/index.htm
 
 The trusted Python static server binds exactly to the reviewed `127.0.0.1:PORT` and runs for a bounded foreground serve window. Its Bubblewrap sandbox inherits host networking so the host browser can reach loopback; the receipt records that as host-network inheritance, not as a network allowlist.
 
-v0.35 deliberately does **not** open a browser. Browser launch authority and execution of application JavaScript remain a separate future boundary.
+v0.35 deliberately does **not** open a browser. Browser launch authority and execution of application JavaScript remain separate.
 
-The next planned rung is a browser-session contract above the v0.35 server.
+Create a v0.36 browser-session plan from the reviewed static-web plan:
+
+```bash
+phi-app plan-browser-session static-web-plan.json \
+  --browser-tool chromium \
+  --session-seconds 60 \
+  --readiness-timeout-ms 3000 \
+  > browser-session-plan.json
+
+phi-app review-browser-session browser-session-plan.json
+```
+
+Run only after approving both authority transitions and the exact browser permission set:
+
+```bash
+phi-app run-browser-session \
+  browser-session-plan.json \
+  static-web-plan.json \
+  install-receipt.json \
+  --approve-browser-session-plan-sha EXACT_BROWSER_PLAN_SHA256 \
+  --approve-static-web-plan-sha EXACT_STATIC_WEB_PLAN_SHA256 \
+  --allow-browser-permission browser.network.inherit \
+  --allow-browser-permission browser.page.execute
+```
+
+v0.36 starts the exact reviewed static server itself, verifies the reviewed loopback port was initially free, waits for HTTP 200 readiness, executes the page in a second Bubblewrap-isolated headless Chromium session, hashes the resulting browser output, terminates the coordinated server, and emits a strict browser-session receipt.
+
+The browser uses an ephemeral private profile and does not receive the host user's home, persistent browser profile, Wayland socket, or X11 socket. Host networking is inherited broadly and is recorded as such; v0.36 does not claim a browser egress allowlist.
+
+The next planned rung is a graphical browser-window contract that separately grants Wayland/X11 display authority.
 
 v0.18 adds a stronger semantic boundary for scalar values. Boolean and numeric values may be inspected only with the separate `reality.local_http.semantic.value.read` grant. The observed scalar is used transiently for comparison and is not persisted in semantic evidence.
 
