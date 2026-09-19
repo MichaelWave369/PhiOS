@@ -11,6 +11,7 @@ from .acquisition import (
     SourceAcquisitionService,
     review_intake_for_acquisition,
 )
+from .build_execution import BuildExecutionRequest, BuildExecutionService
 from .build_plan import plan_build_from_payloads, review_build_plan
 from .intake import inspect_public_github_app
 
@@ -73,6 +74,28 @@ def _parser() -> argparse.ArgumentParser:
         help="Validate and expose the exact digest and requested authority of a build plan.",
     )
     review_plan_parser.add_argument("build_plan_json", type=Path)
+
+    execute_parser = subparsers.add_parser(
+        "execute-build",
+        help="Execute one explicitly approved build plan in an isolated working copy.",
+    )
+    execute_parser.add_argument("build_plan_json", type=Path)
+    execute_parser.add_argument("acquisition_receipt_json", type=Path)
+    execute_parser.add_argument("--approve-plan-sha", required=True)
+    execute_parser.add_argument("--approve-source-sha", required=True)
+    execute_parser.add_argument(
+        "--allow-build-permission",
+        action="append",
+        default=[],
+        dest="build_permissions",
+    )
+    execute_parser.add_argument(
+        "--execution-root",
+        type=Path,
+        default=Path.home() / ".phios" / "apps" / "builds",
+    )
+    execute_parser.add_argument("--receipt-root", type=Path, default=None)
+    execute_parser.add_argument("--step-timeout-seconds", type=int, default=900)
     return parser
 
 
@@ -137,6 +160,30 @@ def main(argv: Sequence[str] | None = None) -> int:
             return 2
         print(json.dumps(build_review.to_dict(), sort_keys=True, indent=2))
         return 0
+
+    if args.command == "execute-build":
+        try:
+            plan_payload = _load_json_file(args.build_plan_json)
+            receipt_payload = _load_json_file(args.acquisition_receipt_json)
+            execution_request = BuildExecutionRequest.from_payloads(
+                plan_payload,
+                receipt_payload,
+                approved_plan_sha256=args.approve_plan_sha,
+                approved_source_snapshot_sha256=args.approve_source_sha,
+                approved_permissions=tuple(args.build_permissions),
+            )
+            execution = BuildExecutionService(
+                step_timeout_seconds=args.step_timeout_seconds,
+            ).execute(
+                execution_request,
+                execution_root=args.execution_root,
+                receipt_root=args.receipt_root,
+            )
+        except (OSError, ValueError) as exc:
+            print(json.dumps({"status": "blocked", "error": str(exc)}, sort_keys=True))
+            return 2
+        print(json.dumps(execution.to_dict(), sort_keys=True, indent=2))
+        return 0 if execution.status in {"success", "no_build_required"} else 1
 
     return 2
 

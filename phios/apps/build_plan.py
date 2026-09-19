@@ -521,7 +521,7 @@ def _safe_output(value: str) -> str:
     return value
 
 
-def _source_snapshot(root: Path) -> tuple[str, int, int]:
+def snapshot_source_tree(root: Path) -> tuple[str, int, int]:
     if root.is_symlink():
         raise ValueError("Acquired workspace root must not be a symlink")
     if not root.is_dir():
@@ -1045,7 +1045,7 @@ def plan_build_from_payloads(
     except OSError as exc:
         raise ValueError("Acquisition receipt workspace path is unavailable") from exc
 
-    snapshot_sha, file_count, total_bytes = _source_snapshot(root)
+    snapshot_sha, file_count, total_bytes = snapshot_source_tree(root)
     if file_count != binding.file_count:
         raise ValueError("Current source file count does not match acquisition receipt")
     if total_bytes != binding.total_bytes:
