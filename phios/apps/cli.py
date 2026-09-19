@@ -19,6 +19,14 @@ from .browser_session import (
 )
 from .build_execution import BuildExecutionRequest, BuildExecutionService
 from .build_plan import plan_build_from_payloads, review_build_plan
+from .desktop_launch import (
+    DesktopAppInstaller,
+    DesktopAppLaunchService,
+    DesktopAppRegistrationRequest,
+    DesktopAppRevocationService,
+    plan_desktop_app,
+    review_desktop_app,
+)
 from .dependency_broker import (
     DependencyStageRequest,
     DependencyStagingService,
@@ -475,6 +483,99 @@ def _parser() -> argparse.ArgumentParser:
         default=Path.home() / ".phios" / "apps" / "browser-sessions",
     )
     visible_run_parser.add_argument(
+        "--receipt-root",
+        type=Path,
+        default=Path.home() / ".phios" / "apps" / "runtime-receipts",
+    )
+
+    desktop_plan_parser = subparsers.add_parser(
+        "plan-desktop-app",
+        help="Create a persistent desktop-launch plan above one v0.36 browser plan.",
+    )
+    desktop_plan_parser.add_argument("browser_session_plan_json", type=Path)
+    desktop_plan_parser.add_argument("static_web_plan_json", type=Path)
+    desktop_plan_parser.add_argument("install_receipt_json", type=Path)
+    desktop_plan_parser.add_argument(
+        "--install-root",
+        type=Path,
+        default=Path.home() / ".phios" / "apps" / "installed",
+    )
+
+    desktop_review_parser = subparsers.add_parser(
+        "review-desktop-app",
+        help="Expose the exact v0.38 desktop plan and persistent launch authority.",
+    )
+    desktop_review_parser.add_argument("desktop_app_plan_json", type=Path)
+
+    desktop_install_parser = subparsers.add_parser(
+        "install-desktop-app",
+        help="Install one explicitly approved persistent PhiOS desktop launcher.",
+    )
+    desktop_install_parser.add_argument("desktop_app_plan_json", type=Path)
+    desktop_install_parser.add_argument("browser_session_plan_json", type=Path)
+    desktop_install_parser.add_argument("static_web_plan_json", type=Path)
+    desktop_install_parser.add_argument("install_receipt_json", type=Path)
+    desktop_install_parser.add_argument("--approve-desktop-app-plan-sha", required=True)
+    desktop_install_parser.add_argument(
+        "--allow-desktop-permission",
+        action="append",
+        default=[],
+        dest="desktop_permissions",
+    )
+    desktop_install_parser.add_argument(
+        "--install-root",
+        type=Path,
+        default=Path.home() / ".phios" / "apps" / "installed",
+    )
+    desktop_install_parser.add_argument(
+        "--desktop-root",
+        type=Path,
+        default=Path.home() / ".local" / "share" / "phios" / "desktop-apps",
+    )
+    desktop_install_parser.add_argument(
+        "--applications-root",
+        type=Path,
+        default=Path.home() / ".local" / "share" / "applications",
+    )
+
+    desktop_launch_parser = subparsers.add_parser(
+        "launch-desktop-bundle",
+        help="Launch one installed persistent desktop bundle using current-user Wayland.",
+    )
+    desktop_launch_parser.add_argument("bundle_path", type=Path)
+    desktop_launch_parser.add_argument(
+        "--install-root",
+        type=Path,
+        default=Path.home() / ".phios" / "apps" / "installed",
+    )
+    desktop_launch_parser.add_argument(
+        "--session-root",
+        type=Path,
+        default=Path.home() / ".phios" / "apps" / "browser-sessions",
+    )
+    desktop_launch_parser.add_argument(
+        "--receipt-root",
+        type=Path,
+        default=Path.home() / ".phios" / "apps" / "runtime-receipts",
+    )
+
+    desktop_revoke_parser = subparsers.add_parser(
+        "revoke-desktop-app",
+        help="Revoke one persistent desktop-launch grant and remove its launcher.",
+    )
+    desktop_revoke_parser.add_argument("bundle_path", type=Path)
+    desktop_revoke_parser.add_argument("--approve-desktop-launch-grant-sha", required=True)
+    desktop_revoke_parser.add_argument(
+        "--desktop-root",
+        type=Path,
+        default=Path.home() / ".local" / "share" / "phios" / "desktop-apps",
+    )
+    desktop_revoke_parser.add_argument(
+        "--applications-root",
+        type=Path,
+        default=Path.home() / ".local" / "share" / "applications",
+    )
+    desktop_revoke_parser.add_argument(
         "--receipt-root",
         type=Path,
         default=Path.home() / ".phios" / "apps" / "runtime-receipts",
@@ -999,6 +1100,90 @@ def main(argv: Sequence[str] | None = None) -> int:
             return 2
         print(json.dumps(visible_result.to_dict(), sort_keys=True, indent=2))
         return 0 if visible_result.receipt.status == "completed" else 1
+
+    if args.command == "plan-desktop-app":
+        try:
+            browser_payload = _load_json_file(args.browser_session_plan_json)
+            static_payload = _load_json_file(args.static_web_plan_json)
+            install_payload = _load_json_file(args.install_receipt_json)
+            desktop_plan = plan_desktop_app(
+                browser_payload,
+                static_payload,
+                install_payload,
+                install_root=args.install_root,
+            )
+        except (OSError, ValueError) as exc:
+            print(json.dumps({"status": "blocked", "error": str(exc)}, sort_keys=True))
+            return 2
+        print(json.dumps(desktop_plan.to_dict(), sort_keys=True, indent=2))
+        return 0
+
+    if args.command == "review-desktop-app":
+        try:
+            desktop_payload = _load_json_file(args.desktop_app_plan_json)
+            desktop_review = review_desktop_app(desktop_payload)
+        except (OSError, ValueError) as exc:
+            print(json.dumps({"status": "blocked", "error": str(exc)}, sort_keys=True))
+            return 2
+        print(json.dumps(desktop_review.to_dict(), sort_keys=True, indent=2))
+        return 0
+
+    if args.command == "install-desktop-app":
+        try:
+            desktop_payload = _load_json_file(args.desktop_app_plan_json)
+            browser_payload = _load_json_file(args.browser_session_plan_json)
+            static_payload = _load_json_file(args.static_web_plan_json)
+            install_payload = _load_json_file(args.install_receipt_json)
+            desktop_request = DesktopAppRegistrationRequest.from_payloads(
+                desktop_payload,
+                browser_payload,
+                static_payload,
+                install_payload,
+                approved_desktop_app_plan_sha256=args.approve_desktop_app_plan_sha,
+                approved_desktop_permissions=tuple(args.desktop_permissions),
+            )
+            desktop_install_result = DesktopAppInstaller().install(
+                desktop_request,
+                install_root=args.install_root,
+                desktop_root=args.desktop_root,
+                applications_root=args.applications_root,
+            )
+        except (OSError, ValueError) as exc:
+            print(json.dumps({"status": "blocked", "error": str(exc)}, sort_keys=True))
+            return 2
+        print(json.dumps(desktop_install_result.to_dict(), sort_keys=True, indent=2))
+        return 0
+
+    if args.command == "launch-desktop-bundle":
+        try:
+            desktop_launch_result = DesktopAppLaunchService().launch(
+                args.bundle_path,
+                install_root=args.install_root,
+                session_root=args.session_root,
+                receipt_root=args.receipt_root,
+            )
+        except (OSError, ValueError) as exc:
+            print(json.dumps({"status": "blocked", "error": str(exc)}, sort_keys=True))
+            return 2
+        print(json.dumps(desktop_launch_result.to_dict(), sort_keys=True, indent=2))
+        return 0 if desktop_launch_result.receipt.status == "completed" else 1
+
+    if args.command == "revoke-desktop-app":
+        try:
+            revoke_receipt = DesktopAppRevocationService().revoke(
+                args.bundle_path,
+                approved_desktop_launch_grant_sha256=(
+                    args.approve_desktop_launch_grant_sha
+                ),
+                desktop_root=args.desktop_root,
+                applications_root=args.applications_root,
+                receipt_root=args.receipt_root,
+            )
+        except (OSError, ValueError) as exc:
+            print(json.dumps({"status": "blocked", "error": str(exc)}, sort_keys=True))
+            return 2
+        print(json.dumps(revoke_receipt.to_dict(), sort_keys=True, indent=2))
+        return 0
 
     return 2
 

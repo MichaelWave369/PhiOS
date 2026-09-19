@@ -183,7 +183,7 @@ Older Spine documents remain in the repository as the versioned design trail.
 
 ## App Platform Alpha
 
-The current App Platform line is **v0.36**. v0.25 introduced strict app manifests and a deterministic registry; v0.26 added bounded public GitHub intake; v0.27 added exact-commit source acquisition; v0.28 added deterministic non-executing build plans; v0.29 added explicitly approved build execution; v0.30 added Linux Bubblewrap containment; v0.31 added SRI-verified dependency staging; v0.32 added verified offline npm builds; v0.33 added artifact-only installation; v0.34 added direct Node/Python runtime launch; v0.35 added deterministic built-output/static-web serving; v0.36 adds separately approved coordinated headless Chromium sessions.
+The current App Platform line is **v0.38**. v0.25 introduced strict app manifests and a deterministic registry; v0.26 added bounded public GitHub intake; v0.27 added exact-commit source acquisition; v0.28 added deterministic non-executing build plans; v0.29 added explicitly approved build execution; v0.30 added Linux Bubblewrap containment; v0.31 added SRI-verified dependency staging; v0.32 added verified offline npm builds; v0.33 added artifact-only installation; v0.34 added direct Node/Python runtime launch; v0.35 added deterministic static-web serving; v0.36 added separately approved coordinated headless Chromium sessions; v0.37 added exact Wayland-visible browser sessions; v0.38 adds persistent, revocable XDG desktop launch grants that mint a fresh exact v0.37 display plan on every click.
 
 A manifest records:
 
@@ -210,6 +210,8 @@ more.
 
 See:
 
+- [App Platform v0.38 overview](README_APP_PLATFORM_V0.38.md)
+- [App Platform v0.38 desktop app launch contract](docs/PHIOS_APP_PLATFORM_V0.38_DESKTOP_LAUNCH.md)
 - [App Platform v0.37 overview](README_APP_PLATFORM_V0.37.md)
 - [App Platform v0.37 visible browser contract](docs/PHIOS_APP_PLATFORM_V0.37_VISIBLE_BROWSER.md)
 - [App Platform v0.36 overview](README_APP_PLATFORM_V0.36.md)
@@ -435,7 +437,71 @@ v0.36 starts the exact reviewed static server itself, verifies the reviewed loop
 
 The browser uses an ephemeral private profile and does not receive the host user's home, persistent browser profile, Wayland socket, or X11 socket. Host networking is inherited broadly and is recorded as such; v0.36 does not claim a browser egress allowlist.
 
-The next planned rung is a graphical browser-window contract that separately grants Wayland/X11 display authority.
+Promote the reviewed v0.36 browser plan into a separately reviewed visible Wayland session:
+
+```bash
+phi-app plan-visible-browser browser-session-plan.json \
+  --wayland-socket /run/user/1000/wayland-0 \
+  > visible-browser-plan.json
+
+phi-app review-visible-browser visible-browser-plan.json
+
+phi-app run-visible-browser \
+  visible-browser-plan.json \
+  browser-session-plan.json \
+  static-web-plan.json \
+  install-receipt.json \
+  --approve-visible-browser-plan-sha EXACT_VISIBLE_PLAN_SHA256 \
+  --approve-browser-session-plan-sha EXACT_BROWSER_PLAN_SHA256 \
+  --approve-static-web-plan-sha EXACT_STATIC_PLAN_SHA256 \
+  --allow-browser-permission browser.display.wayland \
+  --allow-browser-permission browser.network.inherit \
+  --allow-browser-permission browser.page.execute
+```
+
+v0.37 binds one exact current-user Wayland Unix socket by resolved path, device, inode, nanosecond change timestamp, UID, and GID. Only that socket is mounted into the Chromium sandbox. X11, host-home access, persistent browser state, and direct GPU/device authority remain denied.
+
+Turn the stable v0.35/v0.36 application ancestry into a persistent, revocable desktop launcher:
+
+```bash
+phi-app plan-desktop-app \
+  browser-session-plan.json \
+  static-web-plan.json \
+  install-receipt.json \
+  > desktop-app-plan.json
+
+phi-app review-desktop-app desktop-app-plan.json
+
+phi-app install-desktop-app \
+  desktop-app-plan.json \
+  browser-session-plan.json \
+  static-web-plan.json \
+  install-receipt.json \
+  --approve-desktop-app-plan-sha EXACT_DESKTOP_PLAN_SHA256 \
+  --allow-desktop-permission browser.display.wayland \
+  --allow-desktop-permission browser.network.inherit \
+  --allow-desktop-permission browser.page.execute \
+  --allow-desktop-permission desktop.launch.persist
+```
+
+v0.38 installs a standard XDG `.desktop` entry plus a persistent launch grant. The launcher file itself is not authority: its exact contents are SHA-256 bound into the grant, and every click revalidates the grant, bundle, installed app, v0.35 static plan, and v0.36 browser plan.
+
+At click time, PhiOS resolves the current user's `XDG_RUNTIME_DIR` and basename-only `WAYLAND_DISPLAY`, validates the current-user Unix socket, and mints a fresh exact v0.37 plan for that socket. A normal compositor restart can therefore change the per-session v0.37 plan without weakening or silently expanding the durable v0.38 grant.
+
+Normal desktop launch uses the XDG entry's bound command:
+
+```bash
+phi-app launch-desktop-bundle /ABSOLUTE/BUNDLE/PATH
+```
+
+Persistent launch authority can be retired only with exact grant approval:
+
+```bash
+phi-app revoke-desktop-app /ABSOLUTE/BUNDLE/PATH \
+  --approve-desktop-launch-grant-sha EXACT_GRANT_SHA256
+```
+
+The next planned rung is **v0.39 Desktop App Catalog Contract**: deterministic discovery and presentation of installed governed apps, grant state, launch/revoke actions, and integration into PhiOS's custom launcher surface.
 
 v0.18 adds a stronger semantic boundary for scalar values. Boolean and numeric values may be inspected only with the separate `reality.local_http.semantic.value.read` grant. The observed scalar is used transiently for comparison and is not persisted in semantic evidence.
 
@@ -663,7 +729,7 @@ phios/
 ├─ shell/      operator shell
 ├─ mcp/        MCP interface
 ├─ spine/      authority-aware Spine runtime
-├─ apps/       manifests, intake, dependency broker, offline builds, install/runtime/GUI adapters, registry
+├─ apps/       manifests, intake, dependency broker, offline builds, install/runtime/GUI/desktop adapters, registry
 ├─ mandala/    typed contracts and receipts
 ├─ soma/       bounded perception/evidence
 └─ reality/    Reality Gate verification
