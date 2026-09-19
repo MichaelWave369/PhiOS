@@ -315,35 +315,43 @@ scripts/       development and policy helpers
 
 ---
 
-## Geometric and relational reasoning
+## Geometric, relational, and dynamic field reasoning
 
-PhiOS now has two advisory core primitives for reasoning over computational
-state spaces before exact verification.
+PhiOS now has a three-rung advisory core for reasoning over computational state
+spaces before exact verification.
 
-**Geometric Reasoning v0.1** can prune invalid regions, collapse declared
-symmetries into quotient classes, detect conserved-invariant incompatibility,
-and search canonical representatives.
+**Geometric Reasoning v0.1** reduces state spaces through constraints,
+equivalence classes, and conserved invariants.
 
 **Relational Field Geometry v0.2** adds hard transition boundaries plus soft
-field and pairwise-relation costs. It can compute a deterministic
-least-declared-cost path over the graph exposed by a workload.
+state / relation costs and bounded least-declared-cost path search.
 
-The critical boundary is:
+**Dynamic Field State v0.3** lets evidence, contradiction, failure history, and
+resource signals change bounded advisory field values over time under an
+immutable hashed law.
+
+The critical boundaries are:
 
 ```text
 hard constraint failure
 cannot be outvoted by
 lower soft field cost
+
+dynamic field change
+cannot rewrite
+the governing law
 ```
 
-Authority therefore remains a gate, not a score.
+Authority therefore remains a gate, not a score, and field adaptation remains
+state change rather than self-governance.
 
-All geometric/field receipts carry `action_authority = false`.
+All geometric / field states and receipts retain `action_authority = false`.
 
 See:
 
 - [Geometric Reasoning v0.1](docs/PHIOS_GEOMETRIC_REASONING_V0.1.md)
 - [Relational Field Geometry v0.2](docs/PHIOS_RELATIONAL_FIELD_V0.2.md)
+- [Dynamic Field State v0.3](docs/PHIOS_DYNAMIC_FIELD_V0.3.md)
 
 ---
 

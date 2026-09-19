@@ -16,7 +16,7 @@ PhiOS changes quickly, so use this source-of-truth order when documents disagree
 |---|---:|---|
 | App Platform | **v0.42** | [overview](../README_APP_PLATFORM_V0.42.md) · [contract](PHIOS_APP_PLATFORM_V0.42_CLEANUP_RECONCILIATION.md) |
 | Spine | **v0.24** | [overview](../README_SPINE_V0.24.md) · [contract](PHIOS_SPINE_V0.24_NUMERIC_TRANSITION_CONTRACT.md) |
-| Core geometric / relational reasoning | **v0.2** | [v0.1 geometry](PHIOS_GEOMETRIC_REASONING_V0.1.md) · [v0.2 relational field](PHIOS_RELATIONAL_FIELD_V0.2.md) |
+| Core geometric / relational reasoning | **v0.3** | [v0.1 geometry](PHIOS_GEOMETRIC_REASONING_V0.1.md) · [v0.2 relational field](PHIOS_RELATIONAL_FIELD_V0.2.md) · [v0.3 dynamic field](PHIOS_DYNAMIC_FIELD_V0.3.md) |
 | Living specification | current | [PHIOS_LIVING_SPEC.md](PHIOS_LIVING_SPEC.md) |
 | Architecture blueprint | current / evolving | [BLUEPRINT.md](BLUEPRINT.md) |
 
@@ -60,6 +60,7 @@ The App Platform trail is intentionally retained. Each overview explains the run
 |---|---|---|
 | v0.1 | Quotient reduction, constraints, conserved invariants | [contract](PHIOS_GEOMETRIC_REASONING_V0.1.md) |
 | v0.2 | Hard transition boundaries + relational field path cost | [contract](PHIOS_RELATIONAL_FIELD_V0.2.md) |
+| v0.3 | Immutable-law dynamic field state + bounded evidence/failure updates | [contract](PHIOS_DYNAMIC_FIELD_V0.3.md) |
 
 ## Spine version trail
 
