@@ -143,7 +143,7 @@ class FakeSandboxRunner:
             pid_namespace_enforced=True,
             ipc_namespace_enforced=True,
             uts_namespace_enforced=True,
-            cgroup_namespace_requested=True,
+            cgroup_namespace_requested=False,
             private_proc=True,
             private_dev=True,
             private_tmp=True,
@@ -232,7 +232,11 @@ def test_bubblewrap_command_denies_network_by_default(tmp_path: Path) -> None:
     )
 
     assert command[0] == "/usr/bin/bwrap"
-    assert "--unshare-all" in command
+    assert "--unshare-user" in command
+    assert "--unshare-ipc" in command
+    assert "--unshare-pid" in command
+    assert "--unshare-uts" in command
+    assert "--unshare-net" in command
     assert "--share-net" not in command
     assert "--clearenv" in command
     assert "--tmpfs" in command
@@ -260,8 +264,9 @@ def test_bubblewrap_inherit_mode_explicitly_shares_network(tmp_path: Path) -> No
         cwd=tmp_path,
     )
 
-    assert "--unshare-all" in command
-    assert "--share-net" in command
+    assert "--unshare-user" in command
+    assert "--unshare-net" not in command
+    assert "--share-net" not in command
 
 
 def test_command_builder_rejects_tool_outside_read_only_system_roots(
