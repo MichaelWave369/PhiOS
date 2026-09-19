@@ -185,7 +185,8 @@ A later rung must bind its use to a valid dependency receipt.
 The receipt binds:
 
 - receipt UUID/time;
-- app and commit identity;
+- app, repository, and commit identity;
+- package manager and lockfile version;
 - build-plan SHA-256;
 - source-snapshot SHA-256;
 - dependency-plan SHA-256;
@@ -201,7 +202,23 @@ The receipt binds:
 - total staged bytes;
 - dependency-store root.
 
-The receipt receives its own canonical SHA-256.
+The receipt receives its own canonical SHA-256 and can be reconstructed with strict field,
+host-set, byte-total, CAS-path, and digest validation.
+
+## Shared CAS failure semantics
+
+The content-addressed store is shared infrastructure.
+
+Once bytes have passed lockfile SRI verification and received their SHA-256 CAS identity, PhiOS
+does not delete that shared blob merely because a later receipt write fails.
+
+That avoids a rollback race in which one staging process could delete content another concurrent
+process has already begun using.
+
+Unreferenced CAS bytes are inert cache material. They do not establish dependency provenance or
+build authority.
+
+Only a valid dependency receipt binds CAS content into a later governed workflow.
 
 ## Explicit non-capabilities
 
