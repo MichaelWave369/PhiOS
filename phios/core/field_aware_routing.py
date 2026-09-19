@@ -64,6 +64,40 @@ class DynamicBindingSnapshot:
 
 
 @dataclass(frozen=True, slots=True)
+class FieldAwarePathAssessmentReceipt:
+    """Cost/admissibility of one explicit path at one exact field snapshot."""
+
+    schema: str
+    status: str
+    field_law_sha256: str
+    field_state_sha256: str
+    field_revision: int
+    bindings: tuple[DynamicBindingSnapshot, ...]
+    path_ids: tuple[str, ...]
+    transition_receipt_sha256s: tuple[str, ...]
+    blocked_transition_index: int | None
+    total_cost: float | None
+    action_authority: bool
+    receipt_sha256: str
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "schema": self.schema,
+            "status": self.status,
+            "field_law_sha256": self.field_law_sha256,
+            "field_state_sha256": self.field_state_sha256,
+            "field_revision": self.field_revision,
+            "bindings": [item.to_dict() for item in self.bindings],
+            "path_ids": list(self.path_ids),
+            "transition_receipt_sha256s": list(self.transition_receipt_sha256s),
+            "blocked_transition_index": self.blocked_transition_index,
+            "total_cost": self.total_cost,
+            "action_authority": self.action_authority,
+            "receipt_sha256": self.receipt_sha256,
+        }
+
+
+@dataclass(frozen=True, slots=True)
 class FieldAwareRouteReceipt:
     """Receipt binding a route result to the exact dynamic-field snapshot."""
 
@@ -162,12 +196,106 @@ class FieldAwareRouter:
         base_cost: float = 1.0,
         max_states: int = 10_000,
     ) -> FieldAwareRouteReceipt:
+        reasoner, snapshots = self._reasoner_for_state(field_state)
+        try:
+            path = reasoner.least_cost_path(
+                starts,
+                expand=expand,
+                goal=goal,
+                base_cost=base_cost,
+                max_states=max_states,
+            )
+        except RelationalFieldContractError as exc:
+            raise FieldAwareRoutingContractError(str(exc)) from exc
+
+        return self._build_receipt(
+            field_state=field_state,
+            snapshots=snapshots,
+            path=path,
+        )
+
+    def assess_path(
+        self,
+        field_state: DynamicFieldState,
+        path_states: Sequence[State],
+        *,
+        base_cost: float = 1.0,
+    ) -> FieldAwarePathAssessmentReceipt:
+        """Re-score one explicit path under one exact validated field snapshot."""
+
+        reasoner, snapshots = self._reasoner_for_state(field_state)
+        states = tuple(path_states)
+        if not states:
+            raise FieldAwareRoutingContractError(
+                "path assessment requires at least one state"
+            )
+
+        path_ids = tuple(_require_state_id(self._state_id(state)) for state in states)
+        transition_hashes: list[str] = []
+        total_cost = 0.0
+        blocked_index: int | None = None
+        status = "admissible"
+
+        for index, (source, target) in enumerate(zip(states, states[1:])):
+            try:
+                transition = reasoner.assess_transition(
+                    source,
+                    target,
+                    base_cost=base_cost,
+                )
+            except RelationalFieldContractError as exc:
+                raise FieldAwareRoutingContractError(str(exc)) from exc
+            transition_hashes.append(transition.receipt_sha256)
+            if transition.status == "blocked":
+                status = "blocked"
+                blocked_index = index
+                total: float | None = None
+                break
+            if transition.total_cost is None:
+                raise FieldAwareRoutingContractError(
+                    "admissible transition must have total cost"
+                )
+            total_cost += transition.total_cost
+        else:
+            total = total_cost
+
+        payload: dict[str, object] = {
+            "schema": "phios.field_aware_path_assessment.v0.5",
+            "status": status,
+            "field_law_sha256": field_state.law_sha256,
+            "field_state_sha256": field_state.state_sha256,
+            "field_revision": field_state.revision,
+            "bindings": [item.to_dict() for item in snapshots],
+            "path_ids": list(path_ids),
+            "transition_receipt_sha256s": transition_hashes,
+            "blocked_transition_index": blocked_index,
+            "total_cost": total,
+            "action_authority": False,
+        }
+        return FieldAwarePathAssessmentReceipt(
+            schema="phios.field_aware_path_assessment.v0.5",
+            status=status,
+            field_law_sha256=field_state.law_sha256,
+            field_state_sha256=field_state.state_sha256,
+            field_revision=field_state.revision,
+            bindings=snapshots,
+            path_ids=path_ids,
+            transition_receipt_sha256s=tuple(transition_hashes),
+            blocked_transition_index=blocked_index,
+            total_cost=total,
+            action_authority=False,
+            receipt_sha256=_payload_digest(payload),
+        )
+
+    def _reasoner_for_state(
+        self,
+        field_state: DynamicFieldState,
+    ) -> tuple[RelationalField, tuple[DynamicBindingSnapshot, ...]]:
         self._dynamic_field.validate_state(field_state)
         values = field_state.as_mapping()
 
         snapshots: list[DynamicBindingSnapshot] = []
         dynamic_relation_costs: list[RelationCostSpec] = []
-
         for binding in sorted(
             self._dynamic_bindings,
             key=lambda item: item.name,
@@ -207,22 +335,7 @@ class FieldAwareRouter:
             relation_costs=self._relation_costs + tuple(dynamic_relation_costs),
             constraints=self._constraints,
         )
-        try:
-            path = reasoner.least_cost_path(
-                starts,
-                expand=expand,
-                goal=goal,
-                base_cost=base_cost,
-                max_states=max_states,
-            )
-        except RelationalFieldContractError as exc:
-            raise FieldAwareRoutingContractError(str(exc)) from exc
-
-        return self._build_receipt(
-            field_state=field_state,
-            snapshots=tuple(snapshots),
-            path=path,
-        )
+        return reasoner, tuple(snapshots)
 
     def _build_receipt(
         self,
@@ -286,6 +399,13 @@ def _bound_relation_measure(
         return field_value * susceptibility
 
     return measure
+
+
+def _require_state_id(value: object) -> str:
+    state_id = str(value).strip()
+    if not state_id:
+        raise FieldAwareRoutingContractError("state_id must be non-empty")
+    return state_id
 
 
 def _require_finite(value: object, label: str) -> float:
