@@ -566,6 +566,8 @@ def test_bubblewrap_gui_runner_records_no_gpu_or_dbus_authority(tmp_path: Path) 
             browser_root=browser_root,
             gui_plan=plan,
         )
+        runner.browser_runner.bwrap_path = "/usr/bin/bwrap"
+        runner.browser_runner.prlimit_path = "/usr/bin/prlimit"
         command = runner.browser_runner.command_for(
             executable_path="/usr/bin/true",
             argv_tail=(),
