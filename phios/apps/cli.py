@@ -14,6 +14,7 @@ from .acquisition import (
 from .build_execution import BuildExecutionRequest, BuildExecutionService
 from .build_plan import plan_build_from_payloads, review_build_plan
 from .intake import inspect_public_github_app
+from .sandbox import BuildSandboxPolicy, SandboxedBuildExecutionService
 
 _MAX_INTAKE_RESULT_BYTES = 2 * 1024 * 1024
 
@@ -96,6 +97,37 @@ def _parser() -> argparse.ArgumentParser:
     )
     execute_parser.add_argument("--receipt-root", type=Path, default=None)
     execute_parser.add_argument("--step-timeout-seconds", type=int, default=900)
+
+    sandbox_parser = subparsers.add_parser(
+        "execute-sandboxed-build",
+        help="Execute one explicitly approved build plan using the Linux Bubblewrap sandbox.",
+    )
+    sandbox_parser.add_argument("build_plan_json", type=Path)
+    sandbox_parser.add_argument("acquisition_receipt_json", type=Path)
+    sandbox_parser.add_argument("--approve-plan-sha", required=True)
+    sandbox_parser.add_argument("--approve-source-sha", required=True)
+    sandbox_parser.add_argument(
+        "--allow-build-permission",
+        action="append",
+        default=[],
+        dest="build_permissions",
+    )
+    sandbox_parser.add_argument(
+        "--sandbox-network",
+        choices=("deny", "inherit"),
+        default="deny",
+    )
+    sandbox_parser.add_argument("--sandbox-wall-seconds", type=int, default=900)
+    sandbox_parser.add_argument("--sandbox-cpu-seconds", type=int, default=600)
+    sandbox_parser.add_argument("--sandbox-memory-mib", type=int, default=8192)
+    sandbox_parser.add_argument("--sandbox-open-files", type=int, default=1024)
+    sandbox_parser.add_argument("--sandbox-max-file-mib", type=int, default=512)
+    sandbox_parser.add_argument(
+        "--execution-root",
+        type=Path,
+        default=Path.home() / ".phios" / "apps" / "builds",
+    )
+    sandbox_parser.add_argument("--receipt-root", type=Path, default=None)
     return parser
 
 
@@ -184,6 +216,44 @@ def main(argv: Sequence[str] | None = None) -> int:
             return 2
         print(json.dumps(execution.to_dict(), sort_keys=True, indent=2))
         return 0 if execution.status in {"success", "no_build_required"} else 1
+
+    if args.command == "execute-sandboxed-build":
+        try:
+            plan_payload = _load_json_file(args.build_plan_json)
+            receipt_payload = _load_json_file(args.acquisition_receipt_json)
+            sandbox_request = BuildExecutionRequest.from_payloads(
+                plan_payload,
+                receipt_payload,
+                approved_plan_sha256=args.approve_plan_sha,
+                approved_source_snapshot_sha256=args.approve_source_sha,
+                approved_permissions=tuple(args.build_permissions),
+            )
+            sandbox_policy = BuildSandboxPolicy(
+                network_mode=args.sandbox_network,
+                wall_clock_seconds=args.sandbox_wall_seconds,
+                cpu_seconds=args.sandbox_cpu_seconds,
+                address_space_bytes=args.sandbox_memory_mib * 1024 * 1024,
+                max_open_files=args.sandbox_open_files,
+                max_file_size_bytes=args.sandbox_max_file_mib * 1024 * 1024,
+            )
+            sandbox_result = SandboxedBuildExecutionService(
+                sandbox_policy,
+            ).execute(
+                sandbox_request,
+                execution_root=args.execution_root,
+                receipt_root=args.receipt_root,
+            )
+        except (OSError, ValueError) as exc:
+            print(json.dumps({"status": "blocked", "error": str(exc)}, sort_keys=True))
+            return 2
+        print(json.dumps(sandbox_result.to_dict(), sort_keys=True, indent=2))
+        if not sandbox_result.sandbox_receipt_persisted:
+            return 1
+        return (
+            0
+            if sandbox_result.execution.status in {"success", "no_build_required"}
+            else 1
+        )
 
     return 2
 
