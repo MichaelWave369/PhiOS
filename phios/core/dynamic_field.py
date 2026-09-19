@@ -11,7 +11,7 @@ import hashlib
 import json
 import math
 from dataclasses import dataclass
-from typing import Mapping, Sequence
+from typing import Mapping
 
 
 class DynamicFieldContractError(ValueError):
