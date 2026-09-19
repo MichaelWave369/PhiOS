@@ -183,7 +183,7 @@ Older Spine documents remain in the repository as the versioned design trail.
 
 ## App Platform Alpha
 
-The current App Platform line is **v0.39**. v0.25 introduced strict app manifests and a deterministic registry; v0.26 added bounded public GitHub intake; v0.27 added exact-commit source acquisition; v0.28 added deterministic non-executing build plans; v0.29 added explicitly approved build execution; v0.30 added Linux Bubblewrap containment; v0.31 added SRI-verified dependency staging; v0.32 added verified offline npm builds; v0.33 added artifact-only installation; v0.34 added direct Node/Python runtime launch; v0.35 added deterministic static-web serving; v0.36 added separately approved coordinated headless Chromium sessions; v0.37 added exact Wayland-visible browser sessions; v0.38 added persistent, revocable XDG desktop launch grants; v0.39 adds deterministic governed-app catalog discovery and integrates only verified-ready apps into PhiLauncher.
+The current App Platform line is **v0.40**. v0.25 introduced strict app manifests and a deterministic registry; v0.26 added bounded public GitHub intake; v0.27 added exact-commit source acquisition; v0.28 added deterministic non-executing build plans; v0.29 added explicitly approved build execution; v0.30 added Linux Bubblewrap containment; v0.31 added SRI-verified dependency staging; v0.32 added verified offline npm builds; v0.33 added artifact-only installation; v0.34 added direct Node/Python runtime launch; v0.35 added deterministic static-web serving; v0.36 added separately approved coordinated headless Chromium sessions; v0.37 added exact Wayland-visible browser sessions; v0.38 added persistent, revocable XDG desktop launch grants; v0.39 added deterministic governed-app catalog discovery and launcher integration; v0.40 adds explicit side-by-side desktop updates and separately approved rollback with retained-version evidence.
 
 A manifest records:
 
@@ -210,6 +210,8 @@ more.
 
 See:
 
+- [App Platform v0.40 overview](README_APP_PLATFORM_V0.40.md)
+- [App Platform v0.40 update / rollback contract](docs/PHIOS_APP_PLATFORM_V0.40_UPDATE_ROLLBACK.md)
 - [App Platform v0.39 overview](README_APP_PLATFORM_V0.39.md)
 - [App Platform v0.39 desktop app catalog contract](docs/PHIOS_APP_PLATFORM_V0.39_DESKTOP_CATALOG.md)
 - [App Platform v0.38 overview](README_APP_PLATFORM_V0.38.md)
@@ -529,7 +531,55 @@ EXACT_BUNDLE_PATH
 
 The launcher no longer reconstructs commands with `selection.split()`, so display labels remain presentation-only and bundle paths containing spaces remain one argument.
 
-The next planned rung is **v0.40 Governed App Update / Rollback Contract**: admit a new version beside the active one, review an exact update plan, atomically switch the desktop grant/entry, retain the previous version, and provide explicit rollback with receipts.
+Plan a governed transition to an already installed candidate version:
+
+```bash
+phi-app plan-desktop-update \
+  ACTIVE_BUNDLE_PATH \
+  candidate-browser-plan.json \
+  candidate-static-plan.json \
+  candidate-install-receipt.json \
+  > desktop-update-plan.json
+
+phi-app review-desktop-update desktop-update-plan.json
+```
+
+Execute only after exact approval of the transition and active/candidate identities:
+
+```bash
+phi-app execute-desktop-update \
+  desktop-update-plan.json \
+  candidate-browser-plan.json \
+  candidate-static-plan.json \
+  candidate-install-receipt.json \
+  --approve-update-plan-sha EXACT_UPDATE_PLAN_SHA256 \
+  --approve-active-grant-sha EXACT_ACTIVE_GRANT_SHA256 \
+  --approve-candidate-desktop-plan-sha EXACT_CANDIDATE_DESKTOP_PLAN_SHA256 \
+  --allow-update-permission desktop.update.switch
+```
+
+v0.40 prepares the candidate desktop bundle beside the active one, atomically replaces the governed XDG desktop-entry bytes, retains the old bundle unchanged, writes deterministic retention evidence, and persists an update receipt. Update authority does not imply rollback authority.
+
+Rollback is a separate reviewed transition:
+
+```bash
+phi-app plan-desktop-rollback desktop-update-receipt.json > desktop-rollback-plan.json
+phi-app review-desktop-rollback desktop-rollback-plan.json
+
+phi-app execute-desktop-rollback \
+  desktop-rollback-plan.json \
+  desktop-update-receipt.json \
+  --approve-rollback-plan-sha EXACT_ROLLBACK_PLAN_SHA256 \
+  --approve-active-grant-sha EXACT_CURRENT_GRANT_SHA256 \
+  --approve-target-grant-sha EXACT_RETAINED_GRANT_SHA256 \
+  --allow-rollback-permission desktop.rollback.switch
+```
+
+Catalog evidence now distinguishes an intentionally retained inactive version with `retained_inactive`. After update the candidate is `ready` and the prior version is retained/inactive; after rollback those states reverse. PhiLauncher therefore continues to expose only the currently active ready version.
+
+v0.40 does not rank version strings or enforce SemVer. Version ordering remains policy, not transition authority.
+
+The next planned rung is **v0.41 Retained Version Cleanup / Lifecycle Contract**: prove a retained version is inactive and no longer needed for rollback, explicitly approve cleanup, remove retained desktop/install artifacts safely, and emit cleanup receipts.
 
 v0.18 adds a stronger semantic boundary for scalar values. Boolean and numeric values may be inspected only with the separate `reality.local_http.semantic.value.read` grant. The observed scalar is used transiently for comparison and is not persisted in semantic evidence.
 
@@ -757,7 +807,7 @@ phios/
 ├─ shell/      operator shell
 ├─ mcp/        MCP interface
 ├─ spine/      authority-aware Spine runtime
-├─ apps/       manifests, intake, dependency broker, offline builds, install/runtime/GUI/desktop/catalog adapters, registry
+├─ apps/       manifests, intake, dependency broker, offline builds, install/runtime/GUI/desktop/catalog/lifecycle adapters, registry
 ├─ mandala/    typed contracts and receipts
 ├─ soma/       bounded perception/evidence
 └─ reality/    Reality Gate verification
