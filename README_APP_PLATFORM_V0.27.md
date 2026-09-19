@@ -8,6 +8,19 @@ bounded local workspace.
 
 It still does **not** install dependencies, build, execute, launch, register, or trust the app.
 
+## Operator workflow
+
+```bash
+phi-app inspect-github https://github.com/OWNER/REPO > intake.json
+phi-app review-intake intake.json
+phi-app acquire-github intake.json \
+  --approve-commit-sha EXACT_COMMIT_SHA \
+  --approve-manifest-sha EXACT_MANIFEST_SHA256
+```
+
+`review-intake` performs no acquisition. It exposes the exact revision and canonical manifest digest
+that the operator must approve.
+
 ## Approval requirement
 
 Acquisition requires the operator to approve the exact canonical SHA-256 of the manifest candidate.
