@@ -307,3 +307,13 @@ mypy phios/ --ignore-missing-imports
 pytest -q
 bash scripts/policy_no_telemetry_runtime.sh
 ```
+
+
+---
+
+## Next rung
+
+Geometric Reasoning v0.1 is extended by
+[Relational Field Geometry v0.2](PHIOS_RELATIONAL_FIELD_V0.2.md), which adds hard
+transition boundaries, soft field costs, pairwise relation costs, and bounded
+least-declared-cost path search without granting action authority.
