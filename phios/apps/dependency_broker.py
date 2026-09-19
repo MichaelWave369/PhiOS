@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import base64
 import hashlib
+import hmac
 import json
 import os
 import re
@@ -122,7 +123,7 @@ def _select_sri(value: Any) -> tuple[str, str]:
 def _verify_sri(content: bytes, algorithm: str, expected_b64: str) -> None:
     digest = hashlib.new(algorithm, content).digest()
     observed = base64.b64encode(digest).decode("ascii")
-    if not hashlib.compare_digest(observed, expected_b64):
+    if not hmac.compare_digest(observed, expected_b64):
         raise ValueError("Downloaded dependency bytes do not match lockfile SRI integrity")
 
 
@@ -375,7 +376,7 @@ def review_dependency_plan(value: Any) -> DependencyPlanReview:
     )
 
 
-def _load_lockfile(binding: AcquisitionBinding, plan: BuildPlan) -> tuple[str, bytes]:
+def _load_lockfile(root: Path, plan: BuildPlan) -> tuple[str, bytes]:
     observed = {item.path: item.sha256 for item in plan.observed_files}
     candidates = [
         name
@@ -385,7 +386,7 @@ def _load_lockfile(binding: AcquisitionBinding, plan: BuildPlan) -> tuple[str, b
     if len(candidates) != 1:
         raise ValueError("v0.31 requires exactly one observed npm lockfile")
     name = candidates[0]
-    path = binding.workspace_path / name
+    path = root / name
     if path.is_symlink() or not path.is_file():
         raise ValueError("npm lockfile is not a regular acquired source file")
     size = path.stat().st_size
@@ -497,6 +498,8 @@ def plan_npm_dependencies(
     if plan.source_file_count != binding.file_count or plan.source_total_bytes != binding.total_bytes:
         raise ValueError("Build plan source totals do not match acquisition receipt")
 
+    if binding.workspace_path.is_symlink():
+        raise ValueError("Acquisition workspace must not be a symlink")
     root = binding.workspace_path.resolve(strict=True)
     snapshot, file_count, total_bytes = snapshot_source_tree(root)
     if snapshot != plan.source_snapshot_sha256:
@@ -504,7 +507,7 @@ def plan_npm_dependencies(
     if file_count != plan.source_file_count or total_bytes != plan.source_total_bytes:
         raise ValueError("Source totals changed after build-plan review")
 
-    lock_name, lock_content = _load_lockfile(binding, plan)
+    lock_name, lock_content = _load_lockfile(root, plan)
     lock_version, artifacts = _parse_npm_lockfile(lock_content)
     hosts = tuple(sorted({artifact.host for artifact in artifacts}))
 
