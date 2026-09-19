@@ -600,11 +600,25 @@ class BrowserSessionExecution:
     server_terminated_by_session: bool
 
 
+class BrowserExecutionPlan(Protocol):
+    @property
+    def browser_tool(self) -> str: ...
+
+    @property
+    def browser_argv(self) -> tuple[str, ...]: ...
+
+    @property
+    def readiness_timeout_ms(self) -> int: ...
+
+    @property
+    def session_seconds(self) -> int: ...
+
+
 class BrowserSessionRunner(Protocol):
     def execute(
         self,
         static_plan: StaticWebAdapterPlan,
-        browser_plan: BrowserSessionPlan,
+        browser_plan: BrowserExecutionPlan,
     ) -> BrowserSessionExecution: ...
 
 
@@ -634,6 +648,7 @@ class BubblewrapBrowserSessionRunner:
         browser_policy: RuntimeSandboxPolicy,
         static_root: Path,
         browser_root: Path,
+        browser_runtime_runner: BubblewrapRuntimeRunner | None = None,
     ) -> None:
         self.static_root = static_root.resolve(strict=True)
         self.browser_root = browser_root.resolve(strict=True)
@@ -642,11 +657,13 @@ class BubblewrapBrowserSessionRunner:
             payload_root=self.static_root,
             data_path=None,
         )
-        self.browser_runner = BubblewrapRuntimeRunner(
+        self.browser_runner = browser_runtime_runner or BubblewrapRuntimeRunner(
             browser_policy,
             payload_root=self.browser_root,
             data_path=None,
         )
+        if self.browser_runner.policy != browser_policy:
+            raise ValueError("browser runtime runner policy does not match coordinated session")
 
     @staticmethod
     def _port_available(host: str, port: int) -> bool:
@@ -731,7 +748,7 @@ class BubblewrapBrowserSessionRunner:
     def execute(
         self,
         static_plan: StaticWebAdapterPlan,
-        browser_plan: BrowserSessionPlan,
+        browser_plan: BrowserExecutionPlan,
     ) -> BrowserSessionExecution:
         if static_plan.server_tool != "python3":
             raise ValueError("v0.36 requires the v0.35 trusted Python static server")

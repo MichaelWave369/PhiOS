@@ -54,6 +54,12 @@ from .static_web import (
     plan_static_web_adapter,
     review_static_web_adapter,
 )
+from .visible_browser import (
+    VisibleBrowserSessionRequest,
+    VisibleBrowserSessionService,
+    plan_visible_browser_session,
+    review_visible_browser_session,
+)
 
 _MAX_INTAKE_RESULT_BYTES = 2 * 1024 * 1024
 
@@ -423,6 +429,52 @@ def _parser() -> argparse.ArgumentParser:
         default=Path.home() / ".phios" / "apps" / "browser-sessions",
     )
     browser_run_parser.add_argument(
+        "--receipt-root",
+        type=Path,
+        default=Path.home() / ".phios" / "apps" / "runtime-receipts",
+    )
+
+    visible_plan_parser = subparsers.add_parser(
+        "plan-visible-browser",
+        help="Create a reviewed Wayland-visible browser plan above one v0.36 browser plan.",
+    )
+    visible_plan_parser.add_argument("browser_session_plan_json", type=Path)
+    visible_plan_parser.add_argument("--wayland-socket", type=Path, required=True)
+
+    visible_review_parser = subparsers.add_parser(
+        "review-visible-browser",
+        help="Expose the exact v0.37 visible-browser digest and display authority.",
+    )
+    visible_review_parser.add_argument("visible_browser_plan_json", type=Path)
+
+    visible_run_parser = subparsers.add_parser(
+        "run-visible-browser",
+        help="Run one explicitly approved visible Wayland browser session.",
+    )
+    visible_run_parser.add_argument("visible_browser_plan_json", type=Path)
+    visible_run_parser.add_argument("browser_session_plan_json", type=Path)
+    visible_run_parser.add_argument("static_web_plan_json", type=Path)
+    visible_run_parser.add_argument("install_receipt_json", type=Path)
+    visible_run_parser.add_argument("--approve-visible-browser-plan-sha", required=True)
+    visible_run_parser.add_argument("--approve-browser-session-plan-sha", required=True)
+    visible_run_parser.add_argument("--approve-static-web-plan-sha", required=True)
+    visible_run_parser.add_argument(
+        "--allow-browser-permission",
+        action="append",
+        default=[],
+        dest="visible_browser_permissions",
+    )
+    visible_run_parser.add_argument(
+        "--install-root",
+        type=Path,
+        default=Path.home() / ".phios" / "apps" / "installed",
+    )
+    visible_run_parser.add_argument(
+        "--session-root",
+        type=Path,
+        default=Path.home() / ".phios" / "apps" / "browser-sessions",
+    )
+    visible_run_parser.add_argument(
         "--receipt-root",
         type=Path,
         default=Path.home() / ".phios" / "apps" / "runtime-receipts",
@@ -892,6 +944,61 @@ def main(argv: Sequence[str] | None = None) -> int:
             return 2
         print(json.dumps(browser_result.to_dict(), sort_keys=True, indent=2))
         return 0 if browser_result.receipt.status == "completed" else 1
+
+    if args.command == "plan-visible-browser":
+        try:
+            browser_payload = _load_json_file(args.browser_session_plan_json)
+            visible_plan = plan_visible_browser_session(
+                browser_payload,
+                wayland_socket_path=args.wayland_socket,
+            )
+        except (OSError, ValueError) as exc:
+            print(json.dumps({"status": "blocked", "error": str(exc)}, sort_keys=True))
+            return 2
+        print(json.dumps(visible_plan.to_dict(), sort_keys=True, indent=2))
+        return 0
+
+    if args.command == "review-visible-browser":
+        try:
+            visible_payload = _load_json_file(args.visible_browser_plan_json)
+            visible_review = review_visible_browser_session(visible_payload)
+        except (OSError, ValueError) as exc:
+            print(json.dumps({"status": "blocked", "error": str(exc)}, sort_keys=True))
+            return 2
+        print(json.dumps(visible_review.to_dict(), sort_keys=True, indent=2))
+        return 0
+
+    if args.command == "run-visible-browser":
+        try:
+            visible_payload = _load_json_file(args.visible_browser_plan_json)
+            browser_payload = _load_json_file(args.browser_session_plan_json)
+            static_payload = _load_json_file(args.static_web_plan_json)
+            install_payload = _load_json_file(args.install_receipt_json)
+            visible_request = VisibleBrowserSessionRequest.from_payloads(
+                visible_payload,
+                browser_payload,
+                static_payload,
+                install_payload,
+                approved_visible_browser_plan_sha256=(
+                    args.approve_visible_browser_plan_sha
+                ),
+                approved_parent_browser_plan_sha256=(
+                    args.approve_browser_session_plan_sha
+                ),
+                approved_static_web_plan_sha256=args.approve_static_web_plan_sha,
+                approved_browser_permissions=tuple(args.visible_browser_permissions),
+            )
+            visible_result = VisibleBrowserSessionService().run(
+                visible_request,
+                install_root=args.install_root,
+                session_root=args.session_root,
+                receipt_root=args.receipt_root,
+            )
+        except (OSError, ValueError) as exc:
+            print(json.dumps({"status": "blocked", "error": str(exc)}, sort_keys=True))
+            return 2
+        print(json.dumps(visible_result.to_dict(), sort_keys=True, indent=2))
+        return 0 if visible_result.receipt.status == "completed" else 1
 
     return 2
 
