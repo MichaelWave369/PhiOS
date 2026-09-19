@@ -15,6 +15,7 @@ from phios.apps.runtime import (
     InstalledRuntimePlan,
     InstalledRuntimeService,
     RuntimeControlEvidence,
+    RuntimeLaunchReceipt,
     RuntimeLaunchRequest,
     RuntimeSandboxPolicy,
     plan_installed_runtime,
@@ -74,6 +75,8 @@ def _install(
         (payload / "package.json").write_text('{"name":"x"}', encoding="utf-8")
     elif runtime == "static_web":
         (payload / target).write_text("<html>phi</html>", encoding="utf-8")
+    elif runtime == "local_http":
+        (payload / "service-placeholder.txt").write_text("loopback", encoding="utf-8")
 
     (metadata / "manifest.json").write_text(
         json.dumps(manifest.to_dict(), sort_keys=True, separators=(",", ":")),
@@ -230,6 +233,11 @@ def test_python_runtime_plan_is_direct_when_target_is_installed(tmp_path: Path) 
         ("node", "package.json", "unsupported_node_entrypoint_v034"),
         ("native", "bin/app", "unsupported_native_mode_v034"),
         ("static_web", "index.html", "unsupported_static_web_v034"),
+        (
+            "local_http",
+            "http://127.0.0.1:8787/status",
+            "unsupported_local_http_v034",
+        ),
     ],
 )
 def test_unsupported_runtime_shapes_fail_closed(
@@ -387,6 +395,7 @@ def test_runtime_launch_executes_reviewed_plan_and_persists_receipt(
     assert result.receipt.controls.installed_payload_read_only is True
     assert result.receipt.controls.persistent_data_writable_mount is False
     assert result.receipt.stdout_byte_count == 5
+    assert RuntimeLaunchReceipt.from_dict(result.receipt.to_dict()) == result.receipt
     assert result.receipt_persisted is True
     assert Path(result.receipt_path).is_file()
     assert created[0].preflight_calls == 1
@@ -489,3 +498,31 @@ def test_runtime_plan_rejects_install_outside_configured_root(tmp_path: Path) ->
 
     with pytest.raises(ValueError, match="escaped configured root"):
         plan_installed_runtime(receipt.to_dict(), install_root=wrong_root)
+
+
+def test_runtime_receipt_rejects_digest_tampering(tmp_path: Path) -> None:
+    receipt, _, install_root, _ = _install(tmp_path)
+    plan = plan_installed_runtime(receipt.to_dict(), install_root=install_root)
+    request = RuntimeLaunchRequest.from_payloads(
+        plan.to_dict(),
+        receipt.to_dict(),
+        approved_runtime_plan_sha256=plan.sha256(),
+        approved_runtime_permissions=(),
+    )
+    result = InstalledRuntimeService(
+        runner_factory=lambda policy, payload, data: FakeRuntimeRunner(
+            policy,
+            payload,
+            data,
+        )
+    ).launch(
+        request,
+        install_root=install_root,
+        data_root=tmp_path / "data",
+        receipt_root=tmp_path / "receipts",
+    )
+    payload = result.receipt.to_dict()
+    payload["installed_tree_sha256"] = "0" * 64
+
+    with pytest.raises(ValueError, match="digest"):
+        RuntimeLaunchReceipt.from_dict(payload)
