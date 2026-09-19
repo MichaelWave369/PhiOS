@@ -6,6 +6,7 @@ import pytest
 
 from phios.core.dynamic_field import (
     DynamicField,
+    DynamicFieldContractError,
     DynamicFieldLaw,
     FieldEvent,
     FieldVariableRule,
@@ -196,7 +197,7 @@ def test_tampered_dynamic_state_is_rejected_before_routing():
     )
     state = replace(field.initialize(), state_sha256="f" * 64)
 
-    with pytest.raises(Exception):
+    with pytest.raises(DynamicFieldContractError):
         router.route(
             state,
             [{"id": "A"}],
@@ -271,7 +272,7 @@ def test_negative_transition_susceptibility_is_rejected():
     with pytest.raises(FieldAwareRoutingContractError):
         router.route(
             field.initialize(),
-            [{"id": "A"},],
+            [{"id": "A"}],
             expand=lambda item: [{"id": "B"}] if _id(item) == "A" else [],
             goal=lambda item: _id(item) == "B",
         )
