@@ -4,659 +4,187 @@
 
 **Sovereign. Coherent. Local. Free.**
 
-PhiOS is an open-source operator shell and research computing layer built around a simple rule:
+PhiOS is an open-source operator shell, verification spine, and governed application platform built around one stubborn rule:
 
 > **Capability is not authority. Observation is not truth. Evidence should say exactly what it establishes.**
-
-The repository currently contains three complementary surfaces:
-
-- **PhiOS Shell / MCP** — operator-facing commands, local workflows, observatory surfaces, integrations, and machine-readable interfaces.
-- **PhiOS Spine** — the authority-aware execution core built around Mandala contracts, SOMA perception, Reality Gate verification, explicit grants, and receipts.
-- **PhiOS App Platform** — strict application manifests and a governed registry for turning external repositories into identifiable PhiOS apps without silently granting install or execution authority.
 
 PhiOS is under active development and should be treated as **alpha software**.
 
 ---
 
-## What PhiOS is trying to solve
+## PhiOS in 30 seconds
 
-Modern AI tooling is very good at producing output and surprisingly bad at remembering the difference between:
+PhiOS is trying to make computational systems useful without letting capability quietly become permission.
 
-- *can do* and *is allowed to do*;
-- *observed* and *inferred*;
-- *evidence* and *interpretation*;
-- *a successful check* and *a broad claim about system health*.
+It currently has three major surfaces:
 
-PhiOS makes those boundaries explicit.
+| Surface | Purpose | Current line |
+|---|---|---:|
+| **PhiOS Shell / MCP** | operator commands, local workflows, integrations, machine-readable capability surfaces | active |
+| **PhiOS Spine** | authority-aware observation, verification, evidence, and receipts | **v0.24** |
+| **PhiOS App Platform** | governed path from public repository to installed, launchable, updateable desktop app | **v0.40** |
+
+The common pattern is:
 
 ```text
-human / client / local agent
-          ↓
-   explicit capability request
-          ↓
-       authority check
-          ↓
-    bounded observation
-          ↓
-   typed evidence / receipt
-          ↓
-       narrow claim
+request
+  ↓
+explicit authority
+  ↓
+bounded action / observation
+  ↓
+typed evidence
+  ↓
+narrow receipt
 ```
 
-A green check is useful. A green check that explains what it actually proved is much more useful.
+A tool existing does not grant permission to use it. A successful check does not establish more than it actually observed.
+
+---
+
+## Why this exists
+
+Modern AI and automation stacks are very good at doing things and surprisingly bad at preserving distinctions like:
+
+```text
+can do
+≠ may do
+
+observed
+≠ inferred
+
+installed
+≠ runnable
+
+catalogued
+≠ authorized
+
+update approved
+≠ rollback approved
+
+receipt exists
+≠ system is globally healthy
+```
+
+PhiOS makes those differences explicit in code, plans, grants, receipts, and failure behavior.
 
 ---
 
 ## Core principles
 
-PhiOS development follows a few hard constraints:
-
-1. **Capability ≠ authority.** A tool existing does not grant permission to use it.
-2. **Evidence is scoped.** A local observation proves only the fact actually observed.
+1. **Capability ≠ authority.**
+2. **Evidence is scoped to what was actually observed.**
 3. **Interpretation is separate from native evidence.**
-4. **Failure should fail closed.** Missing authority, malformed contracts, and unavailable evidence do not get converted into success.
+4. **Missing authority and malformed evidence fail closed.**
 5. **Derived artifacts do not gain authority merely by being derived.**
-6. **No automatic promotion from a narrow fact to a broad conclusion.**
-7. **Local-first by default.** The current Spine network verifiers are deliberately loopback-bounded.
-8. **Receipts matter.** Important operations should be inspectable after execution.
+6. **Narrow facts are not promoted into broad conclusions.**
+7. **Local-first is the default.**
+8. **Important operations leave inspectable receipts.**
 
 These are engineering constraints, not branding decoration.
 
 ---
 
-## Architecture
+## What works today
 
-### Operator surfaces
+### PhiOS Spine v0.24
 
-```text
-phi
-├─ interactive/operator shell
-├─ local workflows
-├─ observatory + archive surfaces
-└─ optional PhiKernel integration
+The current Spine can perform bounded local observations and evaluate explicit contracts across:
 
-phi-mcp
-└─ MCP resources, tools, prompts, and local capability surfaces
+- local files and screen regions;
+- local interfaces, TCP listeners, and loopback HTTP;
+- JSON type, structural, scalar, and mixed predicates;
+- repeated observations;
+- cadence and temporal-envelope constraints;
+- numeric transition predicates across adjacent observations.
 
-phi-spine
-└─ authority-aware execution + verification runtime
-```
+A Spine result is intentionally narrow.
 
-### PhiOS Spine
-
-```text
-request
-  ↓
-PhiOS Core
-  ↓
-Mandala contract + authority gate
-  ↓
-SOMA perception / bounded acquisition
-  ↓
-Reality Gate verification
-  ↓
-content-addressed evidence
-  ↓
-typed receipts
-```
-
-The Spine is intentionally conservative. It tries very hard not to turn:
+For example:
 
 ```text
 "port 11434 is listening"
 ```
 
-into:
+does **not** automatically become:
 
 ```text
 "Ollama is healthy"
 ```
 
-because computers have been exploiting that kind of optimism for decades.
+because computers have benefited from that kind of optimism for long enough.
 
----
-
-## Current Spine verification ladder
-
-The current merged Spine line is **v0.24**.
-
-| Version | Capability |
-|---|---|
-| v0.10 | source-content verification bridge |
-| v0.11 | local network-interface observation |
-| v0.12 | local TCP-listener observation |
-| v0.13 | local HTTP response contract |
-| v0.14 | live bounded loopback HTTP adapter |
-| v0.15 | JSON pointer + type verification |
-| v0.16 | bounded structural JSON predicates |
-| v0.17 | same-snapshot multi-clause JSON contracts |
-| v0.18 | bounded Boolean and numeric scalar predicates |
-| v0.19 | same-snapshot mixed type / structural / scalar contracts |
-| v0.20 | bounded repeated mixed observations across 2-5 discrete samples |
-| v0.21 | explicit minimum monotonic spacing between repeated observations |
-| v0.22 | bounded monotonic cadence window between repeated observations |
-| v0.23 | bounded first-to-last temporal envelope across cadenced observations |
-| v0.24 | bounded numeric transition predicates across adjacent observations |
-
-The v0.17 same-snapshot contract can evaluate **1–8 bounded clauses from one HTTP observation**:
-
-```text
-one GET
-  ↓
-one captured body
-  ↓
-one digest + timestamp
-  ↓
-one strict JSON parse
-  ↓
-multiple bounded clauses
-  ↓
-one evidence record
-```
-
-Example clauses:
-
-```json
-{"pointer":"/models","type":"array"}
-{"pointer":"/models","predicate":"array_length_gte","bound":1}
-{"pointer":"/models/0/name","type":"string"}
-{"pointer":"/models/0/name","predicate":"string_non_empty"}
-```
-
-All clauses describe the **same captured response**, not several requests made at different moments.
-
-See:
+Current Spine docs:
 
 - [Spine v0.24 overview](README_SPINE_V0.24.md)
 - [Spine v0.24 numeric-transition contract](docs/PHIOS_SPINE_V0.24_NUMERIC_TRANSITION_CONTRACT.md)
-- [Spine v0.23 temporal-envelope contract](docs/PHIOS_SPINE_V0.23_TEMPORAL_ENVELOPE.md)
-- [Spine v0.22 cadence-window contract](docs/PHIOS_SPINE_V0.22_CADENCED_MIXED_OBSERVATION.md)
-- [Spine v0.21 timed observation contract](docs/PHIOS_SPINE_V0.21_TIMED_MIXED_OBSERVATION.md)
-- [Spine v0.20 repeated observation contract](docs/PHIOS_SPINE_V0.20_REPEATED_MIXED_OBSERVATION.md)
-- [Spine v0.19 mixed contract](docs/PHIOS_SPINE_V0.19_JSON_MIXED_CONTRACT.md)
-- [Spine v0.18 scalar predicate contract](docs/PHIOS_SPINE_V0.18_JSON_SCALAR_PREDICATES.md)
-- [Spine v0.17 same-snapshot contract](docs/PHIOS_SPINE_V0.17_JSON_MULTI_CONTRACT.md)
+- [Complete Spine version trail](docs/README.md#spine-version-trail)
 
-Older Spine documents remain in the repository as the versioned design trail.
+### App Platform v0.40
 
----
-
-## App Platform Alpha
-
-The current App Platform line is **v0.40**. v0.25 introduced strict app manifests and a deterministic registry; v0.26 added bounded public GitHub intake; v0.27 added exact-commit source acquisition; v0.28 added deterministic non-executing build plans; v0.29 added explicitly approved build execution; v0.30 added Linux Bubblewrap containment; v0.31 added SRI-verified dependency staging; v0.32 added verified offline npm builds; v0.33 added artifact-only installation; v0.34 added direct Node/Python runtime launch; v0.35 added deterministic static-web serving; v0.36 added separately approved coordinated headless Chromium sessions; v0.37 added exact Wayland-visible browser sessions; v0.38 added persistent, revocable XDG desktop launch grants; v0.39 added deterministic governed-app catalog discovery and launcher integration; v0.40 adds explicit side-by-side desktop updates and separately approved rollback with retained-version evidence.
-
-A manifest records:
-
-- stable app identity;
-- source repository;
-- declared license expression and redistribution state;
-- runtime kind and bounded entrypoint;
-- requested permissions;
-- canonical SHA-256 manifest identity.
-
-Registration is deliberately non-executive:
+The App Platform now covers a governed lifecycle from public source through desktop update and rollback:
 
 ```text
-registered app
-    ≠ installed app
-    ≠ trusted app
-    ≠ authorized app
-    ≠ running app
+public repository
+    ↓
+bounded intake
+    ↓
+exact-commit acquisition
+    ↓
+reviewed build plan
+    ↓
+sandboxed build
+    ↓
+verified dependency staging
+    ↓
+offline npm build
+    ↓
+artifact-only install
+    ↓
+runtime / static-web / browser plans
+    ↓
+exact Wayland-visible session
+    ↓
+persistent desktop grant
+    ↓
+deterministic app catalog
+    ↓
+side-by-side update
+    ↓
+separately approved rollback
 ```
 
-A public repository is also **not** treated as automatically redistributable. License and
-redistribution state remain explicit metadata until later intake and operator decisions establish
-more.
+Important boundaries remain explicit:
 
-See:
+```text
+public repo
+≠ redistributable
+
+registered
+≠ installed
+
+installed
+≠ runnable
+
+desktop entry exists
+≠ launch authority
+
+catalog ready
+≠ automatic execution
+
+update authority
+≠ rollback authority
+```
+
+Current App Platform docs:
 
 - [App Platform v0.40 overview](README_APP_PLATFORM_V0.40.md)
-- [App Platform v0.40 update / rollback contract](docs/PHIOS_APP_PLATFORM_V0.40_UPDATE_ROLLBACK.md)
-- [App Platform v0.39 overview](README_APP_PLATFORM_V0.39.md)
-- [App Platform v0.39 desktop app catalog contract](docs/PHIOS_APP_PLATFORM_V0.39_DESKTOP_CATALOG.md)
-- [App Platform v0.38 overview](README_APP_PLATFORM_V0.38.md)
-- [App Platform v0.38 desktop app launch contract](docs/PHIOS_APP_PLATFORM_V0.38_DESKTOP_LAUNCH.md)
-- [App Platform v0.37 overview](README_APP_PLATFORM_V0.37.md)
-- [App Platform v0.37 visible browser contract](docs/PHIOS_APP_PLATFORM_V0.37_VISIBLE_BROWSER.md)
-- [App Platform v0.36 overview](README_APP_PLATFORM_V0.36.md)
-- [App Platform v0.36 browser session contract](docs/PHIOS_APP_PLATFORM_V0.36_BROWSER_SESSION.md)
-- [App Platform v0.35 overview](README_APP_PLATFORM_V0.35.md)
-- [App Platform v0.35 static-web runtime adapter contract](docs/PHIOS_APP_PLATFORM_V0.35_STATIC_WEB_ADAPTER.md)
-- [App Platform v0.34 overview](README_APP_PLATFORM_V0.34.md)
-- [App Platform v0.34 installed runtime contract](docs/PHIOS_APP_PLATFORM_V0.34_INSTALLED_RUNTIME.md)
-- [App Platform v0.33 overview](README_APP_PLATFORM_V0.33.md)
-- [App Platform v0.33 artifact install contract](docs/PHIOS_APP_PLATFORM_V0.33_ARTIFACT_INSTALL.md)
-- [App Platform v0.32 overview](README_APP_PLATFORM_V0.32.md)
-- [App Platform v0.32 npm offline adapter contract](docs/PHIOS_APP_PLATFORM_V0.32_NPM_OFFLINE_ADAPTER.md)
-- [App Platform v0.31 overview](README_APP_PLATFORM_V0.31.md)
-- [App Platform v0.31 dependency broker contract](docs/PHIOS_APP_PLATFORM_V0.31_DEPENDENCY_BROKER.md)
-- [App Platform v0.30 overview](README_APP_PLATFORM_V0.30.md)
-- [App Platform v0.30 Linux build sandbox contract](docs/PHIOS_APP_PLATFORM_V0.30_BUILD_SANDBOX.md)
-- [App Platform v0.29 overview](README_APP_PLATFORM_V0.29.md)
-- [App Platform v0.29 build execution contract](docs/PHIOS_APP_PLATFORM_V0.29_BUILD_EXECUTION.md)
-- [App Platform v0.28 overview](README_APP_PLATFORM_V0.28.md)
-- [App Platform v0.28 build plan contract](docs/PHIOS_APP_PLATFORM_V0.28_BUILD_PLAN.md)
-- [App Platform v0.27 overview](README_APP_PLATFORM_V0.27.md)
-- [App Platform v0.27 governed source acquisition contract](docs/PHIOS_APP_PLATFORM_V0.27_SOURCE_ACQUISITION.md)
-- [App Platform v0.26 overview](README_APP_PLATFORM_V0.26.md)
-- [App Platform v0.26 bounded GitHub intake contract](docs/PHIOS_APP_PLATFORM_V0.26_GITHUB_INTAKE.md)
-- [App Platform v0.25 overview](README_APP_PLATFORM_V0.25.md)
-- [App Platform v0.25 manifest + registry contract](docs/PHIOS_APP_PLATFORM_V0.25_MANIFEST_REGISTRY.md)
-
-Inspect one public repository and save the bounded intake result:
-
-```bash
-phi-app inspect-github https://github.com/OWNER/REPO > intake.json
-```
-
-Review the exact values that acquisition approval must bind:
-
-```bash
-phi-app review-intake intake.json
-```
-
-Then acquire only the exact reviewed revision and manifest:
-
-```bash
-phi-app acquire-github intake.json \
-  --approve-commit-sha EXACT_COMMIT_SHA \
-  --approve-manifest-sha EXACT_MANIFEST_SHA256
-```
-
-Source acquisition does not install dependencies, build, register, trust, or launch an app.
-
-Create and review a non-executing build plan:
-
-```bash
-phi-app plan-build intake.json acquisition-receipt.json > build-plan.json
-phi-app review-build-plan build-plan.json
-```
-
-v0.28 records proposed argv steps, required tools, requested future build permissions, expected outputs where deterministically known, and a canonical plan SHA-256.
-
-Execute only an explicitly approved plan:
-
-```bash
-phi-app execute-build build-plan.json acquisition-receipt.json \
-  --approve-plan-sha EXACT_PLAN_SHA256 \
-  --approve-source-sha EXACT_SOURCE_SNAPSHOT_SHA256 \
-  --allow-build-permission build.network.dependencies \
-  --allow-build-permission build.process.execute \
-  --allow-build-permission build.workspace.write
-```
-
-v0.29 recomputes the source snapshot before any process launch, runs reviewed argv with `shell=False` inside a separate working copy, records required tool identities, hashes expected artifacts, and writes a build execution receipt.
-
-Execute the same approved plan through the Linux sandbox:
-
-```bash
-phi-app execute-sandboxed-build build-plan.json acquisition-receipt.json \
-  --approve-plan-sha EXACT_PLAN_SHA256 \
-  --approve-source-sha EXACT_SOURCE_SNAPSHOT_SHA256 \
-  --allow-build-permission build.network.dependencies \
-  --allow-build-permission build.process.execute \
-  --allow-build-permission build.workspace.write
-```
-
-v0.30 requires Linux, Bubblewrap, and `prlimit`. It preflights namespace creation, clears the build environment, keeps the host user home unmounted, binds the execution workspace read/write, exposes selected system roots read-only, and defaults to a separate network namespace with no host network.
-
-Dependency-fetch builds can explicitly request `--sandbox-network inherit`, but receipts mark that mode as host-network inheritance, **not** as network isolation or allowlisting.
-
-Plan, review, and stage exact npm dependency artifacts outside the build sandbox:
-
-```bash
-phi-app plan-dependencies build-plan.json acquisition-receipt.json > dependency-plan.json
-phi-app review-dependency-plan dependency-plan.json
-phi-app stage-dependencies dependency-plan.json \
-  --approve-dependency-plan-sha EXACT_DEPENDENCY_PLAN_SHA256 \
-  --allow-host registry.npmjs.org
-```
-
-v0.31 currently supports npm lockfileVersion 2/3. It requires exact HTTPS `resolved` URLs and valid lockfile SRI, requires the approved host set to exactly match the reviewed plan, verifies downloaded bytes before storage, and gives each staged artifact a PhiOS SHA-256 CAS identity.
-
-Turn the v0.31 dependency receipt into an isolated npm cache, derive a new offline plan, review it, and execute it with the v0.30 network namespace denied:
-
-```bash
-phi-app prepare-npm-cache dependency-receipt.json \
-  --approve-dependency-receipt-sha EXACT_DEPENDENCY_RECEIPT_SHA256 \
-  > npm-cache-receipt.json
-
-phi-app plan-offline-npm-build build-plan.json npm-cache-receipt.json \
-  > npm-offline-plan.json
-
-phi-app review-offline-npm-build npm-offline-plan.json
-
-phi-app execute-offline-npm-build \
-  npm-offline-plan.json \
-  acquisition-receipt.json \
-  npm-cache-receipt.json \
-  --approve-offline-plan-sha EXACT_OFFLINE_PLAN_SHA256
-```
-
-v0.32 asks npm itself to populate and verify an isolated cache from the already-SRI-verified v0.31 CAS blobs. It then derives a new plan whose dependency step is `npm ci --offline --cache /phios/npm-cache`, removes `build.network.dependencies`, and requires approval of that new plan digest before execution.
-
-The receipted npm cache remains immutable evidence. A fresh copy is mounted read/write for the actual build, while Bubblewrap runs with `network_mode=deny`.
-
-Package and install only the successful receipted artifact set:
-
-```bash
-phi-app plan-package \
-  manifest.json \
-  registry.json \
-  build-execution-receipt.json \
-  offline-build-receipt.json \
-  > package-plan.json
-
-phi-app review-package package-plan.json
-
-phi-app install-package \
-  package-plan.json \
-  registry.json \
-  build-execution-receipt.json \
-  offline-build-receipt.json \
-  --approve-package-plan-sha EXACT_PACKAGE_PLAN_SHA256
-```
-
-v0.33 copies only the exact build artifacts recorded in the successful build receipt, re-verifies their hashes immediately before and during copy, stages the payload under the configured install root, checks the complete staged payload against the build artifact-set digest, and atomically promotes it to the final install path.
-
-The install receipt still records `launch_authority=false`. Installed does not mean runnable.
-
-An unchanged install can be removed only with explicit approval of its exact install receipt:
-
-```bash
-phi-app uninstall-package install-receipt.json \
-  --approve-install-receipt-sha EXACT_INSTALL_RECEIPT_SHA256
-```
-
-Create a runtime plan only from an unchanged v0.33 install:
-
-```bash
-phi-app plan-runtime install-receipt.json > runtime-plan.json
-phi-app review-runtime runtime-plan.json
-```
-
-v0.34 currently makes only direct installed Node `.js/.mjs/.cjs` targets and Python `.py` targets executable. It deliberately does not infer a built entrypoint from `package.json`, launch native binaries without preserved executable-mode evidence, invent a static-web browser/server, or treat a `local_http` URL as an executable.
-
-Launch requires approval of the exact runtime-plan digest and the exact permission set:
-
-```bash
-phi-app launch-runtime \
-  runtime-plan.json \
-  install-receipt.json \
-  --approve-runtime-plan-sha EXACT_RUNTIME_PLAN_SHA256
-```
-
-The installed payload is mounted read-only at `/app`. Network is denied by default. Host-network inheritance requires the reviewed `runtime.network.inherit` permission, and persistent writable app data at `/phios/app-data` requires `runtime.data.persist`.
-
-The production runtime performs a real Bubblewrap preflight before execution and emits a strict runtime receipt after process exit or timeout. Portable CI verifies the command/control contract with fake runners rather than claiming kernel isolation that the hosted CI environment did not exercise.
-
-Map recognized receipted web output into a separately reviewed static-web serving plan:
-
-```bash
-phi-app plan-static-web install-receipt.json \
-  --loopback-port 8787 \
-  --serve-seconds 300 \
-  > static-web-plan.json
-
-phi-app review-static-web static-web-plan.json
-
-phi-app serve-static-web \
-  static-web-plan.json \
-  install-receipt.json \
-  --approve-static-web-plan-sha EXACT_STATIC_WEB_PLAN_SHA256
-```
-
-v0.35 currently recognizes only receipted `dist/index.html` and `build/index.html` roots. Multiple recognized roots fail closed as ambiguous. The selected static subtree is rehashed before serving and mounted read-only at `/app`.
-
-The trusted Python static server binds exactly to the reviewed `127.0.0.1:PORT` and runs for a bounded foreground serve window. Its Bubblewrap sandbox inherits host networking so the host browser can reach loopback; the receipt records that as host-network inheritance, not as a network allowlist.
-
-v0.35 deliberately does **not** open a browser. Browser launch authority and execution of application JavaScript remain separate.
-
-Create a v0.36 browser-session plan from the reviewed static-web plan:
-
-```bash
-phi-app plan-browser-session static-web-plan.json \
-  --browser-tool chromium \
-  --session-seconds 60 \
-  --readiness-timeout-ms 3000 \
-  > browser-session-plan.json
-
-phi-app review-browser-session browser-session-plan.json
-```
-
-Run only after approving both authority transitions and the exact browser permission set:
-
-```bash
-phi-app run-browser-session \
-  browser-session-plan.json \
-  static-web-plan.json \
-  install-receipt.json \
-  --approve-browser-session-plan-sha EXACT_BROWSER_PLAN_SHA256 \
-  --approve-static-web-plan-sha EXACT_STATIC_WEB_PLAN_SHA256 \
-  --allow-browser-permission browser.network.inherit \
-  --allow-browser-permission browser.page.execute
-```
-
-v0.36 starts the exact reviewed static server itself, verifies the reviewed loopback port was initially free, waits for HTTP 200 readiness, executes the page in a second Bubblewrap-isolated headless Chromium session, hashes the resulting browser output, terminates the coordinated server, and emits a strict browser-session receipt.
-
-The browser uses an ephemeral private profile and does not receive the host user's home, persistent browser profile, Wayland socket, or X11 socket. Host networking is inherited broadly and is recorded as such; v0.36 does not claim a browser egress allowlist.
-
-Promote the reviewed v0.36 browser plan into a separately reviewed visible Wayland session:
-
-```bash
-phi-app plan-visible-browser browser-session-plan.json \
-  --wayland-socket /run/user/1000/wayland-0 \
-  > visible-browser-plan.json
-
-phi-app review-visible-browser visible-browser-plan.json
-
-phi-app run-visible-browser \
-  visible-browser-plan.json \
-  browser-session-plan.json \
-  static-web-plan.json \
-  install-receipt.json \
-  --approve-visible-browser-plan-sha EXACT_VISIBLE_PLAN_SHA256 \
-  --approve-browser-session-plan-sha EXACT_BROWSER_PLAN_SHA256 \
-  --approve-static-web-plan-sha EXACT_STATIC_PLAN_SHA256 \
-  --allow-browser-permission browser.display.wayland \
-  --allow-browser-permission browser.network.inherit \
-  --allow-browser-permission browser.page.execute
-```
-
-v0.37 binds one exact current-user Wayland Unix socket by resolved path, device, inode, nanosecond change timestamp, UID, and GID. Only that socket is mounted into the Chromium sandbox. X11, host-home access, persistent browser state, and direct GPU/device authority remain denied.
-
-Turn the stable v0.35/v0.36 application ancestry into a persistent, revocable desktop launcher:
-
-```bash
-phi-app plan-desktop-app \
-  browser-session-plan.json \
-  static-web-plan.json \
-  install-receipt.json \
-  > desktop-app-plan.json
-
-phi-app review-desktop-app desktop-app-plan.json
-
-phi-app install-desktop-app \
-  desktop-app-plan.json \
-  browser-session-plan.json \
-  static-web-plan.json \
-  install-receipt.json \
-  --approve-desktop-app-plan-sha EXACT_DESKTOP_PLAN_SHA256 \
-  --allow-desktop-permission browser.display.wayland \
-  --allow-desktop-permission browser.network.inherit \
-  --allow-desktop-permission browser.page.execute \
-  --allow-desktop-permission desktop.launch.persist
-```
-
-v0.38 installs a standard XDG `.desktop` entry plus a persistent launch grant. The launcher file itself is not authority: its exact contents are SHA-256 bound into the grant, and every click revalidates the grant, bundle, installed app, v0.35 static plan, and v0.36 browser plan.
-
-At click time, PhiOS resolves the current user's `XDG_RUNTIME_DIR` and basename-only `WAYLAND_DISPLAY`, validates the current-user Unix socket, and mints a fresh exact v0.37 plan for that socket. A normal compositor restart can therefore change the per-session v0.37 plan without weakening or silently expanding the durable v0.38 grant.
-
-Normal desktop launch uses the XDG entry's bound command:
-
-```bash
-phi-app launch-desktop-bundle /ABSOLUTE/BUNDLE/PATH
-```
-
-Persistent launch authority can be retired only with exact grant approval:
-
-```bash
-phi-app revoke-desktop-app /ABSOLUTE/BUNDLE/PATH \
-  --approve-desktop-launch-grant-sha EXACT_GRANT_SHA256
-```
-
-Snapshot the current governed desktop app library without granting action authority:
-
-```bash
-phi-app catalog-desktop-apps > desktop-catalog.json
-```
-
-Review the deterministic catalog snapshot:
-
-```bash
-phi-app review-desktop-catalog desktop-catalog.json
-```
-
-v0.39 performs a bounded two-level scan of the v0.38 desktop bundle root, validates each persisted desktop plan/browser plan/static plan/install receipt/grant chain, verifies the bound XDG desktop entry, and recomputes the current installed ancestry before marking an item `ready`.
-
-Malformed or stale bundles remain visible as `blocked` catalog items with deterministic reason codes instead of aborting the whole catalog. Catalog observation does not resolve Wayland, launch an app, revoke a grant, or create new authority.
-
-PhiLauncher now appends only `ready` governed apps to its existing built-in Phi commands. A governed app selection maps directly to the exact argv vector:
-
-```text
-phi-app
-launch-desktop-bundle
-EXACT_BUNDLE_PATH
-```
-
-The launcher no longer reconstructs commands with `selection.split()`, so display labels remain presentation-only and bundle paths containing spaces remain one argument.
-
-Plan a governed transition to an already installed candidate version:
-
-```bash
-phi-app plan-desktop-update \
-  ACTIVE_BUNDLE_PATH \
-  candidate-browser-plan.json \
-  candidate-static-plan.json \
-  candidate-install-receipt.json \
-  > desktop-update-plan.json
-
-phi-app review-desktop-update desktop-update-plan.json
-```
-
-Execute only after exact approval of the transition and active/candidate identities:
-
-```bash
-phi-app execute-desktop-update \
-  desktop-update-plan.json \
-  candidate-browser-plan.json \
-  candidate-static-plan.json \
-  candidate-install-receipt.json \
-  --approve-update-plan-sha EXACT_UPDATE_PLAN_SHA256 \
-  --approve-active-grant-sha EXACT_ACTIVE_GRANT_SHA256 \
-  --approve-candidate-desktop-plan-sha EXACT_CANDIDATE_DESKTOP_PLAN_SHA256 \
-  --allow-update-permission desktop.update.switch
-```
-
-v0.40 prepares the candidate desktop bundle beside the active one, atomically replaces the governed XDG desktop-entry bytes, retains the old bundle unchanged, writes deterministic retention evidence, and persists an update receipt. Update authority does not imply rollback authority.
-
-Rollback is a separate reviewed transition:
-
-```bash
-phi-app plan-desktop-rollback desktop-update-receipt.json > desktop-rollback-plan.json
-phi-app review-desktop-rollback desktop-rollback-plan.json
-
-phi-app execute-desktop-rollback \
-  desktop-rollback-plan.json \
-  desktop-update-receipt.json \
-  --approve-rollback-plan-sha EXACT_ROLLBACK_PLAN_SHA256 \
-  --approve-active-grant-sha EXACT_CURRENT_GRANT_SHA256 \
-  --approve-target-grant-sha EXACT_RETAINED_GRANT_SHA256 \
-  --allow-rollback-permission desktop.rollback.switch
-```
-
-Catalog evidence now distinguishes an intentionally retained inactive version with `retained_inactive`. After update the candidate is `ready` and the prior version is retained/inactive; after rollback those states reverse. PhiLauncher therefore continues to expose only the currently active ready version.
-
-v0.40 does not rank version strings or enforce SemVer. Version ordering remains policy, not transition authority.
-
-The next planned rung is **v0.41 Retained Version Cleanup / Lifecycle Contract**: prove a retained version is inactive and no longer needed for rollback, explicitly approve cleanup, remove retained desktop/install artifacts safely, and emit cleanup receipts.
-
-v0.18 adds a stronger semantic boundary for scalar values. Boolean and numeric values may be inspected only with the separate `reality.local_http.semantic.value.read` grant. The observed scalar is used transiently for comparison and is not persisted in semantic evidence.
-
-v0.19 composes type, structural, and scalar clauses against one captured response. Value-read authority is required only when the mixed contract actually contains a scalar clause.
-
-v0.20 can evaluate that same mixed contract across 2-5 discrete observations. Repetition requires the separate `reality.local_http.repeat.read` grant. No minimum sampling interval is enforced, so repeated support does not establish continuous health between observations.
-
-v0.21 adds an explicit 0.05-10 second minimum interval between provider invocation starts. Timing requires `reality.local_http.timing.wait` and uses a monotonic clock; wall-clock capture timestamps do not establish spacing.
-
-v0.22 adds an inclusive minimum/maximum cadence window between provider invocation starts. Cadence requires the separate `reality.local_http.timing.cadence` grant. Semantic success cannot override a missed cadence bound.
-
-v0.23 adds an explicit first-to-last provider-start span window above cadence. Temporal-envelope control requires `reality.local_http.timing.envelope`, rejects impossible cadence/span combinations before I/O, and schedules each next start to preserve future feasibility when possible.
-
-v0.24 adds numeric transition predicates across adjacent observations. Cross-snapshot comparison requires `reality.local_http.semantic.transition.read` in addition to scalar value authority. Observed numbers remain transient; evidence persists only types, derived ordering, and transition outcomes. No timing semantics are implied.
-
-
-
-
-
-
-
+- [v0.40 update / rollback contract](docs/PHIOS_APP_PLATFORM_V0.40_UPDATE_ROLLBACK.md)
+- [Complete App Platform version trail](docs/README.md#app-platform-version-trail)
 
 ---
 
-## SOMA perception
-
-SOMA is the Spine's bounded perception layer.
-
-Current work includes:
-
-- native text evidence;
-- bounded local file acquisition;
-- selected screen-region capture;
-- acuity recovery;
-- multishot native-frame selection;
-- deterministic sharpening derivatives;
-- OCR interpretation with explicit separation from native image evidence.
-
-The rule remains:
-
-```text
-enhancement does not create missing information
-interpretation does not become native evidence
-perception does not grant action authority
-```
-
----
-
-## Reality Gate
-
-Reality Gate evaluates explicit claims against bounded evidence and returns narrow verdicts such as:
-
-- `SUPPORTED`
-- `CONTRADICTED`
-- `UNRESOLVED`
-- `BLOCKED`
-
-Those verdicts are intentionally different.
-
-For example:
-
-```text
-transport failed
-    → UNRESOLVED
-
-HTTP status differed from the explicit contract
-    → CONTRADICTED
-
-required authority was not granted
-    → BLOCKED
-```
-
-PhiOS does not collapse all three into “false.”
-
----
-
-## Install
+## Quick start
 
 ### Requirements
 
@@ -664,63 +192,49 @@ PhiOS does not collapse all three into “false.”
 - `psutil>=5.9.0`
 - `mcp>=1.26,<2`
 
+Some execution paths are Linux-specific. Bubblewrap sandboxing, Linux namespace enforcement, and Wayland desktop launch require the corresponding Linux environment and tools.
+
 Clone and install:
 
 ```bash
 git clone https://github.com/MichaelWave369/PhiOS.git
 cd PhiOS
-
 python -m pip install -e .
 ```
 
-Development environment:
+Development install:
 
 ```bash
 python -m pip install -e ".[dev]"
 ```
 
-Optional screen / OCR support:
+Optional perception extras:
 
 ```bash
 python -m pip install -e ".[screen]"
 python -m pip install -e ".[ocr]"
 ```
 
----
-
-## Quick start
-
-Inspect the shell and Spine surfaces:
+Inspect the main surfaces:
 
 ```bash
 phi --help
 phi-spine --help
 phi-app --help
+phi-mcp
 ```
 
-Check the Spine contract state:
+Check current Spine state:
 
 ```bash
 phi-spine status
 ```
 
-Run the MCP server:
-
-```bash
-phi-mcp
-```
-
-Run the interactive/operator shell:
-
-```bash
-phi
-```
-
 ---
 
-## Example: bounded local service contract
+## A small example
 
-The following verifies four facts from **one loopback HTTP response**:
+This verifies four facts from **one loopback HTTP response**:
 
 ```bash
 phi-spine \
@@ -740,53 +254,96 @@ phi-spine \
 
 A supported result establishes only those clauses for that captured response.
 
-It does **not** automatically establish:
-
-- model loadability;
-- successful inference;
-- database health;
-- authentication correctness;
-- remote reachability;
-- firewall reachability;
-- general application health.
+It does not automatically establish model loadability, successful inference, authentication correctness, firewall reachability, or general application health.
 
 That distinction is the point.
 
 ---
 
-## Optional PhiKernel integration
+## Architecture
 
-PhiOS also contains adapter paths for PhiKernel-backed runtime state.
+```text
+human / client / local agent
+          │
+          ▼
+   PhiOS Shell / MCP
+          │
+          ├──────────────► governed app workflows
+          │                    │
+          ▼                    ▼
+     PhiOS Spine          App Platform
+          │                    │
+          ▼                    ▼
+ authority + contracts    plans + grants
+          │                    │
+          ▼                    ▼
+ bounded observation      sandboxed actions
+          │                    │
+          └────────┬───────────┘
+                   ▼
+             typed receipts
+```
 
-That integration is optional and default-off. Where enabled, PhiKernel remains the source of truth for the runtime data it provides; PhiOS does not silently promote shadow/compare results into authoritative state.
+### Repository map
 
-Useful migration material:
+```text
+phios/
+├─ core/       core services
+├─ shell/      operator shell
+├─ mcp/        MCP interface
+├─ spine/      authority-aware verification runtime
+├─ apps/       governed app lifecycle
+├─ mandala/    typed contracts and receipts
+├─ soma/       bounded perception / evidence
+└─ reality/    Reality Gate verification
+
+docs/          current docs, versioned contracts, history, migration material
+tests/         regression and contract tests
+scripts/       development and policy helpers
+```
+
+---
+
+## SOMA and Reality Gate
+
+**SOMA** is the bounded perception layer. Current work includes local file acquisition, screen-region capture, acuity recovery, multishot selection, deterministic sharpening derivatives, and OCR interpretation.
+
+Its rule is:
+
+```text
+enhancement does not create missing information
+interpretation does not become native evidence
+perception does not grant action authority
+```
+
+**Reality Gate** evaluates explicit claims against bounded evidence and returns narrow verdicts such as:
+
+- `SUPPORTED`
+- `CONTRADICTED`
+- `UNRESOLVED`
+- `BLOCKED`
+
+Transport failure, contradictory evidence, and missing authority are deliberately different outcomes.
+
+---
+
+## MCP and optional integrations
+
+`phi-mcp` exposes local resources, tools, prompts, observatory surfaces, and capability-gated actions.
+
+The MCP layer is an interface over PhiOS capabilities. It does not bypass the underlying authority model.
+
+PhiOS also contains optional PhiKernel adapter paths. Where enabled, PhiKernel remains the source of truth for the runtime state it provides.
+
+See:
 
 - [PhiKernel migration runbook](docs/kernel-migration-v50.md)
 
 ---
 
-## MCP interface
-
-`phi-mcp` exposes local resources, tools, prompts, browsing surfaces, observatory summaries, and capability-gated actions.
-
-The MCP layer is an interface over PhiOS capabilities. It does not bypass the underlying authority model.
-
-Because the MCP surface is broad and evolving, use discovery rather than treating this README as an exhaustive registry.
-
-Start with:
-
-```bash
-phi-mcp
-```
-
-and inspect the available client discovery surfaces from your MCP client.
-
----
-
 ## Development checks
 
-Before merging changes:
+CI enforces the core development gates:
 
 ```bash
 ruff check phios/
@@ -795,27 +352,32 @@ pytest -q
 bash scripts/policy_no_telemetry_runtime.sh
 ```
 
-Current CI enforces the same core checks.
+New contracts should normally include:
+
+- strict parsing;
+- deterministic hashing where applicable;
+- explicit authority fields;
+- tamper tests;
+- failure-path tests;
+- receipts for meaningful state transitions.
 
 ---
 
-## Repository map
+## Documentation
 
-```text
-phios/
-├─ core/       legacy/current core services
-├─ shell/      operator shell
-├─ mcp/        MCP interface
-├─ spine/      authority-aware Spine runtime
-├─ apps/       manifests, intake, dependency broker, offline builds, install/runtime/GUI/desktop/catalog/lifecycle adapters, registry
-├─ mandala/    typed contracts and receipts
-├─ soma/       bounded perception/evidence
-└─ reality/    Reality Gate verification
+Start here:
 
-docs/          design notes, versioned contracts, migration material
-tests/         regression and contract tests
-scripts/       development and policy helpers
-```
+- **[Documentation index](docs/README.md)**
+- [Living specification](docs/PHIOS_LIVING_SPEC.md)
+- [Architecture blueprint](docs/BLUEPRINT.md)
+- [App Platform v0.40](README_APP_PLATFORM_V0.40.md)
+- [Spine v0.24](README_SPINE_V0.24.md)
+- [Contributing](CONTRIBUTING.md)
+- [Changelog](CHANGELOG.md)
+
+The older versioned documents are intentionally retained as the design and provenance trail.
+
+Some historical artifacts use earlier naming. See the [historical naming note](docs/README.md#historical-naming). Current work should not revive legacy branding merely because it still appears in provenance documents.
 
 ---
 
@@ -823,14 +385,15 @@ scripts/       development and policy helpers
 
 PhiOS has changed quickly.
 
-Some older documents and changelog entries preserve historical names, experimental concepts, and earlier architectural framing. They are retained as project history, not as the current source of truth.
+Older documents may preserve previous names, experimental concepts, or contracts that have since been superseded. They remain useful as history, but they are not the current source of truth.
 
-For current behavior, prefer:
+When sources disagree, prefer:
 
-1. the code on `main`;
+1. code on `main`;
 2. current tests;
-3. the latest versioned Spine contract docs;
-4. this README.
+3. latest versioned contract docs;
+4. this README;
+5. older historical material.
 
 ---
 
@@ -841,10 +404,11 @@ See [CONTRIBUTING.md](CONTRIBUTING.md).
 The short version:
 
 - keep capability separate from authority;
-- add tests for new contracts;
 - fail closed;
-- document new dependencies and license impact;
-- do not weaken provenance or evidence boundaries for convenience.
+- preserve provenance;
+- add tests for new contracts;
+- document dependencies and license impact;
+- do not broaden claims beyond the evidence.
 
 ---
 
@@ -861,12 +425,12 @@ See:
 
 ---
 
-## Project principles
+## Project direction
 
-PhiOS does not require an external manifesto to explain its direction.
+PhiOS does not need an external slogan to explain what it is trying to do.
 
-The principles are visible in the architecture:
+The architecture already says it:
 
 **Sovereign. Coherent. Local. Free.**
 
-Build tools that help people without quietly taking authority away from them.
+Build systems that help people without quietly taking authority away from them.
