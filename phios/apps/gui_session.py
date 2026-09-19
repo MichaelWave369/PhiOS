@@ -968,9 +968,17 @@ class GuiBrowserReceipt:
     server_terminated_by_session: bool
     server_exit_code: int
     server_duration_ms: int
+    server_stdout_byte_count: int
+    server_stdout_sha256: str
+    server_stderr_byte_count: int
+    server_stderr_sha256: str
     browser_exit_code: int
     browser_timed_out: bool
     browser_duration_ms: int
+    browser_stdout_byte_count: int
+    browser_stdout_sha256: str
+    browser_stderr_byte_count: int
+    browser_stderr_sha256: str
     status: GuiSessionStatus
     failure_reason: str | None
     page_execution_authority: bool
@@ -998,6 +1006,10 @@ class GuiBrowserReceipt:
             (self.install_receipt_sha256, "install_receipt_sha256"),
             (self.installed_tree_sha256, "installed_tree_sha256"),
             (self.static_root_sha256, "static_root_sha256"),
+            (self.server_stdout_sha256, "server_stdout_sha256"),
+            (self.server_stderr_sha256, "server_stderr_sha256"),
+            (self.browser_stdout_sha256, "browser_stdout_sha256"),
+            (self.browser_stderr_sha256, "browser_stderr_sha256"),
         ):
             _sha256(value, label)
         _validate_loopback_url(self.loopback_url)
@@ -1043,6 +1055,13 @@ class GuiBrowserReceipt:
             raise ValueError("v0.37 does not grant DBus authority")
         _int(self.server_duration_ms, "server_duration_ms", minimum=0, maximum=86_400_000)
         _int(self.browser_duration_ms, "browser_duration_ms", minimum=0, maximum=86_400_000)
+        for byte_count, label in (
+            (self.server_stdout_byte_count, "server_stdout_byte_count"),
+            (self.server_stderr_byte_count, "server_stderr_byte_count"),
+            (self.browser_stdout_byte_count, "browser_stdout_byte_count"),
+            (self.browser_stderr_byte_count, "browser_stderr_byte_count"),
+        ):
+            _int(byte_count, label, minimum=0, maximum=2**63 - 1)
         if not isinstance(self.server_exit_code, int) or isinstance(self.server_exit_code, bool):
             raise ValueError("server_exit_code must be an integer")
         if not isinstance(self.browser_exit_code, int) or isinstance(self.browser_exit_code, bool):
@@ -1083,6 +1102,238 @@ class GuiBrowserReceipt:
         result = self.body_dict()
         result["gui_browser_receipt_sha256"] = self.sha256()
         return result
+
+    @classmethod
+    def from_dict(cls, value: Any) -> GuiBrowserReceipt:
+        data = _mapping(value, "GUI browser receipt")
+        expected = {
+            "schema_version",
+            "receipt_id",
+            "timestamp_utc",
+            "app_id",
+            "app_version",
+            "gui_browser_plan_sha256",
+            "static_web_plan_sha256",
+            "install_receipt_sha256",
+            "installed_tree_sha256",
+            "static_root_sha256",
+            "loopback_url",
+            "approved_browser_permissions",
+            "browser_family",
+            "browser_tool",
+            "browser_mode",
+            "profile_mode",
+            "display_transport",
+            "wayland",
+            "browser_policy",
+            "server_backend_identity",
+            "server_tool_identity",
+            "browser_backend_identity",
+            "browser_tool_identity",
+            "server_controls",
+            "browser_controls",
+            "display",
+            "readiness",
+            "server_terminated_by_session",
+            "server_exit_code",
+            "server_duration_ms",
+            "server_stdout_byte_count",
+            "server_stdout_sha256",
+            "server_stderr_byte_count",
+            "server_stderr_sha256",
+            "browser_exit_code",
+            "browser_timed_out",
+            "browser_duration_ms",
+            "browser_stdout_byte_count",
+            "browser_stdout_sha256",
+            "browser_stderr_byte_count",
+            "browser_stderr_sha256",
+            "status",
+            "failure_reason",
+            "page_execution_authority",
+            "browser_network_inherited",
+            "display_authority",
+            "persistent_profile_authority",
+            "host_home_authority",
+            "gpu_device_authority",
+            "dbus_authority",
+            "gui_browser_receipt_sha256",
+        }
+        if set(data) != expected:
+            raise ValueError("GUI browser receipt contains missing or unknown fields")
+        permissions = data["approved_browser_permissions"]
+        if not isinstance(permissions, list):
+            raise ValueError("approved_browser_permissions must be an array")
+
+        def backend_identity(raw: Any, label: str) -> SandboxBackendIdentity:
+            item = _mapping(raw, label)
+            expected_fields = {
+                "backend",
+                "executable_path",
+                "version",
+                "version_output_sha256",
+                "platform_system",
+                "platform_machine",
+            }
+            if set(item) != expected_fields:
+                raise ValueError(f"{label} contains missing or unknown fields")
+            return SandboxBackendIdentity(
+                backend=_string(item["backend"], f"{label} backend", maximum=64),
+                executable_path=_string(
+                    item["executable_path"],
+                    f"{label} executable_path",
+                    maximum=4096,
+                ),
+                version=_string(item["version"], f"{label} version", maximum=512),
+                version_output_sha256=_sha256(
+                    item["version_output_sha256"],
+                    f"{label} version_output_sha256",
+                ),
+                platform_system=_string(
+                    item["platform_system"],
+                    f"{label} platform_system",
+                    maximum=128,
+                ),
+                platform_machine=_string(
+                    item["platform_machine"],
+                    f"{label} platform_machine",
+                    maximum=128,
+                ),
+            )
+
+        def tool_identity(raw: Any, label: str) -> ToolIdentity:
+            item = _mapping(raw, label)
+            expected_fields = {
+                "logical_tool",
+                "executable_path",
+                "version",
+                "version_output_sha256",
+            }
+            if set(item) != expected_fields:
+                raise ValueError(f"{label} contains missing or unknown fields")
+            return ToolIdentity(
+                logical_tool=_string(
+                    item["logical_tool"],
+                    f"{label} logical_tool",
+                    maximum=64,
+                ),
+                executable_path=_string(
+                    item["executable_path"],
+                    f"{label} executable_path",
+                    maximum=4096,
+                ),
+                version=_string(item["version"], f"{label} version", maximum=512),
+                version_output_sha256=_sha256(
+                    item["version_output_sha256"],
+                    f"{label} version_output_sha256",
+                ),
+            )
+
+        failure_reason = data["failure_reason"]
+        if failure_reason is not None:
+            failure_reason = _string(failure_reason, "GUI failure_reason", maximum=512)
+
+        receipt = cls(
+            schema_version=data["schema_version"],
+            receipt_id=_string(data["receipt_id"], "GUI receipt_id", maximum=64),
+            timestamp_utc=_string(data["timestamp_utc"], "GUI timestamp", maximum=128),
+            app_id=_string(data["app_id"], "GUI app_id", maximum=64),
+            app_version=_string(data["app_version"], "GUI app_version", maximum=128),
+            gui_browser_plan_sha256=_sha256(
+                data["gui_browser_plan_sha256"],
+                "gui_browser_plan_sha256",
+            ),
+            static_web_plan_sha256=_sha256(
+                data["static_web_plan_sha256"],
+                "static_web_plan_sha256",
+            ),
+            install_receipt_sha256=_sha256(
+                data["install_receipt_sha256"],
+                "install_receipt_sha256",
+            ),
+            installed_tree_sha256=_sha256(
+                data["installed_tree_sha256"],
+                "installed_tree_sha256",
+            ),
+            static_root_sha256=_sha256(
+                data["static_root_sha256"],
+                "static_root_sha256",
+            ),
+            loopback_url=_validate_loopback_url(data["loopback_url"]),
+            approved_browser_permissions=tuple(
+                _string(item, "GUI approved browser permission", maximum=128)
+                for item in permissions
+            ),
+            browser_family=_string(data["browser_family"], "browser_family", maximum=64),
+            browser_tool=_string(data["browser_tool"], "browser_tool", maximum=64),
+            browser_mode=_string(data["browser_mode"], "browser_mode", maximum=64),
+            profile_mode=_string(data["profile_mode"], "profile_mode", maximum=64),
+            display_transport=_string(
+                data["display_transport"],
+                "display_transport",
+                maximum=64,
+            ),
+            wayland=WaylandSocketIdentity.from_dict(data["wayland"]),
+            browser_policy=RuntimeSandboxPolicy.from_dict(data["browser_policy"]),
+            server_backend_identity=backend_identity(
+                data["server_backend_identity"],
+                "server backend identity",
+            ),
+            server_tool_identity=tool_identity(
+                data["server_tool_identity"],
+                "server tool identity",
+            ),
+            browser_backend_identity=backend_identity(
+                data["browser_backend_identity"],
+                "browser backend identity",
+            ),
+            browser_tool_identity=tool_identity(
+                data["browser_tool_identity"],
+                "browser tool identity",
+            ),
+            server_controls=RuntimeControlEvidence.from_dict(data["server_controls"]),
+            browser_controls=RuntimeControlEvidence.from_dict(data["browser_controls"]),
+            display=GuiDisplayEvidence.from_dict(data["display"]),
+            readiness=BrowserReadinessEvidence.from_dict(data["readiness"]),
+            server_terminated_by_session=data["server_terminated_by_session"],
+            server_exit_code=data["server_exit_code"],
+            server_duration_ms=data["server_duration_ms"],
+            server_stdout_byte_count=data["server_stdout_byte_count"],
+            server_stdout_sha256=_sha256(
+                data["server_stdout_sha256"],
+                "server_stdout_sha256",
+            ),
+            server_stderr_byte_count=data["server_stderr_byte_count"],
+            server_stderr_sha256=_sha256(
+                data["server_stderr_sha256"],
+                "server_stderr_sha256",
+            ),
+            browser_exit_code=data["browser_exit_code"],
+            browser_timed_out=data["browser_timed_out"],
+            browser_duration_ms=data["browser_duration_ms"],
+            browser_stdout_byte_count=data["browser_stdout_byte_count"],
+            browser_stdout_sha256=_sha256(
+                data["browser_stdout_sha256"],
+                "browser_stdout_sha256",
+            ),
+            browser_stderr_byte_count=data["browser_stderr_byte_count"],
+            browser_stderr_sha256=_sha256(
+                data["browser_stderr_sha256"],
+                "browser_stderr_sha256",
+            ),
+            status=cast(GuiSessionStatus, data["status"]),
+            failure_reason=failure_reason,
+            page_execution_authority=data["page_execution_authority"],
+            browser_network_inherited=data["browser_network_inherited"],
+            display_authority=data["display_authority"],
+            persistent_profile_authority=data["persistent_profile_authority"],
+            host_home_authority=data["host_home_authority"],
+            gpu_device_authority=data["gpu_device_authority"],
+            dbus_authority=data["dbus_authority"],
+        )
+        if data["gui_browser_receipt_sha256"] != receipt.sha256():
+            raise ValueError("GUI browser receipt digest does not match canonical receipt")
+        return receipt
 
 
 @dataclass(frozen=True)
@@ -1197,9 +1448,17 @@ class GuiBrowserService:
             server_terminated_by_session=execution.server_terminated_by_session,
             server_exit_code=execution.server_result.exit_code,
             server_duration_ms=execution.server_result.duration_ms,
+            server_stdout_byte_count=execution.server_result.stdout.byte_count,
+            server_stdout_sha256=execution.server_result.stdout.sha256,
+            server_stderr_byte_count=execution.server_result.stderr.byte_count,
+            server_stderr_sha256=execution.server_result.stderr.sha256,
             browser_exit_code=execution.browser_result.exit_code,
             browser_timed_out=execution.browser_result.timed_out,
             browser_duration_ms=execution.browser_result.duration_ms,
+            browser_stdout_byte_count=execution.browser_result.stdout.byte_count,
+            browser_stdout_sha256=execution.browser_result.stdout.sha256,
+            browser_stderr_byte_count=execution.browser_result.stderr.byte_count,
+            browser_stderr_sha256=execution.browser_result.stderr.sha256,
             status=status,
             failure_reason=failure_reason,
             page_execution_authority=True,
