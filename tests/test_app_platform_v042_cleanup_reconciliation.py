@@ -662,3 +662,22 @@ def test_observation_plan_and_receipt_reject_digest_tampering(tmp_path: Path) ->
     receipt_payload["app_id"] = "phi.changed"
     with pytest.raises(ValueError, match="digest"):
         CleanupReconciliationReceipt.from_dict(receipt_payload)
+
+
+
+def test_observation_does_not_create_missing_receipt_root(tmp_path: Path) -> None:
+    state = _prepared_cleanup(tmp_path)
+    missing_receipt_root = tmp_path / "missing-reconciliation-receipts"
+    assert not missing_receipt_root.exists()
+
+    observation = observe_cleanup_reconciliation(
+        state["journal"].to_dict(),
+        state["cleanup_plan"].to_dict(),
+        install_root=state["v1"]["install_root"],
+        desktop_root=state["desktop_root"],
+        applications_root=state["applications_root"],
+        receipt_root=missing_receipt_root,
+    )
+
+    assert observation.classification == "untouched"
+    assert not missing_receipt_root.exists()
