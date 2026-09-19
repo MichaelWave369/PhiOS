@@ -59,6 +59,12 @@ from .package_install import (
     plan_build_package,
     review_build_package,
 )
+from .retained_cleanup import (
+    RetainedCleanupRequest,
+    RetainedCleanupService,
+    plan_retained_cleanup,
+    review_retained_cleanup,
+)
 from .registry import AppRegistry
 from .runtime import (
     InstalledRuntimeService,
@@ -747,6 +753,74 @@ def _parser() -> argparse.ArgumentParser:
         default=Path.home() / ".local" / "share" / "applications",
     )
     rollback_execute_parser.add_argument(
+        "--receipt-root",
+        type=Path,
+        default=Path.home() / ".phios" / "apps" / "runtime-receipts",
+    )
+
+    cleanup_plan_parser = subparsers.add_parser(
+        "plan-retained-cleanup",
+        help="Plan cleanup of one proven inactive retained desktop version.",
+    )
+    cleanup_plan_parser.add_argument("retention_marker_path", type=Path)
+    cleanup_plan_parser.add_argument(
+        "--scope",
+        choices=["desktop_bundle_only", "desktop_bundle_and_install"],
+        default="desktop_bundle_only",
+    )
+    cleanup_plan_parser.add_argument(
+        "--install-root",
+        type=Path,
+        default=Path.home() / ".phios" / "apps" / "installed",
+    )
+    cleanup_plan_parser.add_argument(
+        "--desktop-root",
+        type=Path,
+        default=Path.home() / ".local" / "share" / "phios" / "desktop-apps",
+    )
+    cleanup_plan_parser.add_argument(
+        "--applications-root",
+        type=Path,
+        default=Path.home() / ".local" / "share" / "applications",
+    )
+
+    cleanup_review_parser = subparsers.add_parser(
+        "review-retained-cleanup",
+        help="Validate and expose one exact v0.41 retained cleanup plan.",
+    )
+    cleanup_review_parser.add_argument("retained_cleanup_plan_json", type=Path)
+
+    cleanup_execute_parser = subparsers.add_parser(
+        "execute-retained-cleanup",
+        help="Execute one explicitly approved retained-version cleanup.",
+    )
+    cleanup_execute_parser.add_argument("retained_cleanup_plan_json", type=Path)
+    cleanup_execute_parser.add_argument("--approve-cleanup-plan-sha", required=True)
+    cleanup_execute_parser.add_argument("--approve-retained-grant-sha", required=True)
+    cleanup_execute_parser.add_argument("--approve-active-grant-sha", required=True)
+    cleanup_execute_parser.add_argument("--approve-retention-marker-sha", required=True)
+    cleanup_execute_parser.add_argument(
+        "--allow-cleanup-permission",
+        action="append",
+        default=[],
+        dest="cleanup_permissions",
+    )
+    cleanup_execute_parser.add_argument(
+        "--install-root",
+        type=Path,
+        default=Path.home() / ".phios" / "apps" / "installed",
+    )
+    cleanup_execute_parser.add_argument(
+        "--desktop-root",
+        type=Path,
+        default=Path.home() / ".local" / "share" / "phios" / "desktop-apps",
+    )
+    cleanup_execute_parser.add_argument(
+        "--applications-root",
+        type=Path,
+        default=Path.home() / ".local" / "share" / "applications",
+    )
+    cleanup_execute_parser.add_argument(
         "--receipt-root",
         type=Path,
         default=Path.home() / ".phios" / "apps" / "runtime-receipts",
@@ -1493,6 +1567,55 @@ def main(argv: Sequence[str] | None = None) -> int:
             print(json.dumps({"status": "blocked", "error": str(exc)}, sort_keys=True))
             return 2
         print(json.dumps(rollback_result.to_dict(), sort_keys=True, indent=2))
+        return 0
+
+    if args.command == "plan-retained-cleanup":
+        try:
+            cleanup_plan = plan_retained_cleanup(
+                args.retention_marker_path,
+                scope=args.scope,
+                install_root=args.install_root,
+                desktop_root=args.desktop_root,
+                applications_root=args.applications_root,
+            )
+        except (OSError, ValueError) as exc:
+            print(json.dumps({"status": "blocked", "error": str(exc)}, sort_keys=True))
+            return 2
+        print(json.dumps(cleanup_plan.to_dict(), sort_keys=True, indent=2))
+        return 0
+
+    if args.command == "review-retained-cleanup":
+        try:
+            cleanup_payload = _load_json_file(args.retained_cleanup_plan_json)
+            cleanup_review = review_retained_cleanup(cleanup_payload)
+        except (OSError, ValueError) as exc:
+            print(json.dumps({"status": "blocked", "error": str(exc)}, sort_keys=True))
+            return 2
+        print(json.dumps(cleanup_review.to_dict(), sort_keys=True, indent=2))
+        return 0
+
+    if args.command == "execute-retained-cleanup":
+        try:
+            cleanup_payload = _load_json_file(args.retained_cleanup_plan_json)
+            cleanup_request = RetainedCleanupRequest.from_payload(
+                cleanup_payload,
+                approved_cleanup_plan_sha256=args.approve_cleanup_plan_sha,
+                approved_retained_grant_sha256=args.approve_retained_grant_sha,
+                approved_active_grant_sha256=args.approve_active_grant_sha,
+                approved_retention_marker_sha256=args.approve_retention_marker_sha,
+                approved_cleanup_permissions=tuple(args.cleanup_permissions),
+            )
+            cleanup_result = RetainedCleanupService().execute(
+                cleanup_request,
+                install_root=args.install_root,
+                desktop_root=args.desktop_root,
+                applications_root=args.applications_root,
+                receipt_root=args.receipt_root,
+            )
+        except (OSError, ValueError) as exc:
+            print(json.dumps({"status": "blocked", "error": str(exc)}, sort_keys=True))
+            return 2
+        print(json.dumps(cleanup_result.to_dict(), sort_keys=True, indent=2))
         return 0
 
     return 2
