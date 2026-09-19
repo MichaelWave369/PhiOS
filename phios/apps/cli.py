@@ -20,6 +20,14 @@ from .dependency_broker import (
     review_dependency_plan,
 )
 from .intake import inspect_public_github_app
+from .npm_offline import (
+    NpmCachePreparationRequest,
+    NpmOfflineBuildRequest,
+    NpmOfflineBuildService,
+    NpmOfflineCacheService,
+    derive_npm_offline_build_plan,
+    review_npm_offline_build_plan,
+)
 from .sandbox import BuildSandboxPolicy, SandboxedBuildExecutionService
 
 _MAX_INTAKE_RESULT_BYTES = 2 * 1024 * 1024
@@ -166,6 +174,52 @@ def _parser() -> argparse.ArgumentParser:
         default=Path.home() / ".phios" / "apps" / "dependencies",
     )
     dependency_stage_parser.add_argument("--receipt-root", type=Path, default=None)
+
+    npm_cache_parser = subparsers.add_parser(
+        "prepare-npm-cache",
+        help="Prepare an isolated npm cache from one explicitly approved dependency receipt.",
+    )
+    npm_cache_parser.add_argument("dependency_receipt_json", type=Path)
+    npm_cache_parser.add_argument("--approve-dependency-receipt-sha", required=True)
+    npm_cache_parser.add_argument(
+        "--cache-root",
+        type=Path,
+        default=Path.home() / ".phios" / "apps" / "npm-cache",
+    )
+    npm_cache_parser.add_argument("--receipt-root", type=Path, default=None)
+
+    offline_plan_parser = subparsers.add_parser(
+        "plan-offline-npm-build",
+        help="Derive a separately reviewable network-free npm build plan.",
+    )
+    offline_plan_parser.add_argument("build_plan_json", type=Path)
+    offline_plan_parser.add_argument("npm_cache_receipt_json", type=Path)
+
+    offline_review_parser = subparsers.add_parser(
+        "review-offline-npm-build",
+        help="Expose the exact v0.32 offline plan digest and reduced authority.",
+    )
+    offline_review_parser.add_argument("offline_plan_json", type=Path)
+
+    offline_execute_parser = subparsers.add_parser(
+        "execute-offline-npm-build",
+        help="Execute an approved v0.32 npm plan in the network-denied Linux sandbox.",
+    )
+    offline_execute_parser.add_argument("offline_plan_json", type=Path)
+    offline_execute_parser.add_argument("acquisition_receipt_json", type=Path)
+    offline_execute_parser.add_argument("npm_cache_receipt_json", type=Path)
+    offline_execute_parser.add_argument("--approve-offline-plan-sha", required=True)
+    offline_execute_parser.add_argument("--sandbox-wall-seconds", type=int, default=900)
+    offline_execute_parser.add_argument("--sandbox-cpu-seconds", type=int, default=600)
+    offline_execute_parser.add_argument("--sandbox-memory-mib", type=int, default=8192)
+    offline_execute_parser.add_argument("--sandbox-open-files", type=int, default=1024)
+    offline_execute_parser.add_argument("--sandbox-max-file-mib", type=int, default=512)
+    offline_execute_parser.add_argument(
+        "--execution-root",
+        type=Path,
+        default=Path.home() / ".phios" / "apps" / "builds",
+    )
+    offline_execute_parser.add_argument("--receipt-root", type=Path, default=None)
     return parser
 
 
@@ -335,6 +389,86 @@ def main(argv: Sequence[str] | None = None) -> int:
             return 2
         print(json.dumps(dependency_receipt.to_dict(), sort_keys=True, indent=2))
         return 0
+
+    if args.command == "prepare-npm-cache":
+        try:
+            dependency_payload = _load_json_file(args.dependency_receipt_json)
+            cache_request = NpmCachePreparationRequest.from_payload(
+                dependency_payload,
+                approved_dependency_receipt_sha256=args.approve_dependency_receipt_sha,
+            )
+            npm_cache_receipt = NpmOfflineCacheService().prepare(
+                cache_request,
+                cache_root=args.cache_root,
+                receipt_root=args.receipt_root,
+            )
+        except (OSError, ValueError) as exc:
+            print(json.dumps({"status": "blocked", "error": str(exc)}, sort_keys=True))
+            return 2
+        print(json.dumps(npm_cache_receipt.to_dict(), sort_keys=True, indent=2))
+        return 0
+
+    if args.command == "plan-offline-npm-build":
+        try:
+            build_payload = _load_json_file(args.build_plan_json)
+            cache_payload = _load_json_file(args.npm_cache_receipt_json)
+            offline_plan = derive_npm_offline_build_plan(build_payload, cache_payload)
+        except (OSError, ValueError) as exc:
+            print(json.dumps({"status": "blocked", "error": str(exc)}, sort_keys=True))
+            return 2
+        print(json.dumps(offline_plan.to_dict(), sort_keys=True, indent=2))
+        return 0
+
+    if args.command == "review-offline-npm-build":
+        try:
+            offline_payload = _load_json_file(args.offline_plan_json)
+            offline_review = review_npm_offline_build_plan(offline_payload)
+        except (OSError, ValueError) as exc:
+            print(json.dumps({"status": "blocked", "error": str(exc)}, sort_keys=True))
+            return 2
+        print(json.dumps(offline_review.to_dict(), sort_keys=True, indent=2))
+        return 0
+
+    if args.command == "execute-offline-npm-build":
+        try:
+            offline_payload = _load_json_file(args.offline_plan_json)
+            acquisition_payload = _load_json_file(args.acquisition_receipt_json)
+            cache_payload = _load_json_file(args.npm_cache_receipt_json)
+            offline_request = NpmOfflineBuildRequest.from_payloads(
+                offline_payload,
+                acquisition_payload,
+                cache_payload,
+                approved_offline_plan_sha256=args.approve_offline_plan_sha,
+            )
+            offline_policy = BuildSandboxPolicy(
+                network_mode="deny",
+                wall_clock_seconds=args.sandbox_wall_seconds,
+                cpu_seconds=args.sandbox_cpu_seconds,
+                address_space_bytes=args.sandbox_memory_mib * 1024 * 1024,
+                max_open_files=args.sandbox_open_files,
+                max_file_size_bytes=args.sandbox_max_file_mib * 1024 * 1024,
+            )
+            offline_result = NpmOfflineBuildService(
+                sandbox_policy=offline_policy,
+            ).execute(
+                offline_request,
+                execution_root=args.execution_root,
+                receipt_root=args.receipt_root,
+            )
+        except (OSError, ValueError) as exc:
+            print(json.dumps({"status": "blocked", "error": str(exc)}, sort_keys=True))
+            return 2
+        print(json.dumps(offline_result.to_dict(), sort_keys=True, indent=2))
+        if not offline_result.offline_receipt_persisted:
+            return 1
+        if not offline_result.sandboxed_build.sandbox_receipt_persisted:
+            return 1
+        return (
+            0
+            if offline_result.sandboxed_build.execution.status
+            in {"success", "no_build_required"}
+            else 1
+        )
 
     return 2
 
