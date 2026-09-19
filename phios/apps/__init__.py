@@ -1,4 +1,4 @@
-"""PhiOS App Platform: governed intake, source, build planning/execution, and registry."""
+"""PhiOS App Platform: governed intake, source, build planning, sandboxed execution, and registry."""
 
 from .acquisition import (
     SOURCE_ACQUISITION_RECEIPT_SCHEMA_VERSION,
@@ -57,6 +57,17 @@ from .manifest import (
     RuntimeKind,
 )
 from .registry import APP_REGISTRY_SCHEMA_VERSION, AppRegistry
+from .sandbox import (
+    BUILD_SANDBOX_POLICY_SCHEMA_VERSION,
+    BUILD_SANDBOX_RECEIPT_SCHEMA_VERSION,
+    BuildSandboxPolicy,
+    BuildSandboxReceipt,
+    BubblewrapSandboxRunner,
+    SandboxBackendIdentity,
+    SandboxControlEvidence,
+    SandboxedBuildExecutionResult,
+    SandboxedBuildExecutionService,
+)
 
 __all__ = [
     "APP_INTAKE_EVIDENCE_SCHEMA_VERSION",
@@ -67,6 +78,8 @@ __all__ = [
     "BUILD_EXECUTION_REQUEST_SCHEMA_VERSION",
     "BUILD_PLAN_REVIEW_SCHEMA_VERSION",
     "BUILD_PLAN_SCHEMA_VERSION",
+    "BUILD_SANDBOX_POLICY_SCHEMA_VERSION",
+    "BUILD_SANDBOX_RECEIPT_SCHEMA_VERSION",
     "SOURCE_ACQUISITION_RECEIPT_SCHEMA_VERSION",
     "SOURCE_ACQUISITION_REQUEST_SCHEMA_VERSION",
     "AcquisitionBinding",
@@ -86,6 +99,9 @@ __all__ = [
     "BuildPlanReview",
     "BuildStep",
     "BuildStepExecutionReceipt",
+    "BuildSandboxPolicy",
+    "BuildSandboxReceipt",
+    "BubblewrapSandboxRunner",
     "DistributionState",
     "DownloadedArchive",
     "GitHubCommitArchiveProvider",
@@ -94,6 +110,10 @@ __all__ = [
     "ObservedBuildFile",
     "ProcessResult",
     "RuntimeKind",
+    "SandboxBackendIdentity",
+    "SandboxControlEvidence",
+    "SandboxedBuildExecutionResult",
+    "SandboxedBuildExecutionService",
     "SourceAcquisitionReceipt",
     "SourceAcquisitionRequest",
     "SourceAcquisitionReview",

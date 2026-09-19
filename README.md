@@ -183,7 +183,7 @@ Older Spine documents remain in the repository as the versioned design trail.
 
 ## App Platform Alpha
 
-The current App Platform line is **v0.29**. v0.25 introduced strict app manifests and a deterministic registry; v0.26 added bounded public GitHub intake; v0.27 added exact-commit source acquisition; v0.28 added deterministic non-executing build plans; v0.29 adds explicitly approved build execution in an isolated working copy with source re-verification, tool identities, artifact hashing, and execution receipts.
+The current App Platform line is **v0.30**. v0.25 introduced strict app manifests and a deterministic registry; v0.26 added bounded public GitHub intake; v0.27 added exact-commit source acquisition; v0.28 added deterministic non-executing build plans; v0.29 added explicitly approved build execution; v0.30 adds a Linux-first Bubblewrap containment contract with namespace preflight, network-deny-by-default policy, resource limits, and sandbox receipts.
 
 A manifest records:
 
@@ -210,6 +210,8 @@ more.
 
 See:
 
+- [App Platform v0.30 overview](README_APP_PLATFORM_V0.30.md)
+- [App Platform v0.30 Linux build sandbox contract](docs/PHIOS_APP_PLATFORM_V0.30_BUILD_SANDBOX.md)
 - [App Platform v0.29 overview](README_APP_PLATFORM_V0.29.md)
 - [App Platform v0.29 build execution contract](docs/PHIOS_APP_PLATFORM_V0.29_BUILD_EXECUTION.md)
 - [App Platform v0.28 overview](README_APP_PLATFORM_V0.28.md)
@@ -265,7 +267,22 @@ phi-app execute-build build-plan.json acquisition-receipt.json \
 
 v0.29 recomputes the source snapshot before any process launch, runs reviewed argv with `shell=False` inside a separate working copy, records required tool identities, hashes expected artifacts, and writes a build execution receipt.
 
-The v0.29 working copy is **not an OS security sandbox**. The current receipt explicitly records that host-level network and process containment are not enforced. The next planned rung is a real build sandbox / containment contract.
+Execute the same approved plan through the Linux sandbox:
+
+```bash
+phi-app execute-sandboxed-build build-plan.json acquisition-receipt.json \
+  --approve-plan-sha EXACT_PLAN_SHA256 \
+  --approve-source-sha EXACT_SOURCE_SNAPSHOT_SHA256 \
+  --allow-build-permission build.network.dependencies \
+  --allow-build-permission build.process.execute \
+  --allow-build-permission build.workspace.write
+```
+
+v0.30 requires Linux, Bubblewrap, and `prlimit`. It preflights namespace creation, clears the build environment, keeps the host user home unmounted, binds the execution workspace read/write, exposes selected system roots read-only, and defaults to a separate network namespace with no host network.
+
+Dependency-fetch builds can explicitly request `--sandbox-network inherit`, but receipts mark that mode as host-network inheritance, **not** as network isolation or allowlisting.
+
+The next planned rung is a dependency-staging/network-broker contract so ordinary builds can fetch approved dependencies before entering a network-denied sandbox.
 
 v0.18 adds a stronger semantic boundary for scalar values. Boolean and numeric values may be inspected only with the separate `reality.local_http.semantic.value.read` grant. The observed scalar is used transiently for comparison and is not persisted in semantic evidence.
 
@@ -493,7 +510,7 @@ phios/
 ├─ shell/      operator shell
 ├─ mcp/        MCP interface
 ├─ spine/      authority-aware Spine runtime
-├─ apps/       manifests, intake, pinned source, build plans/execution, registry
+├─ apps/       manifests, intake, pinned source, build plans/execution/sandbox, registry
 ├─ mandala/    typed contracts and receipts
 ├─ soma/       bounded perception/evidence
 └─ reality/    Reality Gate verification

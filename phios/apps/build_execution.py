@@ -249,6 +249,9 @@ class _CaptureBuffer:
 class SubprocessBuildRunner:
     """Run reviewed argv without a shell. This is not an OS sandbox."""
 
+    isolation_mode = "isolated_working_copy_no_os_sandbox"
+    network_sandbox_enforced = False
+
     def _execute(
         self,
         *,
@@ -484,6 +487,7 @@ def _clean_environment(execution_source: Path) -> dict[str, str]:
         "TEMP": str(temp),
         "TMP": str(temp),
         "PHIOS_BUILD_EXECUTION": "1",
+        "PHIOS_EXECUTION_SOURCE": str(execution_source.resolve()),
     }
     for key in ("SystemRoot", "WINDIR", "PATHEXT", "COMSPEC", "LANG", "LC_ALL"):
         value = os.environ.get(key)
@@ -738,8 +742,16 @@ class BuildExecutionService:
                 source_snapshot_sha256=plan.source_snapshot_sha256,
                 acquisition_tree_sha256=plan.acquisition_tree_sha256,
                 approved_permissions=request.approved_permissions,
-                isolation_mode="isolated_working_copy_no_os_sandbox",
-                network_sandbox_enforced=False,
+                isolation_mode=str(
+                    getattr(
+                        self.runner,
+                        "isolation_mode",
+                        "isolated_working_copy_no_os_sandbox",
+                    )
+                ),
+                network_sandbox_enforced=bool(
+                    getattr(self.runner, "network_sandbox_enforced", False)
+                ),
                 source_workspace_path=str(source_root),
                 execution_workspace_path=str(source_copy),
                 tool_identities=tuple(identities),
