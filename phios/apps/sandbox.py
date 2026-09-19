@@ -375,10 +375,13 @@ class BubblewrapSandboxRunner(SubprocessBuildRunner):
             bwrap,
             "--die-with-parent",
             "--new-session",
-            "--unshare-all",
+            "--unshare-user",
+            "--unshare-ipc",
+            "--unshare-pid",
+            "--unshare-uts",
         ]
-        if self.policy.network_mode == "inherit":
-            args.append("--share-net")
+        if self.policy.network_mode == "deny":
+            args.append("--unshare-net")
 
         args.extend(
             [
@@ -515,7 +518,7 @@ class BubblewrapSandboxRunner(SubprocessBuildRunner):
             pid_namespace_enforced=True,
             ipc_namespace_enforced=True,
             uts_namespace_enforced=True,
-            cgroup_namespace_requested=True,
+            cgroup_namespace_requested=False,
             private_proc=True,
             private_dev=True,
             private_tmp=True,
