@@ -317,8 +317,8 @@ scripts/       development and policy helpers
 
 ## Geometric, relational, and dynamic field reasoning
 
-PhiOS now has a five-rung advisory core for reasoning over computational state
-spaces before exact verification.
+PhiOS now has a six-rung governed reasoning core for computational state and
+plan selection before any separately authorized execution.
 
 **Geometric Reasoning v0.1** reduces state spaces through constraints,
 equivalence classes, and conserved invariants.
@@ -339,6 +339,11 @@ same current field snapshot, then applies a fixed hysteresis policy to emit
 `KEEP`, `REPLAN`, or `UNRESOLVED`. This prevents small field fluctuations
 from causing route thrash.
 
+**Governed Plan Adoption v0.6** adds the explicit authority boundary between a
+`REPLAN` recommendation and the immutable incumbent plan. A scoped grant must
+match the exact plan state, exact replan receipt, and exact requested
+disposition before a candidate can become the next plan revision.
+
 The critical boundaries are:
 
 ```text
@@ -350,19 +355,24 @@ dynamic field change
 cannot rewrite
 the governing law
 
-route recommendation
-does not become
-execution authority
-
 new preference
 does not automatically become
 a replacement recommendation
+
+REPLAN
+does not mean
+ADOPT
+
+ADOPT
+does not mean
+EXECUTE
 ```
 
-Authority therefore remains a gate, not a score, and field adaptation remains
-state change rather than self-governance.
+Authority therefore remains a gate, not a score, and plan adoption remains
+separate from execution authority.
 
-All geometric / field states and receipts retain `action_authority = false`.
+All core reasoning/adoption receipts retain `action_authority = false`; v0.6
+plan states also retain `execution_authority = false`.
 
 See:
 
@@ -371,6 +381,7 @@ See:
 - [Dynamic Field State v0.3](docs/PHIOS_DYNAMIC_FIELD_V0.3.md)
 - [Field-Aware Routing v0.4](docs/PHIOS_FIELD_AWARE_ROUTING_V0.4.md)
 - [Governed Replanning v0.5](docs/PHIOS_GOVERNED_REPLANNING_V0.5.md)
+- [Governed Plan Adoption v0.6](docs/PHIOS_GOVERNED_PLAN_ADOPTION_V0.6.md)
 
 ---
 
