@@ -13,6 +13,12 @@ from .acquisition import (
 )
 from .build_execution import BuildExecutionRequest, BuildExecutionService
 from .build_plan import plan_build_from_payloads, review_build_plan
+from .dependency_broker import (
+    DependencyStageRequest,
+    DependencyStagingService,
+    plan_npm_dependencies,
+    review_dependency_plan,
+)
 from .intake import inspect_public_github_app
 from .sandbox import BuildSandboxPolicy, SandboxedBuildExecutionService
 
@@ -128,6 +134,38 @@ def _parser() -> argparse.ArgumentParser:
         default=Path.home() / ".phios" / "apps" / "builds",
     )
     sandbox_parser.add_argument("--receipt-root", type=Path, default=None)
+
+    dependency_plan_parser = subparsers.add_parser(
+        "plan-dependencies",
+        help="Create a deterministic npm dependency staging plan from a reviewed build plan.",
+    )
+    dependency_plan_parser.add_argument("build_plan_json", type=Path)
+    dependency_plan_parser.add_argument("acquisition_receipt_json", type=Path)
+
+    dependency_review_parser = subparsers.add_parser(
+        "review-dependency-plan",
+        help="Expose exact dependency-plan digest and host approvals required for staging.",
+    )
+    dependency_review_parser.add_argument("dependency_plan_json", type=Path)
+
+    dependency_stage_parser = subparsers.add_parser(
+        "stage-dependencies",
+        help="Download and content-address exact approved npm lockfile artifacts.",
+    )
+    dependency_stage_parser.add_argument("dependency_plan_json", type=Path)
+    dependency_stage_parser.add_argument("--approve-dependency-plan-sha", required=True)
+    dependency_stage_parser.add_argument(
+        "--allow-host",
+        action="append",
+        default=[],
+        dest="dependency_hosts",
+    )
+    dependency_stage_parser.add_argument(
+        "--store-root",
+        type=Path,
+        default=Path.home() / ".phios" / "apps" / "dependencies",
+    )
+    dependency_stage_parser.add_argument("--receipt-root", type=Path, default=None)
     return parser
 
 
@@ -254,6 +292,49 @@ def main(argv: Sequence[str] | None = None) -> int:
             if sandbox_result.execution.status in {"success", "no_build_required"}
             else 1
         )
+
+    if args.command == "plan-dependencies":
+        try:
+            build_plan_payload = _load_json_file(args.build_plan_json)
+            receipt_payload = _load_json_file(args.acquisition_receipt_json)
+            dependency_plan = plan_npm_dependencies(
+                build_plan_payload,
+                receipt_payload,
+            )
+        except (OSError, ValueError) as exc:
+            print(json.dumps({"status": "blocked", "error": str(exc)}, sort_keys=True))
+            return 2
+        print(json.dumps(dependency_plan.to_dict(), sort_keys=True, indent=2))
+        return 0
+
+    if args.command == "review-dependency-plan":
+        try:
+            dependency_payload = _load_json_file(args.dependency_plan_json)
+            dependency_review = review_dependency_plan(dependency_payload)
+        except (OSError, ValueError) as exc:
+            print(json.dumps({"status": "blocked", "error": str(exc)}, sort_keys=True))
+            return 2
+        print(json.dumps(dependency_review.to_dict(), sort_keys=True, indent=2))
+        return 0
+
+    if args.command == "stage-dependencies":
+        try:
+            dependency_payload = _load_json_file(args.dependency_plan_json)
+            stage_request = DependencyStageRequest.from_payload(
+                dependency_payload,
+                approved_dependency_plan_sha256=args.approve_dependency_plan_sha,
+                approved_hosts=tuple(args.dependency_hosts),
+            )
+            dependency_receipt = DependencyStagingService().stage(
+                stage_request,
+                store_root=args.store_root,
+                receipt_root=args.receipt_root,
+            )
+        except (OSError, ValueError) as exc:
+            print(json.dumps({"status": "blocked", "error": str(exc)}, sort_keys=True))
+            return 2
+        print(json.dumps(dependency_receipt.to_dict(), sort_keys=True, indent=2))
+        return 0
 
     return 2
 
