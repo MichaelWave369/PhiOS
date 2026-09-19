@@ -6,13 +6,12 @@ import hmac
 import json
 import os
 import re
-import shutil
 import tempfile
 import urllib.error
 import urllib.parse
 import urllib.request
 import uuid
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Protocol, cast
