@@ -183,7 +183,7 @@ Older Spine documents remain in the repository as the versioned design trail.
 
 ## App Platform Alpha
 
-The current App Platform line is **v0.32**. v0.25 introduced strict app manifests and a deterministic registry; v0.26 added bounded public GitHub intake; v0.27 added exact-commit source acquisition; v0.28 added deterministic non-executing build plans; v0.29 added explicitly approved build execution; v0.30 added Linux Bubblewrap containment; v0.31 added SRI-verified dependency staging; v0.32 adds npm cache preparation from verified local artifacts, separately reviewed offline build plans, and network-denied npm builds.
+The current App Platform line is **v0.33**. v0.25 introduced strict app manifests and a deterministic registry; v0.26 added bounded public GitHub intake; v0.27 added exact-commit source acquisition; v0.28 added deterministic non-executing build plans; v0.29 added explicitly approved build execution; v0.30 added Linux Bubblewrap containment; v0.31 added SRI-verified dependency staging; v0.32 added verified offline npm builds; v0.33 adds artifact-only package planning, atomic installation, install receipts, and bounded uninstall.
 
 A manifest records:
 
@@ -210,6 +210,8 @@ more.
 
 See:
 
+- [App Platform v0.33 overview](README_APP_PLATFORM_V0.33.md)
+- [App Platform v0.33 artifact install contract](docs/PHIOS_APP_PLATFORM_V0.33_ARTIFACT_INSTALL.md)
 - [App Platform v0.32 overview](README_APP_PLATFORM_V0.32.md)
 - [App Platform v0.32 npm offline adapter contract](docs/PHIOS_APP_PLATFORM_V0.32_NPM_OFFLINE_ADAPTER.md)
 - [App Platform v0.31 overview](README_APP_PLATFORM_V0.31.md)
@@ -321,7 +323,38 @@ v0.32 asks npm itself to populate and verify an isolated cache from the already-
 
 The receipted npm cache remains immutable evidence. A fresh copy is mounted read/write for the actual build, while Bubblewrap runs with `network_mode=deny`.
 
-The next planned rung is a build-artifact package/install contract so successful receipted builds can become governed PhiOS applications without yet gaining launch authority.
+Package and install only the successful receipted artifact set:
+
+```bash
+phi-app plan-package \
+  manifest.json \
+  registry.json \
+  build-execution-receipt.json \
+  offline-build-receipt.json \
+  > package-plan.json
+
+phi-app review-package package-plan.json
+
+phi-app install-package \
+  package-plan.json \
+  registry.json \
+  build-execution-receipt.json \
+  offline-build-receipt.json \
+  --approve-package-plan-sha EXACT_PACKAGE_PLAN_SHA256
+```
+
+v0.33 copies only the exact build artifacts recorded in the successful build receipt, re-verifies their hashes immediately before and during copy, stages the payload under the configured install root, checks the complete staged payload against the build artifact-set digest, and atomically promotes it to the final install path.
+
+The install receipt still records `launch_authority=false`. Installed does not mean runnable.
+
+An unchanged install can be removed only with explicit approval of its exact install receipt:
+
+```bash
+phi-app uninstall-package install-receipt.json \
+  --approve-install-receipt-sha EXACT_INSTALL_RECEIPT_SHA256
+```
+
+The next planned rung is an installed-app runtime contract with a separately reviewed launch plan and runtime permissions.
 
 v0.18 adds a stronger semantic boundary for scalar values. Boolean and numeric values may be inspected only with the separate `reality.local_http.semantic.value.read` grant. The observed scalar is used transiently for comparison and is not persisted in semantic evidence.
 
