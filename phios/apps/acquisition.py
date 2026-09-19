@@ -25,6 +25,7 @@ SOURCE_ACQUISITION_REQUEST_SCHEMA_VERSION = "phios.source_acquisition_request.v0
 SOURCE_ACQUISITION_RECEIPT_SCHEMA_VERSION = "phios.source_acquisition_receipt.v0.1"
 
 _MAX_ARCHIVE_BYTES = 16 * 1024 * 1024
+_MAX_ARCHIVE_MEMBERS = 8192
 _MAX_FILES = 4096
 _MAX_FILE_BYTES = 8 * 1024 * 1024
 _MAX_TOTAL_UNCOMPRESSED_BYTES = 128 * 1024 * 1024
@@ -285,14 +286,17 @@ def _normalized_mode(info: zipfile.ZipInfo) -> int:
 
 def _safe_relative_member(info: zipfile.ZipInfo, root_prefix: str) -> PurePosixPath | None:
     name = info.filename
-    if not name or "\\" in name or "\x00" in name:
+    if not name or "\\" in name or "\x00" in name or len(name) > 1024:
         raise ValueError("Archive contains an invalid member path")
 
-    path = PurePosixPath(name)
+    raw_name = name[:-1] if info.is_dir() and name.endswith("/") else name
+    raw_parts = raw_name.split("/")
+    if any(part in {"", ".", ".."} for part in raw_parts):
+        raise ValueError(f"Archive contains an unsafe path: {name}")
+
+    path = PurePosixPath(*raw_parts)
     if path.is_absolute():
         raise ValueError(f"Archive contains an absolute path: {name}")
-    if any(part in {"", ".", ".."} for part in path.parts):
-        raise ValueError(f"Archive contains an unsafe path: {name}")
     if not path.parts or path.parts[0] != root_prefix:
         raise ValueError("Archive contains multiple or unexpected top-level roots")
     if len(path.parts) == 1:
@@ -329,11 +333,13 @@ class SourceAcquisitionService:
         self,
         *,
         provider: SourceArchiveProvider | None = None,
+        max_members: int = _MAX_ARCHIVE_MEMBERS,
         max_files: int = _MAX_FILES,
         max_file_bytes: int = _MAX_FILE_BYTES,
         max_total_bytes: int = _MAX_TOTAL_UNCOMPRESSED_BYTES,
     ) -> None:
         self.provider = provider or GitHubCommitArchiveProvider()
+        self.max_members = max_members
         self.max_files = max_files
         self.max_file_bytes = max_file_bytes
         self.max_total_bytes = max_total_bytes
@@ -370,6 +376,8 @@ class SourceAcquisitionService:
                 infos = source_zip.infolist()
                 if not infos:
                     raise ValueError("Source archive is empty")
+                if len(infos) > self.max_members:
+                    raise ValueError(f"Source archive exceeds {self.max_members} total members")
                 first = PurePosixPath(infos[0].filename)
                 if not first.parts:
                     raise ValueError("Source archive has no top-level root")
