@@ -132,6 +132,11 @@ class PlanAdoptionReceipt:
 class GovernedPlanAdoptionGate:
     """Apply explicit scoped plan-adoption authority without executing the plan."""
 
+    def validate_plan_state(self, state: PlanState) -> None:
+        """Validate an immutable plan state without changing it."""
+
+        self._validate_plan_state(state)
+
     def initialize_plan(
         self,
         *,
