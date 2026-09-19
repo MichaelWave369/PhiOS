@@ -601,10 +601,17 @@ class BrowserSessionExecution:
 
 
 class BrowserExecutionPlan(Protocol):
-    browser_tool: str
-    browser_argv: tuple[str, ...]
-    readiness_timeout_ms: int
-    session_seconds: int
+    @property
+    def browser_tool(self) -> str: ...
+
+    @property
+    def browser_argv(self) -> tuple[str, ...]: ...
+
+    @property
+    def readiness_timeout_ms(self) -> int: ...
+
+    @property
+    def session_seconds(self) -> int: ...
 
 
 class BrowserSessionRunner(Protocol):
