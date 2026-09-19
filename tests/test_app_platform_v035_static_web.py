@@ -287,22 +287,7 @@ def test_missing_known_output_is_reviewable_but_not_serveable(tmp_path: Path) ->
     package_plan = BuildPackagePlan.from_dict(
         json.loads(package_plan_path.read_text(encoding="utf-8"))
     )
-    empty_plan = BuildPackagePlan(
-        app_id=package_plan.app_id,
-        app_version=package_plan.app_version,
-        manifest_sha256=package_plan.manifest_sha256,
-        registry_snapshot_sha256=package_plan.registry_snapshot_sha256,
-        repository_url=package_plan.repository_url,
-        commit_sha=package_plan.commit_sha,
-        build_plan_sha256=package_plan.build_plan_sha256,
-        execution_receipt_sha256=package_plan.execution_receipt_sha256,
-        offline_build_receipt_sha256=package_plan.offline_build_receipt_sha256,
-        artifact_set_sha256=hashlib.sha256(b"").hexdigest(),
-        artifacts=(),
-        install_relative_path=package_plan.install_relative_path,
-        launch_authority=False,
-    )
-    # BuildPackagePlan correctly rejects empty artifacts, so use an unrelated payload artifact.
+    # Keep one valid unrelated artifact so the install remains structurally valid.
     other = payload / "other.txt"
     other.write_text("x", encoding="utf-8")
     artifact = PackageArtifact(
