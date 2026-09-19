@@ -16,6 +16,7 @@ PhiOS changes quickly, so use this source-of-truth order when documents disagree
 |---|---:|---|
 | App Platform | **v0.42** | [overview](../README_APP_PLATFORM_V0.42.md) · [contract](PHIOS_APP_PLATFORM_V0.42_CLEANUP_RECONCILIATION.md) |
 | Spine | **v0.24** | [overview](../README_SPINE_V0.24.md) · [contract](PHIOS_SPINE_V0.24_NUMERIC_TRANSITION_CONTRACT.md) |
+| Core geometric reasoning | **v0.1** | [contract](PHIOS_GEOMETRIC_REASONING_V0.1.md) |
 | Living specification | current | [PHIOS_LIVING_SPEC.md](PHIOS_LIVING_SPEC.md) |
 | Architecture blueprint | current / evolving | [BLUEPRINT.md](BLUEPRINT.md) |
 
