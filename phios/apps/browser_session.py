@@ -561,6 +561,30 @@ class BrowserReadinessEvidence:
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
+    @classmethod
+    def from_dict(cls, value: Any) -> BrowserReadinessEvidence:
+        data = _mapping(value, "browser readiness evidence")
+        expected = {
+            "ready",
+            "status_code",
+            "attempts",
+            "elapsed_ms",
+            "port_available_before_spawn",
+        }
+        if set(data) != expected:
+            raise ValueError("browser readiness evidence contains missing or unknown fields")
+        if not isinstance(data["ready"], bool):
+            raise ValueError("browser readiness ready must be boolean")
+        if not isinstance(data["port_available_before_spawn"], bool):
+            raise ValueError("browser readiness port availability must be boolean")
+        return cls(
+            ready=data["ready"],
+            status_code=data["status_code"],
+            attempts=data["attempts"],
+            elapsed_ms=data["elapsed_ms"],
+            port_available_before_spawn=data["port_available_before_spawn"],
+        )
+
 
 @dataclass(frozen=True)
 class BrowserSessionExecution:
@@ -989,6 +1013,239 @@ class BrowserSessionReceipt:
         result = self.body_dict()
         result["browser_session_receipt_sha256"] = self.sha256()
         return result
+
+    @classmethod
+    def from_dict(cls, value: Any) -> BrowserSessionReceipt:
+        data = _mapping(value, "browser session receipt")
+        expected = {
+            "schema_version",
+            "receipt_id",
+            "timestamp_utc",
+            "app_id",
+            "app_version",
+            "browser_session_plan_sha256",
+            "static_web_plan_sha256",
+            "install_receipt_sha256",
+            "installed_tree_sha256",
+            "static_root_sha256",
+            "loopback_url",
+            "approved_browser_permissions",
+            "browser_family",
+            "browser_tool",
+            "browser_mode",
+            "profile_mode",
+            "display_mode",
+            "browser_policy",
+            "server_backend_identity",
+            "server_tool_identity",
+            "browser_backend_identity",
+            "browser_tool_identity",
+            "server_controls",
+            "browser_controls",
+            "readiness",
+            "server_terminated_by_session",
+            "server_exit_code",
+            "server_duration_ms",
+            "server_stdout_byte_count",
+            "server_stdout_sha256",
+            "server_stderr_byte_count",
+            "server_stderr_sha256",
+            "browser_exit_code",
+            "browser_timed_out",
+            "browser_duration_ms",
+            "browser_stdout_byte_count",
+            "browser_stdout_sha256",
+            "browser_stderr_byte_count",
+            "browser_stderr_sha256",
+            "status",
+            "failure_reason",
+            "page_execution_authority",
+            "browser_network_inherited",
+            "display_authority",
+            "persistent_profile_authority",
+            "host_home_authority",
+            "browser_session_receipt_sha256",
+        }
+        if set(data) != expected:
+            raise ValueError("browser session receipt contains missing or unknown fields")
+
+        permissions = data["approved_browser_permissions"]
+        if not isinstance(permissions, list):
+            raise ValueError("approved_browser_permissions must be an array")
+
+        def backend_identity(raw: Any, label: str) -> SandboxBackendIdentity:
+            item = _mapping(raw, label)
+            fields = {
+                "backend",
+                "executable_path",
+                "version",
+                "version_output_sha256",
+                "platform_system",
+                "platform_machine",
+            }
+            if set(item) != fields:
+                raise ValueError(f"{label} contains missing or unknown fields")
+            return SandboxBackendIdentity(
+                backend=_string(item["backend"], f"{label} backend", maximum=64),
+                executable_path=_string(
+                    item["executable_path"],
+                    f"{label} executable_path",
+                    maximum=4096,
+                ),
+                version=_string(item["version"], f"{label} version", maximum=512),
+                version_output_sha256=_sha256(
+                    item["version_output_sha256"],
+                    f"{label} version_output_sha256",
+                ),
+                platform_system=_string(
+                    item["platform_system"],
+                    f"{label} platform_system",
+                    maximum=128,
+                ),
+                platform_machine=_string(
+                    item["platform_machine"],
+                    f"{label} platform_machine",
+                    maximum=128,
+                ),
+            )
+
+        def tool_identity(raw: Any, label: str) -> ToolIdentity:
+            item = _mapping(raw, label)
+            fields = {
+                "logical_tool",
+                "executable_path",
+                "version",
+                "version_output_sha256",
+            }
+            if set(item) != fields:
+                raise ValueError(f"{label} contains missing or unknown fields")
+            return ToolIdentity(
+                logical_tool=_string(
+                    item["logical_tool"],
+                    f"{label} logical_tool",
+                    maximum=64,
+                ),
+                executable_path=_string(
+                    item["executable_path"],
+                    f"{label} executable_path",
+                    maximum=4096,
+                ),
+                version=_string(item["version"], f"{label} version", maximum=512),
+                version_output_sha256=_sha256(
+                    item["version_output_sha256"],
+                    f"{label} version_output_sha256",
+                ),
+            )
+
+        failure_reason = data["failure_reason"]
+        if failure_reason is not None:
+            failure_reason = _string(
+                failure_reason,
+                "browser failure_reason",
+                maximum=512,
+            )
+
+        receipt = cls(
+            schema_version=data["schema_version"],
+            receipt_id=_string(data["receipt_id"], "browser receipt_id", maximum=64),
+            timestamp_utc=_string(
+                data["timestamp_utc"],
+                "browser timestamp_utc",
+                maximum=128,
+            ),
+            app_id=_string(data["app_id"], "browser app_id", maximum=64),
+            app_version=_string(data["app_version"], "browser app_version", maximum=128),
+            browser_session_plan_sha256=_sha256(
+                data["browser_session_plan_sha256"],
+                "browser_session_plan_sha256",
+            ),
+            static_web_plan_sha256=_sha256(
+                data["static_web_plan_sha256"],
+                "static_web_plan_sha256",
+            ),
+            install_receipt_sha256=_sha256(
+                data["install_receipt_sha256"],
+                "install_receipt_sha256",
+            ),
+            installed_tree_sha256=_sha256(
+                data["installed_tree_sha256"],
+                "installed_tree_sha256",
+            ),
+            static_root_sha256=_sha256(
+                data["static_root_sha256"],
+                "static_root_sha256",
+            ),
+            loopback_url=_validate_loopback_url(data["loopback_url"]),
+            approved_browser_permissions=tuple(
+                _string(item, "approved browser permission", maximum=128)
+                for item in permissions
+            ),
+            browser_family=_string(
+                data["browser_family"],
+                "browser_family",
+                maximum=64,
+            ),
+            browser_tool=_string(data["browser_tool"], "browser_tool", maximum=64),
+            browser_mode=_string(data["browser_mode"], "browser_mode", maximum=64),
+            profile_mode=_string(data["profile_mode"], "profile_mode", maximum=64),
+            display_mode=_string(data["display_mode"], "display_mode", maximum=64),
+            browser_policy=RuntimeSandboxPolicy.from_dict(data["browser_policy"]),
+            server_backend_identity=backend_identity(
+                data["server_backend_identity"],
+                "server backend identity",
+            ),
+            server_tool_identity=tool_identity(
+                data["server_tool_identity"],
+                "server tool identity",
+            ),
+            browser_backend_identity=backend_identity(
+                data["browser_backend_identity"],
+                "browser backend identity",
+            ),
+            browser_tool_identity=tool_identity(
+                data["browser_tool_identity"],
+                "browser tool identity",
+            ),
+            server_controls=RuntimeControlEvidence.from_dict(data["server_controls"]),
+            browser_controls=RuntimeControlEvidence.from_dict(data["browser_controls"]),
+            readiness=BrowserReadinessEvidence.from_dict(data["readiness"]),
+            server_terminated_by_session=data["server_terminated_by_session"],
+            server_exit_code=data["server_exit_code"],
+            server_duration_ms=data["server_duration_ms"],
+            server_stdout_byte_count=data["server_stdout_byte_count"],
+            server_stdout_sha256=_sha256(
+                data["server_stdout_sha256"],
+                "server_stdout_sha256",
+            ),
+            server_stderr_byte_count=data["server_stderr_byte_count"],
+            server_stderr_sha256=_sha256(
+                data["server_stderr_sha256"],
+                "server_stderr_sha256",
+            ),
+            browser_exit_code=data["browser_exit_code"],
+            browser_timed_out=data["browser_timed_out"],
+            browser_duration_ms=data["browser_duration_ms"],
+            browser_stdout_byte_count=data["browser_stdout_byte_count"],
+            browser_stdout_sha256=_sha256(
+                data["browser_stdout_sha256"],
+                "browser_stdout_sha256",
+            ),
+            browser_stderr_byte_count=data["browser_stderr_byte_count"],
+            browser_stderr_sha256=_sha256(
+                data["browser_stderr_sha256"],
+                "browser_stderr_sha256",
+            ),
+            status=cast(BrowserSessionStatus, data["status"]),
+            failure_reason=failure_reason,
+            page_execution_authority=data["page_execution_authority"],
+            browser_network_inherited=data["browser_network_inherited"],
+            display_authority=data["display_authority"],
+            persistent_profile_authority=data["persistent_profile_authority"],
+            host_home_authority=data["host_home_authority"],
+        )
+        if data["browser_session_receipt_sha256"] != receipt.sha256():
+            raise ValueError("browser session receipt digest does not match canonical receipt")
+        return receipt
 
 
 @dataclass(frozen=True)
