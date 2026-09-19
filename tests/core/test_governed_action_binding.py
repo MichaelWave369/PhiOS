@@ -9,7 +9,10 @@ from phios.core.governed_action_binding import (
     ActionBindingGrant,
     GovernedActionBinder,
 )
-from phios.core.governed_plan_adoption import (\n    GovernedPlanAdoptionGate,\n    PlanAdoptionContractError,\n)
+from phios.core.governed_plan_adoption import (
+    GovernedPlanAdoptionGate,
+    PlanAdoptionContractError,
+)
 from phios.core.field_aware_routing import FieldAwareRouteReceipt
 from phios.spine.models import Capability
 
