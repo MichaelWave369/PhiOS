@@ -591,10 +591,13 @@ def _verify_source_artifacts(
     root = execution_workspace.resolve(strict=True)
     total = 0
     for artifact in artifacts:
-        path = (root / Path(*PurePosixPath(artifact.path).parts)).resolve()
+        candidate = root / Path(*PurePosixPath(artifact.path).parts)
+        if candidate.is_symlink():
+            raise ValueError(f"artifact source is a symlink: {artifact.path}")
+        path = candidate.resolve(strict=True)
         if root != path and root not in path.parents:
             raise ValueError("artifact source path escaped execution workspace")
-        if path.is_symlink() or not path.is_file():
+        if not path.is_file():
             raise ValueError(f"artifact source is unavailable or unsafe: {artifact.path}")
         content = path.read_bytes()
         if len(content) != artifact.byte_count:
@@ -708,12 +711,20 @@ class AppInstallService:
         try:
             source_root = source.resolve(strict=True)
             for artifact in plan.artifacts:
-                src = (
-                    source_root / Path(*PurePosixPath(artifact.path).parts)
-                ).resolve(strict=True)
+                candidate = source_root / Path(*PurePosixPath(artifact.path).parts)
+                if candidate.is_symlink():
+                    raise ValueError(f"artifact source became a symlink: {artifact.path}")
+                src = candidate.resolve(strict=True)
+                if source_root != src and source_root not in src.parents:
+                    raise ValueError("artifact source escaped execution workspace during copy")
+                content = src.read_bytes()
+                if len(content) != artifact.byte_count:
+                    raise ValueError(f"artifact changed during install copy: {artifact.path}")
+                if hashlib.sha256(content).hexdigest() != artifact.sha256:
+                    raise ValueError(f"artifact changed during install copy: {artifact.path}")
                 dest = payload / Path(*PurePosixPath(artifact.path).parts)
                 dest.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copyfile(src, dest)
+                dest.write_bytes(content)
 
             payload_sha, installed_count, installed_bytes = _snapshot_payload(payload)
             if payload_sha != plan.artifact_set_sha256:
