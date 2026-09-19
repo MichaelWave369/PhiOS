@@ -28,6 +28,13 @@ from .npm_offline import (
     derive_npm_offline_build_plan,
     review_npm_offline_build_plan,
 )
+from .package_install import (
+    AppInstallService,
+    AppUninstallService,
+    plan_build_package,
+    review_build_package,
+)
+from .registry import AppRegistry
 from .sandbox import BuildSandboxPolicy, SandboxedBuildExecutionService
 
 _MAX_INTAKE_RESULT_BYTES = 2 * 1024 * 1024
@@ -220,6 +227,50 @@ def _parser() -> argparse.ArgumentParser:
         default=Path.home() / ".phios" / "apps" / "builds",
     )
     offline_execute_parser.add_argument("--receipt-root", type=Path, default=None)
+
+    package_plan_parser = subparsers.add_parser(
+        "plan-package",
+        help="Create a deterministic install package plan from successful receipted artifacts.",
+    )
+    package_plan_parser.add_argument("manifest_json", type=Path)
+    package_plan_parser.add_argument("registry_json", type=Path)
+    package_plan_parser.add_argument("build_execution_receipt_json", type=Path)
+    package_plan_parser.add_argument("offline_build_receipt_json", type=Path)
+
+    package_review_parser = subparsers.add_parser(
+        "review-package",
+        help="Expose the exact v0.33 package-plan digest and install destination.",
+    )
+    package_review_parser.add_argument("package_plan_json", type=Path)
+
+    install_parser = subparsers.add_parser(
+        "install-package",
+        help="Atomically install one explicitly approved artifact package.",
+    )
+    install_parser.add_argument("package_plan_json", type=Path)
+    install_parser.add_argument("registry_json", type=Path)
+    install_parser.add_argument("build_execution_receipt_json", type=Path)
+    install_parser.add_argument("offline_build_receipt_json", type=Path)
+    install_parser.add_argument("--approve-package-plan-sha", required=True)
+    install_parser.add_argument(
+        "--install-root",
+        type=Path,
+        default=Path.home() / ".phios" / "apps" / "installed",
+    )
+    install_parser.add_argument("--receipt-root", type=Path, default=None)
+
+    uninstall_parser = subparsers.add_parser(
+        "uninstall-package",
+        help="Remove one unchanged install bound to an explicitly approved install receipt.",
+    )
+    uninstall_parser.add_argument("install_receipt_json", type=Path)
+    uninstall_parser.add_argument("--approve-install-receipt-sha", required=True)
+    uninstall_parser.add_argument(
+        "--install-root",
+        type=Path,
+        default=Path.home() / ".phios" / "apps" / "installed",
+    )
+    uninstall_parser.add_argument("--receipt-root", type=Path, default=None)
     return parser
 
 
@@ -469,6 +520,70 @@ def main(argv: Sequence[str] | None = None) -> int:
             in {"success", "no_build_required"}
             else 1
         )
+
+    if args.command == "plan-package":
+        try:
+            manifest_payload = _load_json_file(args.manifest_json)
+            registry = AppRegistry.load(args.registry_json)
+            execution_payload = _load_json_file(args.build_execution_receipt_json)
+            offline_build_payload = _load_json_file(args.offline_build_receipt_json)
+            package_plan = plan_build_package(
+                manifest_payload,
+                registry,
+                execution_payload,
+                offline_build_payload,
+            )
+        except (OSError, ValueError, KeyError) as exc:
+            print(json.dumps({"status": "blocked", "error": str(exc)}, sort_keys=True))
+            return 2
+        print(json.dumps(package_plan.to_dict(), sort_keys=True, indent=2))
+        return 0
+
+    if args.command == "review-package":
+        try:
+            package_payload = _load_json_file(args.package_plan_json)
+            package_review = review_build_package(package_payload)
+        except (OSError, ValueError) as exc:
+            print(json.dumps({"status": "blocked", "error": str(exc)}, sort_keys=True))
+            return 2
+        print(json.dumps(package_review.to_dict(), sort_keys=True, indent=2))
+        return 0
+
+    if args.command == "install-package":
+        try:
+            package_payload = _load_json_file(args.package_plan_json)
+            registry = AppRegistry.load(args.registry_json)
+            execution_payload = _load_json_file(args.build_execution_receipt_json)
+            offline_build_payload = _load_json_file(args.offline_build_receipt_json)
+            install_receipt = AppInstallService().install(
+                package_payload,
+                registry,
+                execution_payload,
+                offline_build_payload,
+                approved_package_plan_sha256=args.approve_package_plan_sha,
+                install_root=args.install_root,
+                receipt_root=args.receipt_root,
+            )
+        except (OSError, ValueError, KeyError) as exc:
+            print(json.dumps({"status": "blocked", "error": str(exc)}, sort_keys=True))
+            return 2
+        print(json.dumps(install_receipt.to_dict(), sort_keys=True, indent=2))
+        return 0
+
+    if args.command == "uninstall-package":
+        try:
+            install_payload = _load_json_file(args.install_receipt_json)
+            uninstall_receipt = AppUninstallService().uninstall(
+                install_payload,
+                approved_install_receipt_sha256=args.approve_install_receipt_sha,
+                install_root=args.install_root,
+                receipt_root=args.receipt_root,
+            )
+        except (OSError, ValueError) as exc:
+            print(json.dumps({"status": "blocked", "error": str(exc)}, sort_keys=True))
+            return 2
+        print(json.dumps(uninstall_receipt.to_dict(), sort_keys=True, indent=2))
+        return 0
 
     return 2
 
