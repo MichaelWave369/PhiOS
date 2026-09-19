@@ -1,4 +1,4 @@
-"""PhiOS App Platform: governed intake, source, build planning, sandboxed execution, and registry."""
+"""PhiOS App Platform: governed intake, dependency staging, sandboxed builds, and registry."""
 
 from .acquisition import (
     SOURCE_ACQUISITION_RECEIPT_SCHEMA_VERSION,
@@ -36,6 +36,21 @@ from .build_plan import (
     plan_build_from_payloads,
     review_build_plan,
     snapshot_source_tree,
+)
+from .dependency_broker import (
+    DEPENDENCY_PLAN_REVIEW_SCHEMA_VERSION,
+    DEPENDENCY_PLAN_SCHEMA_VERSION,
+    DEPENDENCY_RECEIPT_SCHEMA_VERSION,
+    DependencyArtifactPlan,
+    DependencyPlan,
+    DependencyPlanReview,
+    DependencyReceipt,
+    DependencyStageRequest,
+    DependencyStagingService,
+    HttpsDependencyDownloader,
+    StagedDependencyArtifact,
+    plan_npm_dependencies,
+    review_dependency_plan,
 )
 from .intake import (
     APP_INTAKE_EVIDENCE_SCHEMA_VERSION,
@@ -80,6 +95,9 @@ __all__ = [
     "BUILD_PLAN_SCHEMA_VERSION",
     "BUILD_SANDBOX_POLICY_SCHEMA_VERSION",
     "BUILD_SANDBOX_RECEIPT_SCHEMA_VERSION",
+    "DEPENDENCY_PLAN_REVIEW_SCHEMA_VERSION",
+    "DEPENDENCY_PLAN_SCHEMA_VERSION",
+    "DEPENDENCY_RECEIPT_SCHEMA_VERSION",
     "SOURCE_ACQUISITION_RECEIPT_SCHEMA_VERSION",
     "SOURCE_ACQUISITION_REQUEST_SCHEMA_VERSION",
     "AcquisitionBinding",
@@ -102,11 +120,18 @@ __all__ = [
     "BuildSandboxPolicy",
     "BuildSandboxReceipt",
     "BubblewrapSandboxRunner",
+    "DependencyArtifactPlan",
+    "DependencyPlan",
+    "DependencyPlanReview",
+    "DependencyReceipt",
+    "DependencyStageRequest",
+    "DependencyStagingService",
     "DistributionState",
     "DownloadedArchive",
     "GitHubCommitArchiveProvider",
     "GitHubPublicRepoProvider",
     "GitHubRepositoryRef",
+    "HttpsDependencyDownloader",
     "ObservedBuildFile",
     "ProcessResult",
     "RuntimeKind",
@@ -119,12 +144,15 @@ __all__ = [
     "SourceAcquisitionReview",
     "SourceAcquisitionService",
     "SourceTreeEntry",
+    "StagedDependencyArtifact",
     "StreamCapture",
     "SubprocessBuildRunner",
     "ToolIdentity",
     "inspect_public_github_app",
     "plan_build_from_payloads",
+    "plan_npm_dependencies",
     "review_build_plan",
+    "review_dependency_plan",
     "review_intake_for_acquisition",
     "snapshot_source_tree",
 ]

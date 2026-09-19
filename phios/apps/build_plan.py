@@ -19,6 +19,7 @@ BUILD_PLAN_REVIEW_SCHEMA_VERSION = "phios.build_plan_review.v0.1"
 BuildPlanStatus = Literal["ready_for_review", "review_required", "no_build_required"]
 
 _MAX_METADATA_FILE_BYTES = 262_144
+_MAX_LOCKFILE_BYTES = 8 * 1024 * 1024
 _MAX_SOURCE_FILES = 4096
 _MAX_SOURCE_BYTES = 128 * 1024 * 1024
 _MAX_SOURCE_DIRECTORIES = 8192
@@ -166,7 +167,7 @@ class ObservedBuildFile:
             byte_count=_integer(
                 data["byte_count"],
                 "observed build file byte_count",
-                maximum=_MAX_METADATA_FILE_BYTES,
+                maximum=_MAX_LOCKFILE_BYTES,
             ),
             sha256=_sha256(data["sha256"], "observed build file sha256"),
         )
@@ -584,6 +585,21 @@ def snapshot_source_tree(root: Path) -> tuple[str, int, int]:
     return digest.hexdigest(), len(entries), total_bytes
 
 
+def _metadata_file_limit(name: str) -> int:
+    if name in {
+        "package-lock.json",
+        "npm-shrinkwrap.json",
+        "pnpm-lock.yaml",
+        "yarn.lock",
+        "bun.lock",
+        "bun.lockb",
+        "Cargo.lock",
+        "go.sum",
+    }:
+        return _MAX_LOCKFILE_BYTES
+    return _MAX_METADATA_FILE_BYTES
+
+
 def _observe_build_files(root: Path) -> tuple[dict[str, bytes], tuple[ObservedBuildFile, ...]]:
     contents: dict[str, bytes] = {}
     observations: list[ObservedBuildFile] = []
@@ -594,8 +610,9 @@ def _observe_build_files(root: Path) -> tuple[dict[str, bytes], tuple[ObservedBu
         if path.is_symlink() or not path.is_file():
             raise ValueError(f"Build marker is not a regular file: {name}")
         size = path.stat().st_size
-        if size > _MAX_METADATA_FILE_BYTES:
-            raise ValueError(f"Build marker exceeds {_MAX_METADATA_FILE_BYTES} bytes: {name}")
+        limit = _metadata_file_limit(name)
+        if size > limit:
+            raise ValueError(f"Build marker exceeds {limit} bytes: {name}")
         content = path.read_bytes()
         if len(content) != size:
             raise ValueError(f"Build marker changed while planning: {name}")
