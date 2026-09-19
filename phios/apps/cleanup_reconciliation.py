@@ -677,6 +677,7 @@ class CleanupReconciliationPlan:
             raise ValueError("unsupported cleanup reconciliation classification")
         if self.action not in _allowed_actions(self.classification):
             raise ValueError("reconciliation action is not allowed for classification")
+        expected_permissions: tuple[str, ...]
         if self.action == "cancel":
             expected_permissions = _CANCEL_PERMISSION
         elif self.action == "finalize":
