@@ -40,7 +40,6 @@ BrowserProfileMode = Literal["ephemeral"]
 BrowserDisplayMode = Literal["headless"]
 BrowserFamily = Literal["chromium"]
 
-_SHA256_RE = re.compile(r"^[0-9a-f]{64}$") if False else None
 _BROWSER_TOOLS = {"chromium", "chromium-browser"}
 _BROWSER_PERMISSIONS = (
     "browser.network.inherit",
