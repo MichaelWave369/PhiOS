@@ -183,7 +183,7 @@ Older Spine documents remain in the repository as the versioned design trail.
 
 ## App Platform Alpha
 
-The current App Platform line is **v0.33**. v0.25 introduced strict app manifests and a deterministic registry; v0.26 added bounded public GitHub intake; v0.27 added exact-commit source acquisition; v0.28 added deterministic non-executing build plans; v0.29 added explicitly approved build execution; v0.30 added Linux Bubblewrap containment; v0.31 added SRI-verified dependency staging; v0.32 added verified offline npm builds; v0.33 adds artifact-only package planning, atomic installation, install receipts, and bounded uninstall.
+The current App Platform line is **v0.34**. v0.25 introduced strict app manifests and a deterministic registry; v0.26 added bounded public GitHub intake; v0.27 added exact-commit source acquisition; v0.28 added deterministic non-executing build plans; v0.29 added explicitly approved build execution; v0.30 added Linux Bubblewrap containment; v0.31 added SRI-verified dependency staging; v0.32 added verified offline npm builds; v0.33 added artifact-only installation; v0.34 adds separately reviewed installed-app runtime plans and governed foreground Node/Python launch.
 
 A manifest records:
 
@@ -210,6 +210,8 @@ more.
 
 See:
 
+- [App Platform v0.34 overview](README_APP_PLATFORM_V0.34.md)
+- [App Platform v0.34 installed runtime contract](docs/PHIOS_APP_PLATFORM_V0.34_INSTALLED_RUNTIME.md)
 - [App Platform v0.33 overview](README_APP_PLATFORM_V0.33.md)
 - [App Platform v0.33 artifact install contract](docs/PHIOS_APP_PLATFORM_V0.33_ARTIFACT_INSTALL.md)
 - [App Platform v0.32 overview](README_APP_PLATFORM_V0.32.md)
@@ -354,7 +356,29 @@ phi-app uninstall-package install-receipt.json \
   --approve-install-receipt-sha EXACT_INSTALL_RECEIPT_SHA256
 ```
 
-The next planned rung is an installed-app runtime contract with a separately reviewed launch plan and runtime permissions.
+Create a runtime plan only from an unchanged v0.33 install:
+
+```bash
+phi-app plan-runtime install-receipt.json > runtime-plan.json
+phi-app review-runtime runtime-plan.json
+```
+
+v0.34 currently makes only direct installed Node `.js/.mjs/.cjs` targets and Python `.py` targets executable. It deliberately does not infer a built entrypoint from `package.json`, launch native binaries without preserved executable-mode evidence, invent a static-web browser/server, or treat a `local_http` URL as an executable.
+
+Launch requires approval of the exact runtime-plan digest and the exact permission set:
+
+```bash
+phi-app launch-runtime \
+  runtime-plan.json \
+  install-receipt.json \
+  --approve-runtime-plan-sha EXACT_RUNTIME_PLAN_SHA256
+```
+
+The installed payload is mounted read-only at `/app`. Network is denied by default. Host-network inheritance requires the reviewed `runtime.network.inherit` permission, and persistent writable app data at `/phios/app-data` requires `runtime.data.persist`.
+
+The production runtime performs a real Bubblewrap preflight before execution and emits a strict runtime receipt after process exit or timeout. Portable CI verifies the command/control contract with fake runners rather than claiming kernel isolation that the hosted CI environment did not exercise.
+
+The next planned rung is explicit runtime-adapter mapping, starting with built-output/static-web behavior so typical Vite-style repositories can become runnable without invisible entrypoint inference.
 
 v0.18 adds a stronger semantic boundary for scalar values. Boolean and numeric values may be inspected only with the separate `reality.local_http.semantic.value.read` grant. The observed scalar is used transiently for comparison and is not persisted in semantic evidence.
 

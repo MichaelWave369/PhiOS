@@ -35,6 +35,12 @@ from .package_install import (
     review_build_package,
 )
 from .registry import AppRegistry
+from .runtime import (
+    InstalledRuntimeService,
+    RuntimeLaunchRequest,
+    plan_installed_runtime,
+    review_installed_runtime,
+)
 from .sandbox import BuildSandboxPolicy, SandboxedBuildExecutionService
 
 _MAX_INTAKE_RESULT_BYTES = 2 * 1024 * 1024
@@ -271,6 +277,57 @@ def _parser() -> argparse.ArgumentParser:
         default=Path.home() / ".phios" / "apps" / "installed",
     )
     uninstall_parser.add_argument("--receipt-root", type=Path, default=None)
+
+    runtime_plan_parser = subparsers.add_parser(
+        "plan-runtime",
+        help="Create a reviewed runtime plan from one unchanged v0.33 install.",
+    )
+    runtime_plan_parser.add_argument("install_receipt_json", type=Path)
+    runtime_plan_parser.add_argument(
+        "--install-root",
+        type=Path,
+        default=Path.home() / ".phios" / "apps" / "installed",
+    )
+    runtime_plan_parser.add_argument("--runtime-wall-seconds", type=int, default=300)
+    runtime_plan_parser.add_argument("--runtime-cpu-seconds", type=int, default=300)
+    runtime_plan_parser.add_argument("--runtime-memory-mib", type=int, default=2048)
+    runtime_plan_parser.add_argument("--runtime-open-files", type=int, default=512)
+    runtime_plan_parser.add_argument("--runtime-max-file-mib", type=int, default=128)
+
+    runtime_review_parser = subparsers.add_parser(
+        "review-runtime",
+        help="Expose the exact v0.34 runtime-plan digest and requested runtime authority.",
+    )
+    runtime_review_parser.add_argument("runtime_plan_json", type=Path)
+
+    runtime_launch_parser = subparsers.add_parser(
+        "launch-runtime",
+        help="Launch one explicitly approved installed-app runtime plan.",
+    )
+    runtime_launch_parser.add_argument("runtime_plan_json", type=Path)
+    runtime_launch_parser.add_argument("install_receipt_json", type=Path)
+    runtime_launch_parser.add_argument("--approve-runtime-plan-sha", required=True)
+    runtime_launch_parser.add_argument(
+        "--allow-runtime-permission",
+        action="append",
+        default=[],
+        dest="runtime_permissions",
+    )
+    runtime_launch_parser.add_argument(
+        "--install-root",
+        type=Path,
+        default=Path.home() / ".phios" / "apps" / "installed",
+    )
+    runtime_launch_parser.add_argument(
+        "--data-root",
+        type=Path,
+        default=Path.home() / ".phios" / "apps" / "data",
+    )
+    runtime_launch_parser.add_argument(
+        "--receipt-root",
+        type=Path,
+        default=Path.home() / ".phios" / "apps" / "runtime-receipts",
+    )
     return parser
 
 
@@ -584,6 +641,56 @@ def main(argv: Sequence[str] | None = None) -> int:
             return 2
         print(json.dumps(uninstall_receipt.to_dict(), sort_keys=True, indent=2))
         return 0
+
+    if args.command == "plan-runtime":
+        try:
+            install_payload = _load_json_file(args.install_receipt_json)
+            runtime_plan = plan_installed_runtime(
+                install_payload,
+                install_root=args.install_root,
+                wall_clock_seconds=args.runtime_wall_seconds,
+                cpu_seconds=args.runtime_cpu_seconds,
+                address_space_bytes=args.runtime_memory_mib * 1024 * 1024,
+                max_open_files=args.runtime_open_files,
+                max_file_size_bytes=args.runtime_max_file_mib * 1024 * 1024,
+            )
+        except (OSError, ValueError) as exc:
+            print(json.dumps({"status": "blocked", "error": str(exc)}, sort_keys=True))
+            return 2
+        print(json.dumps(runtime_plan.to_dict(), sort_keys=True, indent=2))
+        return 0
+
+    if args.command == "review-runtime":
+        try:
+            runtime_payload = _load_json_file(args.runtime_plan_json)
+            runtime_review = review_installed_runtime(runtime_payload)
+        except (OSError, ValueError) as exc:
+            print(json.dumps({"status": "blocked", "error": str(exc)}, sort_keys=True))
+            return 2
+        print(json.dumps(runtime_review.to_dict(), sort_keys=True, indent=2))
+        return 0
+
+    if args.command == "launch-runtime":
+        try:
+            runtime_payload = _load_json_file(args.runtime_plan_json)
+            install_payload = _load_json_file(args.install_receipt_json)
+            launch_request = RuntimeLaunchRequest.from_payloads(
+                runtime_payload,
+                install_payload,
+                approved_runtime_plan_sha256=args.approve_runtime_plan_sha,
+                approved_runtime_permissions=tuple(args.runtime_permissions),
+            )
+            launch_result = InstalledRuntimeService().launch(
+                launch_request,
+                install_root=args.install_root,
+                data_root=args.data_root,
+                receipt_root=args.receipt_root,
+            )
+        except (OSError, ValueError) as exc:
+            print(json.dumps({"status": "blocked", "error": str(exc)}, sort_keys=True))
+            return 2
+        print(json.dumps(launch_result.to_dict(), sort_keys=True, indent=2))
+        return 0 if launch_result.receipt.status == "exited_success" else 1
 
     return 2
 
