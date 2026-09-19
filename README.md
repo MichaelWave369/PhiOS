@@ -317,7 +317,7 @@ scripts/       development and policy helpers
 
 ## Geometric, relational, and dynamic field reasoning
 
-PhiOS now has a four-rung advisory core for reasoning over computational state
+PhiOS now has a five-rung advisory core for reasoning over computational state
 spaces before exact verification.
 
 **Geometric Reasoning v0.1** reduces state spaces through constraints,
@@ -334,6 +334,11 @@ immutable hashed law.
 into explicit non-negative route-cost terms, so preferred paths can change as
 the field changes without changing hard constraints or execution authority.
 
+**Governed Replanning v0.5** re-scores the incumbent and candidate under the
+same current field snapshot, then applies a fixed hysteresis policy to emit
+`KEEP`, `REPLAN`, or `UNRESOLVED`. This prevents small field fluctuations
+from causing route thrash.
+
 The critical boundaries are:
 
 ```text
@@ -348,6 +353,10 @@ the governing law
 route recommendation
 does not become
 execution authority
+
+new preference
+does not automatically become
+a replacement recommendation
 ```
 
 Authority therefore remains a gate, not a score, and field adaptation remains
@@ -361,6 +370,7 @@ See:
 - [Relational Field Geometry v0.2](docs/PHIOS_RELATIONAL_FIELD_V0.2.md)
 - [Dynamic Field State v0.3](docs/PHIOS_DYNAMIC_FIELD_V0.3.md)
 - [Field-Aware Routing v0.4](docs/PHIOS_FIELD_AWARE_ROUTING_V0.4.md)
+- [Governed Replanning v0.5](docs/PHIOS_GOVERNED_REPLANNING_V0.5.md)
 
 ---
 

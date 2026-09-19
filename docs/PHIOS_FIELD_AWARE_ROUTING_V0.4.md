@@ -188,3 +188,14 @@ mypy phios/ --ignore-missing-imports
 pytest -q
 bash scripts/policy_no_telemetry_runtime.sh
 ```
+
+
+---
+
+## Next rung
+
+Field-Aware Routing v0.4 is stabilized by
+[Governed Replanning v0.5](PHIOS_GOVERNED_REPLANNING_V0.5.md). v0.5 re-scores
+the incumbent and fresh candidate under the same current field snapshot and
+uses a fixed hysteresis policy to emit KEEP, REPLAN, or UNRESOLVED without
+granting execution authority.
