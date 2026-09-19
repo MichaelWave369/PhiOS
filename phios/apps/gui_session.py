@@ -121,6 +121,7 @@ class WaylandSocketIdentity:
     host_path: str
     device: int
     inode: int
+    ctime_ns: int
     display_name: str
     sandbox_runtime_dir: str
     sandbox_socket_path: str
@@ -133,6 +134,12 @@ class WaylandSocketIdentity:
             raise ValueError("Wayland socket device must be a nonnegative integer")
         if not isinstance(self.inode, int) or isinstance(self.inode, bool) or self.inode <= 0:
             raise ValueError("Wayland socket inode must be a positive integer")
+        if (
+            not isinstance(self.ctime_ns, int)
+            or isinstance(self.ctime_ns, bool)
+            or self.ctime_ns <= 0
+        ):
+            raise ValueError("Wayland socket ctime_ns must be a positive integer")
         if not _WAYLAND_NAME_RE.fullmatch(self.display_name):
             raise ValueError("Wayland display name is invalid")
         if self.sandbox_runtime_dir != _SANDBOX_RUNTIME_DIR:
@@ -163,6 +170,7 @@ class WaylandSocketIdentity:
             host_path=str(resolved),
             device=stat_result.st_dev,
             inode=stat_result.st_ino,
+            ctime_ns=stat_result.st_ctime_ns,
             display_name=name,
             sandbox_runtime_dir=_SANDBOX_RUNTIME_DIR,
             sandbox_socket_path=f"{_SANDBOX_RUNTIME_DIR}/{name}",
@@ -175,6 +183,7 @@ class WaylandSocketIdentity:
             "host_path",
             "device",
             "inode",
+            "ctime_ns",
             "display_name",
             "sandbox_runtime_dir",
             "sandbox_socket_path",
@@ -185,6 +194,7 @@ class WaylandSocketIdentity:
             host_path=_string(data["host_path"], "Wayland host_path", maximum=4096),
             device=data["device"],
             inode=data["inode"],
+            ctime_ns=data["ctime_ns"],
             display_name=_string(data["display_name"], "Wayland display_name", maximum=64),
             sandbox_runtime_dir=_string(
                 data["sandbox_runtime_dir"],
@@ -209,7 +219,11 @@ class WaylandSocketIdentity:
         if str(resolved) != self.host_path or not resolved.is_socket():
             raise ValueError("reviewed Wayland socket identity changed")
         stat_result = resolved.stat()
-        if stat_result.st_dev != self.device or stat_result.st_ino != self.inode:
+        if (
+            stat_result.st_dev != self.device
+            or stat_result.st_ino != self.inode
+            or stat_result.st_ctime_ns != self.ctime_ns
+        ):
             raise ValueError("reviewed Wayland socket instance changed")
         return resolved
 
