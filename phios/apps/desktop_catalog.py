@@ -229,6 +229,14 @@ class DesktopCatalogItem:
         ):
             if value is not None:
                 _sha256(value, label)
+        bool_fields = (
+            self.identity_verified,
+            self.persistent_launch_grant_present,
+            self.catalog_launch_authority,
+            self.catalog_revoke_authority,
+        )
+        if any(not isinstance(value, bool) for value in bool_fields):
+            raise ValueError("desktop catalog item authority/state fields must be boolean")
         if self.icon_asset_state != "metadata_only":
             raise ValueError("v0.39 supports only metadata_only icon state")
         if self.status not in {"ready", "blocked"}:
@@ -581,6 +589,20 @@ class DesktopCatalogSnapshot:
         ):
             if not Path(value).is_absolute():
                 raise ValueError(f"{label} must be absolute")
+        count_values = (self.item_count, self.ready_count, self.blocked_count)
+        if any(
+            not isinstance(value, int) or isinstance(value, bool) or value < 0
+            for value in count_values
+        ):
+            raise ValueError("desktop catalog counts must be nonnegative integers")
+        if any(
+            not isinstance(value, bool)
+            for value in (
+                self.catalog_launch_authority,
+                self.catalog_revoke_authority,
+            )
+        ):
+            raise ValueError("desktop catalog authority fields must be boolean")
         keys = tuple(item.catalog_key for item in self.items)
         if keys != tuple(sorted(keys)):
             raise ValueError("desktop catalog items must be sorted by catalog_key")
@@ -867,6 +889,11 @@ class DesktopCatalogReceipt:
             raise ValueError("desktop catalog receipt counts must be nonnegative integers")
         if self.ready_count + self.blocked_count != self.item_count:
             raise ValueError("desktop catalog receipt status counts do not match item_count")
+        if any(
+            not isinstance(value, bool)
+            for value in (self.launch_authority, self.revoke_authority)
+        ):
+            raise ValueError("desktop catalog receipt authority fields must be boolean")
         if self.launch_authority or self.revoke_authority:
             raise ValueError("desktop catalog receipt does not grant action authority")
 
