@@ -183,7 +183,7 @@ Older Spine documents remain in the repository as the versioned design trail.
 
 ## App Platform Alpha
 
-The current App Platform line begins at **v0.25** with strict app manifests and a deterministic registry.
+The current App Platform line is **v0.26**. v0.25 introduced strict app manifests and a deterministic registry; v0.26 adds bounded public GitHub intake that can produce evidence plus a non-authoritative manifest candidate.
 
 A manifest records:
 
@@ -210,11 +210,18 @@ more.
 
 See:
 
+- [App Platform v0.26 overview](README_APP_PLATFORM_V0.26.md)
+- [App Platform v0.26 bounded GitHub intake contract](docs/PHIOS_APP_PLATFORM_V0.26_GITHUB_INTAKE.md)
 - [App Platform v0.25 overview](README_APP_PLATFORM_V0.25.md)
 - [App Platform v0.25 manifest + registry contract](docs/PHIOS_APP_PLATFORM_V0.25_MANIFEST_REGISTRY.md)
 
-The next planned rung is bounded GitHub intake for license/runtime/build/entrypoint/permission
-discovery. Intake will propose evidence and metadata; it will not grant execution authority.
+Inspect one public repository explicitly:
+
+```bash
+phi-app inspect-github https://github.com/OWNER/REPO
+```
+
+The next planned rung is governed source acquisition pinned to an exact commit. Intake itself does not clone, install, build, register, trust, or launch an app.
 
 v0.18 adds a stronger semantic boundary for scalar values. Boolean and numeric values may be inspected only with the separate `reality.local_http.semantic.value.read` grant. The observed scalar is used transiently for comparison and is not persisted in semantic evidence.
 
@@ -330,6 +337,7 @@ Inspect the shell and Spine surfaces:
 ```bash
 phi --help
 phi-spine --help
+phi-app --help
 ```
 
 Check the Spine contract state:
@@ -441,7 +449,7 @@ phios/
 ├─ shell/      operator shell
 ├─ mcp/        MCP interface
 ├─ spine/      authority-aware Spine runtime
-├─ apps/       app manifests and governed registry
+├─ apps/       app manifests, bounded GitHub intake, governed registry
 ├─ mandala/    typed contracts and receipts
 ├─ soma/       bounded perception/evidence
 └─ reality/    Reality Gate verification
