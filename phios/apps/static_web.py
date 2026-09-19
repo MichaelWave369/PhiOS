@@ -8,6 +8,7 @@ from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Callable, Literal, Protocol, cast
+from urllib.parse import urlsplit
 
 from .build_execution import ProcessResult, ToolIdentity
 from .package_install import AppInstallReceipt, BuildPackagePlan, snapshot_installed_tree
@@ -728,12 +729,49 @@ class StaticWebServeReceipt:
             raise ValueError("static-web receipt must not grant browser launch authority")
         if self.application_code_executed_by_server is not False:
             raise ValueError("static-web server must not execute application code")
+        parsed_url = urlsplit(self.loopback_url)
+        if (
+            parsed_url.scheme != "http"
+            or parsed_url.hostname != _LOOPBACK_HOST
+            or parsed_url.path != "/"
+            or parsed_url.query
+            or parsed_url.fragment
+            or parsed_url.username
+            or parsed_url.password
+        ):
+            raise ValueError("static-web receipt loopback_url must be plain reviewed loopback HTTP")
+        if parsed_url.port is None or not 1024 <= parsed_url.port <= 65535:
+            raise ValueError("static-web receipt loopback port is out of bounds")
+        if not isinstance(self.exit_code, int) or isinstance(self.exit_code, bool):
+            raise ValueError("static-web exit_code must be an integer")
+        if not isinstance(self.timed_out, bool):
+            raise ValueError("static-web timed_out must be boolean")
+        _int(
+            self.stdout_byte_count,
+            "stdout_byte_count",
+            minimum=0,
+            maximum=2**63 - 1,
+        )
+        _int(
+            self.stderr_byte_count,
+            "stderr_byte_count",
+            minimum=0,
+            maximum=2**63 - 1,
+        )
         if self.status not in {"serve_window_complete", "server_exited", "server_failed"}:
             raise ValueError("unsupported static-web serve status")
-        if self.status == "serve_window_complete" and not self.timed_out:
-            raise ValueError("serve_window_complete requires timed_out=true")
-        if self.status != "serve_window_complete" and self.timed_out:
+        if self.status == "serve_window_complete":
+            if not self.timed_out:
+                raise ValueError("serve_window_complete requires timed_out=true")
+            if self.failure_reason is not None:
+                raise ValueError("serve_window_complete must not contain failure_reason")
+        elif self.timed_out:
             raise ValueError("timed_out=true requires serve_window_complete")
+        elif self.status == "server_exited":
+            if self.exit_code != 0 or self.failure_reason is not None:
+                raise ValueError("server_exited requires exit_code 0 and no failure reason")
+        elif self.exit_code == 0 or self.failure_reason is None:
+            raise ValueError("server_failed requires nonzero exit code and failure reason")
 
     def body_dict(self) -> dict[str, Any]:
         return {
@@ -774,6 +812,154 @@ class StaticWebServeReceipt:
         result = self.body_dict()
         result["static_web_receipt_sha256"] = self.sha256()
         return result
+
+    @classmethod
+    def from_dict(cls, value: Any) -> StaticWebServeReceipt:
+        data = _mapping(value, "static-web serve receipt")
+        expected = {
+            "schema_version",
+            "receipt_id",
+            "timestamp_utc",
+            "app_id",
+            "app_version",
+            "static_web_plan_sha256",
+            "install_receipt_sha256",
+            "installed_tree_sha256",
+            "package_plan_sha256",
+            "static_root_sha256",
+            "mapping_rule",
+            "loopback_url",
+            "serve_seconds",
+            "policy",
+            "backend_identity",
+            "controls",
+            "server_tool_identity",
+            "exit_code",
+            "timed_out",
+            "duration_ms",
+            "stdout_byte_count",
+            "stdout_sha256",
+            "stderr_byte_count",
+            "stderr_sha256",
+            "status",
+            "failure_reason",
+            "browser_launch_authority",
+            "application_code_executed_by_server",
+            "static_web_receipt_sha256",
+        }
+        if set(data) != expected:
+            raise ValueError("static-web serve receipt contains missing or unknown fields")
+        backend_data = _mapping(data["backend_identity"], "static-web backend identity")
+        if set(backend_data) != {
+            "backend",
+            "executable_path",
+            "version",
+            "version_output_sha256",
+            "platform_system",
+            "platform_machine",
+        }:
+            raise ValueError("static-web backend identity contains missing or unknown fields")
+        tool_data = _mapping(data["server_tool_identity"], "static-web server tool identity")
+        if set(tool_data) != {
+            "logical_tool",
+            "executable_path",
+            "version",
+            "version_output_sha256",
+        }:
+            raise ValueError("static-web server tool identity contains missing or unknown fields")
+        failure_reason = data["failure_reason"]
+        if failure_reason is not None:
+            failure_reason = _string(failure_reason, "failure_reason", maximum=512)
+        receipt = cls(
+            schema_version=data["schema_version"],
+            receipt_id=_string(data["receipt_id"], "static-web receipt_id", maximum=64),
+            timestamp_utc=_string(
+                data["timestamp_utc"],
+                "static-web timestamp_utc",
+                maximum=128,
+            ),
+            app_id=_string(data["app_id"], "static-web app_id", maximum=64),
+            app_version=_string(data["app_version"], "static-web app_version", maximum=128),
+            static_web_plan_sha256=_sha256(
+                data["static_web_plan_sha256"],
+                "static_web_plan_sha256",
+            ),
+            install_receipt_sha256=_sha256(
+                data["install_receipt_sha256"],
+                "install_receipt_sha256",
+            ),
+            installed_tree_sha256=_sha256(
+                data["installed_tree_sha256"],
+                "installed_tree_sha256",
+            ),
+            package_plan_sha256=_sha256(
+                data["package_plan_sha256"],
+                "package_plan_sha256",
+            ),
+            static_root_sha256=_sha256(
+                data["static_root_sha256"],
+                "static_root_sha256",
+            ),
+            mapping_rule=_string(data["mapping_rule"], "mapping_rule", maximum=64),
+            loopback_url=_string(data["loopback_url"], "loopback_url", maximum=256),
+            serve_seconds=data["serve_seconds"],
+            policy=RuntimeSandboxPolicy.from_dict(data["policy"]),
+            backend_identity=SandboxBackendIdentity(
+                backend=_string(backend_data["backend"], "backend", maximum=64),
+                executable_path=_string(
+                    backend_data["executable_path"],
+                    "backend executable_path",
+                    maximum=4096,
+                ),
+                version=_string(backend_data["version"], "backend version", maximum=512),
+                version_output_sha256=_sha256(
+                    backend_data["version_output_sha256"],
+                    "backend version_output_sha256",
+                ),
+                platform_system=_string(
+                    backend_data["platform_system"],
+                    "platform_system",
+                    maximum=128,
+                ),
+                platform_machine=_string(
+                    backend_data["platform_machine"],
+                    "platform_machine",
+                    maximum=128,
+                ),
+            ),
+            controls=RuntimeControlEvidence.from_dict(data["controls"]),
+            server_tool_identity=ToolIdentity(
+                logical_tool=_string(
+                    tool_data["logical_tool"],
+                    "server logical_tool",
+                    maximum=64,
+                ),
+                executable_path=_string(
+                    tool_data["executable_path"],
+                    "server executable_path",
+                    maximum=4096,
+                ),
+                version=_string(tool_data["version"], "server version", maximum=512),
+                version_output_sha256=_sha256(
+                    tool_data["version_output_sha256"],
+                    "server version_output_sha256",
+                ),
+            ),
+            exit_code=data["exit_code"],
+            timed_out=data["timed_out"],
+            duration_ms=data["duration_ms"],
+            stdout_byte_count=data["stdout_byte_count"],
+            stdout_sha256=_sha256(data["stdout_sha256"], "stdout_sha256"),
+            stderr_byte_count=data["stderr_byte_count"],
+            stderr_sha256=_sha256(data["stderr_sha256"], "stderr_sha256"),
+            status=_string(data["status"], "static-web status", maximum=64),
+            failure_reason=failure_reason,
+            browser_launch_authority=data["browser_launch_authority"],
+            application_code_executed_by_server=data["application_code_executed_by_server"],
+        )
+        if data["static_web_receipt_sha256"] != receipt.sha256():
+            raise ValueError("static-web serve receipt digest does not match canonical receipt")
+        return receipt
 
 
 @dataclass(frozen=True)
