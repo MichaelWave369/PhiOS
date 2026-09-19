@@ -258,7 +258,9 @@ class FakeVisibleRunner:
             host_socket_path=identity.host_path,
             host_socket_device=identity.device,
             host_socket_inode=identity.inode,
+            host_socket_ctime_ns=identity.ctime_ns,
             host_socket_owner_uid=identity.owner_uid,
+            host_socket_owner_gid=identity.owner_gid,
             sandbox_socket_path=identity.sandbox_path,
             exact_socket_bind=True,
             host_runtime_directory_mounted=False,
@@ -303,7 +305,9 @@ def test_wayland_socket_identity_binds_device_inode_and_owner(tmp_path: Path) ->
         assert identity.display_name == "wayland-0"
         assert identity.device == metadata.st_dev
         assert identity.inode == metadata.st_ino
+        assert identity.ctime_ns == metadata.st_ctime_ns
         assert identity.owner_uid == os.getuid()
+        assert identity.owner_gid == metadata.st_gid
         assert identity.sandbox_path == "/run/phios-wayland/wayland-0"
     finally:
         sock.close()
@@ -411,6 +415,8 @@ def test_wayland_socket_replacement_invalidates_review(tmp_path: Path) -> None:
     replacement = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
     replacement.bind(str(path))
     try:
+        replaced_identity = inspect_wayland_socket(path)
+        assert replaced_identity != plan.wayland_socket
         with pytest.raises(ValueError, match="identity changed"):
             VisibleBrowserSessionService(
                 runner_factory=lambda a, b, c, d, e: FakeVisibleRunner(a, b, c, d, e)
