@@ -183,10 +183,16 @@ class RelationalField:
         _require_unique_names("relation cost", [item.name for item in self._relation_costs])
         _require_unique_names("constraint", [item.name for item in self._constraints])
 
-        for item in self._axes:
-            _require_nonnegative_finite(item.weight, f"axis {item.name!r} weight")
-        for item in self._relation_costs:
-            _require_nonnegative_finite(item.weight, f"relation {item.name!r} weight")
+        for axis_spec in self._axes:
+            _require_nonnegative_finite(
+                axis_spec.weight,
+                f"axis {axis_spec.name!r} weight",
+            )
+        for relation_spec in self._relation_costs:
+            _require_nonnegative_finite(
+                relation_spec.weight,
+                f"relation {relation_spec.name!r} weight",
+            )
 
     def assess_transition(
         self,
@@ -204,50 +210,52 @@ class RelationalField:
         relation_costs: list[RelationCost] = []
 
         if not blocked_by:
-            for spec in self._axes:
+            for axis_spec in self._axes:
                 try:
                     source_value = _require_finite(
-                        spec.measure(source),
-                        f"axis {spec.name!r} source value",
+                        axis_spec.measure(source),
+                        f"axis {axis_spec.name!r} source value",
                     )
                     target_value = _require_finite(
-                        spec.measure(target),
-                        f"axis {spec.name!r} target value",
+                        axis_spec.measure(target),
+                        f"axis {axis_spec.name!r} target value",
                     )
                 except Exception as exc:
                     if isinstance(exc, RelationalFieldContractError):
                         raise
                     raise RelationalFieldContractError(
-                        f"axis {spec.name!r} could not be evaluated: {type(exc).__name__}"
+                        f"axis {axis_spec.name!r} could not be evaluated: "
+                        f"{type(exc).__name__}"
                     ) from exc
                 delta = abs(target_value - source_value)
                 axis_changes.append(
                     AxisChange(
-                        name=spec.name,
+                        name=axis_spec.name,
                         source_value=source_value,
                         target_value=target_value,
                         absolute_delta=delta,
-                        weighted_cost=delta * spec.weight,
+                        weighted_cost=delta * axis_spec.weight,
                     )
                 )
 
-            for spec in self._relation_costs:
+            for relation_spec in self._relation_costs:
                 try:
                     raw = _require_nonnegative_finite(
-                        spec.evaluate(source, target),
-                        f"relation {spec.name!r} cost",
+                        relation_spec.evaluate(source, target),
+                        f"relation {relation_spec.name!r} cost",
                     )
                 except Exception as exc:
                     if isinstance(exc, RelationalFieldContractError):
                         raise
                     raise RelationalFieldContractError(
-                        f"relation {spec.name!r} could not be evaluated: {type(exc).__name__}"
+                        f"relation {relation_spec.name!r} could not be evaluated: "
+                        f"{type(exc).__name__}"
                     ) from exc
                 relation_costs.append(
                     RelationCost(
-                        name=spec.name,
+                        name=relation_spec.name,
                         raw_cost=raw,
-                        weighted_cost=raw * spec.weight,
+                        weighted_cost=raw * relation_spec.weight,
                     )
                 )
 
