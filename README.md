@@ -315,23 +315,35 @@ scripts/       development and policy helpers
 
 ---
 
-## Geometric reasoning foundation
+## Geometric and relational reasoning
 
-PhiOS now includes an advisory **Geometric Reasoning v0.1** core primitive for
-reducing state spaces before exact verification.
+PhiOS now has two advisory core primitives for reasoning over computational
+state spaces before exact verification.
 
-It can:
+**Geometric Reasoning v0.1** can prune invalid regions, collapse declared
+symmetries into quotient classes, detect conserved-invariant incompatibility,
+and search canonical representatives.
 
-- prune states outside declared constraints;
-- collapse symmetry-equivalent states into quotient classes;
-- detect targets incompatible with declared conserved invariants;
-- search one representative per equivalence class instead of blindly expanding
-  every representation.
+**Relational Field Geometry v0.2** adds hard transition boundaries plus soft
+field and pairwise-relation costs. It can compute a deterministic
+least-declared-cost path over the graph exposed by a workload.
 
-Geometric receipts are deterministic and always carry
-`action_authority = false`. Reduction does not become permission.
+The critical boundary is:
 
-See the [Geometric Reasoning v0.1 contract](docs/PHIOS_GEOMETRIC_REASONING_V0.1.md).
+```text
+hard constraint failure
+cannot be outvoted by
+lower soft field cost
+```
+
+Authority therefore remains a gate, not a score.
+
+All geometric/field receipts carry `action_authority = false`.
+
+See:
+
+- [Geometric Reasoning v0.1](docs/PHIOS_GEOMETRIC_REASONING_V0.1.md)
+- [Relational Field Geometry v0.2](docs/PHIOS_RELATIONAL_FIELD_V0.2.md)
 
 ---
 
