@@ -11,6 +11,7 @@ import pytest
 from phios.apps.build_plan import plan_build_from_payloads
 from phios.apps.dependency_broker import (
     DependencyPlan,
+    DependencyReceipt,
     DependencyStageRequest,
     DependencyStagingService,
     review_dependency_plan,
@@ -234,6 +235,11 @@ def test_staging_verifies_sri_and_writes_cas_and_receipt(tmp_path: Path) -> None
     assert len(receipts) == 1
     persisted = json.loads(receipts[0].read_text(encoding="utf-8"))
     assert persisted["dependency_receipt_sha256"] == receipt.sha256()
+    parsed = DependencyReceipt.from_dict(persisted)
+    assert parsed == receipt
+    assert parsed.repository_url == "https://github.com/example/example"
+    assert parsed.package_manager == "npm"
+    assert parsed.lockfile_version == 3
     assert downloader.calls == [
         (
             "https://registry.npmjs.org/dep-one/-/dep-one-1.0.0.tgz",
@@ -359,3 +365,46 @@ def test_build_planning_accepts_lockfile_larger_than_old_256k_limit(tmp_path: Pa
     assert dependency_plan.lockfile_sha256 == hashlib.sha256(
         (tmp_path / "package-lock.json").read_bytes()
     ).hexdigest()
+
+
+def test_dependency_receipt_tampering_is_rejected(tmp_path: Path) -> None:
+    source = tmp_path / "source"
+    source.mkdir()
+    _, plan, downloads = _plan(source)
+    receipt = DependencyStagingService(downloader=FakeDownloader(downloads)).stage(
+        _request(plan),
+        store_root=tmp_path / "store",
+    )
+    payload = receipt.to_dict()
+    payload["total_bytes"] += 1
+
+    with pytest.raises(ValueError):
+        DependencyReceipt.from_dict(payload)
+
+
+def test_dependency_receipt_rejects_cas_path_escape(tmp_path: Path) -> None:
+    source = tmp_path / "source"
+    source.mkdir()
+    _, plan, downloads = _plan(source)
+    receipt = DependencyStagingService(downloader=FakeDownloader(downloads)).stage(
+        _request(plan),
+        store_root=tmp_path / "store",
+    )
+    payload = receipt.to_dict()
+    payload["artifacts"][0]["cas_path"] = str(
+        (tmp_path / "outside" / f"{payload['artifacts'][0]['sha256']}.blob").resolve()
+    )
+    # Recompute the outer digest so path validation, not only digest validation, is exercised.
+    payload_without_digest = dict(payload)
+    payload_without_digest.pop("dependency_receipt_sha256")
+    payload["dependency_receipt_sha256"] = hashlib.sha256(
+        json.dumps(
+            payload_without_digest,
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=False,
+        ).encode("utf-8")
+    ).hexdigest()
+
+    with pytest.raises(ValueError, match="escaped store root"):
+        DependencyReceipt.from_dict(payload)
