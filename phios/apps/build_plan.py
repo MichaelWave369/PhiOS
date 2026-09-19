@@ -686,6 +686,7 @@ def _node_plan(
     if manager != "bun":
         tools.add("node")
 
+    install_argv: tuple[str, ...]
     if manager == "npm":
         install_argv = ("npm", "ci") if locked else ("npm", "install")
     elif manager == "pnpm":
