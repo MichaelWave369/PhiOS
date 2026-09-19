@@ -58,7 +58,7 @@ from .collaborator import PhiVesselAdapter
 from .executor import ExecutorRegistry, text_artifact_handler
 from .gate import PermissionGate
 from .ledger import RealityLedger
-from .models import Capability, ExecutionReceipt
+from .models import Capability, ExecutionProvenance, ExecutionReceipt
 from .registry import CapabilityRegistry
 
 
@@ -290,7 +290,13 @@ class PhiOSSpine:
             authority=packet.authority.to_dict(),
         )
 
-    def run(self, capability_id: str, payload: dict[str, Any]) -> ExecutionReceipt:
+    def run(
+        self,
+        capability_id: str,
+        payload: dict[str, Any],
+        *,
+        governed_provenance: ExecutionProvenance | None = None,
+    ) -> ExecutionReceipt:
         plan = self.vessel.plan(capability_id=capability_id, payload=payload)
         capability = self.registry.get(plan.capability_id)
         packet = self._action_packet(plan, capability)
@@ -315,6 +321,7 @@ class PhiOSSpine:
             execution_status="not_executed",
             packet_id=packet.packet_id,
             gate_receipt_id=gate_receipt.receipt_id,
+            governed_provenance=governed_provenance,
         )
 
         if not decision.allowed:
