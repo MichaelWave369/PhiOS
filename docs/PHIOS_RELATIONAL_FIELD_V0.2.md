@@ -344,3 +344,14 @@ mypy phios/ --ignore-missing-imports
 pytest -q
 bash scripts/policy_no_telemetry_runtime.sh
 ```
+
+
+---
+
+## Next rung
+
+Relational Field Geometry v0.2 is extended by
+[Dynamic Field State v0.3](PHIOS_DYNAMIC_FIELD_V0.3.md), which allows bounded
+advisory field values to evolve from evidence, contradiction, failure, and
+resource events while keeping the governing law immutable and action authority
+separate.
