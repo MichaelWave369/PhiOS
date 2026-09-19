@@ -363,3 +363,27 @@ def test_uninstall_removes_only_receipted_install(tmp_path: Path) -> None:
     assert uninstall.status == "uninstalled"
     assert not Path(install.install_path).exists()
     assert (neighbor / "keep.txt").read_text(encoding="utf-8") == "keep"
+
+
+def test_uninstall_rejects_metadata_or_extra_file_drift(tmp_path: Path) -> None:
+    manifest, registry, _ = _registry(tmp_path)
+    execution, offline, _ = _receipts(tmp_path)
+    plan = plan_build_package(manifest.to_dict(), registry, execution, offline)
+    install = AppInstallService().install(
+        plan.to_dict(),
+        registry,
+        execution,
+        offline,
+        approved_package_plan_sha256=plan.sha256(),
+        install_root=tmp_path / "apps",
+    )
+
+    target = Path(install.install_path)
+    (target / ".phios" / "manifest.json").write_text("{}", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="installed tree changed"):
+        AppUninstallService().uninstall(
+            install.to_dict(),
+            approved_install_receipt_sha256=install.sha256(),
+            install_root=tmp_path / "apps",
+        )
