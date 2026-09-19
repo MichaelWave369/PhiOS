@@ -9,7 +9,6 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Literal, cast
 
-from .desktop_launch import DesktopLaunchGrant
 from .desktop_update import (
     DesktopRetentionMarker,
     _contained,
