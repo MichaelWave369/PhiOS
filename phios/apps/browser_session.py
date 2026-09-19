@@ -154,6 +154,7 @@ class BrowserSessionPlan:
     installed_tree_sha256: str
     static_root_sha256: str
     loopback_url: str
+    static_serve_seconds: int
     browser_family: BrowserFamily
     browser_tool: str
     browser_mode: str
@@ -169,7 +170,7 @@ class BrowserSessionPlan:
     page_execution_authority: bool = False
     display_authority: bool = False
     persistent_profile_authority: bool = False
-    host_filesystem_authority: bool = False
+    host_home_authority: bool = False
     schema_version: str = BROWSER_SESSION_PLAN_SCHEMA_VERSION
 
     def __post_init__(self) -> None:
@@ -182,6 +183,12 @@ class BrowserSessionPlan:
         _sha256(self.installed_tree_sha256, "installed_tree_sha256")
         _sha256(self.static_root_sha256, "static_root_sha256")
         _validate_loopback_url(self.loopback_url)
+        _int(
+            self.static_serve_seconds,
+            "static_serve_seconds",
+            minimum=1,
+            maximum=3600,
+        )
         if self.browser_family != "chromium":
             raise ValueError("v0.36 supports only the Chromium browser family")
         if self.browser_tool not in _BROWSER_TOOLS:
@@ -210,6 +217,11 @@ class BrowserSessionPlan:
             minimum=_MIN_READINESS_TIMEOUT_MS,
             maximum=_MAX_READINESS_TIMEOUT_MS,
         )
+        readiness_seconds = (self.readiness_timeout_ms + 999) // 1000
+        if self.session_seconds + readiness_seconds > self.static_serve_seconds:
+            raise ValueError(
+                "browser readiness + session window exceeds reviewed static serve window"
+            )
         if self.virtual_time_budget_ms != _VIRTUAL_TIME_BUDGET_MS:
             raise ValueError("v0.36 virtual_time_budget_ms is fixed")
         if self.launch_authority is not False:
@@ -220,8 +232,8 @@ class BrowserSessionPlan:
             raise ValueError("v0.36 browser plans never grant display authority")
         if self.persistent_profile_authority is not False:
             raise ValueError("v0.36 browser plans never grant persistent profile authority")
-        if self.host_filesystem_authority is not False:
-            raise ValueError("v0.36 browser plans never grant host-filesystem authority")
+        if self.host_home_authority is not False:
+            raise ValueError("v0.36 browser plans never grant host-home authority")
 
     def body_dict(self) -> dict[str, Any]:
         return {
@@ -233,6 +245,7 @@ class BrowserSessionPlan:
             "installed_tree_sha256": self.installed_tree_sha256,
             "static_root_sha256": self.static_root_sha256,
             "loopback_url": self.loopback_url,
+            "static_serve_seconds": self.static_serve_seconds,
             "browser_family": self.browser_family,
             "browser_tool": self.browser_tool,
             "browser_mode": self.browser_mode,
@@ -248,7 +261,7 @@ class BrowserSessionPlan:
             "page_execution_authority": self.page_execution_authority,
             "display_authority": self.display_authority,
             "persistent_profile_authority": self.persistent_profile_authority,
-            "host_filesystem_authority": self.host_filesystem_authority,
+            "host_home_authority": self.host_home_authority,
         }
 
     def sha256(self) -> str:
@@ -271,6 +284,7 @@ class BrowserSessionPlan:
             "installed_tree_sha256",
             "static_root_sha256",
             "loopback_url",
+            "static_serve_seconds",
             "browser_family",
             "browser_tool",
             "browser_mode",
@@ -286,7 +300,7 @@ class BrowserSessionPlan:
             "page_execution_authority",
             "display_authority",
             "persistent_profile_authority",
-            "host_filesystem_authority",
+            "host_home_authority",
             "browser_session_plan_sha256",
         }
         if set(data) != expected:
@@ -318,6 +332,7 @@ class BrowserSessionPlan:
                 "static_root_sha256",
             ),
             loopback_url=_validate_loopback_url(data["loopback_url"]),
+            static_serve_seconds=data["static_serve_seconds"],
             browser_family=data["browser_family"],
             browser_tool=_string(data["browser_tool"], "browser_tool", maximum=64),
             browser_mode=_string(data["browser_mode"], "browser_mode", maximum=64),
@@ -339,7 +354,7 @@ class BrowserSessionPlan:
             page_execution_authority=data["page_execution_authority"],
             display_authority=data["display_authority"],
             persistent_profile_authority=data["persistent_profile_authority"],
-            host_filesystem_authority=data["host_filesystem_authority"],
+            host_home_authority=data["host_home_authority"],
         )
         if data["browser_session_plan_sha256"] != plan.sha256():
             raise ValueError("browser session plan digest does not match canonical plan")
@@ -389,6 +404,7 @@ def plan_browser_session(
         installed_tree_sha256=static_plan.installed_tree_sha256,
         static_root_sha256=static_plan.static_root_sha256,
         loopback_url=loopback_url,
+        static_serve_seconds=static_plan.serve_seconds,
         browser_family="chromium",
         browser_tool=browser_tool,
         browser_mode="headless_dump_dom",
@@ -404,7 +420,7 @@ def plan_browser_session(
         page_execution_authority=False,
         display_authority=False,
         persistent_profile_authority=False,
-        host_filesystem_authority=False,
+        host_home_authority=False,
     )
 
 
@@ -427,7 +443,7 @@ class BrowserSessionReview:
     page_execution_authority: bool
     display_authority: bool
     persistent_profile_authority: bool
-    host_filesystem_authority: bool
+    host_home_authority: bool
     schema_version: str = BROWSER_SESSION_REVIEW_SCHEMA_VERSION
 
     def to_dict(self) -> dict[str, Any]:
@@ -456,7 +472,7 @@ def review_browser_session(value: Any) -> BrowserSessionReview:
         page_execution_authority=plan.page_execution_authority,
         display_authority=plan.display_authority,
         persistent_profile_authority=plan.persistent_profile_authority,
-        host_filesystem_authority=plan.host_filesystem_authority,
+        host_home_authority=plan.host_home_authority,
     )
 
 
@@ -851,7 +867,7 @@ class BrowserSessionReceipt:
     browser_network_inherited: bool
     display_authority: bool
     persistent_profile_authority: bool
-    host_filesystem_authority: bool
+    host_home_authority: bool
     schema_version: str = BROWSER_SESSION_RECEIPT_SCHEMA_VERSION
 
     def __post_init__(self) -> None:
@@ -915,8 +931,8 @@ class BrowserSessionReceipt:
             raise ValueError("v0.36 never grants display authority")
         if self.persistent_profile_authority is not False:
             raise ValueError("v0.36 never grants persistent profile authority")
-        if self.host_filesystem_authority is not False:
-            raise ValueError("v0.36 never grants host-filesystem authority")
+        if self.host_home_authority is not False:
+            raise ValueError("v0.36 never grants host-home authority")
         _int(self.server_duration_ms, "server_duration_ms", minimum=0, maximum=86_400_000)
         _int(self.browser_duration_ms, "browser_duration_ms", minimum=0, maximum=86_400_000)
         for byte_count, byte_count_label in (
