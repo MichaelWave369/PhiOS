@@ -55,7 +55,7 @@ def _canonical_json(value: dict[str, Any]) -> str:
 
 def _safe_relative(value: Any, label: str) -> str:
     text = _string(value, label, maximum=1024)
-    if "\" in text or text.startswith("/"):
+    if "\\" in text or text.startswith("/"):
         raise ValueError(f"{label} must be a relative POSIX path")
     path = PurePosixPath(text)
     if path.is_absolute() or any(part in {"", ".", ".."} for part in path.parts):
