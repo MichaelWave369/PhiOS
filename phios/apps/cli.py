@@ -25,6 +25,12 @@ from .dependency_broker import (
     plan_npm_dependencies,
     review_dependency_plan,
 )
+from .gui_session import (
+    GuiBrowserRequest,
+    GuiBrowserService,
+    plan_gui_browser,
+    review_gui_browser,
+)
 from .intake import inspect_public_github_app
 from .npm_offline import (
     NpmCachePreparationRequest,
@@ -423,6 +429,57 @@ def _parser() -> argparse.ArgumentParser:
         default=Path.home() / ".phios" / "apps" / "browser-sessions",
     )
     browser_run_parser.add_argument(
+        "--receipt-root",
+        type=Path,
+        default=Path.home() / ".phios" / "apps" / "runtime-receipts",
+    )
+
+    gui_plan_parser = subparsers.add_parser(
+        "plan-gui-browser",
+        help="Create a reviewed visible Chromium Wayland session above one v0.35 static-web plan.",
+    )
+    gui_plan_parser.add_argument("static_web_plan_json", type=Path)
+    gui_plan_parser.add_argument("--wayland-socket", type=Path, required=True)
+    gui_plan_parser.add_argument(
+        "--browser-tool",
+        choices=("chromium", "chromium-browser"),
+        default="chromium",
+    )
+    gui_plan_parser.add_argument("--session-seconds", type=int, default=60)
+    gui_plan_parser.add_argument("--readiness-timeout-ms", type=int, default=3000)
+
+    gui_review_parser = subparsers.add_parser(
+        "review-gui-browser",
+        help="Expose the exact v0.37 visible-browser digest and display authority.",
+    )
+    gui_review_parser.add_argument("gui_browser_plan_json", type=Path)
+
+    gui_run_parser = subparsers.add_parser(
+        "run-gui-browser",
+        help="Run one explicitly approved coordinated static-server + visible Wayland browser session.",
+    )
+    gui_run_parser.add_argument("gui_browser_plan_json", type=Path)
+    gui_run_parser.add_argument("static_web_plan_json", type=Path)
+    gui_run_parser.add_argument("install_receipt_json", type=Path)
+    gui_run_parser.add_argument("--approve-gui-browser-plan-sha", required=True)
+    gui_run_parser.add_argument("--approve-static-web-plan-sha", required=True)
+    gui_run_parser.add_argument(
+        "--allow-browser-permission",
+        action="append",
+        default=[],
+        dest="gui_browser_permissions",
+    )
+    gui_run_parser.add_argument(
+        "--install-root",
+        type=Path,
+        default=Path.home() / ".phios" / "apps" / "installed",
+    )
+    gui_run_parser.add_argument(
+        "--session-root",
+        type=Path,
+        default=Path.home() / ".phios" / "apps" / "gui-sessions",
+    )
+    gui_run_parser.add_argument(
         "--receipt-root",
         type=Path,
         default=Path.home() / ".phios" / "apps" / "runtime-receipts",
@@ -892,6 +949,61 @@ def main(argv: Sequence[str] | None = None) -> int:
             return 2
         print(json.dumps(browser_result.to_dict(), sort_keys=True, indent=2))
         return 0 if browser_result.receipt.status == "completed" else 1
+
+    if args.command == "plan-gui-browser":
+        try:
+            static_payload = _load_json_file(args.static_web_plan_json)
+            gui_plan = plan_gui_browser(
+                static_payload,
+                wayland_socket_path=args.wayland_socket,
+                browser_tool=args.browser_tool,
+                session_seconds=args.session_seconds,
+                readiness_timeout_ms=args.readiness_timeout_ms,
+            )
+        except (OSError, ValueError) as exc:
+            print(json.dumps({"status": "blocked", "error": str(exc)}, sort_keys=True))
+            return 2
+        print(json.dumps(gui_plan.to_dict(), sort_keys=True, indent=2))
+        return 0
+
+    if args.command == "review-gui-browser":
+        try:
+            gui_payload = _load_json_file(args.gui_browser_plan_json)
+            gui_review = review_gui_browser(gui_payload)
+        except (OSError, ValueError) as exc:
+            print(json.dumps({"status": "blocked", "error": str(exc)}, sort_keys=True))
+            return 2
+        print(json.dumps(gui_review.to_dict(), sort_keys=True, indent=2))
+        return 0
+
+    if args.command == "run-gui-browser":
+        try:
+            gui_payload = _load_json_file(args.gui_browser_plan_json)
+            static_payload = _load_json_file(args.static_web_plan_json)
+            install_payload = _load_json_file(args.install_receipt_json)
+            gui_request = GuiBrowserRequest.from_payloads(
+                gui_payload,
+                static_payload,
+                install_payload,
+                approved_gui_browser_plan_sha256=args.approve_gui_browser_plan_sha,
+                approved_static_web_plan_sha256=args.approve_static_web_plan_sha,
+                approved_browser_permissions=tuple(args.gui_browser_permissions),
+            )
+            gui_result = GuiBrowserService().run(
+                gui_request,
+                install_root=args.install_root,
+                session_root=args.session_root,
+                receipt_root=args.receipt_root,
+            )
+        except (OSError, ValueError) as exc:
+            print(json.dumps({"status": "blocked", "error": str(exc)}, sort_keys=True))
+            return 2
+        print(json.dumps(gui_result.to_dict(), sort_keys=True, indent=2))
+        return (
+            0
+            if gui_result.receipt.status in {"window_closed", "visible_window_complete"}
+            else 1
+        )
 
     return 2
 
