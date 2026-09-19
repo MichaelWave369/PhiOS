@@ -672,6 +672,27 @@ class NpmOfflineBuildPlan:
         _sha256(self.cache_tree_sha256, "cache_tree_sha256")
         if self.cache_mount_target != _NPM_CACHE_MOUNT:
             raise ValueError("unsupported npm cache mount target")
+        if (
+            self.derived_build_plan.package_manager != "npm"
+            or self.derived_build_plan.status != "ready_for_review"
+        ):
+            raise ValueError("npm offline derived plan must be a ready_for_review npm plan")
+        dependency_steps = [
+            step
+            for step in self.derived_build_plan.steps
+            if step.phase == "dependencies" and step.tool == "npm"
+        ]
+        if len(dependency_steps) != 1:
+            raise ValueError("npm offline derived plan requires exactly one npm dependency step")
+        expected_argv = (
+            "npm",
+            "ci",
+            "--offline",
+            "--cache",
+            _NPM_CACHE_MOUNT,
+        )
+        if dependency_steps[0].argv != expected_argv:
+            raise ValueError("npm offline dependency step does not match v0.32 contract")
         if any(step.requires_network for step in self.derived_build_plan.steps):
             raise ValueError("npm offline derived plan must contain no network-requiring steps")
         if "build.network.dependencies" in self.derived_build_plan.requested_build_permissions:
@@ -757,6 +778,16 @@ def derive_npm_offline_build_plan(
         raise ValueError("npm cache receipt source snapshot does not match build plan")
     if original.package_manager != "npm" or original.status != "ready_for_review":
         raise ValueError("v0.32 requires a ready_for_review npm build plan")
+
+    cache_path = Path(cache.cache_path)
+    if cache_path.is_symlink():
+        raise ValueError("receipted npm cache path must not be a symlink")
+    cache_root = cache_path.resolve(strict=True)
+    cache_sha, cache_files, cache_bytes = _snapshot_tree(cache_root)
+    if cache_sha != cache.cache_tree_sha256:
+        raise ValueError("receipted npm cache tree changed before offline planning")
+    if cache_files != cache.cache_file_count or cache_bytes != cache.cache_total_bytes:
+        raise ValueError("receipted npm cache totals changed before offline planning")
 
     dependency_steps = [
         step
@@ -891,6 +922,10 @@ class NpmOfflineBuildRequest:
             raise ValueError("Approved npm offline plan SHA-256 does not match canonical plan")
         if cache.sha256() != plan.npm_cache_receipt_sha256:
             raise ValueError("npm cache receipt does not match offline plan")
+        if cache.build_plan_sha256 != plan.original_build_plan_sha256:
+            raise ValueError("npm cache receipt does not bind the offline plan parent")
+        if cache.dependency_receipt_sha256 != plan.dependency_receipt_sha256:
+            raise ValueError("npm cache dependency receipt does not match offline plan")
         if cache.cache_tree_sha256 != plan.cache_tree_sha256:
             raise ValueError("npm cache tree does not match offline plan")
         if cache.app_id != derived.app_id:
@@ -944,8 +979,38 @@ class NpmOfflineBuildReceipt:
     build_execution_receipt_sha256: str
     sandbox_receipt_sha256: str
     network_mode: str
+    network_namespace_enforced: bool
     build_status: str
     schema_version: str = NPM_OFFLINE_BUILD_RECEIPT_SCHEMA_VERSION
+
+    def __post_init__(self) -> None:
+        if self.schema_version != NPM_OFFLINE_BUILD_RECEIPT_SCHEMA_VERSION:
+            raise ValueError(f"Unsupported npm offline build receipt schema: {self.schema_version}")
+        try:
+            uuid.UUID(self.receipt_id)
+        except ValueError as exc:
+            raise ValueError("npm offline build receipt_id must be a UUID") from exc
+        parsed_time = datetime.fromisoformat(self.timestamp_utc)
+        if parsed_time.tzinfo is None:
+            raise ValueError("npm offline build timestamp must include a timezone")
+        if not _COMMIT_RE.fullmatch(self.commit_sha):
+            raise ValueError("npm offline build commit_sha must be lowercase hexadecimal")
+        for value, label in (
+            (self.npm_offline_plan_sha256, "npm_offline_plan_sha256"),
+            (self.original_build_plan_sha256, "original_build_plan_sha256"),
+            (self.derived_build_plan_sha256, "derived_build_plan_sha256"),
+            (self.npm_cache_receipt_sha256, "npm_cache_receipt_sha256"),
+            (self.cache_tree_sha256, "cache_tree_sha256"),
+            (self.build_execution_receipt_sha256, "build_execution_receipt_sha256"),
+            (self.sandbox_receipt_sha256, "sandbox_receipt_sha256"),
+        ):
+            _sha256(value, label)
+        if self.cache_mount_target != _NPM_CACHE_MOUNT:
+            raise ValueError("unsupported npm offline cache mount target")
+        if self.network_mode != "deny" or self.network_namespace_enforced is not True:
+            raise ValueError("v0.32 receipt requires enforced network-denied sandbox")
+        if self.build_status not in {"success", "failed", "no_build_required"}:
+            raise ValueError("unsupported npm offline build status")
 
     def body_dict(self) -> dict[str, Any]:
         return {
@@ -963,6 +1028,7 @@ class NpmOfflineBuildReceipt:
             "build_execution_receipt_sha256": self.build_execution_receipt_sha256,
             "sandbox_receipt_sha256": self.sandbox_receipt_sha256,
             "network_mode": self.network_mode,
+            "network_namespace_enforced": self.network_namespace_enforced,
             "build_status": self.build_status,
         }
 
@@ -1111,6 +1177,9 @@ class NpmOfflineBuildService:
             build_execution_receipt_sha256=sandbox_result.execution.sha256(),
             sandbox_receipt_sha256=sandbox_result.sandbox.sha256(),
             network_mode="deny",
+            network_namespace_enforced=(
+                sandbox_result.sandbox.controls.network_namespace_enforced
+            ),
             build_status=sandbox_result.execution.status,
         )
         offline_path = receipts / f"npm-offline-{offline_receipt.receipt_id}.json"
