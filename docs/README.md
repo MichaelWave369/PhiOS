@@ -14,7 +14,7 @@ PhiOS changes quickly, so use this source-of-truth order when documents disagree
 
 | Surface | Current line | Start here |
 |---|---:|---|
-| App Platform | **v0.40** | [overview](../README_APP_PLATFORM_V0.40.md) · [contract](PHIOS_APP_PLATFORM_V0.40_UPDATE_ROLLBACK.md) |
+| App Platform | **v0.41** | [overview](../README_APP_PLATFORM_V0.41.md) · [contract](PHIOS_APP_PLATFORM_V0.41_RETAINED_CLEANUP.md) |
 | Spine | **v0.24** | [overview](../README_SPINE_V0.24.md) · [contract](PHIOS_SPINE_V0.24_NUMERIC_TRANSITION_CONTRACT.md) |
 | Living specification | current | [PHIOS_LIVING_SPEC.md](PHIOS_LIVING_SPEC.md) |
 | Architecture blueprint | current / evolving | [BLUEPRINT.md](BLUEPRINT.md) |
@@ -50,6 +50,7 @@ The App Platform trail is intentionally retained. Each overview explains the run
 | v0.38 | Persistent desktop launch | [overview](../README_APP_PLATFORM_V0.38.md) | [contract](PHIOS_APP_PLATFORM_V0.38_DESKTOP_LAUNCH.md) |
 | v0.39 | Desktop app catalog | [overview](../README_APP_PLATFORM_V0.39.md) | [contract](PHIOS_APP_PLATFORM_V0.39_DESKTOP_CATALOG.md) |
 | v0.40 | Governed update / rollback | [overview](../README_APP_PLATFORM_V0.40.md) | [contract](PHIOS_APP_PLATFORM_V0.40_UPDATE_ROLLBACK.md) |
+| v0.41 | Retained version cleanup | [overview](../README_APP_PLATFORM_V0.41.md) | [contract](PHIOS_APP_PLATFORM_V0.41_RETAINED_CLEANUP.md) |
 
 ## Spine version trail
 
