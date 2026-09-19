@@ -881,10 +881,21 @@ class VisibleBrowserSessionReceipt:
             (self.browser_stderr_sha256, "browser_stderr_sha256"),
         ):
             _sha256(value, label)
+        _validate_loopback_url(self.loopback_url)
+        _string(self.app_id, "visible-browser app_id", maximum=64)
+        _string(self.app_version, "visible-browser app_version", maximum=128)
         if self.approved_browser_permissions != _VISIBLE_PERMISSIONS:
             raise ValueError("visible-browser receipt permissions do not match v0.37 authority set")
+        if self.browser_tool not in _BROWSER_TOOLS:
+            raise ValueError("visible-browser receipt has unsupported browser tool")
+        if self.browser_mode != "visible_app_window":
+            raise ValueError("visible-browser receipt has unsupported browser mode")
+        if self.profile_mode != "ephemeral":
+            raise ValueError("visible-browser receipt must use ephemeral profile")
         if self.display_transport != "wayland":
             raise ValueError("visible-browser receipt must use Wayland")
+        if self.display_evidence.transport != self.display_transport:
+            raise ValueError("visible-browser display evidence transport mismatch")
         if self.browser_policy.network_mode != "inherit":
             raise ValueError("visible-browser receipt requires host-network browser policy")
         if not self.readiness_ready or self.readiness_status_code != 200:
@@ -909,8 +920,40 @@ class VisibleBrowserSessionReceipt:
             raise ValueError("visible-browser receipt must not grant persistent profile/host home")
         if self.gpu_device_authority or self.x11_authority:
             raise ValueError("v0.37 receipt must not grant GPU or X11 authority")
+        bool_fields = (
+            self.readiness_ready,
+            self.server_terminated_by_session,
+            self.browser_timed_out,
+            self.page_execution_authority,
+            self.browser_network_inherited,
+            self.display_authority,
+            self.persistent_profile_authority,
+            self.host_home_authority,
+            self.gpu_device_authority,
+            self.x11_authority,
+        )
+        if any(not isinstance(value, bool) for value in bool_fields):
+            raise ValueError("visible-browser receipt authority/status flags must be boolean")
+        _int(self.readiness_status_code, "readiness_status_code", minimum=100, maximum=599)
+        _int(self.readiness_attempts, "readiness_attempts", minimum=1, maximum=10_000)
+        _int(self.readiness_elapsed_ms, "readiness_elapsed_ms", minimum=0, maximum=60_000)
+        _int(self.server_duration_ms, "server_duration_ms", minimum=0, maximum=86_400_000)
+        _int(self.browser_duration_ms, "browser_duration_ms", minimum=0, maximum=86_400_000)
+        if not isinstance(self.server_exit_code, int) or isinstance(self.server_exit_code, bool):
+            raise ValueError("server_exit_code must be an integer")
+        if not isinstance(self.browser_exit_code, int) or isinstance(self.browser_exit_code, bool):
+            raise ValueError("browser_exit_code must be an integer")
         if self.status not in {"completed", "timed_out", "browser_failed"}:
             raise ValueError("unsupported visible-browser status")
+        if self.status == "completed":
+            if self.browser_timed_out or self.browser_exit_code != 0 or self.failure_reason is not None:
+                raise ValueError("completed visible-browser receipt has inconsistent process state")
+        elif self.status == "timed_out":
+            if not self.browser_timed_out:
+                raise ValueError("timed_out visible-browser receipt requires browser_timed_out=true")
+        else:
+            if self.browser_timed_out or self.browser_exit_code == 0 or self.failure_reason is None:
+                raise ValueError("browser_failed receipt requires nonzero non-timeout failure")
 
     def body_dict(self) -> dict[str, Any]:
         return {
@@ -971,6 +1014,242 @@ class VisibleBrowserSessionReceipt:
         result = self.body_dict()
         result["visible_browser_receipt_sha256"] = self.sha256()
         return result
+
+    @classmethod
+    def from_dict(cls, value: Any) -> VisibleBrowserSessionReceipt:
+        data = _mapping(value, "visible browser session receipt")
+        expected = {
+            "schema_version",
+            "receipt_id",
+            "timestamp_utc",
+            "app_id",
+            "app_version",
+            "visible_browser_plan_sha256",
+            "parent_browser_session_plan_sha256",
+            "static_web_plan_sha256",
+            "install_receipt_sha256",
+            "installed_tree_sha256",
+            "static_root_sha256",
+            "loopback_url",
+            "approved_browser_permissions",
+            "browser_tool",
+            "browser_mode",
+            "profile_mode",
+            "display_transport",
+            "display_evidence",
+            "browser_policy",
+            "server_backend_identity",
+            "server_tool_identity",
+            "browser_backend_identity",
+            "browser_tool_identity",
+            "server_controls",
+            "browser_controls",
+            "readiness_ready",
+            "readiness_status_code",
+            "readiness_attempts",
+            "readiness_elapsed_ms",
+            "server_terminated_by_session",
+            "server_exit_code",
+            "server_duration_ms",
+            "server_stdout_sha256",
+            "server_stderr_sha256",
+            "browser_exit_code",
+            "browser_timed_out",
+            "browser_duration_ms",
+            "browser_stdout_sha256",
+            "browser_stderr_sha256",
+            "status",
+            "failure_reason",
+            "page_execution_authority",
+            "browser_network_inherited",
+            "display_authority",
+            "persistent_profile_authority",
+            "host_home_authority",
+            "gpu_device_authority",
+            "x11_authority",
+            "visible_browser_receipt_sha256",
+        }
+        if set(data) != expected:
+            raise ValueError("visible browser receipt contains missing or unknown fields")
+        permissions = data["approved_browser_permissions"]
+        if not isinstance(permissions, list):
+            raise ValueError("approved_browser_permissions must be an array")
+
+        def backend(value: Any, label: str) -> SandboxBackendIdentity:
+            item = _mapping(value, label)
+            if set(item) != {
+                "backend",
+                "executable_path",
+                "version",
+                "version_output_sha256",
+                "platform_system",
+                "platform_machine",
+            }:
+                raise ValueError(f"{label} contains missing or unknown fields")
+            return SandboxBackendIdentity(
+                backend=_string(item["backend"], f"{label} backend", maximum=64),
+                executable_path=_string(
+                    item["executable_path"],
+                    f"{label} executable_path",
+                    maximum=4096,
+                ),
+                version=_string(item["version"], f"{label} version", maximum=512),
+                version_output_sha256=_sha256(
+                    item["version_output_sha256"],
+                    f"{label} version_output_sha256",
+                ),
+                platform_system=_string(
+                    item["platform_system"],
+                    f"{label} platform_system",
+                    maximum=128,
+                ),
+                platform_machine=_string(
+                    item["platform_machine"],
+                    f"{label} platform_machine",
+                    maximum=128,
+                ),
+            )
+
+        def tool(value: Any, label: str) -> ToolIdentity:
+            item = _mapping(value, label)
+            if set(item) != {
+                "logical_tool",
+                "executable_path",
+                "version",
+                "version_output_sha256",
+            }:
+                raise ValueError(f"{label} contains missing or unknown fields")
+            return ToolIdentity(
+                logical_tool=_string(
+                    item["logical_tool"],
+                    f"{label} logical_tool",
+                    maximum=64,
+                ),
+                executable_path=_string(
+                    item["executable_path"],
+                    f"{label} executable_path",
+                    maximum=4096,
+                ),
+                version=_string(item["version"], f"{label} version", maximum=512),
+                version_output_sha256=_sha256(
+                    item["version_output_sha256"],
+                    f"{label} version_output_sha256",
+                ),
+            )
+
+        failure_reason = data["failure_reason"]
+        if failure_reason is not None:
+            failure_reason = _string(failure_reason, "failure_reason", maximum=512)
+        receipt = cls(
+            schema_version=data["schema_version"],
+            receipt_id=_string(data["receipt_id"], "visible-browser receipt_id", maximum=64),
+            timestamp_utc=_string(
+                data["timestamp_utc"],
+                "visible-browser timestamp_utc",
+                maximum=128,
+            ),
+            app_id=_string(data["app_id"], "visible-browser app_id", maximum=64),
+            app_version=_string(
+                data["app_version"],
+                "visible-browser app_version",
+                maximum=128,
+            ),
+            visible_browser_plan_sha256=_sha256(
+                data["visible_browser_plan_sha256"],
+                "visible_browser_plan_sha256",
+            ),
+            parent_browser_session_plan_sha256=_sha256(
+                data["parent_browser_session_plan_sha256"],
+                "parent_browser_session_plan_sha256",
+            ),
+            static_web_plan_sha256=_sha256(
+                data["static_web_plan_sha256"],
+                "static_web_plan_sha256",
+            ),
+            install_receipt_sha256=_sha256(
+                data["install_receipt_sha256"],
+                "install_receipt_sha256",
+            ),
+            installed_tree_sha256=_sha256(
+                data["installed_tree_sha256"],
+                "installed_tree_sha256",
+            ),
+            static_root_sha256=_sha256(
+                data["static_root_sha256"],
+                "static_root_sha256",
+            ),
+            loopback_url=_validate_loopback_url(data["loopback_url"]),
+            approved_browser_permissions=tuple(
+                _string(item, "visible-browser permission", maximum=128)
+                for item in permissions
+            ),
+            browser_tool=_string(data["browser_tool"], "browser_tool", maximum=64),
+            browser_mode=_string(data["browser_mode"], "browser_mode", maximum=64),
+            profile_mode=_string(data["profile_mode"], "profile_mode", maximum=64),
+            display_transport=_string(
+                data["display_transport"],
+                "display_transport",
+                maximum=64,
+            ),
+            display_evidence=WaylandDisplayEvidence.from_dict(data["display_evidence"]),
+            browser_policy=RuntimeSandboxPolicy.from_dict(data["browser_policy"]),
+            server_backend_identity=backend(
+                data["server_backend_identity"],
+                "server_backend_identity",
+            ),
+            server_tool_identity=tool(
+                data["server_tool_identity"],
+                "server_tool_identity",
+            ),
+            browser_backend_identity=backend(
+                data["browser_backend_identity"],
+                "browser_backend_identity",
+            ),
+            browser_tool_identity=tool(
+                data["browser_tool_identity"],
+                "browser_tool_identity",
+            ),
+            server_controls=RuntimeControlEvidence.from_dict(data["server_controls"]),
+            browser_controls=RuntimeControlEvidence.from_dict(data["browser_controls"]),
+            readiness_ready=data["readiness_ready"],
+            readiness_status_code=data["readiness_status_code"],
+            readiness_attempts=data["readiness_attempts"],
+            readiness_elapsed_ms=data["readiness_elapsed_ms"],
+            server_terminated_by_session=data["server_terminated_by_session"],
+            server_exit_code=data["server_exit_code"],
+            server_duration_ms=data["server_duration_ms"],
+            server_stdout_sha256=_sha256(
+                data["server_stdout_sha256"],
+                "server_stdout_sha256",
+            ),
+            server_stderr_sha256=_sha256(
+                data["server_stderr_sha256"],
+                "server_stderr_sha256",
+            ),
+            browser_exit_code=data["browser_exit_code"],
+            browser_timed_out=data["browser_timed_out"],
+            browser_duration_ms=data["browser_duration_ms"],
+            browser_stdout_sha256=_sha256(
+                data["browser_stdout_sha256"],
+                "browser_stdout_sha256",
+            ),
+            browser_stderr_sha256=_sha256(
+                data["browser_stderr_sha256"],
+                "browser_stderr_sha256",
+            ),
+            status=_string(data["status"], "visible-browser status", maximum=64),
+            failure_reason=failure_reason,
+            page_execution_authority=data["page_execution_authority"],
+            browser_network_inherited=data["browser_network_inherited"],
+            display_authority=data["display_authority"],
+            persistent_profile_authority=data["persistent_profile_authority"],
+            host_home_authority=data["host_home_authority"],
+            gpu_device_authority=data["gpu_device_authority"],
+            x11_authority=data["x11_authority"],
+        )
+        if data["visible_browser_receipt_sha256"] != receipt.sha256():
+            raise ValueError("visible browser receipt digest does not match canonical receipt")
+        return receipt
 
 
 @dataclass(frozen=True)
