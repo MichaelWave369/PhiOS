@@ -113,9 +113,9 @@ def _select_sri(value: Any) -> tuple[str, str]:
         candidates[algorithm] = base64.b64encode(digest).decode("ascii")
 
     for algorithm in _SRI_STRENGTH:
-        encoded = candidates.get(algorithm)
-        if encoded is not None:
-            return algorithm, encoded
+        selected_digest = candidates.get(algorithm)
+        if selected_digest is not None:
+            return algorithm, selected_digest
     raise ValueError("Dependency integrity lacks a supported valid SHA-256/384/512 SRI digest")
 
 
