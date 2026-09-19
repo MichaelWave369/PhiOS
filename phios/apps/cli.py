@@ -1142,7 +1142,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 approved_desktop_app_plan_sha256=args.approve_desktop_app_plan_sha,
                 approved_desktop_permissions=tuple(args.desktop_permissions),
             )
-            desktop_result = DesktopAppInstaller().install(
+            desktop_install_result = DesktopAppInstaller().install(
                 desktop_request,
                 install_root=args.install_root,
                 desktop_root=args.desktop_root,
@@ -1151,12 +1151,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         except (OSError, ValueError) as exc:
             print(json.dumps({"status": "blocked", "error": str(exc)}, sort_keys=True))
             return 2
-        print(json.dumps(desktop_result.to_dict(), sort_keys=True, indent=2))
+        print(json.dumps(desktop_install_result.to_dict(), sort_keys=True, indent=2))
         return 0
 
     if args.command == "launch-desktop-bundle":
         try:
-            desktop_result = DesktopAppLaunchService().launch(
+            desktop_launch_result = DesktopAppLaunchService().launch(
                 args.bundle_path,
                 install_root=args.install_root,
                 session_root=args.session_root,
@@ -1165,8 +1165,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         except (OSError, ValueError) as exc:
             print(json.dumps({"status": "blocked", "error": str(exc)}, sort_keys=True))
             return 2
-        print(json.dumps(desktop_result.to_dict(), sort_keys=True, indent=2))
-        return 0 if desktop_result.receipt.status == "completed" else 1
+        print(json.dumps(desktop_launch_result.to_dict(), sort_keys=True, indent=2))
+        return 0 if desktop_launch_result.receipt.status == "completed" else 1
 
     if args.command == "revoke-desktop-app":
         try:
