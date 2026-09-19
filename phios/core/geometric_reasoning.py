@@ -129,6 +129,7 @@ class SearchReceipt:
     equivalent_states_skipped: int
     representative_path_ids: tuple[str, ...]
     solution_id: str | None
+    quotient_search_safe_declared: bool
     action_authority: bool
     receipt_sha256: str
 
@@ -142,6 +143,7 @@ class SearchReceipt:
             "equivalent_states_skipped": self.equivalent_states_skipped,
             "representative_path_ids": list(self.representative_path_ids),
             "solution_id": self.solution_id,
+            "quotient_search_safe_declared": self.quotient_search_safe_declared,
             "action_authority": self.action_authority,
             "receipt_sha256": self.receipt_sha256,
         }
@@ -157,11 +159,13 @@ class GeometricReasoner:
         equivalence_key: StateKey,
         constraints: Sequence[ConstraintSpec] = (),
         invariants: Sequence[InvariantSpec] = (),
+        quotient_search_safe: bool = False,
     ) -> None:
         self._state_id = state_id
         self._equivalence_key = equivalence_key
         self._constraints = tuple(constraints)
         self._invariants = tuple(invariants)
+        self._quotient_search_safe = bool(quotient_search_safe)
         _require_unique_names("constraint", [item.name for item in self._constraints])
         _require_unique_names("invariant", [item.name for item in self._invariants])
 
@@ -276,6 +280,11 @@ class GeometricReasoner:
         goal: StatePredicate,
         max_classes: int = 10_000,
     ) -> SearchReceipt:
+        if not self._quotient_search_safe:
+            raise GeometryContractError(
+                "quotient search requires quotient_search_safe=True; "
+                "the caller must declare that equivalence preserves relevant transitions and goals"
+            )
         if max_classes < 1:
             raise ValueError("max_classes must be >= 1")
 
@@ -291,7 +300,7 @@ class GeometricReasoner:
         states_pruned = 0
         equivalent_states_skipped = 0
         solution_class: str | None = None
-        status = "exhausted"
+        status = "exhausted_under_declared_geometry"
 
         while queue:
             state, parent_class = queue.popleft()
@@ -356,6 +365,7 @@ class GeometricReasoner:
             "equivalent_states_skipped": equivalent_states_skipped,
             "representative_path_ids": list(path),
             "solution_id": solution_id,
+            "quotient_search_safe_declared": True,
             "action_authority": False,
         }
         return SearchReceipt(
@@ -367,6 +377,7 @@ class GeometricReasoner:
             equivalent_states_skipped=equivalent_states_skipped,
             representative_path_ids=path,
             solution_id=solution_id,
+            quotient_search_safe_declared=True,
             action_authority=False,
             receipt_sha256=_payload_digest(payload),
         )
