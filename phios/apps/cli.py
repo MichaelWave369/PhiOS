@@ -11,6 +11,12 @@ from .acquisition import (
     SourceAcquisitionService,
     review_intake_for_acquisition,
 )
+from .browser_session import (
+    BrowserSessionRequest,
+    BrowserSessionService,
+    plan_browser_session,
+    review_browser_session,
+)
 from .build_execution import BuildExecutionRequest, BuildExecutionService
 from .build_plan import plan_build_from_payloads, review_build_plan
 from .dependency_broker import (
@@ -367,6 +373,56 @@ def _parser() -> argparse.ArgumentParser:
         default=Path.home() / ".phios" / "apps" / "installed",
     )
     static_serve_parser.add_argument(
+        "--receipt-root",
+        type=Path,
+        default=Path.home() / ".phios" / "apps" / "runtime-receipts",
+    )
+
+    browser_plan_parser = subparsers.add_parser(
+        "plan-browser-session",
+        help="Create a reviewed headless Chromium session above one v0.35 static-web plan.",
+    )
+    browser_plan_parser.add_argument("static_web_plan_json", type=Path)
+    browser_plan_parser.add_argument(
+        "--browser-tool",
+        choices=("chromium", "chromium-browser"),
+        default="chromium",
+    )
+    browser_plan_parser.add_argument("--session-seconds", type=int, default=60)
+    browser_plan_parser.add_argument("--readiness-timeout-ms", type=int, default=3000)
+
+    browser_review_parser = subparsers.add_parser(
+        "review-browser-session",
+        help="Expose the exact v0.36 browser-session digest and requested browser authority.",
+    )
+    browser_review_parser.add_argument("browser_session_plan_json", type=Path)
+
+    browser_run_parser = subparsers.add_parser(
+        "run-browser-session",
+        help="Run one explicitly approved coordinated static-server + headless browser session.",
+    )
+    browser_run_parser.add_argument("browser_session_plan_json", type=Path)
+    browser_run_parser.add_argument("static_web_plan_json", type=Path)
+    browser_run_parser.add_argument("install_receipt_json", type=Path)
+    browser_run_parser.add_argument("--approve-browser-session-plan-sha", required=True)
+    browser_run_parser.add_argument("--approve-static-web-plan-sha", required=True)
+    browser_run_parser.add_argument(
+        "--allow-browser-permission",
+        action="append",
+        default=[],
+        dest="browser_permissions",
+    )
+    browser_run_parser.add_argument(
+        "--install-root",
+        type=Path,
+        default=Path.home() / ".phios" / "apps" / "installed",
+    )
+    browser_run_parser.add_argument(
+        "--session-root",
+        type=Path,
+        default=Path.home() / ".phios" / "apps" / "browser-sessions",
+    )
+    browser_run_parser.add_argument(
         "--receipt-root",
         type=Path,
         default=Path.home() / ".phios" / "apps" / "runtime-receipts",
@@ -784,6 +840,58 @@ def main(argv: Sequence[str] | None = None) -> int:
             in {"serve_window_complete", "server_exited"}
             else 1
         )
+
+    if args.command == "plan-browser-session":
+        try:
+            static_payload = _load_json_file(args.static_web_plan_json)
+            browser_plan = plan_browser_session(
+                static_payload,
+                browser_tool=args.browser_tool,
+                session_seconds=args.session_seconds,
+                readiness_timeout_ms=args.readiness_timeout_ms,
+            )
+        except (OSError, ValueError) as exc:
+            print(json.dumps({"status": "blocked", "error": str(exc)}, sort_keys=True))
+            return 2
+        print(json.dumps(browser_plan.to_dict(), sort_keys=True, indent=2))
+        return 0
+
+    if args.command == "review-browser-session":
+        try:
+            browser_payload = _load_json_file(args.browser_session_plan_json)
+            browser_review = review_browser_session(browser_payload)
+        except (OSError, ValueError) as exc:
+            print(json.dumps({"status": "blocked", "error": str(exc)}, sort_keys=True))
+            return 2
+        print(json.dumps(browser_review.to_dict(), sort_keys=True, indent=2))
+        return 0
+
+    if args.command == "run-browser-session":
+        try:
+            browser_payload = _load_json_file(args.browser_session_plan_json)
+            static_payload = _load_json_file(args.static_web_plan_json)
+            install_payload = _load_json_file(args.install_receipt_json)
+            browser_request = BrowserSessionRequest.from_payloads(
+                browser_payload,
+                static_payload,
+                install_payload,
+                approved_browser_session_plan_sha256=(
+                    args.approve_browser_session_plan_sha
+                ),
+                approved_static_web_plan_sha256=args.approve_static_web_plan_sha,
+                approved_browser_permissions=tuple(args.browser_permissions),
+            )
+            browser_result = BrowserSessionService().run(
+                browser_request,
+                install_root=args.install_root,
+                session_root=args.session_root,
+                receipt_root=args.receipt_root,
+            )
+        except (OSError, ValueError) as exc:
+            print(json.dumps({"status": "blocked", "error": str(exc)}, sort_keys=True))
+            return 2
+        print(json.dumps(browser_result.to_dict(), sort_keys=True, indent=2))
+        return 0 if browser_result.receipt.status == "completed" else 1
 
     return 2
 
