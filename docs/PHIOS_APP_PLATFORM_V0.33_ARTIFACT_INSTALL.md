@@ -183,6 +183,7 @@ The receipt binds:
 - v0.32 offline-build receipt SHA-256;
 - build artifact-set SHA-256;
 - installed payload SHA-256;
+- complete installed-tree SHA-256 including PhiOS metadata;
 - artifact count;
 - total bytes;
 - absolute install path;
@@ -218,7 +219,13 @@ Uninstall requires:
 If the payload changed after installation, uninstall fails closed rather than deleting modified
 content under stale authority.
 
-A successful uninstall removes only the receipted install directory and emits an uninstall receipt.
+PhiOS also hashes the complete install tree, including `.phios` metadata. Uninstall requires that
+full installed-tree SHA-256 to still match the install receipt. Added files, removed files, or
+metadata changes therefore invalidate stale uninstall authority even when the application payload
+itself is unchanged.
+
+A successful uninstall removes only the exact unchanged receipted install directory and emits an
+uninstall receipt.
 
 ## Explicit non-capabilities
 
