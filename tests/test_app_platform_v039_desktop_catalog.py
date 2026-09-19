@@ -373,8 +373,8 @@ def test_unexpected_files_are_reported_as_root_issues(tmp_path: Path) -> None:
     )
 
     assert [(issue.code, issue.relative_path) for issue in snapshot.root_issues] == [
-        ("unexpected_app_entry", "phi.catalog-example/junk.txt"),
         ("unexpected_root_entry", "junk.txt"),
+        ("unexpected_app_entry", "phi.catalog-example/junk.txt"),
     ]
     assert snapshot.ready_count == 1
 
