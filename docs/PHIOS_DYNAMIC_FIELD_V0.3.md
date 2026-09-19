@@ -418,3 +418,13 @@ mypy phios/ --ignore-missing-imports
 pytest -q
 bash scripts/policy_no_telemetry_runtime.sh
 ```
+
+
+---
+
+## Next rung
+
+Dynamic Field State v0.3 is integrated into advisory path selection by
+[Field-Aware Routing v0.4](PHIOS_FIELD_AWARE_ROUTING_V0.4.md). v0.4 binds one
+exact validated field snapshot into explicit relational cost terms while hard
+transition constraints and execution authority remain separate.
