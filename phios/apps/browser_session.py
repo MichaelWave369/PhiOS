@@ -919,13 +919,18 @@ class BrowserSessionReceipt:
             raise ValueError("v0.36 never grants host-filesystem authority")
         _int(self.server_duration_ms, "server_duration_ms", minimum=0, maximum=86_400_000)
         _int(self.browser_duration_ms, "browser_duration_ms", minimum=0, maximum=86_400_000)
-        for value, label in (
+        for byte_count, byte_count_label in (
             (self.server_stdout_byte_count, "server_stdout_byte_count"),
             (self.server_stderr_byte_count, "server_stderr_byte_count"),
             (self.browser_stdout_byte_count, "browser_stdout_byte_count"),
             (self.browser_stderr_byte_count, "browser_stderr_byte_count"),
         ):
-            _int(value, label, minimum=0, maximum=2**63 - 1)
+            _int(
+                byte_count,
+                byte_count_label,
+                minimum=0,
+                maximum=2**63 - 1,
+            )
         if not isinstance(self.browser_exit_code, int) or isinstance(self.browser_exit_code, bool):
             raise ValueError("browser_exit_code must be an integer")
         if not isinstance(self.server_exit_code, int) or isinstance(self.server_exit_code, bool):
