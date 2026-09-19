@@ -368,3 +368,17 @@ def test_receipt_root_cannot_mutate_acquired_source(tmp_path: Path) -> None:
         )
 
     assert not (source / ".receipts").exists()
+
+
+def test_execution_workspace_cannot_live_inside_acquired_source(tmp_path: Path) -> None:
+    source = tmp_path / "source"
+    source.mkdir()
+    _, receipt, plan = _locked_node_plan(source)
+
+    with pytest.raises(ValueError, match="outside the acquired source tree"):
+        BuildExecutionService(runner=FakeRunner()).execute(
+            _request(plan, receipt),
+            execution_root=source / ".builds",
+        )
+
+    assert not (source / ".builds").exists()
