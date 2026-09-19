@@ -117,7 +117,13 @@ class PhiOSSpine:
 
     @staticmethod
     def _hash_payload(payload: dict[str, Any]) -> str:
-        encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        encoded = json.dumps(
+            payload,
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=False,
+            allow_nan=False,
+        ).encode("utf-8")
         return hashlib.sha256(encoded).hexdigest()
 
     def perceive_text(
