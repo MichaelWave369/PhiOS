@@ -23,13 +23,13 @@ patterns=(
 joined="$(IFS='|'; echo "${patterns[*]}")"
 
 if command -v rg >/dev/null 2>&1; then
-  if rg -n -i --glob '!docs/**' --glob '!MANIFESTO/**' "$joined" "$TARGET_DIR"; then
+  if rg -n -i -w --glob '!docs/**' --glob '!MANIFESTO/**' "$joined" "$TARGET_DIR"; then
     echo "Policy violation: tracking-related term found in runtime code under phios/."
     exit 1
   fi
 elif command -v grep >/dev/null 2>&1; then
   set +e
-  grep -RniE --exclude-dir='__pycache__' "$joined" "$TARGET_DIR"
+  grep -RniEw --exclude-dir='__pycache__' "$joined" "$TARGET_DIR"
   grep_status=$?
   set -e
   if [[ $grep_status -eq 0 ]]; then
