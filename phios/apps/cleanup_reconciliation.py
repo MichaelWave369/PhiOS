@@ -668,8 +668,36 @@ class CleanupReconciliationPlan:
             )
         if self.action not in {"cancel", "complete", "finalize"}:
             raise ValueError("unsupported cleanup reconciliation action")
+        if self.classification not in {
+            "untouched",
+            "partial",
+            "effectively_complete",
+            "invalid",
+        }:
+            raise ValueError("unsupported cleanup reconciliation classification")
         if self.action not in _allowed_actions(self.classification):
             raise ValueError("reconciliation action is not allowed for classification")
+        if self.action == "cancel":
+            expected_permissions = _CANCEL_PERMISSION
+        elif self.action == "finalize":
+            expected_permissions = _FINALIZE_PERMISSION
+        elif self.scope == "desktop_bundle_only":
+            expected_permissions = (
+                "cleanup.reconcile.complete",
+                "desktop.cleanup.retained",
+            )
+        elif self.scope == "desktop_bundle_and_install":
+            expected_permissions = (
+                "cleanup.reconcile.complete",
+                "desktop.cleanup.retained",
+                "install.cleanup.retained",
+            )
+        else:
+            raise ValueError("unsupported cleanup reconciliation scope")
+        if self.requested_reconciliation_permissions != expected_permissions:
+            raise ValueError(
+                "cleanup reconciliation permissions do not match action/scope"
+            )
         for value, label in (
             (
                 self.cleanup_reconciliation_observation_sha256,
@@ -1075,18 +1103,52 @@ class CleanupReconciliationReceipt:
             _sha256(value, label)
         if self.cleanup_receipt_sha256 is not None:
             _sha256(self.cleanup_receipt_sha256, "cleanup_receipt_sha256")
+        if self.classification_before not in {
+            "untouched",
+            "partial",
+            "effectively_complete",
+            "invalid",
+        } or self.classification_after not in {
+            "untouched",
+            "partial",
+            "effectively_complete",
+            "invalid",
+        }:
+            raise ValueError("unsupported cleanup reconciliation receipt classification")
         if self.status == "cancelled":
             if self.action != "cancel" or self.cleanup_receipt_sha256 is not None:
                 raise ValueError("cancelled reconciliation receipt is inconsistent")
+            if self.classification_before != "untouched":
+                raise ValueError("cancel requires untouched classification")
             if self.classification_after != "untouched":
                 raise ValueError("cancel leaves cleanup classification untouched")
-        elif self.status in {"completed", "finalized"}:
-            if self.cleanup_receipt_sha256 is None:
-                raise ValueError("completed reconciliation must bind cleanup receipt")
+            if self.requested_reconciliation_permissions != _CANCEL_PERMISSION:
+                raise ValueError("cancel reconciliation permission set is invalid")
+        elif self.status == "completed":
+            if self.action != "complete" or self.cleanup_receipt_sha256 is None:
+                raise ValueError("completed reconciliation receipt is inconsistent")
+            if self.classification_before not in {"untouched", "partial"}:
+                raise ValueError("complete requires untouched or partial classification")
             if self.classification_after != "effectively_complete":
                 raise ValueError(
                     "completed reconciliation must end effectively_complete"
                 )
+            if not self.requested_reconciliation_permissions or (
+                self.requested_reconciliation_permissions[0]
+                != "cleanup.reconcile.complete"
+            ):
+                raise ValueError("complete reconciliation permission set is invalid")
+        elif self.status == "finalized":
+            if self.action != "finalize" or self.cleanup_receipt_sha256 is None:
+                raise ValueError("finalized reconciliation receipt is inconsistent")
+            if self.classification_before != "effectively_complete":
+                raise ValueError("finalize requires effectively_complete classification")
+            if self.classification_after != "effectively_complete":
+                raise ValueError(
+                    "finalized reconciliation must remain effectively_complete"
+                )
+            if self.requested_reconciliation_permissions != _FINALIZE_PERMISSION:
+                raise ValueError("finalize reconciliation permission set is invalid")
         else:
             raise ValueError("unsupported cleanup reconciliation status")
         if not isinstance(self.reconciliation_authority, bool) or not isinstance(
