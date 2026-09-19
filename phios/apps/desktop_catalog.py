@@ -11,6 +11,7 @@ from typing import Any, Literal, cast
 
 from .browser_session import BrowserSessionPlan
 from .desktop_launch import DesktopAppPlan, DesktopLaunchGrant, plan_desktop_app
+from .desktop_update import DesktopRetentionMarker
 from .package_install import AppInstallReceipt
 from .static_web import StaticWebAdapterPlan
 
@@ -35,11 +36,13 @@ DesktopCatalogIssueCode = Literal[
     "desktop_entry_digest_mismatch",
     "installed_app_drift",
     "duplicate_app_identity",
+    "retained_inactive",
 ]
 DesktopCatalogRootIssueCode = Literal[
     "unsafe_app_directory",
     "unexpected_root_entry",
     "unexpected_app_entry",
+    "invalid_retention_marker",
 ]
 
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
@@ -146,6 +149,7 @@ class DesktopCatalogIssue:
             "desktop_entry_digest_mismatch",
             "installed_app_drift",
             "duplicate_app_identity",
+            "retained_inactive",
         }
         if code not in allowed:
             raise ValueError("unsupported desktop catalog issue code")
@@ -176,6 +180,7 @@ class DesktopCatalogRootIssue:
             "unsafe_app_directory",
             "unexpected_root_entry",
             "unexpected_app_entry",
+            "invalid_retention_marker",
         }:
             raise ValueError("unsupported desktop catalog root issue code")
         return cls(
@@ -395,6 +400,7 @@ def _inspect_bundle(
     applications_root: Path,
     applications_present: bool,
     install_root: Path,
+    retention_marker: DesktopRetentionMarker | None = None,
 ) -> DesktopCatalogItem:
     catalog_key = bundle.relative_to(desktop_root).as_posix()
     if bundle.is_symlink() or not bundle.is_dir():
@@ -522,7 +528,39 @@ def _inspect_bundle(
             issues.add("desktop_entry_unsafe")
         else:
             if entry_digest != grant.desktop_entry_sha256:
-                issues.add("desktop_entry_digest_mismatch")
+                retained = False
+                if retention_marker is not None:
+                    try:
+                        active_bundle = Path(retention_marker.active_bundle_path)
+                        if (
+                            Path(retention_marker.retained_bundle_path) == bundle
+                            and retention_marker.retained_desktop_plan_sha256
+                            == plan.sha256()
+                            and retention_marker.retained_grant_sha256 == grant.sha256()
+                            and active_bundle.parent == bundle.parent
+                            and active_bundle.is_dir()
+                            and not active_bundle.is_symlink()
+                        ):
+                            active_grant = DesktopLaunchGrant.from_dict(
+                                _read_json(
+                                    active_bundle / "grant.json",
+                                    "active retained-marker grant",
+                                )
+                            )
+                            retained = (
+                                active_grant.sha256()
+                                == retention_marker.active_grant_sha256
+                                and Path(active_grant.bundle_path) == active_bundle
+                                and active_grant.app_id == plan.app_id
+                                and entry_digest == active_grant.desktop_entry_sha256
+                            )
+                    except (OSError, ValueError):
+                        retained = False
+                issues.add(
+                    "retained_inactive"
+                    if retained
+                    else "desktop_entry_digest_mismatch"
+                )
 
     try:
         current_plan = plan_desktop_app(
@@ -754,8 +792,36 @@ def snapshot_desktop_catalog(
             continue
 
         child_entries = sorted(app_entry.iterdir(), key=lambda path: path.name)
+        retention_markers: dict[str, DesktopRetentionMarker] = {}
+        bundle_entries: list[Path] = []
         for child in child_entries:
             rel_child = child.relative_to(desktop).as_posix()
+            if child.is_file() and not child.is_symlink() and re.fullmatch(
+                r"\.retained-[0-9a-f]{16}\.json",
+                child.name,
+            ):
+                try:
+                    marker = DesktopRetentionMarker.from_dict(
+                        _read_json(child, "desktop retention marker")
+                    )
+                    retained_path = Path(marker.retained_bundle_path)
+                    if (
+                        marker.app_id != app_entry.name
+                        or retained_path.parent != app_entry.resolve(strict=True)
+                        or child.name
+                        != f".retained-{marker.retained_desktop_plan_sha256[:16]}.json"
+                    ):
+                        raise ValueError("retention marker path/app binding mismatch")
+                except (OSError, ValueError):
+                    root_issues.append(
+                        DesktopCatalogRootIssue(
+                            code="invalid_retention_marker",
+                            relative_path=rel_child,
+                        )
+                    )
+                else:
+                    retention_markers[str(retained_path)] = marker
+                continue
             if not child.is_dir() and not child.is_symlink():
                 root_issues.append(
                     DesktopCatalogRootIssue(
@@ -764,9 +830,13 @@ def snapshot_desktop_catalog(
                     )
                 )
                 continue
+            bundle_entries.append(child)
+
+        for child in bundle_entries:
             bundle_count += 1
             if bundle_count > _MAX_BUNDLES:
                 raise ValueError("desktop catalog exceeds maximum bundle count")
+            marker = retention_markers.get(str(child.resolve(strict=False)))
             items.append(
                 _inspect_bundle(
                     child,
@@ -774,6 +844,7 @@ def snapshot_desktop_catalog(
                     applications_root=applications,
                     applications_present=applications_present,
                     install_root=install,
+                    retention_marker=marker,
                 )
             )
 
