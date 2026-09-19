@@ -1140,6 +1140,10 @@ class VisibleBrowserSessionReceipt:
         failure_reason = data["failure_reason"]
         if failure_reason is not None:
             failure_reason = _string(failure_reason, "failure_reason", maximum=512)
+        status_text = _string(data["status"], "visible-browser status", maximum=64)
+        if status_text not in {"completed", "timed_out", "browser_failed"}:
+            raise ValueError("unsupported visible-browser status")
+        status = cast(VisibleBrowserStatus, status_text)
         receipt = cls(
             schema_version=data["schema_version"],
             receipt_id=_string(data["receipt_id"], "visible-browser receipt_id", maximum=64),
@@ -1237,7 +1241,7 @@ class VisibleBrowserSessionReceipt:
                 data["browser_stderr_sha256"],
                 "browser_stderr_sha256",
             ),
-            status=_string(data["status"], "visible-browser status", maximum=64),
+            status=status,
             failure_reason=failure_reason,
             page_execution_authority=data["page_execution_authority"],
             browser_network_inherited=data["browser_network_inherited"],
