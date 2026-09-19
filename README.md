@@ -183,7 +183,7 @@ Older Spine documents remain in the repository as the versioned design trail.
 
 ## App Platform Alpha
 
-The current App Platform line is **v0.30**. v0.25 introduced strict app manifests and a deterministic registry; v0.26 added bounded public GitHub intake; v0.27 added exact-commit source acquisition; v0.28 added deterministic non-executing build plans; v0.29 added explicitly approved build execution; v0.30 adds a Linux-first Bubblewrap containment contract with namespace preflight, network-deny-by-default policy, resource limits, and sandbox receipts.
+The current App Platform line is **v0.31**. v0.25 introduced strict app manifests and a deterministic registry; v0.26 added bounded public GitHub intake; v0.27 added exact-commit source acquisition; v0.28 added deterministic non-executing build plans; v0.29 added explicitly approved build execution; v0.30 added Linux Bubblewrap containment; v0.31 adds deterministic npm dependency planning, exact host approval, SRI-verified HTTPS staging, a PhiOS content-addressed dependency store, and dependency receipts.
 
 A manifest records:
 
@@ -210,6 +210,8 @@ more.
 
 See:
 
+- [App Platform v0.31 overview](README_APP_PLATFORM_V0.31.md)
+- [App Platform v0.31 dependency broker contract](docs/PHIOS_APP_PLATFORM_V0.31_DEPENDENCY_BROKER.md)
 - [App Platform v0.30 overview](README_APP_PLATFORM_V0.30.md)
 - [App Platform v0.30 Linux build sandbox contract](docs/PHIOS_APP_PLATFORM_V0.30_BUILD_SANDBOX.md)
 - [App Platform v0.29 overview](README_APP_PLATFORM_V0.29.md)
@@ -282,7 +284,19 @@ v0.30 requires Linux, Bubblewrap, and `prlimit`. It preflights namespace creatio
 
 Dependency-fetch builds can explicitly request `--sandbox-network inherit`, but receipts mark that mode as host-network inheritance, **not** as network isolation or allowlisting.
 
-The next planned rung is a dependency-staging/network-broker contract so ordinary builds can fetch approved dependencies before entering a network-denied sandbox.
+Plan, review, and stage exact npm dependency artifacts outside the build sandbox:
+
+```bash
+phi-app plan-dependencies build-plan.json acquisition-receipt.json > dependency-plan.json
+phi-app review-dependency-plan dependency-plan.json
+phi-app stage-dependencies dependency-plan.json \
+  --approve-dependency-plan-sha EXACT_DEPENDENCY_PLAN_SHA256 \
+  --allow-host registry.npmjs.org
+```
+
+v0.31 currently supports npm lockfileVersion 2/3. It requires exact HTTPS `resolved` URLs and valid lockfile SRI, requires the approved host set to exactly match the reviewed plan, verifies downloaded bytes before storage, and gives each staged artifact a PhiOS SHA-256 CAS identity.
+
+The staged CAS is evidence-bearing dependency material, **not yet an npm cache**. The next planned rung is an npm offline-cache adapter that uses npm's supported cache interface and then runs `npm ci --offline` inside the v0.30 network-denied sandbox.
 
 v0.18 adds a stronger semantic boundary for scalar values. Boolean and numeric values may be inspected only with the separate `reality.local_http.semantic.value.read` grant. The observed scalar is used transiently for comparison and is not persisted in semantic evidence.
 
@@ -510,7 +524,7 @@ phios/
 ├─ shell/      operator shell
 ├─ mcp/        MCP interface
 ├─ spine/      authority-aware Spine runtime
-├─ apps/       manifests, intake, pinned source, build plans/execution/sandbox, registry
+├─ apps/       manifests, intake, pinned source, dependency broker, sandboxed builds, registry
 ├─ mandala/    typed contracts and receipts
 ├─ soma/       bounded perception/evidence
 └─ reality/    Reality Gate verification
