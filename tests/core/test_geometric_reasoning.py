@@ -66,6 +66,7 @@ def test_search_visits_one_representative_per_equivalence_class():
         constraints=(
             ConstraintSpec("sum_lte_4", lambda state: sum(state) <= 4),
         ),
+        quotient_search_safe=True,
     )
 
     def expand(state: tuple[int, int]):
@@ -119,3 +120,21 @@ def test_constraint_exception_fails_closed_as_rejection():
 
     assert receipt.admissible_state_count == 1
     assert receipt.rejections == (("9,9", ("fragile_constraint",)),)
+
+
+def test_search_refuses_undeclared_quotient_safety():
+    reasoner = GeometricReasoner(
+        state_id=_pair_id,
+        equivalence_key=lambda state: sorted(state),
+    )
+
+    try:
+        reasoner.search(
+            [(0, 0)],
+            expand=lambda state: [state],
+            goal=lambda state: False,
+        )
+    except Exception as exc:
+        assert "quotient_search_safe=True" in str(exc)
+    else:
+        raise AssertionError("search should require explicit quotient-safety declaration")
