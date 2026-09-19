@@ -29,6 +29,7 @@ _MAX_ARTIFACT_BYTES = 64 * 1024 * 1024
 _MAX_TOTAL_STAGE_BYTES = 1024 * 1024 * 1024
 _MAX_REDIRECTS = 5
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
+_COMMIT_RE = re.compile(r"^[0-9a-f]{40,64}$")
 _SAFE_HOST_RE = re.compile(
     r"^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)*"
     r"[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$"
@@ -221,6 +222,8 @@ class DependencyPlan:
     def __post_init__(self) -> None:
         if self.schema_version != DEPENDENCY_PLAN_SCHEMA_VERSION:
             raise ValueError(f"Unsupported dependency plan schema: {self.schema_version}")
+        if not _COMMIT_RE.fullmatch(self.commit_sha):
+            raise ValueError("dependency plan commit_sha must be a lowercase hexadecimal identifier")
         _sha256(self.build_plan_sha256, "dependency plan build_plan_sha256")
         _sha256(self.source_snapshot_sha256, "dependency plan source_snapshot_sha256")
         _sha256(self.lockfile_sha256, "dependency plan lockfile_sha256")
@@ -766,6 +769,45 @@ class DependencyReceipt:
     store_root: str
     schema_version: str = DEPENDENCY_RECEIPT_SCHEMA_VERSION
 
+    def __post_init__(self) -> None:
+        if self.schema_version != DEPENDENCY_RECEIPT_SCHEMA_VERSION:
+            raise ValueError(f"Unsupported dependency receipt schema: {self.schema_version}")
+        try:
+            uuid.UUID(self.receipt_id)
+        except ValueError as exc:
+            raise ValueError("dependency receipt receipt_id must be a UUID") from exc
+        try:
+            parsed_time = datetime.fromisoformat(self.timestamp_utc)
+        except ValueError as exc:
+            raise ValueError("dependency receipt timestamp_utc must be ISO-8601") from exc
+        if parsed_time.tzinfo is None:
+            raise ValueError("dependency receipt timestamp_utc must include a timezone")
+        if not _COMMIT_RE.fullmatch(self.commit_sha):
+            raise ValueError("dependency receipt commit_sha must be a lowercase hexadecimal identifier")
+        if self.package_manager != "npm" or self.lockfile_version not in {2, 3}:
+            raise ValueError("Unsupported dependency receipt package-manager/lockfile version")
+        _sha256(self.build_plan_sha256, "dependency receipt build_plan_sha256")
+        _sha256(self.source_snapshot_sha256, "dependency receipt source_snapshot_sha256")
+        _sha256(self.dependency_plan_sha256, "dependency receipt dependency_plan_sha256")
+        _sha256(self.lockfile_sha256, "dependency receipt lockfile_sha256")
+        canonical_hosts = tuple(sorted({_canonical_host(host) for host in self.approved_hosts}))
+        if canonical_hosts != self.approved_hosts:
+            raise ValueError("dependency receipt approved_hosts must be unique and sorted")
+        if not 1 <= len(self.artifacts) <= _MAX_DEPENDENCY_ARTIFACTS:
+            raise ValueError("dependency receipt artifact count is out of bounds")
+        if tuple(sorted({artifact.host for artifact in self.artifacts})) != self.approved_hosts:
+            raise ValueError("dependency receipt hosts must exactly match staged artifact hosts")
+        if self.total_bytes != sum(item.byte_count for item in self.artifacts):
+            raise ValueError("dependency receipt total_bytes does not match artifacts")
+        _integer(
+            self.total_bytes,
+            "dependency receipt total_bytes",
+            maximum=_MAX_TOTAL_STAGE_BYTES,
+        )
+        store = Path(self.store_root)
+        if not store.is_absolute():
+            raise ValueError("dependency receipt store_root must be absolute")
+
     def body_dict(self) -> dict[str, Any]:
         return {
             "schema_version": self.schema_version,
@@ -911,8 +953,6 @@ class DependencyReceipt:
             total_bytes=total_bytes,
             store_root=str(resolved_store),
         )
-        if receipt.package_manager != "npm" or receipt.lockfile_version not in {2, 3}:
-            raise ValueError("Unsupported dependency receipt package-manager/lockfile version")
         if data["dependency_receipt_sha256"] != receipt.sha256():
             raise ValueError("dependency receipt digest does not match canonical receipt")
         return receipt
@@ -1049,7 +1089,7 @@ class DependencyStagingService:
             artifacts=tuple(staged),
             total_bytes=total_bytes,
             store_root=str(root),
-            )
+        )
         receipt_path = receipts / f"dependency-{receipt_id}.json"
         _write_json_atomic(receipt_path, receipt.to_dict())
         return receipt
