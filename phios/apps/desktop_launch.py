@@ -614,7 +614,8 @@ class DesktopLaunchGrant:
         return grant
 
 
-def _desktop_entry_content(plan: DesktopAppPlan, bundle_path: Path) -> str:
+def render_desktop_entry(plan: DesktopAppPlan, bundle_path: Path) -> str:
+    """Render the exact v0.38 XDG desktop-entry bytes for one governed bundle."""
     exec_line = f"phi-app launch-desktop-bundle {_desktop_exec_quote(str(bundle_path))}"
     return (
         "[Desktop Entry]\n"
@@ -628,6 +629,11 @@ def _desktop_entry_content(plan: DesktopAppPlan, bundle_path: Path) -> str:
         "Categories=Utility;\n"
         "NoDisplay=false\n"
     )
+
+
+def _desktop_entry_content(plan: DesktopAppPlan, bundle_path: Path) -> str:
+    """Backward-compatible internal alias for the public renderer."""
+    return render_desktop_entry(plan, bundle_path)
 
 
 @dataclass(frozen=True)

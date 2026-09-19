@@ -28,6 +28,16 @@ from .desktop_launch import (
     plan_desktop_app,
     review_desktop_app,
 )
+from .desktop_update import (
+    DesktopRollbackRequest,
+    DesktopRollbackService,
+    DesktopUpdateRequest,
+    DesktopUpdateService,
+    plan_desktop_rollback,
+    plan_desktop_update,
+    review_desktop_rollback,
+    review_desktop_update,
+)
 from .dependency_broker import (
     DependencyStageRequest,
     DependencyStagingService,
@@ -607,6 +617,140 @@ def _parser() -> argparse.ArgumentParser:
         help="Validate one v0.39 catalog snapshot and expose its non-authoritative summary.",
     )
     catalog_review_parser.add_argument("desktop_catalog_json", type=Path)
+
+    update_plan_parser = subparsers.add_parser(
+        "plan-desktop-update",
+        help="Plan one governed desktop-version transition while retaining the active version.",
+    )
+    update_plan_parser.add_argument("active_bundle_path", type=Path)
+    update_plan_parser.add_argument("candidate_browser_plan_json", type=Path)
+    update_plan_parser.add_argument("candidate_static_plan_json", type=Path)
+    update_plan_parser.add_argument("candidate_install_receipt_json", type=Path)
+    update_plan_parser.add_argument(
+        "--install-root",
+        type=Path,
+        default=Path.home() / ".phios" / "apps" / "installed",
+    )
+    update_plan_parser.add_argument(
+        "--desktop-root",
+        type=Path,
+        default=Path.home() / ".local" / "share" / "phios" / "desktop-apps",
+    )
+    update_plan_parser.add_argument(
+        "--applications-root",
+        type=Path,
+        default=Path.home() / ".local" / "share" / "applications",
+    )
+
+    update_review_parser = subparsers.add_parser(
+        "review-desktop-update",
+        help="Validate and expose the exact v0.40 update authority request.",
+    )
+    update_review_parser.add_argument("desktop_update_plan_json", type=Path)
+
+    update_execute_parser = subparsers.add_parser(
+        "execute-desktop-update",
+        help="Execute one explicitly approved desktop-version switch.",
+    )
+    update_execute_parser.add_argument("desktop_update_plan_json", type=Path)
+    update_execute_parser.add_argument("candidate_browser_plan_json", type=Path)
+    update_execute_parser.add_argument("candidate_static_plan_json", type=Path)
+    update_execute_parser.add_argument("candidate_install_receipt_json", type=Path)
+    update_execute_parser.add_argument("--approve-update-plan-sha", required=True)
+    update_execute_parser.add_argument("--approve-active-grant-sha", required=True)
+    update_execute_parser.add_argument(
+        "--approve-candidate-desktop-plan-sha",
+        required=True,
+    )
+    update_execute_parser.add_argument(
+        "--allow-update-permission",
+        action="append",
+        default=[],
+        dest="update_permissions",
+    )
+    update_execute_parser.add_argument(
+        "--install-root",
+        type=Path,
+        default=Path.home() / ".phios" / "apps" / "installed",
+    )
+    update_execute_parser.add_argument(
+        "--desktop-root",
+        type=Path,
+        default=Path.home() / ".local" / "share" / "phios" / "desktop-apps",
+    )
+    update_execute_parser.add_argument(
+        "--applications-root",
+        type=Path,
+        default=Path.home() / ".local" / "share" / "applications",
+    )
+    update_execute_parser.add_argument(
+        "--receipt-root",
+        type=Path,
+        default=Path.home() / ".phios" / "apps" / "runtime-receipts",
+    )
+
+    rollback_plan_parser = subparsers.add_parser(
+        "plan-desktop-rollback",
+        help="Plan rollback of one completed v0.40 update to its retained prior version.",
+    )
+    rollback_plan_parser.add_argument("desktop_update_receipt_json", type=Path)
+    rollback_plan_parser.add_argument(
+        "--install-root",
+        type=Path,
+        default=Path.home() / ".phios" / "apps" / "installed",
+    )
+    rollback_plan_parser.add_argument(
+        "--desktop-root",
+        type=Path,
+        default=Path.home() / ".local" / "share" / "phios" / "desktop-apps",
+    )
+    rollback_plan_parser.add_argument(
+        "--applications-root",
+        type=Path,
+        default=Path.home() / ".local" / "share" / "applications",
+    )
+
+    rollback_review_parser = subparsers.add_parser(
+        "review-desktop-rollback",
+        help="Validate and expose the exact v0.40 rollback authority request.",
+    )
+    rollback_review_parser.add_argument("desktop_rollback_plan_json", type=Path)
+
+    rollback_execute_parser = subparsers.add_parser(
+        "execute-desktop-rollback",
+        help="Execute one explicitly approved rollback to the retained previous version.",
+    )
+    rollback_execute_parser.add_argument("desktop_rollback_plan_json", type=Path)
+    rollback_execute_parser.add_argument("desktop_update_receipt_json", type=Path)
+    rollback_execute_parser.add_argument("--approve-rollback-plan-sha", required=True)
+    rollback_execute_parser.add_argument("--approve-active-grant-sha", required=True)
+    rollback_execute_parser.add_argument("--approve-target-grant-sha", required=True)
+    rollback_execute_parser.add_argument(
+        "--allow-rollback-permission",
+        action="append",
+        default=[],
+        dest="rollback_permissions",
+    )
+    rollback_execute_parser.add_argument(
+        "--install-root",
+        type=Path,
+        default=Path.home() / ".phios" / "apps" / "installed",
+    )
+    rollback_execute_parser.add_argument(
+        "--desktop-root",
+        type=Path,
+        default=Path.home() / ".local" / "share" / "phios" / "desktop-apps",
+    )
+    rollback_execute_parser.add_argument(
+        "--applications-root",
+        type=Path,
+        default=Path.home() / ".local" / "share" / "applications",
+    )
+    rollback_execute_parser.add_argument(
+        "--receipt-root",
+        type=Path,
+        default=Path.home() / ".phios" / "apps" / "runtime-receipts",
+    )
     return parser
 
 
@@ -1238,6 +1382,117 @@ def main(argv: Sequence[str] | None = None) -> int:
             print(json.dumps({"status": "blocked", "error": str(exc)}, sort_keys=True))
             return 2
         print(json.dumps(catalog_review.to_dict(), sort_keys=True, indent=2))
+        return 0
+
+    if args.command == "plan-desktop-update":
+        try:
+            candidate_browser = _load_json_file(args.candidate_browser_plan_json)
+            candidate_static = _load_json_file(args.candidate_static_plan_json)
+            candidate_install = _load_json_file(args.candidate_install_receipt_json)
+            update_plan = plan_desktop_update(
+                args.active_bundle_path,
+                candidate_browser,
+                candidate_static,
+                candidate_install,
+                install_root=args.install_root,
+                desktop_root=args.desktop_root,
+                applications_root=args.applications_root,
+            )
+        except (OSError, ValueError) as exc:
+            print(json.dumps({"status": "blocked", "error": str(exc)}, sort_keys=True))
+            return 2
+        print(json.dumps(update_plan.to_dict(), sort_keys=True, indent=2))
+        return 0
+
+    if args.command == "review-desktop-update":
+        try:
+            update_payload = _load_json_file(args.desktop_update_plan_json)
+            update_review = review_desktop_update(update_payload)
+        except (OSError, ValueError) as exc:
+            print(json.dumps({"status": "blocked", "error": str(exc)}, sort_keys=True))
+            return 2
+        print(json.dumps(update_review.to_dict(), sort_keys=True, indent=2))
+        return 0
+
+    if args.command == "execute-desktop-update":
+        try:
+            update_payload = _load_json_file(args.desktop_update_plan_json)
+            candidate_browser = _load_json_file(args.candidate_browser_plan_json)
+            candidate_static = _load_json_file(args.candidate_static_plan_json)
+            candidate_install = _load_json_file(args.candidate_install_receipt_json)
+            update_request = DesktopUpdateRequest.from_payloads(
+                update_payload,
+                candidate_browser,
+                candidate_static,
+                candidate_install,
+                approved_update_plan_sha256=args.approve_update_plan_sha,
+                approved_active_grant_sha256=args.approve_active_grant_sha,
+                approved_candidate_desktop_plan_sha256=(
+                    args.approve_candidate_desktop_plan_sha
+                ),
+                approved_update_permissions=tuple(args.update_permissions),
+            )
+            update_result = DesktopUpdateService().execute(
+                update_request,
+                install_root=args.install_root,
+                desktop_root=args.desktop_root,
+                applications_root=args.applications_root,
+                receipt_root=args.receipt_root,
+            )
+        except (OSError, ValueError) as exc:
+            print(json.dumps({"status": "blocked", "error": str(exc)}, sort_keys=True))
+            return 2
+        print(json.dumps(update_result.to_dict(), sort_keys=True, indent=2))
+        return 0
+
+    if args.command == "plan-desktop-rollback":
+        try:
+            update_receipt = _load_json_file(args.desktop_update_receipt_json)
+            rollback_plan = plan_desktop_rollback(
+                update_receipt,
+                install_root=args.install_root,
+                desktop_root=args.desktop_root,
+                applications_root=args.applications_root,
+            )
+        except (OSError, ValueError) as exc:
+            print(json.dumps({"status": "blocked", "error": str(exc)}, sort_keys=True))
+            return 2
+        print(json.dumps(rollback_plan.to_dict(), sort_keys=True, indent=2))
+        return 0
+
+    if args.command == "review-desktop-rollback":
+        try:
+            rollback_payload = _load_json_file(args.desktop_rollback_plan_json)
+            rollback_review = review_desktop_rollback(rollback_payload)
+        except (OSError, ValueError) as exc:
+            print(json.dumps({"status": "blocked", "error": str(exc)}, sort_keys=True))
+            return 2
+        print(json.dumps(rollback_review.to_dict(), sort_keys=True, indent=2))
+        return 0
+
+    if args.command == "execute-desktop-rollback":
+        try:
+            rollback_payload = _load_json_file(args.desktop_rollback_plan_json)
+            update_receipt = _load_json_file(args.desktop_update_receipt_json)
+            rollback_request = DesktopRollbackRequest.from_payloads(
+                rollback_payload,
+                update_receipt,
+                approved_rollback_plan_sha256=args.approve_rollback_plan_sha,
+                approved_active_grant_sha256=args.approve_active_grant_sha,
+                approved_target_grant_sha256=args.approve_target_grant_sha,
+                approved_rollback_permissions=tuple(args.rollback_permissions),
+            )
+            rollback_result = DesktopRollbackService().execute(
+                rollback_request,
+                install_root=args.install_root,
+                desktop_root=args.desktop_root,
+                applications_root=args.applications_root,
+                receipt_root=args.receipt_root,
+            )
+        except (OSError, ValueError) as exc:
+            print(json.dumps({"status": "blocked", "error": str(exc)}, sort_keys=True))
+            return 2
+        print(json.dumps(rollback_result.to_dict(), sort_keys=True, indent=2))
         return 0
 
     return 2
