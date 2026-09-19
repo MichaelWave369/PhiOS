@@ -16,7 +16,7 @@ PhiOS changes quickly, so use this source-of-truth order when documents disagree
 |---|---:|---|
 | App Platform | **v0.42** | [overview](../README_APP_PLATFORM_V0.42.md) · [contract](PHIOS_APP_PLATFORM_V0.42_CLEANUP_RECONCILIATION.md) |
 | Spine | **v0.24** | [overview](../README_SPINE_V0.24.md) · [contract](PHIOS_SPINE_V0.24_NUMERIC_TRANSITION_CONTRACT.md) |
-| Core geometric reasoning | **v0.1** | [contract](PHIOS_GEOMETRIC_REASONING_V0.1.md) |
+| Core geometric / relational reasoning | **v0.2** | [v0.1 geometry](PHIOS_GEOMETRIC_REASONING_V0.1.md) · [v0.2 relational field](PHIOS_RELATIONAL_FIELD_V0.2.md) |
 | Living specification | current | [PHIOS_LIVING_SPEC.md](PHIOS_LIVING_SPEC.md) |
 | Architecture blueprint | current / evolving | [BLUEPRINT.md](BLUEPRINT.md) |
 
@@ -53,6 +53,13 @@ The App Platform trail is intentionally retained. Each overview explains the run
 | v0.40 | Governed update / rollback | [overview](../README_APP_PLATFORM_V0.40.md) | [contract](PHIOS_APP_PLATFORM_V0.40_UPDATE_ROLLBACK.md) |
 | v0.41 | Retained version cleanup | [overview](../README_APP_PLATFORM_V0.41.md) | [contract](PHIOS_APP_PLATFORM_V0.41_RETAINED_CLEANUP.md) |
 | v0.42 | Cleanup journal reconciliation | [overview](../README_APP_PLATFORM_V0.42.md) | [contract](PHIOS_APP_PLATFORM_V0.42_CLEANUP_RECONCILIATION.md) |
+
+## Core reasoning version trail
+
+| Version | Capability | Contract |
+|---|---|---|
+| v0.1 | Quotient reduction, constraints, conserved invariants | [contract](PHIOS_GEOMETRIC_REASONING_V0.1.md) |
+| v0.2 | Hard transition boundaries + relational field path cost | [contract](PHIOS_RELATIONAL_FIELD_V0.2.md) |
 
 ## Spine version trail
 
