@@ -183,7 +183,7 @@ Older Spine documents remain in the repository as the versioned design trail.
 
 ## App Platform Alpha
 
-The current App Platform line is **v0.28**. v0.25 introduced strict app manifests and a deterministic registry; v0.26 added bounded public GitHub intake; v0.27 added exact-commit source acquisition; v0.28 adds deterministic, non-executing build plans bound to intake metadata, the acquisition receipt, and a fresh plan-time source snapshot.
+The current App Platform line is **v0.29**. v0.25 introduced strict app manifests and a deterministic registry; v0.26 added bounded public GitHub intake; v0.27 added exact-commit source acquisition; v0.28 added deterministic non-executing build plans; v0.29 adds explicitly approved build execution in an isolated working copy with source re-verification, tool identities, artifact hashing, and execution receipts.
 
 A manifest records:
 
@@ -210,6 +210,8 @@ more.
 
 See:
 
+- [App Platform v0.29 overview](README_APP_PLATFORM_V0.29.md)
+- [App Platform v0.29 build execution contract](docs/PHIOS_APP_PLATFORM_V0.29_BUILD_EXECUTION.md)
 - [App Platform v0.28 overview](README_APP_PLATFORM_V0.28.md)
 - [App Platform v0.28 build plan contract](docs/PHIOS_APP_PLATFORM_V0.28_BUILD_PLAN.md)
 - [App Platform v0.27 overview](README_APP_PLATFORM_V0.27.md)
@@ -248,9 +250,22 @@ phi-app plan-build intake.json acquisition-receipt.json > build-plan.json
 phi-app review-build-plan build-plan.json
 ```
 
-v0.28 records proposed argv steps, required tools, requested future build permissions, expected outputs where deterministically known, and a canonical plan SHA-256. It executes nothing.
+v0.28 records proposed argv steps, required tools, requested future build permissions, expected outputs where deterministically known, and a canonical plan SHA-256.
 
-The next planned rung is an explicitly approved build-execution contract bound to both `plan_sha256` and `source_snapshot_sha256`.
+Execute only an explicitly approved plan:
+
+```bash
+phi-app execute-build build-plan.json acquisition-receipt.json \
+  --approve-plan-sha EXACT_PLAN_SHA256 \
+  --approve-source-sha EXACT_SOURCE_SNAPSHOT_SHA256 \
+  --allow-build-permission build.network.dependencies \
+  --allow-build-permission build.process.execute \
+  --allow-build-permission build.workspace.write
+```
+
+v0.29 recomputes the source snapshot before any process launch, runs reviewed argv with `shell=False` inside a separate working copy, records required tool identities, hashes expected artifacts, and writes a build execution receipt.
+
+The v0.29 working copy is **not an OS security sandbox**. The current receipt explicitly records that host-level network and process containment are not enforced. The next planned rung is a real build sandbox / containment contract.
 
 v0.18 adds a stronger semantic boundary for scalar values. Boolean and numeric values may be inspected only with the separate `reality.local_http.semantic.value.read` grant. The observed scalar is used transiently for comparison and is not persisted in semantic evidence.
 
@@ -478,7 +493,7 @@ phios/
 ├─ shell/      operator shell
 ├─ mcp/        MCP interface
 ├─ spine/      authority-aware Spine runtime
-├─ apps/       manifests, GitHub intake, pinned source, build plans, registry
+├─ apps/       manifests, intake, pinned source, build plans/execution, registry
 ├─ mandala/    typed contracts and receipts
 ├─ soma/       bounded perception/evidence
 └─ reality/    Reality Gate verification
