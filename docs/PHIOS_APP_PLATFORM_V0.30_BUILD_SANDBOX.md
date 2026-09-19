@@ -37,18 +37,17 @@ There is no automatic fallback to the v0.29 direct subprocess runner.
 
 ## Namespace contract
 
-The Bubblewrap command requests:
+Bubblewrap always creates a new mount namespace, and v0.30 explicitly requests:
 
-- mount namespace isolation;
-- user namespace isolation;
-- PID namespace isolation;
-- IPC namespace isolation;
-- UTS namespace isolation;
-- cgroup namespace isolation where supported by Bubblewrap's `--unshare-all`;
+- a new user namespace;
+- a new PID namespace;
+- a new IPC namespace;
+- a new UTS namespace;
+- a new network namespace when `network_mode=deny`;
 - parent-death behavior;
 - a new session.
 
-The receipt describes the cgroup namespace as **requested**, not as a cgroup resource controller.
+v0.30 deliberately does not claim a cgroup namespace or cgroup resource controller.
 
 ## Filesystem contract
 
@@ -157,8 +156,11 @@ Representative structure:
 bwrap
   --die-with-parent
   --new-session
-  --unshare-all
-  [--share-net only for explicit inherit mode]
+  --unshare-user
+  --unshare-ipc
+  --unshare-pid
+  --unshare-uts
+  [--unshare-net only for deny mode]
   ...
   --bind HOST_EXECUTION_SOURCE /workspace
   --chdir /workspace
