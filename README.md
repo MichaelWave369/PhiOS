@@ -22,7 +22,7 @@ It currently has three major surfaces:
 |---|---|---:|
 | **PhiOS Shell / MCP** | operator commands, local workflows, integrations, machine-readable capability surfaces | active |
 | **PhiOS Spine** | authority-aware observation, verification, evidence, and receipts | **v0.24** |
-| **PhiOS App Platform** | governed path from public repository to installed, launchable, updateable desktop app | **v0.40** |
+| **PhiOS App Platform** | governed path from public repository to installed, launchable, updateable desktop app | **v0.41** |
 
 The common pattern is:
 
@@ -120,7 +120,7 @@ Current Spine docs:
 - [Spine v0.24 numeric-transition contract](docs/PHIOS_SPINE_V0.24_NUMERIC_TRANSITION_CONTRACT.md)
 - [Complete Spine version trail](docs/README.md#spine-version-trail)
 
-### App Platform v0.40
+### App Platform v0.41
 
 The App Platform now covers a governed lifecycle from public source through desktop update and rollback:
 
@@ -152,6 +152,8 @@ deterministic app catalog
 side-by-side update
     ↓
 separately approved rollback
+    ↓
+explicit retained-version cleanup
 ```
 
 Important boundaries remain explicit:
@@ -174,11 +176,15 @@ catalog ready
 
 update authority
 ≠ rollback authority
+
+retained version
+≠ cleanup authority
 ```
 
 Current App Platform docs:
 
-- [App Platform v0.40 overview](README_APP_PLATFORM_V0.40.md)
+- [App Platform v0.41 overview](README_APP_PLATFORM_V0.41.md)
+- [v0.41 retained cleanup contract](docs/PHIOS_APP_PLATFORM_V0.41_RETAINED_CLEANUP.md)
 - [v0.40 update / rollback contract](docs/PHIOS_APP_PLATFORM_V0.40_UPDATE_ROLLBACK.md)
 - [Complete App Platform version trail](docs/README.md#app-platform-version-trail)
 
