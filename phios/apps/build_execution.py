@@ -644,6 +644,10 @@ class BuildExecutionService:
         source_copy = execution_dir / "source"
         if root != execution_dir and root not in execution_dir.parents:
             raise ValueError("Execution workspace escaped configured execution root")
+        if source_copy == source_root or source_root in source_copy.parents:
+            raise ValueError("Execution workspace must remain outside the acquired source tree")
+        if source_copy in source_root.parents:
+            raise ValueError("Execution workspace must not contain the acquired source tree")
 
         receipts = (receipt_root or (root / ".phios-receipts")).expanduser().resolve()
         if receipts == source_root or source_root in receipts.parents:
