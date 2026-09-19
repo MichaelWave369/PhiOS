@@ -35,6 +35,17 @@ RuntimeStatus = Literal[
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 _PERMISSION_RE = re.compile(r"^[a-z0-9][a-z0-9._:-]{0,127}$")
 _SAFE_VERSION_RE = re.compile(r"^[\x20-\x7e]{1,512}$")
+_SAFE_ENV_KEY_RE = re.compile(r"^[A-Z][A-Z0-9_]{0,63}$")
+_RESERVED_RUNTIME_ENV = {
+    "HOME",
+    "TMPDIR",
+    "TMP",
+    "TEMP",
+    "PATH",
+    "PHIOS_RUNTIME_EXECUTION",
+    "PHIOS_APP_ROOT",
+    "PHIOS_APP_DATA",
+}
 _SUPPORTED_RUNTIME_PERMISSIONS = {
     "runtime.network.inherit",
     "runtime.data.persist",
@@ -765,9 +776,17 @@ class BubblewrapRuntimeRunner:
         data_path: Path | None,
         bwrap_path: str | None = None,
         prlimit_path: str | None = None,
+        extra_read_only_binds: tuple[tuple[Path, str], ...] = (),
+        extra_environment: dict[str, str] | None = None,
     ) -> None:
         self.policy = policy
         self._subprocess = SubprocessBuildRunner()
+        self.extra_read_only_binds = self._validate_extra_read_only_binds(
+            extra_read_only_binds
+        )
+        self.extra_environment = self._validate_extra_environment(
+            extra_environment or {}
+        )
         if payload_root.is_symlink():
             raise ValueError("runtime payload root must not be a symlink")
         self.payload_root = payload_root.resolve(strict=True)
@@ -786,6 +805,62 @@ class BubblewrapRuntimeRunner:
         self.prlimit_path = prlimit_path
         self._backend_identity: SandboxBackendIdentity | None = None
         self._resolved_tool_dirs: set[str] = set()
+
+    @staticmethod
+    def _validate_extra_read_only_binds(
+        binds: tuple[tuple[Path, str], ...],
+    ) -> tuple[tuple[Path, str], ...]:
+        normalized: list[tuple[Path, str]] = []
+        targets: set[str] = set()
+        for host_path, sandbox_target in binds:
+            host = Path(host_path)
+            if host.is_symlink():
+                raise ValueError("runtime extra bind source must not be a symlink")
+            try:
+                resolved = host.resolve(strict=True)
+            except OSError as exc:
+                raise ValueError(
+                    f"runtime extra bind source is unavailable: {host}"
+                ) from exc
+            if not (resolved.is_file() or resolved.is_dir() or resolved.is_socket()):
+                raise ValueError(
+                    "runtime extra bind source must be a file, directory, or Unix socket"
+                )
+            target = PurePosixPath(sandbox_target)
+            target_text = target.as_posix()
+            if (
+                not target.is_absolute()
+                or any(part in {"", ".", ".."} for part in target.parts[1:])
+                or not (
+                    target_text.startswith("/run/user/phios/")
+                    or target_text.startswith("/phios/")
+                )
+            ):
+                raise ValueError(
+                    "runtime extra bind target must be under /run/user/phios/ or /phios/"
+                )
+            if target_text in targets:
+                raise ValueError("runtime extra bind targets must be unique")
+            targets.add(target_text)
+            normalized.append((resolved, target_text))
+        return tuple(normalized)
+
+    @staticmethod
+    def _validate_extra_environment(values: dict[str, str]) -> dict[str, str]:
+        normalized: dict[str, str] = {}
+        for key, value in values.items():
+            if not _SAFE_ENV_KEY_RE.fullmatch(key):
+                raise ValueError(f"Invalid runtime environment key: {key}")
+            if key in _RESERVED_RUNTIME_ENV:
+                raise ValueError(f"Runtime environment key is reserved: {key}")
+            if (
+                not isinstance(value, str)
+                or len(value) > 4096
+                or any(ord(char) < 32 for char in value)
+            ):
+                raise ValueError(f"Invalid runtime environment value for {key}")
+            normalized[key] = value
+        return dict(sorted(normalized.items()))
 
     @staticmethod
     def _path_allowed(path: Path) -> bool:
@@ -873,6 +948,19 @@ class BubblewrapRuntimeRunner:
             ]
         )
         args.extend(self._system_bind_args())
+        extra_dirs: set[str] = set()
+        for _, sandbox_target in self.extra_read_only_binds:
+            parent = PurePosixPath(sandbox_target).parent
+            while parent.as_posix() not in {"/", "."}:
+                extra_dirs.add(parent.as_posix())
+                parent = parent.parent
+        for directory in sorted(
+            extra_dirs,
+            key=lambda value: (len(PurePosixPath(value).parts), value),
+        ):
+            args.extend(("--dir", directory))
+        for host_path, sandbox_target in self.extra_read_only_binds:
+            args.extend(("--ro-bind", str(host_path), sandbox_target))
         if self.data_path is not None:
             args.extend(
                 [
@@ -916,6 +1004,8 @@ class BubblewrapRuntimeRunner:
         )
         if self.data_path is not None:
             args.extend(("--setenv", "PHIOS_APP_DATA", "/phios/app-data"))
+        for key, value in self.extra_environment.items():
+            args.extend(("--setenv", key, value))
         args.extend(
             [
                 prlimit,
