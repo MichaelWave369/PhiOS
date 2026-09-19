@@ -183,7 +183,7 @@ Older Spine documents remain in the repository as the versioned design trail.
 
 ## App Platform Alpha
 
-The current App Platform line is **v0.27**. v0.25 introduced strict app manifests and a deterministic registry; v0.26 added bounded public GitHub intake; v0.27 adds exact-commit source acquisition with operator-bound approvals, deterministic source-tree hashing, and acquisition receipts.
+The current App Platform line is **v0.28**. v0.25 introduced strict app manifests and a deterministic registry; v0.26 added bounded public GitHub intake; v0.27 added exact-commit source acquisition; v0.28 adds deterministic, non-executing build plans bound to intake metadata, the acquisition receipt, and a fresh plan-time source snapshot.
 
 A manifest records:
 
@@ -210,6 +210,8 @@ more.
 
 See:
 
+- [App Platform v0.28 overview](README_APP_PLATFORM_V0.28.md)
+- [App Platform v0.28 build plan contract](docs/PHIOS_APP_PLATFORM_V0.28_BUILD_PLAN.md)
 - [App Platform v0.27 overview](README_APP_PLATFORM_V0.27.md)
 - [App Platform v0.27 governed source acquisition contract](docs/PHIOS_APP_PLATFORM_V0.27_SOURCE_ACQUISITION.md)
 - [App Platform v0.26 overview](README_APP_PLATFORM_V0.26.md)
@@ -237,7 +239,18 @@ phi-app acquire-github intake.json \
   --approve-manifest-sha EXACT_MANIFEST_SHA256
 ```
 
-Source acquisition does not install dependencies, build, register, trust, or launch an app. The next planned rung is a non-executing build-plan contract.
+Source acquisition does not install dependencies, build, register, trust, or launch an app.
+
+Create and review a non-executing build plan:
+
+```bash
+phi-app plan-build intake.json acquisition-receipt.json > build-plan.json
+phi-app review-build-plan build-plan.json
+```
+
+v0.28 records proposed argv steps, required tools, requested future build permissions, expected outputs where deterministically known, and a canonical plan SHA-256. It executes nothing.
+
+The next planned rung is an explicitly approved build-execution contract bound to both `plan_sha256` and `source_snapshot_sha256`.
 
 v0.18 adds a stronger semantic boundary for scalar values. Boolean and numeric values may be inspected only with the separate `reality.local_http.semantic.value.read` grant. The observed scalar is used transiently for comparison and is not persisted in semantic evidence.
 
@@ -465,7 +478,7 @@ phios/
 ├─ shell/      operator shell
 ├─ mcp/        MCP interface
 ├─ spine/      authority-aware Spine runtime
-├─ apps/       app manifests, GitHub intake, pinned source acquisition, registry
+├─ apps/       manifests, GitHub intake, pinned source, build plans, registry
 ├─ mandala/    typed contracts and receipts
 ├─ soma/       bounded perception/evidence
 └─ reality/    Reality Gate verification

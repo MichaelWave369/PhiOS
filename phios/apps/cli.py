@@ -11,6 +11,7 @@ from .acquisition import (
     SourceAcquisitionService,
     review_intake_for_acquisition,
 )
+from .build_plan import plan_build_from_payloads, review_build_plan
 from .intake import inspect_public_github_app
 
 _MAX_INTAKE_RESULT_BYTES = 2 * 1024 * 1024
@@ -59,6 +60,19 @@ def _parser() -> argparse.ArgumentParser:
         default=Path.home() / ".phios" / "apps" / "source",
     )
     acquire_parser.add_argument("--receipt-root", type=Path, default=None)
+
+    plan_parser = subparsers.add_parser(
+        "plan-build",
+        help="Create a deterministic non-executing build plan from intake + acquisition receipt.",
+    )
+    plan_parser.add_argument("intake_json", type=Path)
+    plan_parser.add_argument("acquisition_receipt_json", type=Path)
+
+    review_plan_parser = subparsers.add_parser(
+        "review-build-plan",
+        help="Validate and expose the exact digest and requested authority of a build plan.",
+    )
+    review_plan_parser.add_argument("build_plan_json", type=Path)
     return parser
 
 
@@ -101,6 +115,27 @@ def main(argv: Sequence[str] | None = None) -> int:
             print(json.dumps({"status": "blocked", "error": str(exc)}, sort_keys=True))
             return 2
         print(json.dumps(receipt.to_dict(), sort_keys=True, indent=2))
+        return 0
+
+    if args.command == "plan-build":
+        try:
+            intake_payload = _load_json_file(args.intake_json)
+            receipt_payload = _load_json_file(args.acquisition_receipt_json)
+            plan = plan_build_from_payloads(intake_payload, receipt_payload)
+        except (OSError, ValueError) as exc:
+            print(json.dumps({"status": "blocked", "error": str(exc)}, sort_keys=True))
+            return 2
+        print(json.dumps(plan.to_dict(), sort_keys=True, indent=2))
+        return 0
+
+    if args.command == "review-build-plan":
+        try:
+            payload = _load_json_file(args.build_plan_json)
+            build_review = review_build_plan(payload)
+        except (OSError, ValueError) as exc:
+            print(json.dumps({"status": "blocked", "error": str(exc)}, sort_keys=True))
+            return 2
+        print(json.dumps(build_review.to_dict(), sort_keys=True, indent=2))
         return 0
 
     return 2

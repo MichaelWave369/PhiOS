@@ -1,4 +1,4 @@
-"""PhiOS App Platform: governed app identity, intake, acquisition, and registry."""
+"""PhiOS App Platform: governed identity, intake, acquisition, build planning, and registry."""
 
 from .acquisition import (
     SOURCE_ACQUISITION_RECEIPT_SCHEMA_VERSION,
@@ -11,6 +11,17 @@ from .acquisition import (
     SourceAcquisitionService,
     SourceTreeEntry,
     review_intake_for_acquisition,
+)
+from .build_plan import (
+    BUILD_PLAN_REVIEW_SCHEMA_VERSION,
+    BUILD_PLAN_SCHEMA_VERSION,
+    AcquisitionBinding,
+    BuildPlan,
+    BuildPlanReview,
+    BuildStep,
+    ObservedBuildFile,
+    plan_build_from_payloads,
+    review_build_plan,
 )
 from .intake import (
     APP_INTAKE_EVIDENCE_SCHEMA_VERSION,
@@ -38,8 +49,11 @@ __all__ = [
     "APP_INTAKE_PROPOSAL_SCHEMA_VERSION",
     "APP_MANIFEST_SCHEMA_VERSION",
     "APP_REGISTRY_SCHEMA_VERSION",
+    "BUILD_PLAN_REVIEW_SCHEMA_VERSION",
+    "BUILD_PLAN_SCHEMA_VERSION",
     "SOURCE_ACQUISITION_RECEIPT_SCHEMA_VERSION",
     "SOURCE_ACQUISITION_REQUEST_SCHEMA_VERSION",
+    "AcquisitionBinding",
     "AppEntrypoint",
     "AppIntakeAnalyzer",
     "AppIntakeEvidence",
@@ -48,11 +62,15 @@ __all__ = [
     "AppManifest",
     "AppRegistry",
     "AppSource",
+    "BuildPlan",
+    "BuildPlanReview",
+    "BuildStep",
     "DistributionState",
     "DownloadedArchive",
     "GitHubCommitArchiveProvider",
     "GitHubPublicRepoProvider",
     "GitHubRepositoryRef",
+    "ObservedBuildFile",
     "RuntimeKind",
     "SourceAcquisitionReceipt",
     "SourceAcquisitionRequest",
@@ -60,5 +78,7 @@ __all__ = [
     "SourceAcquisitionService",
     "SourceTreeEntry",
     "inspect_public_github_app",
+    "plan_build_from_payloads",
+    "review_build_plan",
     "review_intake_for_acquisition",
 ]
