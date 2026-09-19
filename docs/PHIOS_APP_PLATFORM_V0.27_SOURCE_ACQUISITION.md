@@ -27,20 +27,22 @@ An acquisition request binds:
 1. canonical public GitHub repository URL;
 2. exact commit SHA observed by v0.26;
 3. one v0.25 manifest candidate;
-4. the operator-approved SHA-256 of that exact manifest.
+4. the operator-approved exact commit SHA;
+5. the operator-approved SHA-256 of that exact manifest.
 
 Before any source download:
 
 - the manifest source repository must match the acquisition repository;
+- the approved commit SHA must match the commit captured in intake evidence;
 - the approved manifest digest must match the manifest candidate;
-- the commit identifier must be a bounded hexadecimal commit identifier.
+- both commit identifiers must be bounded hexadecimal commit identifiers.
 
 ## Operator approval semantics
 
-Approval is digest-specific.
+Approval is revision-specific and digest-specific.
 
-Approving manifest digest A does not approve modified manifest B, even when both refer to the same
-repository and commit.
+Approving commit A does not approve commit B. Approving manifest digest A does not approve modified
+manifest B, even when both refer to the same repository and commit.
 
 The approval does not grant build, install, launch, or runtime permissions.
 
