@@ -38,6 +38,21 @@ class PermissionDecision:
     reason: str
 
 
+@dataclass(frozen=True)
+class ExecutionProvenance:
+    schema_version: str
+    plan_id: str
+    plan_state_sha256: str
+    plan_revision: int
+    transition_index: int
+    source_state_id: str
+    target_state_id: str
+    action_binding_sha256: str
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
 @dataclass
 class ExecutionReceipt:
     schema_version: str
@@ -56,6 +71,7 @@ class ExecutionReceipt:
     gate_receipt_id: str | None = None
     action_receipt_id: str | None = None
     mandala_status: str | None = None
+    governed_provenance: ExecutionProvenance | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
