@@ -18,6 +18,13 @@ from .browser_session import (
     review_browser_session,
 )
 from .build_execution import BuildExecutionRequest, BuildExecutionService
+from .cleanup_reconciliation import (
+    CleanupReconciliationRequest,
+    CleanupReconciliationService,
+    observe_cleanup_reconciliation,
+    plan_cleanup_reconciliation,
+    review_cleanup_reconciliation,
+)
 from .build_plan import plan_build_from_payloads, review_build_plan
 from .desktop_catalog import DesktopCatalogService, review_desktop_catalog
 from .desktop_launch import (
@@ -825,6 +832,127 @@ def _parser() -> argparse.ArgumentParser:
         type=Path,
         default=Path.home() / ".phios" / "apps" / "runtime-receipts",
     )
+
+    reconciliation_observe_parser = subparsers.add_parser(
+        "observe-cleanup-reconciliation",
+        help="Classify one stranded v0.41 cleanup journal without granting action authority.",
+    )
+    reconciliation_observe_parser.add_argument("cleanup_journal_json", type=Path)
+    reconciliation_observe_parser.add_argument("retained_cleanup_plan_json", type=Path)
+    reconciliation_observe_parser.add_argument(
+        "--install-root",
+        type=Path,
+        default=Path.home() / ".phios" / "apps" / "installed",
+    )
+    reconciliation_observe_parser.add_argument(
+        "--desktop-root",
+        type=Path,
+        default=Path.home() / ".local" / "share" / "phios" / "desktop-apps",
+    )
+    reconciliation_observe_parser.add_argument(
+        "--applications-root",
+        type=Path,
+        default=Path.home() / ".local" / "share" / "applications",
+    )
+    reconciliation_observe_parser.add_argument(
+        "--receipt-root",
+        type=Path,
+        default=Path.home() / ".phios" / "apps" / "runtime-receipts",
+    )
+
+    reconciliation_plan_parser = subparsers.add_parser(
+        "plan-cleanup-reconciliation",
+        help="Plan one explicit recovery action for a classified cleanup journal.",
+    )
+    reconciliation_plan_parser.add_argument("cleanup_journal_json", type=Path)
+    reconciliation_plan_parser.add_argument("retained_cleanup_plan_json", type=Path)
+    reconciliation_plan_parser.add_argument(
+        "--action",
+        choices=["cancel", "complete", "finalize"],
+        required=True,
+    )
+    reconciliation_plan_parser.add_argument(
+        "--install-root",
+        type=Path,
+        default=Path.home() / ".phios" / "apps" / "installed",
+    )
+    reconciliation_plan_parser.add_argument(
+        "--desktop-root",
+        type=Path,
+        default=Path.home() / ".local" / "share" / "phios" / "desktop-apps",
+    )
+    reconciliation_plan_parser.add_argument(
+        "--applications-root",
+        type=Path,
+        default=Path.home() / ".local" / "share" / "applications",
+    )
+    reconciliation_plan_parser.add_argument(
+        "--receipt-root",
+        type=Path,
+        default=Path.home() / ".phios" / "apps" / "runtime-receipts",
+    )
+
+    reconciliation_review_parser = subparsers.add_parser(
+        "review-cleanup-reconciliation",
+        help="Validate one exact v0.42 cleanup reconciliation plan.",
+    )
+    reconciliation_review_parser.add_argument(
+        "cleanup_reconciliation_plan_json",
+        type=Path,
+    )
+
+    reconciliation_execute_parser = subparsers.add_parser(
+        "execute-cleanup-reconciliation",
+        help="Execute one explicitly approved cleanup reconciliation action.",
+    )
+    reconciliation_execute_parser.add_argument(
+        "cleanup_reconciliation_plan_json",
+        type=Path,
+    )
+    reconciliation_execute_parser.add_argument("cleanup_journal_json", type=Path)
+    reconciliation_execute_parser.add_argument("retained_cleanup_plan_json", type=Path)
+    reconciliation_execute_parser.add_argument(
+        "--approve-reconciliation-plan-sha",
+        required=True,
+    )
+    reconciliation_execute_parser.add_argument(
+        "--approve-observation-sha",
+        required=True,
+    )
+    reconciliation_execute_parser.add_argument(
+        "--approve-journal-sha",
+        required=True,
+    )
+    reconciliation_execute_parser.add_argument(
+        "--approve-cleanup-plan-sha",
+        required=True,
+    )
+    reconciliation_execute_parser.add_argument(
+        "--allow-reconciliation-permission",
+        action="append",
+        default=[],
+        dest="reconciliation_permissions",
+    )
+    reconciliation_execute_parser.add_argument(
+        "--install-root",
+        type=Path,
+        default=Path.home() / ".phios" / "apps" / "installed",
+    )
+    reconciliation_execute_parser.add_argument(
+        "--desktop-root",
+        type=Path,
+        default=Path.home() / ".local" / "share" / "phios" / "desktop-apps",
+    )
+    reconciliation_execute_parser.add_argument(
+        "--applications-root",
+        type=Path,
+        default=Path.home() / ".local" / "share" / "applications",
+    )
+    reconciliation_execute_parser.add_argument(
+        "--receipt-root",
+        type=Path,
+        default=Path.home() / ".phios" / "apps" / "runtime-receipts",
+    )
     return parser
 
 
@@ -1616,6 +1744,91 @@ def main(argv: Sequence[str] | None = None) -> int:
             print(json.dumps({"status": "blocked", "error": str(exc)}, sort_keys=True))
             return 2
         print(json.dumps(cleanup_result.to_dict(), sort_keys=True, indent=2))
+        return 0
+
+    if args.command == "observe-cleanup-reconciliation":
+        try:
+            journal_payload = _load_json_file(args.cleanup_journal_json)
+            cleanup_payload = _load_json_file(args.retained_cleanup_plan_json)
+            observation = observe_cleanup_reconciliation(
+                journal_payload,
+                cleanup_payload,
+                install_root=args.install_root,
+                desktop_root=args.desktop_root,
+                applications_root=args.applications_root,
+                receipt_root=args.receipt_root,
+            )
+        except (OSError, ValueError) as exc:
+            print(json.dumps({"status": "blocked", "error": str(exc)}, sort_keys=True))
+            return 2
+        print(json.dumps(observation.to_dict(), sort_keys=True, indent=2))
+        return 0
+
+    if args.command == "plan-cleanup-reconciliation":
+        try:
+            journal_payload = _load_json_file(args.cleanup_journal_json)
+            cleanup_payload = _load_json_file(args.retained_cleanup_plan_json)
+            reconciliation_plan = plan_cleanup_reconciliation(
+                journal_payload,
+                cleanup_payload,
+                action=args.action,
+                install_root=args.install_root,
+                desktop_root=args.desktop_root,
+                applications_root=args.applications_root,
+                receipt_root=args.receipt_root,
+            )
+        except (OSError, ValueError) as exc:
+            print(json.dumps({"status": "blocked", "error": str(exc)}, sort_keys=True))
+            return 2
+        print(json.dumps(reconciliation_plan.to_dict(), sort_keys=True, indent=2))
+        return 0
+
+    if args.command == "review-cleanup-reconciliation":
+        try:
+            reconciliation_payload = _load_json_file(
+                args.cleanup_reconciliation_plan_json
+            )
+            reconciliation_review = review_cleanup_reconciliation(
+                reconciliation_payload
+            )
+        except (OSError, ValueError) as exc:
+            print(json.dumps({"status": "blocked", "error": str(exc)}, sort_keys=True))
+            return 2
+        print(json.dumps(reconciliation_review.to_dict(), sort_keys=True, indent=2))
+        return 0
+
+    if args.command == "execute-cleanup-reconciliation":
+        try:
+            reconciliation_payload = _load_json_file(
+                args.cleanup_reconciliation_plan_json
+            )
+            journal_payload = _load_json_file(args.cleanup_journal_json)
+            cleanup_payload = _load_json_file(args.retained_cleanup_plan_json)
+            reconciliation_request = CleanupReconciliationRequest.from_payloads(
+                reconciliation_payload,
+                journal_payload,
+                cleanup_payload,
+                approved_reconciliation_plan_sha256=(
+                    args.approve_reconciliation_plan_sha
+                ),
+                approved_observation_sha256=args.approve_observation_sha,
+                approved_journal_sha256=args.approve_journal_sha,
+                approved_cleanup_plan_sha256=args.approve_cleanup_plan_sha,
+                approved_reconciliation_permissions=tuple(
+                    args.reconciliation_permissions
+                ),
+            )
+            reconciliation_result = CleanupReconciliationService().execute(
+                reconciliation_request,
+                install_root=args.install_root,
+                desktop_root=args.desktop_root,
+                applications_root=args.applications_root,
+                receipt_root=args.receipt_root,
+            )
+        except (OSError, ValueError) as exc:
+            print(json.dumps({"status": "blocked", "error": str(exc)}, sort_keys=True))
+            return 2
+        print(json.dumps(reconciliation_result.to_dict(), sort_keys=True, indent=2))
         return 0
 
     return 2
