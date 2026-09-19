@@ -391,6 +391,14 @@ def _load_package_plan(install_path: Path, receipt: AppInstallReceipt) -> BuildP
         raise ValueError("installed package plan identity does not match install receipt")
     if plan.manifest_sha256 != receipt.manifest_sha256:
         raise ValueError("installed package plan manifest does not match install receipt")
+    if plan.artifact_set_sha256 != receipt.artifact_set_sha256:
+        raise ValueError("installed package plan artifact set does not match install receipt")
+    if plan.build_plan_sha256 != receipt.build_plan_sha256:
+        raise ValueError("installed package plan build plan does not match install receipt")
+    if plan.execution_receipt_sha256 != receipt.execution_receipt_sha256:
+        raise ValueError("installed package plan execution receipt does not match install receipt")
+    if plan.offline_build_receipt_sha256 != receipt.offline_build_receipt_sha256:
+        raise ValueError("installed package plan offline-build receipt does not match install receipt")
     return plan
 
 
