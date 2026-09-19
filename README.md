@@ -8,10 +8,11 @@ PhiOS is an open-source operator shell and research computing layer built around
 
 > **Capability is not authority. Observation is not truth. Evidence should say exactly what it establishes.**
 
-The repository currently contains two complementary surfaces:
+The repository currently contains three complementary surfaces:
 
 - **PhiOS Shell / MCP** — operator-facing commands, local workflows, observatory surfaces, integrations, and machine-readable interfaces.
-- **PhiOS Spine** — the newer authority-aware execution core built around Mandala contracts, SOMA perception, Reality Gate verification, explicit grants, and receipts.
+- **PhiOS Spine** — the authority-aware execution core built around Mandala contracts, SOMA perception, Reality Gate verification, explicit grants, and receipts.
+- **PhiOS App Platform** — strict application manifests and a governed registry for turning external repositories into identifiable PhiOS apps without silently granting install or execution authority.
 
 PhiOS is under active development and should be treated as **alpha software**.
 
@@ -177,6 +178,43 @@ See:
 - [Spine v0.17 same-snapshot contract](docs/PHIOS_SPINE_V0.17_JSON_MULTI_CONTRACT.md)
 
 Older Spine documents remain in the repository as the versioned design trail.
+
+---
+
+## App Platform Alpha
+
+The current App Platform line begins at **v0.25** with strict app manifests and a deterministic registry.
+
+A manifest records:
+
+- stable app identity;
+- source repository;
+- declared license expression and redistribution state;
+- runtime kind and bounded entrypoint;
+- requested permissions;
+- canonical SHA-256 manifest identity.
+
+Registration is deliberately non-executive:
+
+```text
+registered app
+    ≠ installed app
+    ≠ trusted app
+    ≠ authorized app
+    ≠ running app
+```
+
+A public repository is also **not** treated as automatically redistributable. License and
+redistribution state remain explicit metadata until later intake and operator decisions establish
+more.
+
+See:
+
+- [App Platform v0.25 overview](README_APP_PLATFORM_V0.25.md)
+- [App Platform v0.25 manifest + registry contract](docs/PHIOS_APP_PLATFORM_V0.25_MANIFEST_REGISTRY.md)
+
+The next planned rung is bounded GitHub intake for license/runtime/build/entrypoint/permission
+discovery. Intake will propose evidence and metadata; it will not grant execution authority.
 
 v0.18 adds a stronger semantic boundary for scalar values. Boolean and numeric values may be inspected only with the separate `reality.local_http.semantic.value.read` grant. The observed scalar is used transiently for comparison and is not persisted in semantic evidence.
 
@@ -403,6 +441,7 @@ phios/
 ├─ shell/      operator shell
 ├─ mcp/        MCP interface
 ├─ spine/      authority-aware Spine runtime
+├─ apps/       app manifests and governed registry
 ├─ mandala/    typed contracts and receipts
 ├─ soma/       bounded perception/evidence
 └─ reality/    Reality Gate verification
