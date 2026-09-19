@@ -368,17 +368,14 @@ def _classify(
         return "invalid"
 
     if scope == "desktop_bundle_only":
+        if install_state != "present_verified":
+            return "invalid"
         if (
             marker_state == "present_verified"
             and bundle_state == "present_verified"
-            and install_state == "present_verified"
         ):
             return "untouched"
-        if (
-            marker_state == "absent"
-            and bundle_state == "absent"
-            and install_state == "present_verified"
-        ):
+        if marker_state == "absent" and bundle_state == "absent":
             return "effectively_complete"
         return "partial"
 
