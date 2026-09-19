@@ -13,6 +13,7 @@ from phios.apps.acquisition import (
     DownloadedArchive,
     SourceAcquisitionRequest,
     SourceAcquisitionService,
+    review_intake_for_acquisition,
 )
 from phios.apps.manifest import AppManifest
 
@@ -109,6 +110,29 @@ def test_request_requires_explicit_commit_approval() -> None:
         )
 
 
+def test_review_surface_exposes_exact_approval_values() -> None:
+    manifest = _manifest()
+    payload = {
+        "evidence": {
+            "repository_url": "https://github.com/example/example",
+            "head_sha": "b" * 40,
+        },
+        "proposal": {
+            "status": "inferred_candidate",
+            "repository_url": "https://github.com/example/example",
+            "app_id": manifest.app_id,
+            "permissions_source": "not_declared",
+        },
+        "manifest_candidate": manifest.to_dict(),
+    }
+
+    review = review_intake_for_acquisition(payload)
+
+    assert review.commit_sha == "b" * 40
+    assert review.manifest_sha256 == manifest.sha256()
+    assert review.to_dict()["permissions_source"] == "not_declared"
+
+
 def test_request_can_be_reconstructed_from_v026_intake_payload() -> None:
     manifest = _manifest()
     payload = {
@@ -120,6 +144,7 @@ def test_request_can_be_reconstructed_from_v026_intake_payload() -> None:
             "status": "inferred_candidate",
             "repository_url": "https://github.com/example/example",
             "app_id": manifest.app_id,
+            "permissions_source": "not_declared",
         },
         "manifest_candidate": manifest.to_dict(),
     }
