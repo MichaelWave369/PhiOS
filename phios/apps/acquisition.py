@@ -53,6 +53,7 @@ class SourceAcquisitionRequest:
     repository_url: str
     commit_sha: str
     manifest: AppManifest
+    approved_commit_sha: str
     approved_manifest_sha256: str
     schema_version: str = SOURCE_ACQUISITION_REQUEST_SCHEMA_VERSION
 
@@ -65,6 +66,12 @@ class SourceAcquisitionRequest:
             raise ValueError("Acquisition repository does not match manifest source repository")
         if not _SHA_RE.fullmatch(self.commit_sha):
             raise ValueError("commit_sha must be a 40-64 character hexadecimal commit identifier")
+        if not _SHA_RE.fullmatch(self.approved_commit_sha):
+            raise ValueError(
+                "approved_commit_sha must be a 40-64 character hexadecimal commit identifier"
+            )
+        if self.commit_sha.lower() != self.approved_commit_sha.lower():
+            raise ValueError("Approved commit SHA does not match the intake evidence commit")
         if not _SHA256_RE.fullmatch(self.approved_manifest_sha256):
             raise ValueError("approved_manifest_sha256 must be a lowercase SHA-256 digest")
         actual = self.manifest.sha256()
@@ -76,6 +83,7 @@ class SourceAcquisitionRequest:
         cls,
         value: Any,
         *,
+        approved_commit_sha: str,
         approved_manifest_sha256: str,
     ) -> SourceAcquisitionRequest:
         payload = _require_dict(value, "intake result")
@@ -113,6 +121,7 @@ class SourceAcquisitionRequest:
             repository_url=repository_url,
             commit_sha=commit_sha.lower(),
             manifest=manifest,
+            approved_commit_sha=approved_commit_sha.lower(),
             approved_manifest_sha256=approved_manifest_sha256,
         )
 
