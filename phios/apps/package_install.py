@@ -490,6 +490,7 @@ class AppInstallReceipt:
     offline_build_receipt_sha256: str
     artifact_set_sha256: str
     installed_payload_sha256: str
+    installed_tree_sha256: str
     artifact_count: int
     total_bytes: int
     install_path: str
@@ -500,6 +501,36 @@ class AppInstallReceipt:
     def __post_init__(self) -> None:
         if self.schema_version != APP_INSTALL_RECEIPT_SCHEMA_VERSION:
             raise ValueError(f"Unsupported app install receipt schema: {self.schema_version}")
+        try:
+            uuid.UUID(self.receipt_id)
+        except ValueError as exc:
+            raise ValueError("install receipt_id must be a UUID") from exc
+        parsed = datetime.fromisoformat(self.timestamp_utc)
+        if parsed.tzinfo is None:
+            raise ValueError("install timestamp must include a timezone")
+        for value, label in (
+            (self.package_plan_sha256, "package_plan_sha256"),
+            (self.manifest_sha256, "manifest_sha256"),
+            (self.registry_snapshot_sha256, "registry_snapshot_sha256"),
+            (self.build_plan_sha256, "build_plan_sha256"),
+            (self.execution_receipt_sha256, "execution_receipt_sha256"),
+            (self.offline_build_receipt_sha256, "offline_build_receipt_sha256"),
+            (self.artifact_set_sha256, "artifact_set_sha256"),
+            (self.installed_payload_sha256, "installed_payload_sha256"),
+            (self.installed_tree_sha256, "installed_tree_sha256"),
+        ):
+            _sha256(value, label)
+        if not isinstance(self.artifact_count, int) or isinstance(self.artifact_count, bool):
+            raise ValueError("install artifact_count must be an integer")
+        if not 1 <= self.artifact_count <= _MAX_ARTIFACTS:
+            raise ValueError("install artifact_count is out of bounds")
+        if not isinstance(self.total_bytes, int) or isinstance(self.total_bytes, bool):
+            raise ValueError("install total_bytes must be an integer")
+        if not 0 <= self.total_bytes <= _MAX_TOTAL_BYTES:
+            raise ValueError("install total_bytes is out of bounds")
+        install = Path(self.install_path)
+        if not install.is_absolute():
+            raise ValueError("install_path must be absolute")
         if self.launch_authority is not False:
             raise ValueError("v0.33 install receipts never grant launch authority")
         if self.status != "installed":
@@ -533,6 +564,7 @@ class AppInstallReceipt:
             "offline_build_receipt_sha256",
             "artifact_set_sha256",
             "installed_payload_sha256",
+            "installed_tree_sha256",
             "artifact_count",
             "total_bytes",
             "install_path",
@@ -570,6 +602,10 @@ class AppInstallReceipt:
             installed_payload_sha256=_sha256(
                 data["installed_payload_sha256"],
                 "installed_payload_sha256",
+            ),
+            installed_tree_sha256=_sha256(
+                data["installed_tree_sha256"],
+                "installed_tree_sha256",
             ),
             artifact_count=data["artifact_count"],
             total_bytes=data["total_bytes"],
@@ -750,6 +786,8 @@ class AppInstallService:
             ):
                 raise ValueError("installed payload changed after atomic promotion")
 
+            install_tree_sha, _, _ = _snapshot_payload(final_dir)
+
             receipt = AppInstallReceipt(
                 receipt_id=str(uuid.uuid4()),
                 timestamp_utc=datetime.now(UTC).isoformat(),
@@ -763,6 +801,7 @@ class AppInstallService:
                 offline_build_receipt_sha256=plan.offline_build_receipt_sha256,
                 artifact_set_sha256=plan.artifact_set_sha256,
                 installed_payload_sha256=final_sha,
+                installed_tree_sha256=install_tree_sha,
                 artifact_count=final_count,
                 total_bytes=final_bytes,
                 install_path=str(final_dir),
@@ -835,6 +874,9 @@ class AppUninstallService:
         payload_sha, _, _ = _snapshot_payload(payload)
         if payload_sha != receipt.installed_payload_sha256:
             raise ValueError("installed payload changed since install receipt")
+        install_tree_sha, _, _ = _snapshot_payload(resolved)
+        if install_tree_sha != receipt.installed_tree_sha256:
+            raise ValueError("installed tree changed since install receipt")
 
         shutil.rmtree(resolved)
         uninstall = AppUninstallReceipt(
