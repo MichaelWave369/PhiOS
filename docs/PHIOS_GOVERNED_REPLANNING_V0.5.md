@@ -281,3 +281,14 @@ mypy phios/ --ignore-missing-imports
 pytest -q
 bash scripts/policy_no_telemetry_runtime.sh
 ```
+
+
+---
+
+## Next rung
+
+Governed Replanning v0.5 is followed by
+[Governed Plan Adoption v0.6](PHIOS_GOVERNED_PLAN_ADOPTION_V0.6.md). v0.6 makes
+REPLAN explicitly non-self-executing: a narrowly scoped external grant must
+match the exact plan state, exact replan receipt, and requested disposition
+before the candidate can become a new immutable incumbent plan revision.
