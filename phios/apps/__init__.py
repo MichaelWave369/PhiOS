@@ -1,5 +1,15 @@
-"""PhiOS App Platform: governed app identity, intake, and registry."""
+"""PhiOS App Platform: governed app identity, intake, acquisition, and registry."""
 
+from .acquisition import (
+    SOURCE_ACQUISITION_RECEIPT_SCHEMA_VERSION,
+    SOURCE_ACQUISITION_REQUEST_SCHEMA_VERSION,
+    DownloadedArchive,
+    GitHubCommitArchiveProvider,
+    SourceAcquisitionReceipt,
+    SourceAcquisitionRequest,
+    SourceAcquisitionService,
+    SourceTreeEntry,
+)
 from .intake import (
     APP_INTAKE_EVIDENCE_SCHEMA_VERSION,
     APP_INTAKE_PROPOSAL_SCHEMA_VERSION,
@@ -26,6 +36,8 @@ __all__ = [
     "APP_INTAKE_PROPOSAL_SCHEMA_VERSION",
     "APP_MANIFEST_SCHEMA_VERSION",
     "APP_REGISTRY_SCHEMA_VERSION",
+    "SOURCE_ACQUISITION_RECEIPT_SCHEMA_VERSION",
+    "SOURCE_ACQUISITION_REQUEST_SCHEMA_VERSION",
     "AppEntrypoint",
     "AppIntakeAnalyzer",
     "AppIntakeEvidence",
@@ -35,8 +47,14 @@ __all__ = [
     "AppRegistry",
     "AppSource",
     "DistributionState",
+    "DownloadedArchive",
+    "GitHubCommitArchiveProvider",
     "GitHubPublicRepoProvider",
     "GitHubRepositoryRef",
     "RuntimeKind",
+    "SourceAcquisitionReceipt",
+    "SourceAcquisitionRequest",
+    "SourceAcquisitionService",
+    "SourceTreeEntry",
     "inspect_public_github_app",
 ]
