@@ -3,6 +3,9 @@ from __future__ import annotations
 import base64
 import hashlib
 import json
+import shutil
+import subprocess
+import tarfile
 import uuid
 from pathlib import Path
 from typing import Any
@@ -528,3 +531,122 @@ def test_offline_execution_reverifies_receipted_cache(tmp_path: Path) -> None:
             request,
             execution_root=tmp_path / "executions",
         )
+
+
+def test_real_npm_cache_can_feed_lockfile_offline_install(tmp_path: Path) -> None:
+    npm = shutil.which("npm")
+    if npm is None:
+        pytest.skip("npm is unavailable on this test host")
+
+    package_root = tmp_path / "fixture-package"
+    package_root.mkdir()
+    (package_root / "package.json").write_text(
+        json.dumps(
+            {
+                "name": "phios-offline-fixture",
+                "version": "1.0.0",
+                "main": "index.js",
+            }
+        ),
+        encoding="utf-8",
+    )
+    (package_root / "index.js").write_text("module.exports = 42;\n", encoding="utf-8")
+    tarball = tmp_path / "phios-offline-fixture-1.0.0.tgz"
+    with tarfile.open(tarball, "w:gz") as archive:
+        archive.add(package_root / "package.json", arcname="package/package.json")
+        archive.add(package_root / "index.js", arcname="package/index.js")
+
+    content = tarball.read_bytes()
+    integrity = "sha512-" + base64.b64encode(
+        hashlib.sha512(content).digest()
+    ).decode("ascii")
+
+    consumer = tmp_path / "consumer"
+    consumer.mkdir()
+    (consumer / "package.json").write_text(
+        json.dumps(
+            {
+                "name": "consumer",
+                "version": "1.0.0",
+                "dependencies": {"phios-offline-fixture": "1.0.0"},
+            }
+        ),
+        encoding="utf-8",
+    )
+    (consumer / "package-lock.json").write_text(
+        json.dumps(
+            {
+                "name": "consumer",
+                "version": "1.0.0",
+                "lockfileVersion": 3,
+                "requires": True,
+                "packages": {
+                    "": {
+                        "name": "consumer",
+                        "version": "1.0.0",
+                        "dependencies": {"phios-offline-fixture": "1.0.0"},
+                    },
+                    "node_modules/phios-offline-fixture": {
+                        "version": "1.0.0",
+                        "resolved": (
+                            "https://registry.npmjs.org/phios-offline-fixture/"
+                            "-/phios-offline-fixture-1.0.0.tgz"
+                        ),
+                        "integrity": integrity,
+                    },
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    cache = tmp_path / "real-npm-cache"
+    common_env = {
+        "PATH": os.environ.get("PATH", ""),
+        "HOME": str(tmp_path / "home"),
+        "NPM_CONFIG_AUDIT": "false",
+        "NPM_CONFIG_FUND": "false",
+        "NPM_CONFIG_UPDATE_NOTIFIER": "false",
+        "NPM_CONFIG_OFFLINE": "true",
+    }
+    Path(common_env["HOME"]).mkdir()
+
+    add = subprocess.run(
+        (npm, "cache", "add", str(tarball), "--cache", str(cache), "--offline"),
+        cwd=tmp_path,
+        env=common_env,
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        shell=False,
+        timeout=30,
+        check=False,
+    )
+    assert add.returncode == 0, add.stderr.decode("utf-8", errors="replace")
+
+    verify = subprocess.run(
+        (npm, "cache", "verify", "--cache", str(cache), "--offline"),
+        cwd=tmp_path,
+        env=common_env,
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        shell=False,
+        timeout=30,
+        check=False,
+    )
+    assert verify.returncode == 0, verify.stderr.decode("utf-8", errors="replace")
+
+    install = subprocess.run(
+        (npm, "ci", "--offline", "--cache", str(cache), "--ignore-scripts"),
+        cwd=consumer,
+        env=common_env,
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        shell=False,
+        timeout=30,
+        check=False,
+    )
+    assert install.returncode == 0, install.stderr.decode("utf-8", errors="replace")
+    assert (consumer / "node_modules" / "phios-offline-fixture" / "index.js").is_file()
