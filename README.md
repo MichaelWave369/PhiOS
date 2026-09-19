@@ -317,8 +317,8 @@ scripts/       development and policy helpers
 
 ## Geometric, relational, and dynamic field reasoning
 
-PhiOS now has a six-rung governed reasoning core for computational state and
-plan selection before any separately authorized execution.
+PhiOS now has a seven-rung governed reasoning core for computational state,
+plan selection, and action binding before separately authorized execution.
 
 **Geometric Reasoning v0.1** reduces state spaces through constraints,
 equivalence classes, and conserved invariants.
@@ -344,6 +344,11 @@ from causing route thrash.
 match the exact plan state, exact replan receipt, and exact requested
 disposition before a candidate can become the next plan revision.
 
+**Governed Action Binding v0.7** binds one exact adopted-plan transition to one
+existing Spine capability plus one canonical payload SHA-256. The binding
+records requested permissions but does not grant them; the existing Spine
+`PermissionGate` remains the execution authority checkpoint.
+
 The critical boundaries are:
 
 ```text
@@ -366,6 +371,10 @@ ADOPT
 ADOPT
 does not mean
 EXECUTE
+
+BOUND ACTION
+does not mean
+PERMISSION GRANTED
 ```
 
 Authority therefore remains a gate, not a score, and plan adoption remains
@@ -382,6 +391,7 @@ See:
 - [Field-Aware Routing v0.4](docs/PHIOS_FIELD_AWARE_ROUTING_V0.4.md)
 - [Governed Replanning v0.5](docs/PHIOS_GOVERNED_REPLANNING_V0.5.md)
 - [Governed Plan Adoption v0.6](docs/PHIOS_GOVERNED_PLAN_ADOPTION_V0.6.md)
+- [Governed Action Binding v0.7](docs/PHIOS_GOVERNED_ACTION_BINDING_V0.7.md)
 
 ---
 
