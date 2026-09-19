@@ -838,6 +838,83 @@ class DesktopLaunchReceipt:
         result["desktop_launch_receipt_sha256"] = self.sha256()
         return result
 
+    @classmethod
+    def from_dict(cls, value: Any) -> DesktopLaunchReceipt:
+        data = _mapping(value, "desktop launch receipt")
+        expected = {
+            "schema_version",
+            "receipt_id",
+            "timestamp_utc",
+            "app_id",
+            "app_version",
+            "desktop_launch_grant_sha256",
+            "desktop_app_plan_sha256",
+            "browser_session_plan_sha256",
+            "static_web_plan_sha256",
+            "install_receipt_sha256",
+            "visible_browser_plan_sha256",
+            "visible_browser_receipt_sha256",
+            "wayland_socket",
+            "approved_desktop_permissions",
+            "status",
+            "persistent_launch_grant_authority",
+            "display_authority",
+            "desktop_launch_receipt_sha256",
+        }
+        if set(data) != expected:
+            raise ValueError("desktop launch receipt contains missing or unknown fields")
+        permissions = data["approved_desktop_permissions"]
+        if not isinstance(permissions, list):
+            raise ValueError("approved_desktop_permissions must be an array")
+        status_text = _string(data["status"], "desktop launch status", maximum=64)
+        if status_text not in {"completed", "timed_out", "browser_failed"}:
+            raise ValueError("unsupported desktop launch status")
+        receipt = cls(
+            schema_version=data["schema_version"],
+            receipt_id=_string(data["receipt_id"], "receipt_id", maximum=64),
+            timestamp_utc=_string(data["timestamp_utc"], "timestamp_utc", maximum=128),
+            app_id=_string(data["app_id"], "app_id", maximum=64),
+            app_version=_string(data["app_version"], "app_version", maximum=128),
+            desktop_launch_grant_sha256=_sha256(
+                data["desktop_launch_grant_sha256"],
+                "desktop_launch_grant_sha256",
+            ),
+            desktop_app_plan_sha256=_sha256(
+                data["desktop_app_plan_sha256"],
+                "desktop_app_plan_sha256",
+            ),
+            browser_session_plan_sha256=_sha256(
+                data["browser_session_plan_sha256"],
+                "browser_session_plan_sha256",
+            ),
+            static_web_plan_sha256=_sha256(
+                data["static_web_plan_sha256"],
+                "static_web_plan_sha256",
+            ),
+            install_receipt_sha256=_sha256(
+                data["install_receipt_sha256"],
+                "install_receipt_sha256",
+            ),
+            visible_browser_plan_sha256=_sha256(
+                data["visible_browser_plan_sha256"],
+                "visible_browser_plan_sha256",
+            ),
+            visible_browser_receipt_sha256=_sha256(
+                data["visible_browser_receipt_sha256"],
+                "visible_browser_receipt_sha256",
+            ),
+            wayland_socket=WaylandSocketIdentity.from_dict(data["wayland_socket"]),
+            approved_desktop_permissions=tuple(
+                _string(item, "desktop permission", maximum=128) for item in permissions
+            ),
+            status=cast(DesktopLaunchStatus, status_text),
+            persistent_launch_grant_authority=data["persistent_launch_grant_authority"],
+            display_authority=data["display_authority"],
+        )
+        if data["desktop_launch_receipt_sha256"] != receipt.sha256():
+            raise ValueError("desktop launch receipt digest does not match canonical receipt")
+        return receipt
+
 
 @dataclass(frozen=True)
 class DesktopLaunchResult:
@@ -1016,6 +1093,46 @@ class DesktopRevokeReceipt:
         result = self.body_dict()
         result["desktop_revoke_receipt_sha256"] = self.sha256()
         return result
+
+    @classmethod
+    def from_dict(cls, value: Any) -> DesktopRevokeReceipt:
+        data = _mapping(value, "desktop revoke receipt")
+        expected = {
+            "schema_version",
+            "receipt_id",
+            "timestamp_utc",
+            "app_id",
+            "desktop_launch_grant_sha256",
+            "bundle_path",
+            "desktop_entry_path",
+            "status",
+            "desktop_revoke_receipt_sha256",
+        }
+        if set(data) != expected:
+            raise ValueError("desktop revoke receipt contains missing or unknown fields")
+        status_text = _string(data["status"], "desktop revoke status", maximum=32)
+        if status_text != "revoked":
+            raise ValueError("unsupported desktop revoke status")
+        receipt = cls(
+            schema_version=data["schema_version"],
+            receipt_id=_string(data["receipt_id"], "receipt_id", maximum=64),
+            timestamp_utc=_string(data["timestamp_utc"], "timestamp_utc", maximum=128),
+            app_id=_string(data["app_id"], "app_id", maximum=64),
+            desktop_launch_grant_sha256=_sha256(
+                data["desktop_launch_grant_sha256"],
+                "desktop_launch_grant_sha256",
+            ),
+            bundle_path=_string(data["bundle_path"], "bundle_path", maximum=4096),
+            desktop_entry_path=_string(
+                data["desktop_entry_path"],
+                "desktop_entry_path",
+                maximum=4096,
+            ),
+            status=cast(DesktopRevokeStatus, status_text),
+        )
+        if data["desktop_revoke_receipt_sha256"] != receipt.sha256():
+            raise ValueError("desktop revoke receipt digest does not match canonical receipt")
+        return receipt
 
 
 class DesktopAppRevocationService:
