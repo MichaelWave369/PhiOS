@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 from typing import Any
@@ -43,6 +44,15 @@ class AppRegistry:
                 for manifest in self.list()
             ],
         }
+
+    def snapshot_sha256(self) -> str:
+        payload = json.dumps(
+            self.snapshot(),
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=False,
+        )
+        return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
     def save(self, path: Path) -> None:
         destination = path.expanduser().resolve()
