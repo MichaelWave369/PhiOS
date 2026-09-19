@@ -254,6 +254,7 @@ class SubprocessBuildRunner:
         cwd: Path,
         env: dict[str, str],
         timeout_seconds: int,
+        preview_limit: int = _MAX_CAPTURE_PREVIEW_BYTES,
     ) -> tuple[str, ProcessResult]:
         resolved = shutil.which(executable_tool, path=env.get("PATH"))
         if resolved is None:
@@ -273,8 +274,8 @@ class SubprocessBuildRunner:
         assert process.stdout is not None
         assert process.stderr is not None
 
-        stdout_capture = _CaptureBuffer()
-        stderr_capture = _CaptureBuffer()
+        stdout_capture = _CaptureBuffer(preview_limit=preview_limit)
+        stderr_capture = _CaptureBuffer(preview_limit=preview_limit)
 
         def drain(stream: Any, capture: _CaptureBuffer) -> None:
             while True:
@@ -331,6 +332,7 @@ class SubprocessBuildRunner:
             cwd=cwd,
             env=env,
             timeout_seconds=timeout_seconds,
+            preview_limit=512,
         )
         if result.timed_out or result.exit_code != 0:
             raise ValueError(f"Required build tool probe failed: {logical_tool}")
@@ -362,6 +364,7 @@ class SubprocessBuildRunner:
             cwd=cwd,
             env=env,
             timeout_seconds=timeout_seconds,
+            preview_limit=0,
         )
         return result
 
