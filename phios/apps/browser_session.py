@@ -1122,7 +1122,7 @@ class BrowserSessionService:
             browser_network_inherited=True,
             display_authority=False,
             persistent_profile_authority=False,
-            host_filesystem_authority=False,
+            host_home_authority=False,
         )
 
         receipts = receipt_root.expanduser()
