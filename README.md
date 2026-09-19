@@ -183,7 +183,7 @@ Older Spine documents remain in the repository as the versioned design trail.
 
 ## App Platform Alpha
 
-The current App Platform line is **v0.34**. v0.25 introduced strict app manifests and a deterministic registry; v0.26 added bounded public GitHub intake; v0.27 added exact-commit source acquisition; v0.28 added deterministic non-executing build plans; v0.29 added explicitly approved build execution; v0.30 added Linux Bubblewrap containment; v0.31 added SRI-verified dependency staging; v0.32 added verified offline npm builds; v0.33 added artifact-only installation; v0.34 adds separately reviewed installed-app runtime plans and governed foreground Node/Python launch.
+The current App Platform line is **v0.35**. v0.25 introduced strict app manifests and a deterministic registry; v0.26 added bounded public GitHub intake; v0.27 added exact-commit source acquisition; v0.28 added deterministic non-executing build plans; v0.29 added explicitly approved build execution; v0.30 added Linux Bubblewrap containment; v0.31 added SRI-verified dependency staging; v0.32 added verified offline npm builds; v0.33 added artifact-only installation; v0.34 added direct Node/Python runtime launch; v0.35 adds deterministic built-output/static-web mapping and bounded loopback serving without browser authority.
 
 A manifest records:
 
@@ -210,6 +210,8 @@ more.
 
 See:
 
+- [App Platform v0.35 overview](README_APP_PLATFORM_V0.35.md)
+- [App Platform v0.35 static-web runtime adapter contract](docs/PHIOS_APP_PLATFORM_V0.35_STATIC_WEB_ADAPTER.md)
 - [App Platform v0.34 overview](README_APP_PLATFORM_V0.34.md)
 - [App Platform v0.34 installed runtime contract](docs/PHIOS_APP_PLATFORM_V0.34_INSTALLED_RUNTIME.md)
 - [App Platform v0.33 overview](README_APP_PLATFORM_V0.33.md)
@@ -378,7 +380,29 @@ The installed payload is mounted read-only at `/app`. Network is denied by defau
 
 The production runtime performs a real Bubblewrap preflight before execution and emits a strict runtime receipt after process exit or timeout. Portable CI verifies the command/control contract with fake runners rather than claiming kernel isolation that the hosted CI environment did not exercise.
 
-The next planned rung is explicit runtime-adapter mapping, starting with built-output/static-web behavior so typical Vite-style repositories can become runnable without invisible entrypoint inference.
+Map recognized receipted web output into a separately reviewed static-web serving plan:
+
+```bash
+phi-app plan-static-web install-receipt.json \
+  --loopback-port 8787 \
+  --serve-seconds 300 \
+  > static-web-plan.json
+
+phi-app review-static-web static-web-plan.json
+
+phi-app serve-static-web \
+  static-web-plan.json \
+  install-receipt.json \
+  --approve-static-web-plan-sha EXACT_STATIC_WEB_PLAN_SHA256
+```
+
+v0.35 currently recognizes only receipted `dist/index.html` and `build/index.html` roots. Multiple recognized roots fail closed as ambiguous. The selected static subtree is rehashed before serving and mounted read-only at `/app`.
+
+The trusted Python static server binds exactly to the reviewed `127.0.0.1:PORT` and runs for a bounded foreground serve window. Its Bubblewrap sandbox inherits host networking so the host browser can reach loopback; the receipt records that as host-network inheritance, not as a network allowlist.
+
+v0.35 deliberately does **not** open a browser. Browser launch authority and execution of application JavaScript remain a separate future boundary.
+
+The next planned rung is a browser-session contract above the v0.35 server.
 
 v0.18 adds a stronger semantic boundary for scalar values. Boolean and numeric values may be inspected only with the separate `reality.local_http.semantic.value.read` grant. The observed scalar is used transiently for comparison and is not persisted in semantic evidence.
 
@@ -606,7 +630,7 @@ phios/
 ├─ shell/      operator shell
 ├─ mcp/        MCP interface
 ├─ spine/      authority-aware Spine runtime
-├─ apps/       manifests, intake, dependency broker, offline npm builds, install pipeline, registry
+├─ apps/       manifests, intake, dependency broker, offline builds, install/runtime adapters, registry
 ├─ mandala/    typed contracts and receipts
 ├─ soma/       bounded perception/evidence
 └─ reality/    Reality Gate verification

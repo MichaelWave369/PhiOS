@@ -1011,31 +1011,44 @@ class BubblewrapRuntimeRunner:
         self._resolved_tool_dirs.add(str(resolved.parent))
         return identity
 
-    def run(self, plan: InstalledRuntimePlan) -> ProcessResult:
+    def run_argv(
+        self,
+        executable_tool: str,
+        argv_tail: tuple[str, ...],
+        *,
+        timeout_seconds: int,
+    ) -> ProcessResult:
         if self._backend_identity is None:
             raise ValueError("Runtime sandbox runner must pass preflight before execution")
-        if plan.executable_tool is None:
-            raise ValueError("Runtime plan has no executable tool")
-        resolved_tool = shutil.which(plan.executable_tool, path=os.environ.get("PATH"))
+        resolved_tool = shutil.which(executable_tool, path=os.environ.get("PATH"))
         if not resolved_tool:
-            raise ValueError(f"Required runtime executable is unavailable: {plan.executable_tool}")
+            raise ValueError(f"Required runtime executable is unavailable: {executable_tool}")
         resolved_path = Path(resolved_tool).resolve()
         if not self._path_allowed(resolved_path):
             raise ValueError("Required runtime executable is outside sandbox system roots")
         self._resolved_tool_dirs.add(str(resolved_path.parent))
         command = self.command_for(
             executable_path=str(resolved_path),
-            argv_tail=plan.runtime_argv[1:],
+            argv_tail=argv_tail,
         )
         _, result = self._subprocess._execute(
             executable_tool=command[0],
             argv=command,
             cwd=self.payload_root,
             env={"PATH": os.environ.get("PATH", "")},
-            timeout_seconds=plan.policy.wall_clock_seconds,
+            timeout_seconds=timeout_seconds,
             preview_limit=0,
         )
         return result
+
+    def run(self, plan: InstalledRuntimePlan) -> ProcessResult:
+        if plan.executable_tool is None:
+            raise ValueError("Runtime plan has no executable tool")
+        return self.run_argv(
+            plan.executable_tool,
+            plan.runtime_argv[1:],
+            timeout_seconds=plan.policy.wall_clock_seconds,
+        )
 
     def control_evidence(self) -> RuntimeControlEvidence:
         return RuntimeControlEvidence(
