@@ -258,6 +258,7 @@ phi-spine --help
 phi-app --help
 phi-reflex --help
 phi-memory --help
+phi-ledger --help
 phi-mcp
 ```
 
@@ -266,6 +267,17 @@ Check current Spine state:
 ```bash
 phi-spine status
 ```
+
+Export a derived, read-only Ledger snapshot:
+
+```bash
+phi-ledger \
+  --allow ledger.snapshot.export \
+  snapshot-export
+```
+
+Snapshot export reads only the two canonical JSONL receipt streams. It does not read
+execution binding claims, grant stores, or arbitrary operator-selected files.
 
 ---
 
