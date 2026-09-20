@@ -97,3 +97,41 @@ def test_storyboard_persistence(monkeypatch, tmp_path):
     assert sb_path.exists()
     payload = json.loads(sb_path.read_text(encoding="utf-8"))
     assert payload["storyboard_name"] == sb_name
+
+
+def test_dispatch_run_persists_shadow_observations_without_planner_contamination(
+    monkeypatch,
+    tmp_path,
+):
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("PHIOS_AGENTCEPTION_ENABLED", "false")
+
+    context = build_dispatch_context(
+        task="shadow dispatch",
+        adapter=DummyAdapter(),
+        field_guided=False,
+        arch=None,
+        review_panel=False,
+    )
+    plan = run_agentception_plan(task="shadow dispatch", context=context)
+    shadow = {
+        "phireflex_v0_2": {
+            "schema": "phios.reflex_dispatch_shadow_receipt.v0.2",
+            "receipt_sha256": "a" * 64,
+        }
+    }
+
+    assert "reflex" not in json.dumps(context).lower()
+    assert "reflex" not in json.dumps(plan).lower()
+
+    run = dispatch_agentception_run(
+        task="shadow dispatch",
+        context=context,
+        plan=plan,
+        stream=False,
+        shadow_observations=shadow,
+    )
+
+    assert run["shadow_observations"] == shadow
+    assert "reflex" not in json.dumps(run["context"]).lower()
+    assert "reflex" not in json.dumps(run["plan"]).lower()
