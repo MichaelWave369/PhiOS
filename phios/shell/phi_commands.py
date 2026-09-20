@@ -3455,14 +3455,14 @@ def cmd_agents(args: list[str], session: object | None = None) -> str:
                 )
             if subaction == "grant-ingest":
                 return (
-                    "Unsigned live grant ingestion is disabled in PhiReflex "
-                    "v0.8. Use: phi agents reflex-authority grant-ingest "
+                    "Unsigned live grant ingestion is disabled. Use: "
+                    "phi agents reflex-authority grant-ingest "
                     "<signed-grant.json>"
                 )
             if subaction == "activate":
                 return (
-                    "Unsigned live activation is disabled in PhiReflex v0.8. "
-                    "Use: phi agents reflex-authority activate "
+                    "Direct runtime activation is lifecycle-governed in PhiReflex v0.9. "
+                    "Use: phi agents reflex-lifecycle activate "
                     "--request <request.json> --grant-id <id> --yes"
                 )
             if subaction == "lease":
