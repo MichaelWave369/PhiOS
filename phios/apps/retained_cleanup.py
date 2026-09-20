@@ -16,6 +16,7 @@ from .desktop_update import (
     _root,
     _verify_current_bundle,
 )
+from .lifecycle_gate import assert_lifecycle_clear
 from .package_install import AppInstallReceipt, snapshot_installed_tree
 
 RETAINED_CLEANUP_PLAN_SCHEMA_VERSION = "phios.retained_cleanup_plan.v0.1"
@@ -883,6 +884,11 @@ class RetainedCleanupService:
         applications_root: Path,
         receipt_root: Path,
     ) -> RetainedCleanupResult:
+        assert_lifecycle_clear(
+            receipt_root,
+            app_id=request.plan.app_id,
+            operation="retained cleanup",
+        )
         current_plan = plan_retained_cleanup(
             Path(request.plan.retention_marker_path),
             scope=request.plan.scope,

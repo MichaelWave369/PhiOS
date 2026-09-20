@@ -52,6 +52,7 @@ from .dependency_broker import (
     review_dependency_plan,
 )
 from .intake import inspect_public_github_app
+from .lifecycle_gate import observe_lifecycle_gate
 from .npm_offline import (
     NpmCachePreparationRequest,
     NpmOfflineBuildRequest,
@@ -828,6 +829,17 @@ def _parser() -> argparse.ArgumentParser:
         default=Path.home() / ".local" / "share" / "applications",
     )
     cleanup_execute_parser.add_argument(
+        "--receipt-root",
+        type=Path,
+        default=Path.home() / ".phios" / "apps" / "runtime-receipts",
+    )
+
+    lifecycle_gate_parser = subparsers.add_parser(
+        "observe-lifecycle-gate",
+        help="Observe unresolved prepared cleanup journals that block app lifecycle mutation.",
+    )
+    lifecycle_gate_parser.add_argument("app_id")
+    lifecycle_gate_parser.add_argument(
         "--receipt-root",
         type=Path,
         default=Path.home() / ".phios" / "apps" / "runtime-receipts",
@@ -1745,6 +1757,18 @@ def main(argv: Sequence[str] | None = None) -> int:
             return 2
         print(json.dumps(cleanup_result.to_dict(), sort_keys=True, indent=2))
         return 0
+
+    if args.command == "observe-lifecycle-gate":
+        try:
+            gate_observation = observe_lifecycle_gate(
+                args.receipt_root,
+                app_id=args.app_id,
+            )
+        except (OSError, ValueError) as exc:
+            print(json.dumps({"status": "blocked", "error": str(exc)}, sort_keys=True))
+            return 2
+        print(json.dumps(gate_observation.to_dict(), sort_keys=True, indent=2))
+        return 0 if gate_observation.clear else 1
 
     if args.command == "observe-cleanup-reconciliation":
         try:

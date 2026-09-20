@@ -17,6 +17,7 @@ from .desktop_launch import (
     plan_desktop_app,
     render_desktop_entry,
 )
+from .lifecycle_gate import assert_lifecycle_clear
 from .package_install import AppInstallReceipt
 from .static_web import StaticWebAdapterPlan
 
@@ -907,6 +908,11 @@ class DesktopUpdateService:
         applications_root: Path,
         receipt_root: Path,
     ) -> DesktopUpdateResult:
+        assert_lifecycle_clear(
+            receipt_root,
+            app_id=request.plan.app_id,
+            operation="desktop update",
+        )
         current_plan = plan_desktop_update(
             Path(request.plan.active_bundle_path),
             request.candidate_browser.to_dict(),
@@ -1569,6 +1575,11 @@ class DesktopRollbackService:
         applications_root: Path,
         receipt_root: Path,
     ) -> DesktopRollbackResult:
+        assert_lifecycle_clear(
+            receipt_root,
+            app_id=request.plan.app_id,
+            operation="desktop rollback",
+        )
         current_plan = plan_desktop_rollback(
             request.update_receipt.to_dict(),
             install_root=install_root,
