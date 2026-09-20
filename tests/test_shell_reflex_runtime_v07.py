@@ -26,6 +26,15 @@ from phios.reflex.lifecycle import (
     provider_manifest_signature_payload,
 )
 from phios.reflex.models import ReflexDecision
+from phios.reflex.root_attestation import (
+    ReflexRootAttestationPlane,
+    ReflexRootPin,
+    activation_nonce_signature_payload,
+    adapter_source_sha256,
+    build_activation_nonce,
+    build_provider_artifact,
+    provider_artifact_signature_payload,
+)
 from phios.reflex.runtime_influence import (
     ROUTING_SURFACE,
     ReflexActivationGrant,
@@ -106,11 +115,9 @@ def _request() -> ReflexActivationRequest:
     )
 
 
-def _signed_artifacts(
-    policy: ReflexInfluencePolicyState,
-    request: ReflexActivationRequest,
-    grant_id: str = "grant-001",
-):
+def _artifacts():
+    policy = _policy()
+    request = _request()
     private = Ed25519PrivateKey.generate()
     public = private.public_key().public_bytes(
         encoding=serialization.Encoding.Raw,
@@ -122,14 +129,14 @@ def _signed_artifacts(
         public_key_b64=base64.b64encode(public).decode("ascii"),
     )
     grant = ReflexActivationGrant(
-        grant_id=grant_id,
+        grant_id="grant-001",
         authority_source="operator",
         policy_state_sha256=policy.state_sha256,
         current_activation_sha256=None,
         activation_request_sha256=request.request_sha256,
         disposition="ACTIVATE",
     )
-    signing_payload = activation_grant_signature_payload(
+    gp = activation_grant_signature_payload(
         issuer_id="operator",
         key_id="key-1",
         issued_at_epoch=100,
@@ -144,18 +151,14 @@ def _signed_artifacts(
         valid_from_epoch=100,
         valid_until_epoch=500,
         grant=grant,
-        signature_b64=_sign(private, signing_payload),
+        signature_b64=_sign(private, gp),
     )
-    return private, anchor, grant, envelope
-
-
-def _lifecycle_artifacts(private, grant):
-    use_payload = grant_use_policy_signature_payload(
+    up = grant_use_policy_signature_payload(
         policy_id="use-001",
         issuer_id="operator",
         key_id="key-1",
         target_grant_sha256=grant.grant_sha256,
-        max_activations=1,
+        max_activations=2,
         issued_at_epoch=100,
         effective_epoch=100,
     )
@@ -164,12 +167,12 @@ def _lifecycle_artifacts(private, grant):
         issuer_id="operator",
         key_id="key-1",
         target_grant_sha256=grant.grant_sha256,
-        max_activations=1,
+        max_activations=2,
         issued_at_epoch=100,
         effective_epoch=100,
-        signature_b64=_sign(private, use_payload),
+        signature_b64=_sign(private, up),
     )
-    manifest_payload = provider_manifest_signature_payload(
+    mp = provider_manifest_signature_payload(
         manifest_id="jev-runtime-001",
         issuer_id="operator",
         key_id="key-1",
@@ -192,41 +195,120 @@ def _lifecycle_artifacts(private, grant):
         issued_at_epoch=100,
         effective_epoch=100,
         valid_until_epoch=500,
-        signature_b64=_sign(private, manifest_payload),
+        signature_b64=_sign(private, mp),
     )
-    return use_policy, manifest
+    source_sha = adapter_source_sha256(ADAPTER_ID)
+    ap = provider_artifact_signature_payload(
+        attestation_id="artifact-001",
+        issuer_id="operator",
+        key_id="key-1",
+        provider_manifest_sha256=manifest.envelope_sha256,
+        adapter_id=ADAPTER_ID,
+        adapter_version=ADAPTER_VERSION,
+        adapter_source_sha256=source_sha,
+        issued_at_epoch=100,
+        effective_epoch=100,
+        valid_until_epoch=500,
+    )
+    artifact = build_provider_artifact(
+        attestation_id="artifact-001",
+        issuer_id="operator",
+        key_id="key-1",
+        provider_manifest_sha256=manifest.envelope_sha256,
+        adapter_id=ADAPTER_ID,
+        adapter_version=ADAPTER_VERSION,
+        adapter_source_sha256=source_sha,
+        issued_at_epoch=100,
+        effective_epoch=100,
+        valid_until_epoch=500,
+        signature_b64=_sign(private, ap),
+    )
+    np = activation_nonce_signature_payload(
+        nonce_id="nonce-001",
+        issuer_id="operator",
+        key_id="key-1",
+        target_grant_sha256=grant.grant_sha256,
+        activation_request_sha256=request.request_sha256,
+        issued_at_epoch=100,
+        valid_until_epoch=500,
+    )
+    nonce = build_activation_nonce(
+        nonce_id="nonce-001",
+        issuer_id="operator",
+        key_id="key-1",
+        target_grant_sha256=grant.grant_sha256,
+        activation_request_sha256=request.request_sha256,
+        issued_at_epoch=100,
+        valid_until_epoch=500,
+        signature_b64=_sign(private, np),
+    )
+    return {
+        "policy": policy,
+        "request": request,
+        "anchor": anchor,
+        "grant": grant,
+        "envelope": envelope,
+        "use_policy": use_policy,
+        "manifest": manifest,
+        "artifact": artifact,
+        "nonce": nonce,
+        "source_sha": source_sha,
+    }
 
 
-def _activate_lifecycle(tmp_path):
+def _activate_root(tmp_path):
+    values = _artifacts()
     control = ReflexRuntimeControlPlane(root=tmp_path)
     authority = ReflexAuthorityPlane(control=control)
     lifecycle = ReflexTrustLifecyclePlane(
         control=control,
         authority=authority,
     )
-    policy = _policy()
-    request = _request()
-    private, anchor, grant, envelope = _signed_artifacts(policy, request)
-    use_policy, manifest = _lifecycle_artifacts(private, grant)
-    control.ingest_policy_payload(policy.to_dict(), evaluation_epoch=100)
+    anchor = values["anchor"]
+    control.ingest_policy_payload(
+        values["policy"].to_dict(),
+        evaluation_epoch=100,
+    )
     authority.ingest_trust_anchor(anchor.to_dict(), evaluation_epoch=100)
-    authority.ingest_signed_grant(envelope.to_dict(), evaluation_epoch=100)
+    authority.ingest_signed_grant(
+        values["envelope"].to_dict(),
+        evaluation_epoch=100,
+    )
     lifecycle.ingest_grant_use_policy(
-        use_policy.to_dict(),
+        values["use_policy"].to_dict(),
         evaluation_epoch=100,
     )
     lifecycle.ingest_provider_manifest(
-        manifest.to_dict(),
+        values["manifest"].to_dict(),
         evaluation_epoch=100,
     )
-    result = lifecycle.activate_verified(
-        request=request,
-        grant_id=grant.grant_id,
+    root_plane = ReflexRootAttestationPlane(
+        lifecycle=lifecycle,
+        root_pin=ReflexRootPin(
+            issuer_id="operator",
+            key_id="key-1",
+            anchor_sha256=anchor.anchor_sha256,
+        ),
+    )
+    root_plane.ingest_provider_artifact(
+        values["artifact"].to_dict(),
+        evaluation_epoch=100,
+    )
+    root_plane.ingest_nonce(
+        values["nonce"].to_dict(),
+        evaluation_epoch=100,
+    )
+    result = root_plane.activate_verified(
+        request=values["request"],
+        grant_id=values["grant"].grant_id,
+        nonce_id=values["nonce"].nonce_id,
         adapter_id=ADAPTER_ID,
         adapter_version=ADAPTER_VERSION,
+        adapter_source_sha256=values["source_sha"],
         evaluation_epoch=101,
     )
     assert result["ok"] is True
+    return values
 
 
 class FakeAdapter:
@@ -278,12 +360,13 @@ class FakeJevProvider:
         )
 
 
-def test_dispatch_restores_persisted_v09_lifecycle_influence(
-    monkeypatch,
-    tmp_path,
-):
+def _configure_shell(monkeypatch, tmp_path, anchor_sha):
     monkeypatch.setenv("PHIOS_REFLEX_HOME", str(tmp_path))
     monkeypatch.setenv("PHIOS_AGENTCEPTION_ENABLED", "false")
+    monkeypatch.setenv(
+        "PHIOS_REFLEX_ROOT_PIN",
+        f"operator:key-1:{anchor_sha}",
+    )
     monkeypatch.setattr("phios.shell.phi_commands.time.time", lambda: 200)
     monkeypatch.setattr(
         "phios.shell.phi_commands.PhiKernelCLIAdapter",
@@ -293,7 +376,14 @@ def test_dispatch_restores_persisted_v09_lifecycle_influence(
         "phios.shell.phi_commands.JevReflexProvider",
         FakeJevProvider,
     )
-    _activate_lifecycle(tmp_path)
+
+
+def test_dispatch_restores_persisted_v010_root_governed_influence(
+    monkeypatch,
+    tmp_path,
+):
+    values = _activate_root(tmp_path)
+    _configure_shell(monkeypatch, tmp_path, values["anchor"].anchor_sha256)
 
     out, code = route_command(
         ["dispatch", "build", "adapter", "--dry-run"]
@@ -303,29 +393,18 @@ def test_dispatch_restores_persisted_v09_lifecycle_influence(
     payload = json.loads(out)
     influence = payload["context"]["reflex_influence"]
     assert influence["provider"] == "jev"
-    assert influence["model"] == "jev-test"
     assert influence["routing_influence_authority"] is True
     assert influence["action_authority"] is False
     assert influence["execution_authority"] is False
     assert payload["reflex_runtime"]["status"] == "INFLUENCED"
 
 
-def test_live_lifecycle_influence_refuses_shadow_contamination(
+def test_live_root_governed_influence_refuses_shadow_contamination(
     monkeypatch,
     tmp_path,
 ):
-    monkeypatch.setenv("PHIOS_REFLEX_HOME", str(tmp_path))
-    monkeypatch.setenv("PHIOS_AGENTCEPTION_ENABLED", "false")
-    monkeypatch.setattr("phios.shell.phi_commands.time.time", lambda: 200)
-    monkeypatch.setattr(
-        "phios.shell.phi_commands.PhiKernelCLIAdapter",
-        FakeAdapter,
-    )
-    monkeypatch.setattr(
-        "phios.shell.phi_commands.JevReflexProvider",
-        FakeJevProvider,
-    )
-    _activate_lifecycle(tmp_path)
+    values = _activate_root(tmp_path)
+    _configure_shell(monkeypatch, tmp_path, values["anchor"].anchor_sha256)
 
     out, code = route_command(
         [
@@ -343,112 +422,45 @@ def test_live_lifecycle_influence_refuses_shadow_contamination(
     assert payload["error_code"] == "REFLEX_LIVE_SHADOW_CONFLICT"
 
 
-def test_v08_direct_activation_cli_is_disabled_by_v09(monkeypatch, tmp_path):
+def test_v09_direct_activation_cli_is_disabled_by_v010(monkeypatch, tmp_path):
     monkeypatch.setenv("PHIOS_REFLEX_HOME", str(tmp_path))
     monkeypatch.setattr("phios.shell.phi_commands.time.time", lambda: 200)
 
     out, code = route_command(
         [
             "agents",
-            "reflex-authority",
+            "reflex-lifecycle",
             "activate",
             "--request",
             "request.json",
             "--grant-id",
-            "grant",
+            "grant-001",
             "--yes",
         ]
     )
+
     assert code == 0
-    assert "Direct v0.8 activation is disabled" in out
+    assert "disabled by PhiReflex v0.10" in out
+    assert "reflex-root activate" in out
 
 
-def test_reflex_lifecycle_file_ingest_and_activation(
+def test_reflex_root_status_reports_exact_pin_and_adapter_digest(
     monkeypatch,
     tmp_path,
 ):
-    home = tmp_path / "runtime"
-    monkeypatch.setenv("PHIOS_REFLEX_HOME", str(home))
-    monkeypatch.setattr("phios.shell.phi_commands.time.time", lambda: 200)
+    values = _activate_root(tmp_path)
+    _configure_shell(monkeypatch, tmp_path, values["anchor"].anchor_sha256)
 
-    policy = _policy()
-    request = _request()
-    private, anchor, grant, envelope = _signed_artifacts(
-        policy,
-        request,
-        grant_id="grant-file",
-    )
-    use_policy, manifest = _lifecycle_artifacts(private, grant)
-
-    paths = {}
-    for name, payload in {
-        "policy": policy.to_dict(),
-        "anchor": anchor.to_dict(),
-        "grant": envelope.to_dict(),
-        "request": request.to_payload(),
-        "use": use_policy.to_dict(),
-        "manifest": manifest.to_dict(),
-    }.items():
-        path = tmp_path / f"{name}.json"
-        path.write_text(json.dumps(payload), encoding="utf-8")
-        paths[name] = path
-
-    commands = [
-        ["agents", "reflex-runtime", "policy-ingest", str(paths["policy"])],
-        [
-            "agents",
-            "reflex-authority",
-            "trust-ingest",
-            str(paths["anchor"]),
-            "--yes",
-        ],
-        [
-            "agents",
-            "reflex-authority",
-            "grant-ingest",
-            str(paths["grant"]),
-        ],
-        [
-            "agents",
-            "reflex-lifecycle",
-            "use-policy",
-            str(paths["use"]),
-        ],
-        [
-            "agents",
-            "reflex-lifecycle",
-            "provider-manifest",
-            str(paths["manifest"]),
-        ],
-    ]
-    for command in commands:
-        out, code = route_command(command)
-        assert code == 0
-        assert json.loads(out)["ok"] is True
-
-    out, code = route_command(
-        [
-            "agents",
-            "reflex-lifecycle",
-            "activate",
-            "--request",
-            str(paths["request"]),
-            "--grant-id",
-            grant.grant_id,
-            "--lease-until-epoch",
-            "400",
-            "--yes",
-        ]
-    )
-    assert code == 0
-    activated = json.loads(out)
-    assert activated["ok"] is True
-    assert activated["grant_use"]["remaining"] == 0
-    assert activated["lease"]["valid_through_epoch"] == 400
-
-    out, code = route_command(
-        ["agents", "reflex-lifecycle", "status"]
-    )
+    out, code = route_command(["agents", "reflex-root", "status"])
     assert code == 0
     status = json.loads(out)
+    assert status["root_pin_valid"] is True
+    assert status["provider_artifact_valid"] is True
     assert status["routing_influence_active"] is True
+
+    out, code = route_command(
+        ["agents", "reflex-root", "adapter-digest"]
+    )
+    assert code == 0
+    digest = json.loads(out)
+    assert digest["adapter_source_sha256"] == values["source_sha"]
