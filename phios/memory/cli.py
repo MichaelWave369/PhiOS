@@ -158,9 +158,9 @@ def main() -> int:
             return 0 if result.status == "ok" else 2
 
         if args.command == "reindex":
-            result = runtime.reindex(full=args.full, limit=args.limit)
-            print(json.dumps(result.__dict__, indent=2))
-            return 0 if result.status == "ok" else 2
+            reindex_result = runtime.reindex(full=args.full, limit=args.limit)
+            print(json.dumps(reindex_result.__dict__, indent=2))
+            return 0 if reindex_result.status == "ok" else 2
 
         if args.command == "legacy-import":
             plan = plan_legacy_agent_memory_import(
