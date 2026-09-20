@@ -159,6 +159,8 @@ class MemoryOperationReceipt(ReceiptEnvelope):
     input_sha256: str = ""
     canonical_status: str = "unchanged"
     index_status: str = "unavailable"
+    embedding_identity: dict[str, Any] | None = None
+    index_generation: str | None = None
     error_code: str | None = None
     promotion_status: str = "not_promoted"
     action_authority: bool = False
