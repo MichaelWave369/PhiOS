@@ -436,7 +436,7 @@ def cmd_help(_: list[str], session: object | None = None) -> str:
             "  launch [artifacts|announce|distrowatch|investor]",
             "  build [iso|status|clean]",
             "  notify [test|status|history]",
-            "  dispatch <task> [--field-guided] [--arch <name>] [--review-panel] [--coherence-gate <float>] [--dry-run] [--stream]",
+            "  dispatch <task> [--field-guided] [--arch <name>] [--review-panel] [--coherence-gate <float>] [--reflex-shadow] [--dry-run] [--stream]",
             "  dispatch optimize --graph <json> [--json]",
             "  agents [list|status <id>|kill <id> --yes|log <id>|figures [--top <n>] [--sector <name>]|evolve [--top <n>] [--sector <name>] [--task-key <key>] [--skill <skill>] [--min-coherence <v>]]",
             "  recommend-arch [--json]      Show field-guided cognitive architecture recommendation",
