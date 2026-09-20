@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import shutil
+import stat
 import tempfile
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -186,7 +187,7 @@ class LedgerSnapshotExporter:
         try:
             with os.fdopen(fd, "rb", closefd=False) as handle:
                 before = os.fstat(handle.fileno())
-                if not os.path.isfile(path):
+                if not stat.S_ISREG(before.st_mode):
                     raise ValueError(f"{logical_source} is not a regular file")
                 if before.st_size > MAX_SOURCE_BYTES:
                     raise ValueError(f"{logical_source} exceeds maximum source size")
