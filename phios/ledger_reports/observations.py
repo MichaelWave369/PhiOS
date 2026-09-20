@@ -732,7 +732,15 @@ def _read_stable_regular(path: Path, max_bytes: int, label: str) -> bytes:
             raise ValueError(f"{label} must be a regular file")
         if before.st_size > max_bytes:
             raise ValueError(f"{label} exceeds size limit")
-        raw = os.read(fd, before.st_size)
+        chunks: list[bytes] = []
+        remaining = int(before.st_size)
+        while remaining:
+            chunk = os.read(fd, min(remaining, 1024 * 1024))
+            if not chunk:
+                break
+            chunks.append(chunk)
+            remaining -= len(chunk)
+        raw = b"".join(chunks)
         after = os.fstat(fd)
         if len(raw) != before.st_size or (before.st_dev, before.st_ino) != (after.st_dev, after.st_ino):
             raise RuntimeError(f"{label} changed during capture")
