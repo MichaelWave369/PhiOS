@@ -834,7 +834,16 @@ class ReflexRuntimeControlPlane:
         """Append a non-authorizing external governance receipt."""
 
         normalized_kind = kind.strip()
-        if normalized_kind not in {"authority", "revocation", "coordination"}:
+        if normalized_kind not in {
+            "authority",
+            "revocation",
+            "coordination",
+            "lifecycle",
+            "attestation",
+            "usage",
+            "manifest",
+            "lease",
+        }:
             raise ReflexControlPlaneContractError(
                 "unsupported external audit receipt kind"
             )
