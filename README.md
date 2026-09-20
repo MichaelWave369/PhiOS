@@ -802,3 +802,26 @@ The architecture already says it:
 **Sovereign. Coherent. Local. Free.**
 
 Build systems that help people without quietly taking authority away from them.
+
+
+### Derived operational observations
+
+PhiOS can export a separate, allowlisted snapshot of persisted kernel rollout,
+agent-dispatch, and PhiReflex calibration evidence without copying prompts, raw planner
+context, debug payloads, or authority state:
+
+```bash
+phi-ledger \
+  --allow ledger.observation.export \
+  observation-export
+
+phi-ledger observation-report-list
+
+phi-ledger \
+  --allow ledger.observation.read \
+  observation-report \
+  --snapshot-id <observation-sha256> \
+  --name reflex_calibration_summary_v1
+```
+
+Observation reports are descriptive only and cannot promote adapters or grant execution.
