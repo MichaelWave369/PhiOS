@@ -8,10 +8,8 @@ bundle verification.
 
 from __future__ import annotations
 
-import base64
 import hashlib
 import inspect
-import json
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Mapping, Protocol
@@ -28,6 +26,7 @@ from phios.reflex.authority import (
     trust_anchor_from_payload,
     _atomic_write_json,
     _digest,
+    _epoch,
     _read_object,
     _require_sha256,
     _safe_id,
@@ -36,7 +35,6 @@ from phios.reflex.authority import (
 )
 from phios.reflex.coordination import runtime_locked
 from phios.reflex.lifecycle import (
-    ReflexGrantUsePolicy,
     ReflexLifecycleContractError,
     ReflexProviderManifest,
     ReflexTrustLifecyclePlane,
