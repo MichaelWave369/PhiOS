@@ -321,9 +321,25 @@ class GovernedMemoryService:
             )
         processed = indexed = removed = stale = 0
         for work in self.store.pending_index_work(limit):
-            work_id = int(work["work_id"])
+            work_id_raw = work["work_id"]
+            revision_raw = work["revision"]
+            if (
+                isinstance(work_id_raw, bool)
+                or not isinstance(work_id_raw, int)
+                or isinstance(revision_raw, bool)
+                or not isinstance(revision_raw, int)
+            ):
+                return IndexSyncResult(
+                    status="degraded",
+                    processed=processed,
+                    indexed=indexed,
+                    removed=removed,
+                    stale=stale,
+                    error_code="INDEX_WORK_INVALID",
+                )
+            work_id = work_id_raw
             record_id = str(work["record_id"])
-            revision = int(work["revision"])
+            revision = revision_raw
             action = str(work["action"])
             if action == "remove":
                 try:
