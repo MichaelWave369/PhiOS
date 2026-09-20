@@ -1,5 +1,22 @@
 """PhiReflex: bounded advisory System-One decisions for PhiOS."""
 
+from .authority import (
+    ALLOWED_PURPOSES,
+    PURPOSE_ACTIVATION_GRANT,
+    PURPOSE_GRANT_REVOCATION,
+    ReflexAuthorityContractError,
+    ReflexAuthorityPlane,
+    ReflexAuthorityReceipt,
+    ReflexAuthorityTrustAnchor,
+    ReflexGrantRevocation,
+    SignedActivationGrantEnvelope,
+    activation_grant_signature_payload,
+    build_grant_revocation,
+    build_signed_activation_grant_envelope,
+    build_trust_anchor,
+    canonical_authority_bytes,
+    grant_revocation_signature_payload,
+)
 from .calibration_aggregation import (
     PromotionReadinessPolicy,
     PromotionReadinessReceipt,
@@ -55,6 +72,21 @@ from .service import PhiReflex
 
 __all__ = [
     "PhiReflex",
+    "ALLOWED_PURPOSES",
+    "PURPOSE_ACTIVATION_GRANT",
+    "PURPOSE_GRANT_REVOCATION",
+    "ReflexAuthorityContractError",
+    "ReflexAuthorityPlane",
+    "ReflexAuthorityReceipt",
+    "ReflexAuthorityTrustAnchor",
+    "ReflexGrantRevocation",
+    "SignedActivationGrantEnvelope",
+    "activation_grant_signature_payload",
+    "build_grant_revocation",
+    "build_signed_activation_grant_envelope",
+    "build_trust_anchor",
+    "canonical_authority_bytes",
+    "grant_revocation_signature_payload",
     "ReflexControlPlaneContractError",
     "ReflexControlPlaneReceipt",
     "ReflexRuntimeControlPlane",
