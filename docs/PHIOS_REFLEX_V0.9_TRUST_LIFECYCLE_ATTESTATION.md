@@ -313,3 +313,16 @@ Candidates for v0.10:
 - cross-machine authority replication with conflict receipts.
 
 The live routing surface should remain narrow until those roots of trust are hardened.
+
+
+---
+
+## Next rung
+
+PhiReflex v0.9 is followed by
+[PhiReflex v0.10 Root Pinning and External Attestation](PHIOS_REFLEX_V0.10_ROOT_ATTESTATION.md).
+v0.10 requires an external exact trust-anchor pin for the official live path,
+binds the installed provider adapter source bytes through a signed digest,
+requires signed one-use activation nonces, exports offline-verifiable
+checkpoint bundles, and treats imported replication snapshots as
+alignment/conflict evidence rather than authority-state replacement.
