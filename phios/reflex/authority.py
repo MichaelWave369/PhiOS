@@ -194,6 +194,55 @@ class ReflexAuthorityPlane:
         return self.root / "revocations"
 
     @runtime_locked
+    def verify_signed_payload(
+        self,
+        *,
+        issuer_id: str,
+        key_id: str,
+        purpose: str,
+        payload: Mapping[str, Any],
+        signature_b64: str,
+    ) -> str:
+        """Verify a canonical payload under an explicitly trusted purpose."""
+
+        if purpose not in ALLOWED_PURPOSES:
+            raise ReflexAuthorityContractError(
+                "unsupported authenticated authority purpose"
+            )
+        trusted = self._require_anchor(issuer_id, key_id)
+        if purpose not in trusted.allowed_purposes:
+            raise ReflexAuthorityContractError(
+                "trusted key is not allowed for requested authority purpose"
+            )
+        _verify_ed25519(
+            trusted.public_key_b64,
+            canonical_authority_bytes(dict(payload)),
+            signature_b64,
+        )
+        return trusted.anchor_sha256
+
+    @runtime_locked
+    def require_trust_anchor(
+        self,
+        *,
+        issuer_id: str,
+        key_id: str,
+    ) -> ReflexAuthorityTrustAnchor:
+        """Return one validated local trust anchor."""
+
+        return self._require_anchor(issuer_id, key_id)
+
+    @runtime_locked
+    def find_signed_grant_by_sha256(
+        self,
+        grant_sha256: str,
+    ) -> SignedActivationGrantEnvelope | None:
+        """Return an authenticated-grant envelope by exact v0.6 grant digest."""
+
+        _require_sha256(grant_sha256, "grant_sha256")
+        return self._find_signed_grant_by_sha(grant_sha256)
+
+    @runtime_locked
     def status(self, *, evaluation_epoch: int) -> dict[str, Any]:
         epoch = _epoch(evaluation_epoch)
         control_status = self.control.status(evaluation_epoch=epoch)
