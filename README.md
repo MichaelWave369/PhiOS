@@ -233,6 +233,15 @@ Optional governed semantic-memory backend:
 python -m pip install -e ".[memory-vector]"
 ```
 
+Optional read-only DuckDB Ledger report backend:
+
+```bash
+python -m pip install -e ".[ledger-reports]"
+```
+
+The isolated DuckDB worker is qualified on Linux with bubblewrap. There is no
+unsandboxed fallback in this increment.
+
 Create a disabled memory config before explicitly enabling it:
 
 ```bash
@@ -278,6 +287,28 @@ phi-ledger \
 
 Snapshot export reads only the two canonical JSONL receipt streams. It does not read
 execution binding claims, grant stores, or arbitrary operator-selected files.
+
+Build an isolated DuckDB projection from one validated snapshot:
+
+```bash
+phi-ledger \
+  --allow ledger.report.build \
+  projection-build \
+  --snapshot-id <snapshot-sha256>
+```
+
+Run one closed-catalog report against that projection:
+
+```bash
+phi-ledger \
+  --allow ledger.report.read \
+  report \
+  --snapshot-id <snapshot-sha256> \
+  --name coverage_v1
+```
+
+Use `phi-ledger report-list` to see the named report catalog. The CLI never accepts
+arbitrary SQL.
 
 ---
 
