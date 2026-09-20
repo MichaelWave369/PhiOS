@@ -138,14 +138,15 @@ def run_query(request_path: Path, database_path: Path, output_path: Path) -> Non
 
     connection = _connect(database_path, read_only=True)
     try:
-        cursor = connection.execute(query.sql, [limit])
+        cursor = connection.execute(query.sql, [limit + 1])
         columns = [item[0] for item in cursor.description]
         values = cursor.fetchall()
     finally:
         connection.close()
 
+    truncated = len(values) > limit
     rows: list[dict[str, Any]] = []
-    for record in values:
+    for record in values[:limit]:
         rows.append({column: value for column, value in zip(columns, record)})
     output = {
         "query_catalog_version": QUERY_CATALOG_VERSION,
@@ -153,7 +154,7 @@ def run_query(request_path: Path, database_path: Path, output_path: Path) -> Non
         "limit": limit,
         "rows": rows,
         "row_count": len(rows),
-        "truncated": len(rows) >= limit,
+        "truncated": truncated,
     }
     output_path.write_text(
         json.dumps(output, sort_keys=True, separators=(",", ":"), allow_nan=False) + "\n",
