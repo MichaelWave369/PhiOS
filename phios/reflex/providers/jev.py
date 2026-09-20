@@ -22,6 +22,8 @@ from phios.reflex.providers.base import ReflexProviderUnavailable
 
 class JevReflexProvider:
     name = "jev"
+    adapter_id = "phios.reflex.providers.jev:JevReflexProvider"
+    adapter_version = "0.9"
 
     def __init__(
         self,
