@@ -23,7 +23,7 @@ It currently has three major surfaces:
 | **PhiOS Shell / MCP** | operator commands, local workflows, integrations, machine-readable capability surfaces | active |
 | **PhiOS Spine** | authority-aware observation, verification, evidence, and receipts | **v0.24** |
 | **PhiOS App Platform** | governed path from public repository to installed, launchable, updateable desktop app | **v0.42** |
-| **PhiReflex** | provider-neutral System-One shadow, calibration, governed adoption, and bounded runtime routing influence | **v0.6** |
+| **PhiReflex** | provider-neutral System-One shadow, calibration, governed live influence, and persistent runtime control | **v0.7** |
 
 The common pattern is:
 
@@ -327,7 +327,7 @@ scripts/       development and policy helpers
 
 ---
 
-## PhiReflex v0.6
+## PhiReflex v0.7
 
 **PhiReflex** is a provider-neutral fast advisory judgment layer for bounded
 classification, risk signaling, System-Two escalation hints, and verification
@@ -431,12 +431,43 @@ action_authority = false
 execution_authority = false
 ```
 
+v0.7 adds the operational control plane around that live authority:
+
+```text
+~/.phios/reflex/
+  policy.json
+  activation.json
+  lease.json
+  grants/
+  ledger.json
+  quarantine/
+```
+
+Normal `phi dispatch` now restores a valid persisted activation automatically.
+Malformed state, expired leases, provider/model drift, or ledger corruption fail
+closed to ordinary dispatch.
+
+Operator surfaces:
+
+```bash
+phi agents reflex-runtime status
+phi agents reflex-runtime policy-ingest policy.json
+phi agents reflex-runtime grant-ingest grant.json
+phi agents reflex-runtime activate --request request.json --grant-id grant-001
+phi agents reflex-runtime deactivate --reason operator-stop
+phi agents reflex-runtime ledger --tail 20
+```
+
+Grant ingestion validates scope but does not cryptographically authenticate the
+declared `authority_source`; signed grants remain future work.
+
 See [PhiReflex v0.1](docs/PHIOS_REFLEX_V0.1.md),
 [PhiReflex v0.2 dispatch shadow](docs/PHIOS_REFLEX_V0.2_DISPATCH_SHADOW.md),
 [PhiReflex v0.3 outcome calibration](docs/PHIOS_REFLEX_V0.3_OUTCOME_CALIBRATION.md),
 [PhiReflex v0.4 calibration aggregation](docs/PHIOS_REFLEX_V0.4_CALIBRATION_AGGREGATION.md),
 [PhiReflex v0.5 governed influence adoption](docs/PHIOS_REFLEX_V0.5_GOVERNED_INFLUENCE_ADOPTION.md),
-and [PhiReflex v0.6 runtime influence](docs/PHIOS_REFLEX_V0.6_RUNTIME_INFLUENCE.md).
+[PhiReflex v0.6 runtime influence](docs/PHIOS_REFLEX_V0.6_RUNTIME_INFLUENCE.md),
+and [PhiReflex v0.7 runtime control plane](docs/PHIOS_REFLEX_V0.7_RUNTIME_CONTROL_PLANE.md).
 
 ---
 

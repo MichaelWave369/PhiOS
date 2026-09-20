@@ -7,6 +7,16 @@ from .calibration_aggregation import (
     aggregate_calibration_receipts,
     default_jev_readiness_policy,
 )
+from .control_plane import (
+    ReflexControlPlaneContractError,
+    ReflexControlPlaneReceipt,
+    ReflexRuntimeControlPlane,
+    ReflexRuntimeLease,
+    activation_grant_from_payload,
+    activation_request_from_payload,
+    activation_state_from_payload,
+    policy_from_payload,
+)
 from .dispatch_shadow import DispatchShadowReceipt, observe_dispatch
 from .influence_adoption import (
     GovernedReflexInfluenceAdoptionGate,
@@ -45,6 +55,14 @@ from .service import PhiReflex
 
 __all__ = [
     "PhiReflex",
+    "ReflexControlPlaneContractError",
+    "ReflexControlPlaneReceipt",
+    "ReflexRuntimeControlPlane",
+    "ReflexRuntimeLease",
+    "activation_grant_from_payload",
+    "activation_request_from_payload",
+    "activation_state_from_payload",
+    "policy_from_payload",
     "PromotionReadinessPolicy",
     "PromotionReadinessReceipt",
     "ProviderAggregate",
