@@ -23,7 +23,7 @@ It currently has three major surfaces:
 | **PhiOS Shell / MCP** | operator commands, local workflows, integrations, machine-readable capability surfaces | active |
 | **PhiOS Spine** | authority-aware observation, verification, evidence, and receipts | **v0.24** |
 | **PhiOS App Platform** | governed path from public repository to installed, launchable, updateable desktop app | **v0.42** |
-| **PhiReflex** | provider-neutral System-One shadow, calibration, readiness, and governed influence-policy adoption | **v0.5** |
+| **PhiReflex** | provider-neutral System-One shadow, calibration, governed adoption, and bounded runtime routing influence | **v0.6** |
 
 The common pattern is:
 
@@ -327,7 +327,7 @@ scripts/       development and policy helpers
 
 ---
 
-## PhiReflex v0.5
+## PhiReflex v0.6
 
 **PhiReflex** is a provider-neutral fast advisory judgment layer for bounded
 classification, risk signaling, System-Two escalation hints, and verification
@@ -407,22 +407,36 @@ The report can say `INSUFFICIENT_EVIDENCE`, `NOT_REVIEW_ELIGIBLE`, or
 `REVIEW_ELIGIBLE`. Even `REVIEW_ELIGIBLE` carries zero routing, promotion,
 action, or execution authority.
 
-v0.5 adds the next governance boundary: a `REVIEW_ELIGIBLE` receipt may be
-adopted into an immutable influence-policy state only with an exact scoped
-external grant. The adopted state records provider/model scope, allowed signal
-dimensions, maximum influence weight, and rollback posture, but still keeps:
+v0.5 adds the governance boundary for adopting an immutable influence policy.
+
+v0.6 is the first rung that may activate **bounded routing influence**. An
+exact v0.5 policy plus an exact activation request and external activation
+grant may create a live activation state for one declared planner-context
+surface. The live signal uses deterministic blending:
 
 ```text
-routing_influence_active = false
-runtime_activation_authority = false
-promotion_authority = false
+blended = (1 - weight) * local baseline + weight * approved provider
+```
+
+Only approved dimensions are emitted. Provider/model drift, configured
+unavailability, or repeated provider errors can collapse influence back to the
+ordinary dispatch path. Operator deactivation does not require a
+privilege-expansion grant.
+
+Even while live:
+
+```text
+routing_influence_authority = true
+action_authority = false
+execution_authority = false
 ```
 
 See [PhiReflex v0.1](docs/PHIOS_REFLEX_V0.1.md),
 [PhiReflex v0.2 dispatch shadow](docs/PHIOS_REFLEX_V0.2_DISPATCH_SHADOW.md),
 [PhiReflex v0.3 outcome calibration](docs/PHIOS_REFLEX_V0.3_OUTCOME_CALIBRATION.md),
 [PhiReflex v0.4 calibration aggregation](docs/PHIOS_REFLEX_V0.4_CALIBRATION_AGGREGATION.md),
-and [PhiReflex v0.5 governed influence adoption](docs/PHIOS_REFLEX_V0.5_GOVERNED_INFLUENCE_ADOPTION.md).
+[PhiReflex v0.5 governed influence adoption](docs/PHIOS_REFLEX_V0.5_GOVERNED_INFLUENCE_ADOPTION.md),
+and [PhiReflex v0.6 runtime influence](docs/PHIOS_REFLEX_V0.6_RUNTIME_INFLUENCE.md).
 
 ---
 
