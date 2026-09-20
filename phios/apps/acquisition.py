@@ -81,6 +81,10 @@ class SourceAcquisitionReview:
 
 def review_intake_for_acquisition(value: Any) -> SourceAcquisitionReview:
     payload = _require_dict(value, "intake result")
+    if payload.get("schema_version") == "phios.release_candidate_intake.v0.1":
+        from .release_discovery import unwrap_release_candidate_intake
+
+        payload = unwrap_release_candidate_intake(payload)
     evidence = _require_dict(payload.get("evidence"), "intake result evidence")
     proposal = _require_dict(payload.get("proposal"), "intake result proposal")
     manifest_value = payload.get("manifest_candidate")
