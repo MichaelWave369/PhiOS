@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from .projection_schema import (
+    DUCKDB_VERSION,
     EXECUTION_COLUMNS,
     EXECUTION_CREATE_SQL,
     MANDALA_COLUMNS,
@@ -17,7 +18,6 @@ from .projection_schema import (
 from .queries import MAX_REPORT_ROWS, QUERY_CATALOG_VERSION, get_named_query
 from .validation import strict_json_loads
 
-DUCKDB_VERSION = "1.5.5"
 
 
 def _duckdb() -> Any:
@@ -46,12 +46,12 @@ def _connect(database: Path, *, read_only: bool) -> Any:
             "allow_unsigned_extensions": "false",
             "allow_persistent_secrets": "false",
             "enable_global_s3_configuration": "false",
-            "enable_logging": "false",
             "threads": "1",
             "memory_limit": "512MB",
             "max_temp_directory_size": "64MB",
         },
     )
+    connection.execute("SET enable_logging = false")
     connection.execute("SET lock_configuration = true")
     return connection
 
