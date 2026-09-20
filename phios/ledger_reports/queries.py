@@ -110,7 +110,7 @@ _QUERY_LIST = (
                 missing_execution_links,
                 dangling_parent_receipts
             FROM projection_metadata
-            LIMIT 1
+            LIMIT ?
         """,
     ),
 )
