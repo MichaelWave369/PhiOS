@@ -184,3 +184,262 @@ def test_remote_dispatch_payload_excludes_reflex_shadow(monkeypatch, tmp_path):
     assert isinstance(outbound, dict)
     assert set(outbound) == {"task", "context", "plan", "stream"}
     assert "reflex" not in json.dumps(outbound).lower()
+
+
+def test_dispatch_context_accepts_only_validated_v06_reflex_signal(monkeypatch):
+    from phios.reflex.influence_adoption import ReflexInfluencePolicyState
+    from phios.reflex.models import ReflexDecision, ReflexInput
+    from phios.reflex.runtime_influence import (
+        ROUTING_SURFACE,
+        GovernedReflexRuntimeInfluence,
+        ReflexActivationGrant,
+        ReflexActivationRequest,
+    )
+
+    def digest(value):
+        import hashlib
+        return hashlib.sha256(
+            json.dumps(
+                value,
+                sort_keys=True,
+                separators=(",", ":"),
+                ensure_ascii=False,
+                allow_nan=False,
+            ).encode("utf-8")
+        ).hexdigest()
+
+    policy_payload = {
+        "schema": "phios.reflex_influence_policy_state.v0.5",
+        "policy_id": "phios.reflex.influence.jev",
+        "revision": 0,
+        "readiness_receipt_sha256": "a" * 64,
+        "candidate_provider": "jev",
+        "candidate_models": ["jev-test"],
+        "allowed_dimensions": ["role"],
+        "max_influence_weight": 0.2,
+        "rollback_on_provider_unavailable": True,
+        "max_consecutive_provider_errors": 2,
+        "parent_policy_sha256": None,
+        "routing_influence_active": False,
+        "runtime_activation_authority": False,
+        "promotion_authority": False,
+        "action_authority": False,
+        "execution_authority": False,
+    }
+    policy = ReflexInfluencePolicyState(
+        schema="phios.reflex_influence_policy_state.v0.5",
+        policy_id="phios.reflex.influence.jev",
+        revision=0,
+        readiness_receipt_sha256="a" * 64,
+        candidate_provider="jev",
+        candidate_models=("jev-test",),
+        allowed_dimensions=("role",),
+        max_influence_weight=0.2,
+        rollback_on_provider_unavailable=True,
+        max_consecutive_provider_errors=2,
+        parent_policy_sha256=None,
+        routing_influence_active=False,
+        runtime_activation_authority=False,
+        promotion_authority=False,
+        action_authority=False,
+        execution_authority=False,
+        state_sha256=digest(policy_payload),
+    )
+    request = ReflexActivationRequest(
+        provider="jev",
+        models=("jev-test",),
+        routing_surface=ROUTING_SURFACE,
+        allowed_dimensions=("role",),
+        influence_weight=0.2,
+    )
+    grant = ReflexActivationGrant(
+        grant_id="g",
+        authority_source="operator",
+        policy_state_sha256=policy.state_sha256,
+        current_activation_sha256=None,
+        activation_request_sha256=request.request_sha256,
+        disposition="ACTIVATE",
+    )
+    runtime = GovernedReflexRuntimeInfluence()
+    state, _ = runtime.activate(
+        policy=policy,
+        request=request,
+        grant=grant,
+    )
+    assert state is not None
+
+    baseline = ReflexDecision(
+        provider="rules",
+        provider_version="test",
+        model="rules",
+        role="utility",
+        role_probabilities=(
+            ("utility", 0.8),
+            ("builder", 0.05),
+            ("synthesis", 0.05),
+            ("translator", 0.05),
+            ("ledger", 0.05),
+        ),
+        risk="low",
+        risk_probabilities=(
+            ("low", 0.8),
+            ("elevated", 0.1),
+            ("high", 0.1),
+        ),
+        needs_system2_probability=0.2,
+        needs_verification_probability=0.2,
+        confidence=0.8,
+        latency_ms=0.0,
+    )
+    candidate = ReflexDecision(
+        provider="jev",
+        provider_version="test",
+        model="jev-test",
+        role="builder",
+        role_probabilities=(
+            ("utility", 0.05),
+            ("builder", 0.85),
+            ("synthesis", 0.04),
+            ("translator", 0.03),
+            ("ledger", 0.03),
+        ),
+        risk="low",
+        risk_probabilities=(
+            ("low", 0.8),
+            ("elevated", 0.1),
+            ("high", 0.1),
+        ),
+        needs_system2_probability=0.9,
+        needs_verification_probability=0.9,
+        confidence=0.85,
+        latency_ms=1.0,
+    )
+
+    class Fixed:
+        def __init__(self, decision):
+            self.decision = decision
+
+        def evaluate(self, reflex_input: ReflexInput):
+            return self.decision
+
+    _, signal, receipt = runtime.evaluate(
+        policy=policy,
+        state=state,
+        reflex_input=ReflexInput(task_text="build adapter"),
+        baseline_provider=Fixed(baseline),
+        influence_provider=Fixed(candidate),
+    )
+    assert receipt.status == "INFLUENCED"
+    assert signal is not None
+
+    context = build_dispatch_context(
+        task="build adapter",
+        adapter=DummyAdapter(),
+        field_guided=False,
+        arch=None,
+        review_panel=False,
+        reflex_influence=signal,
+    )
+
+    assert context["reflex_influence"]["schema"] == (
+        "phios.reflex_routing_influence_signal.v0.6"
+    )
+    assert context["reflex_influence"]["routing_influence_authority"] is True
+    assert context["reflex_influence"]["action_authority"] is False
+    assert context["reflex_influence"]["execution_authority"] is False
+
+
+def test_remote_planner_receives_v06_reflex_signal_only_when_explicitly_attached(
+    monkeypatch,
+):
+    from phios.reflex.runtime_influence import ReflexRoutingInfluenceSignal
+
+    monkeypatch.setenv("PHIOS_AGENTCEPTION_ENABLED", "true")
+    captured = []
+
+    def fake_http_json(url, *, method="GET", payload=None, timeout_s=10.0):
+        captured.append(payload)
+        return True, {"plan_id": "p", "plan_steps": []}
+
+    monkeypatch.setattr(
+        "phios.services.agent_dispatch._http_json",
+        fake_http_json,
+    )
+
+    base_signal_payload = {
+        "schema": "phios.reflex_routing_influence_signal.v0.6",
+        "activation_state_sha256": "a" * 64,
+        "policy_state_sha256": "b" * 64,
+        "routing_surface": "agentception.planner_context.v0.6",
+        "provider": "jev",
+        "model": "jev-test",
+        "influence_weight": 0.2,
+        "allowed_dimensions": ["role"],
+        "role_probabilities": {
+            "utility": 0.65,
+            "builder": 0.21,
+            "synthesis": 0.05,
+            "translator": 0.045,
+            "ledger": 0.045,
+        },
+        "risk_probabilities": None,
+        "needs_system2_probability": None,
+        "needs_verification_probability": None,
+        "routing_influence_authority": True,
+        "action_authority": False,
+        "execution_authority": False,
+    }
+    base_signal_payload["signal_sha256"] = __import__("hashlib").sha256(
+        json.dumps(
+            base_signal_payload,
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=False,
+            allow_nan=False,
+        ).encode("utf-8")
+    ).hexdigest()
+    signal = ReflexRoutingInfluenceSignal(
+        schema="phios.reflex_routing_influence_signal.v0.6",
+        activation_state_sha256="a" * 64,
+        policy_state_sha256="b" * 64,
+        routing_surface="agentception.planner_context.v0.6",
+        provider="jev",
+        model="jev-test",
+        influence_weight=0.2,
+        allowed_dimensions=("role",),
+        role_probabilities=(
+            ("utility", 0.65),
+            ("builder", 0.21),
+            ("synthesis", 0.05),
+            ("translator", 0.045),
+            ("ledger", 0.045),
+        ),
+        risk_probabilities=None,
+        needs_system2_probability=None,
+        needs_verification_probability=None,
+        routing_influence_authority=True,
+        action_authority=False,
+        execution_authority=False,
+        signal_sha256=base_signal_payload["signal_sha256"],
+    )
+
+    plain = build_dispatch_context(
+        task="plain",
+        adapter=DummyAdapter(),
+        field_guided=False,
+        arch=None,
+        review_panel=False,
+    )
+    run_agentception_plan(task="plain", context=plain)
+    assert "reflex_influence" not in captured[-1]["context"]
+
+    influenced = build_dispatch_context(
+        task="influenced",
+        adapter=DummyAdapter(),
+        field_guided=False,
+        arch=None,
+        review_panel=False,
+        reflex_influence=signal,
+    )
+    run_agentception_plan(task="influenced", context=influenced)
+    assert captured[-1]["context"]["reflex_influence"]["provider"] == "jev"

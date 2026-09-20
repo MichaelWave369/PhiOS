@@ -21,6 +21,10 @@ from phios.reflex.outcome_calibration import (
     ReflexOutcomeObservation,
     evaluate_dispatch_outcome,
 )
+from phios.reflex.runtime_influence import (
+    ReflexRoutingInfluenceSignal,
+    apply_influence_signal_to_context,
+)
 from phios.services.visualizer import (
     VisualizerError,
     add_visual_bloom_storyboard_section,
@@ -130,6 +134,7 @@ def build_dispatch_context(
     field_guided: bool,
     arch: str | None,
     review_panel: bool,
+    reflex_influence: ReflexRoutingInfluenceSignal | None = None,
 ) -> dict[str, Any]:
     context: dict[str, Any] = {
         "task": task,
@@ -147,6 +152,11 @@ def build_dispatch_context(
     }
     if field_guided:
         context["field_state"] = build_coherence_report(adapter)
+    if reflex_influence is not None:
+        context = apply_influence_signal_to_context(
+            context,
+            reflex_influence,
+        )
     return context
 
 
