@@ -3,14 +3,14 @@ from pathlib import Path
 
 import pytest
 
-from phios.analytics import LedgerSnapshotExporter
+from phios.ledger_reports import LedgerSnapshotExporter
 from phios.mandala import AuthorityContext
 
 
 def _authority() -> AuthorityContext:
     return AuthorityContext(
-        ceiling=("ledger.analytics.export",),
-        grants=("ledger.analytics.export",),
+        ceiling=("ledger.snapshot.export",),
+        grants=("ledger.snapshot.export",),
     )
 
 
