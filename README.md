@@ -258,7 +258,7 @@ phi-spine --help
 phi-app --help
 phi-reflex --help
 phi-memory --help
-phi-analytics --help
+phi-ledger --help
 phi-mcp
 ```
 
@@ -271,8 +271,8 @@ phi-spine status
 Export a derived, read-only Ledger snapshot:
 
 ```bash
-phi-analytics \
-  --allow ledger.analytics.export \
+phi-ledger \
+  --allow ledger.snapshot.export \
   snapshot-export
 ```
 
