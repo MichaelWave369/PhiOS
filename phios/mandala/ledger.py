@@ -22,3 +22,17 @@ class MandalaReceiptLedger:
             return []
         lines = self.path.read_text(encoding="utf-8").splitlines()
         return [json.loads(line) for line in lines[-max(limit, 0):]]
+
+    def has_receipt(self, receipt_id: str) -> bool:
+        """Return whether an exact receipt ID already exists in the append-only ledger."""
+
+        if not self.path.exists():
+            return False
+        for line in self.path.read_text(encoding="utf-8").splitlines():
+            try:
+                payload = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if isinstance(payload, dict) and payload.get("receipt_id") == receipt_id:
+                return True
+        return False
