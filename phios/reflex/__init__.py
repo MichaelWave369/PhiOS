@@ -1,5 +1,12 @@
 """PhiReflex: bounded advisory System-One decisions for PhiOS."""
 
+from .calibration_aggregation import (
+    PromotionReadinessPolicy,
+    PromotionReadinessReceipt,
+    ProviderAggregate,
+    aggregate_calibration_receipts,
+    default_jev_readiness_policy,
+)
 from .dispatch_shadow import DispatchShadowReceipt, observe_dispatch
 from .outcome_calibration import (
     ProviderCalibration,
@@ -19,6 +26,11 @@ from .service import PhiReflex
 
 __all__ = [
     "PhiReflex",
+    "PromotionReadinessPolicy",
+    "PromotionReadinessReceipt",
+    "ProviderAggregate",
+    "aggregate_calibration_receipts",
+    "default_jev_readiness_policy",
     "DispatchShadowReceipt",
     "observe_dispatch",
     "ProviderCalibration",
