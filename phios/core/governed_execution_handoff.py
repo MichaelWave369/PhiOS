@@ -149,7 +149,7 @@ class GovernedExecutionHandoff:
 
         try:
             consumed = spine.ledger.has_consumed_binding(binding.binding_sha256)
-        except (OSError, json.JSONDecodeError) as exc:
+        except (OSError, json.JSONDecodeError, ValueError) as exc:
             raise ExecutionHandoffContractError(
                 "execution ledger could not be verified safely"
             ) from exc
@@ -158,6 +158,20 @@ class GovernedExecutionHandoff:
                 plan=plan,
                 binding=binding,
                 reason="binding_already_consumed",
+                replay_blocked=True,
+            )
+
+        try:
+            claimed = spine.ledger.claim_binding(binding.binding_sha256)
+        except (OSError, ValueError) as exc:
+            raise ExecutionHandoffContractError(
+                "execution binding could not be claimed safely"
+            ) from exc
+        if not claimed:
+            return self._held(
+                plan=plan,
+                binding=binding,
+                reason="binding_execution_claim_unavailable",
                 replay_blocked=True,
             )
 
@@ -178,6 +192,7 @@ class GovernedExecutionHandoff:
                 governed_provenance=provenance,
             )
         except (KeyError, TypeError, ValueError) as exc:
+            spine.ledger.release_binding_claim(binding.binding_sha256)
             raise ExecutionHandoffContractError(
                 f"spine execution handoff failed before receipting: {exc}"
             ) from exc
@@ -196,6 +211,8 @@ class GovernedExecutionHandoff:
             )
 
         status, reason, binding_consumed = self._outcome(execution)
+        if not binding_consumed:
+            spine.ledger.release_binding_claim(binding.binding_sha256)
         return self._receipt(
             plan=plan,
             binding=binding,
