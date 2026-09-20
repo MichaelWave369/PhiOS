@@ -289,3 +289,15 @@ That report should still be advisory.
 Only after sufficient sample size, coverage, and calibration evidence should a
 separate governed contract even consider allowing PhiReflex signals to
 influence dispatch routing.
+
+
+---
+
+## Next rung
+
+PhiReflex v0.3 is followed by
+[PhiReflex v0.4 Calibration Aggregation and Review Readiness](PHIOS_REFLEX_V0.4_CALIBRATION_AGGREGATION.md).
+v0.4 deduplicates evidence by run, excludes conflicting run reviews, aggregates
+Brier coverage across many receipts, compares a candidate only to paired
+baseline observations, and emits an advisory readiness receipt with zero
+promotion or routing authority.
