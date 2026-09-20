@@ -50,7 +50,6 @@ def _connect(database: Path, *, read_only: bool) -> Any:
             "max_temp_directory_size": "64MB",
         },
     )
-    connection.execute("SET enable_global_s3_configuration = false")
     connection.execute("SET enable_logging = false")
     connection.execute("SET lock_configuration = true")
     return connection
