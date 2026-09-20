@@ -45,12 +45,12 @@ def _connect(database: Path, *, read_only: bool) -> Any:
             "allow_community_extensions": "false",
             "allow_unsigned_extensions": "false",
             "allow_persistent_secrets": "false",
-            "enable_global_s3_configuration": "false",
             "threads": "1",
             "memory_limit": "512MB",
             "max_temp_directory_size": "64MB",
         },
     )
+    connection.execute("SET enable_global_s3_configuration = false")
     connection.execute("SET enable_logging = false")
     connection.execute("SET lock_configuration = true")
     return connection
