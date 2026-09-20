@@ -932,11 +932,10 @@ class ReflexTrustLifecyclePlane:
         return envelope
 
     def _require_grant_by_id(self, grant_id: str) -> SignedActivationGrantEnvelope:
-        for envelope in self.authority.status(evaluation_epoch=0)["signed_grants"]:
-            grant_obj = envelope.get("grant") if isinstance(envelope, dict) else None
-            if isinstance(grant_obj, dict) and grant_obj.get("grant_id") == grant_id:
-                return self._require_grant(str(_grant_sha_from_payload(grant_obj)))
-        raise ReflexLifecycleContractError("authenticated grant_id not found")
+        envelope = self.authority.find_signed_grant_by_id(grant_id)
+        if envelope is None:
+            raise ReflexLifecycleContractError("authenticated grant_id not found")
+        return envelope
 
     @staticmethod
     def _require_same_issuer(
@@ -1560,11 +1559,6 @@ def _activation_sha(result: Mapping[str, Any]) -> str:
     value = str(activation.get("state_sha256", ""))
     _require_sha256(value, "activation state_sha256")
     return value
-
-
-def _grant_sha_from_payload(payload: Mapping[str, Any]) -> str:
-    value = dict(payload)
-    return _digest(value)
 
 
 def _atomic_write_json(path: Path, payload: object) -> None:
