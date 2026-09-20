@@ -184,12 +184,20 @@ class ReflexAuthorityPlane:
     def status(self, *, evaluation_epoch: int) -> dict[str, Any]:
         epoch = _epoch(evaluation_epoch)
         control_status = self.control.status(evaluation_epoch=epoch)
-        enforcement = self._enforce_active_authority(epoch)
-        if enforcement is not None:
-            control_status = self.control.status(evaluation_epoch=epoch)
-        anchors = self._list_anchors()
-        grants = self._list_signed_grants()
-        revocations = self._list_revocations()
+        try:
+            enforcement = self._enforce_active_authority(epoch)
+            if enforcement is not None:
+                control_status = self.control.status(evaluation_epoch=epoch)
+            anchors = self._list_anchors()
+            grants = self._list_signed_grants()
+            revocations = self._list_revocations()
+        except ReflexAuthorityContractError:
+            if control_status.get("routing_influence_active") is True:
+                self.control.deactivate(
+                    reason="authority_provenance_invalid_fail_closed",
+                    evaluation_epoch=epoch,
+                )
+            raise
         return {
             "ok": True,
             "evaluation_epoch": epoch,
@@ -318,11 +326,14 @@ class ReflexAuthorityPlane:
                 "receipt": receipt.to_dict(),
             }
 
-        _atomic_write_json(path, envelope.to_dict())
         control_result = self.control.ingest_grant_payload(
             envelope.grant.to_payload(),
             evaluation_epoch=epoch,
         )
+        # The underlying v0.6 grant is inert under v0.8 unless this verified
+        # envelope is present. Persisting it first therefore fails closed if
+        # the authenticated-envelope write itself cannot complete.
+        _atomic_write_json(path, envelope.to_dict())
         receipt = self._receipt(
             status="SIGNED_GRANT_INGESTED",
             reason="ed25519_authenticated_activation_grant_persisted",
@@ -552,6 +563,7 @@ class ReflexAuthorityPlane:
         evaluation_epoch: int,
     ) -> None:
         _validate_signed_grant_shape(envelope)
+        self.control.runtime.validate_activation_grant(envelope.grant)
         anchor = self._require_anchor(envelope.issuer_id, envelope.key_id)
         if PURPOSE_ACTIVATION_GRANT not in anchor.allowed_purposes:
             raise ReflexAuthorityContractError(
@@ -660,18 +672,22 @@ class ReflexAuthorityPlane:
     def _list_signed_grants(self) -> list[SignedActivationGrantEnvelope]:
         if not self.signed_grants_dir.exists():
             return []
-        return [
-            signed_activation_grant_from_payload(_read_object(path))
-            for path in sorted(self.signed_grants_dir.glob("*.json"))
-        ]
+        result: list[SignedActivationGrantEnvelope] = []
+        for path in sorted(self.signed_grants_dir.glob("*.json")):
+            envelope = signed_activation_grant_from_payload(_read_object(path))
+            _validate_signed_grant_shape(envelope)
+            result.append(envelope)
+        return result
 
     def _list_revocations(self) -> list[ReflexGrantRevocation]:
         if not self.revocations_dir.exists():
             return []
-        return [
-            grant_revocation_from_payload(_read_object(path))
-            for path in sorted(self.revocations_dir.glob("*.json"))
-        ]
+        result: list[ReflexGrantRevocation] = []
+        for path in sorted(self.revocations_dir.glob("*.json")):
+            revocation = grant_revocation_from_payload(_read_object(path))
+            _validate_revocation_shape(revocation)
+            result.append(revocation)
+        return result
 
     def _anchor_path(self, issuer_id: str, key_id: str) -> Path:
         return self.trust_dir / (
@@ -1008,7 +1024,7 @@ def _validate_trust_anchor(anchor: ReflexAuthorityTrustAnchor) -> None:
     if anchor.algorithm != "ed25519":
         raise ReflexAuthorityContractError("only ed25519 trust anchors are supported")
     purposes = tuple(sorted(set(anchor.allowed_purposes)))
-    if not purposes or purposes != tuple(sorted(anchor.allowed_purposes)):
+    if not purposes or purposes != anchor.allowed_purposes:
         raise ReflexAuthorityContractError(
             "allowed_purposes must be unique and canonical"
         )
