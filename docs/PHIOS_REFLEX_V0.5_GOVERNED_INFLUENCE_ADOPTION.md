@@ -319,3 +319,15 @@ routing_influence_active = true
 ```
 
 and even then it must not gain action or execution authority.
+
+
+---
+
+## Next rung
+
+PhiReflex v0.5 is followed by
+[PhiReflex v0.6 Governed Runtime Influence](PHIOS_REFLEX_V0.6_RUNTIME_INFLUENCE.md).
+v0.6 requires an exact adopted policy, explicit activation request, and exact
+external activation grant before a scoped planner-context signal can become
+live. Runtime influence remains separate from action and execution authority,
+and privilege may collapse without an expansion grant.
