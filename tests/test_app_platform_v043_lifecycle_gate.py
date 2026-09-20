@@ -148,6 +148,44 @@ def test_cancel_reconciliation_receipt_resolves_prepared_journal(tmp_path: Path)
     assert observation.reconciliation_receipts_seen == 1
 
 
+
+def test_completed_reconciliation_without_cleanup_receipt_does_not_resolve(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "receipts"
+    journal = _journal(tmp_path)
+    _write_journal(root, journal)
+    receipt = CleanupReconciliationReceipt(
+        receipt_id=str(uuid.uuid4()),
+        timestamp_utc="2026-09-20T23:43:00+00:00",
+        cleanup_reconciliation_plan_sha256="4" * 64,
+        cleanup_reconciliation_observation_sha256="5" * 64,
+        retained_cleanup_journal_sha256=journal.sha256(),
+        retained_cleanup_plan_sha256=journal.retained_cleanup_plan_sha256,
+        app_id=journal.app_id,
+        action="complete",
+        classification_before="untouched",
+        classification_after="effectively_complete",
+        cleanup_receipt_sha256="6" * 64,
+        requested_reconciliation_permissions=(
+            "cleanup.reconcile.complete",
+            "desktop.cleanup.retained",
+        ),
+        reconciliation_authority=True,
+        cleanup_authority=True,
+        rollback_authority=False,
+        status="completed",
+    )
+    _write_json(
+        root / f"retained-cleanup-reconciliation-{receipt.receipt_id}.json",
+        receipt.to_dict(),
+    )
+
+    observation = observe_lifecycle_gate(root, app_id=journal.app_id)
+    assert observation.clear is False
+    assert len(observation.unresolved) == 1
+
+
 def test_unresolved_journal_for_another_app_does_not_block_target(tmp_path: Path) -> None:
     root = tmp_path / "receipts"
     other = _journal(tmp_path, app_id="phi.other-app")
