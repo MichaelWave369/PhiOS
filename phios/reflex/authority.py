@@ -233,6 +233,21 @@ class ReflexAuthorityPlane:
         return self._require_anchor(issuer_id, key_id)
 
     @runtime_locked
+    def find_signed_grant_by_id(
+        self,
+        grant_id: str,
+    ) -> SignedActivationGrantEnvelope | None:
+        """Return one stored authenticated grant envelope by exact grant ID."""
+
+        normalized = _safe_id(grant_id)
+        path = self.signed_grants_dir / f"{normalized}.json"
+        if not path.exists():
+            return None
+        envelope = signed_activation_grant_from_payload(_read_object(path))
+        _validate_signed_grant_shape(envelope)
+        return envelope
+
+    @runtime_locked
     def find_signed_grant_by_sha256(
         self,
         grant_sha256: str,
