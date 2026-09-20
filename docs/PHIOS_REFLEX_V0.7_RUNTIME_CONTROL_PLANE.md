@@ -459,3 +459,15 @@ Potential v0.8 work:
 
 The routing surface should remain narrow until those operational guarantees are
 proven.
+
+
+---
+
+## Next rung
+
+PhiReflex v0.7 is followed by
+[PhiReflex v0.8 Authenticated Authority and Coordination](PHIOS_REFLEX_V0.8_AUTHENTICATED_AUTHORITY.md).
+v0.8 requires authenticated Ed25519 grant provenance for official live
+dispatch, supports signed revocation and grant validity windows, serializes
+control-plane operations across processes, and exposes a deterministic
+control-plane fingerprint for optional stale-state compare-and-swap checks.
