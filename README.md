@@ -23,7 +23,7 @@ It currently has three major surfaces:
 | **PhiOS Shell / MCP** | operator commands, local workflows, integrations, machine-readable capability surfaces | active |
 | **PhiOS Spine** | authority-aware observation, verification, evidence, and receipts | **v0.24** |
 | **PhiOS App Platform** | governed path from public repository to installed, launchable, updateable desktop app | **v0.42** |
-| **PhiReflex** | provider-neutral fast advisory judgment / System-One shadow layer | **v0.1** |
+| **PhiReflex** | provider-neutral fast advisory judgment / System-One shadow layer | **v0.2** |
 
 The common pattern is:
 
@@ -327,20 +327,30 @@ scripts/       development and policy helpers
 
 ---
 
-## PhiReflex v0.1
+## PhiReflex v0.2
 
 **PhiReflex** is a provider-neutral fast advisory judgment layer for bounded
 classification, risk signaling, System-Two escalation hints, and verification
 hints.
 
-v0.1 runs external providers in **shadow mode**:
+v0.1 established provider-neutral shadow mode. v0.2 connects that layer to the
+real dispatch path while preserving planner isolation:
+
+
 
 ```text
 task
-  ├── local deterministic rules → baseline
-  └── optional Jev provider     → shadow
-                                  ↓
-                           comparison receipt
+  ↓
+operational dispatch context
+  ↓
+operational plan
+  ├──────────────→ actual dispatch path
+  │
+  └──────────────→ PhiReflex shadow observation
+                    ├── local rules baseline
+                    └── optional Jev shadow
+                         ↓
+                  separate hashed receipt
 ```
 
 The optional Jev adapter uses TypeSafe AI's official Python SDK, but the
@@ -360,13 +370,20 @@ reflex decision
 If Jev is unavailable, unconfigured, or errors, the local baseline still
 returns and the provider failure is receipted.
 
-Try it locally:
+Try the standalone layer:
 
 ```bash
 phi-reflex "Build and test this adapter" --tool-intent
 ```
 
-See [PhiReflex v0.1](docs/PHIOS_REFLEX_V0.1.md).
+Observe the real dispatch path without influencing it:
+
+```bash
+phi dispatch "build the adapter" --dry-run --reflex-shadow
+```
+
+See [PhiReflex v0.1](docs/PHIOS_REFLEX_V0.1.md) and
+[PhiReflex v0.2 dispatch shadow](docs/PHIOS_REFLEX_V0.2_DISPATCH_SHADOW.md).
 
 ---
 
