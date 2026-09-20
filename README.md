@@ -23,7 +23,7 @@ It currently has three major surfaces:
 | **PhiOS Shell / MCP** | operator commands, local workflows, integrations, machine-readable capability surfaces | active |
 | **PhiOS Spine** | authority-aware observation, verification, evidence, and receipts | **v0.24** |
 | **PhiOS App Platform** | governed path from public repository to installed, launchable, updateable desktop app | **v0.42** |
-| **PhiReflex** | provider-neutral System-One shadow, calibration, governed live influence, and persistent runtime control | **v0.7** |
+| **PhiReflex** | provider-neutral System-One shadow, calibrated live influence, persistent control, and authenticated authority | **v0.8** |
 
 The common pattern is:
 
@@ -327,7 +327,7 @@ scripts/       development and policy helpers
 
 ---
 
-## PhiReflex v0.7
+## PhiReflex v0.8
 
 **PhiReflex** is a provider-neutral fast advisory judgment layer for bounded
 classification, risk signaling, System-Two escalation hints, and verification
@@ -447,19 +447,33 @@ Normal `phi dispatch` now restores a valid persisted activation automatically.
 Malformed state, expired leases, provider/model drift, or ledger corruption fail
 closed to ordinary dispatch.
 
-Operator surfaces:
+v0.8 authenticates that runtime authority before normal dispatch will honor it.
+
+An Ed25519-signed activation grant binds the exact issuer/key, validity window,
+v0.6 grant, and v0.5/v0.6 hashes. Signed revocations can collapse an active
+grant immediately or at a declared future epoch. Legacy unsigned live
+activations are no longer honored by the official dispatch path.
+
+The local trust-anchor store is the root of trust. Signatures prove possession
+of the configured private key; they do not magically prove a real-world human
+identity if the local public-key configuration itself has been replaced.
+
+The v0.7 control plane is also serialized across processes with an OS advisory
+lock, and v0.8 exposes a deterministic `control_sha256` for optional
+compare-and-swap protection against stale operator state.
+
+Authenticated authority surfaces:
 
 ```bash
-phi agents reflex-runtime status
-phi agents reflex-runtime policy-ingest policy.json
-phi agents reflex-runtime grant-ingest grant.json
-phi agents reflex-runtime activate --request request.json --grant-id grant-001
-phi agents reflex-runtime deactivate --reason operator-stop
-phi agents reflex-runtime ledger --tail 20
+phi agents reflex-authority status
+phi agents reflex-authority trust-ingest anchor.json --yes
+phi agents reflex-authority grant-ingest signed-grant.json
+phi agents reflex-authority activate --request request.json --grant-id grant-001 --yes
+phi agents reflex-authority revoke revocation.json
+phi agents reflex-authority deactivate --reason operator-stop
 ```
 
-Grant ingestion validates scope but does not cryptographically authenticate the
-declared `authority_source`; signed grants remain future work.
+Unsigned CLI grant ingestion/activation is disabled for live v0.8 authority.
 
 See [PhiReflex v0.1](docs/PHIOS_REFLEX_V0.1.md),
 [PhiReflex v0.2 dispatch shadow](docs/PHIOS_REFLEX_V0.2_DISPATCH_SHADOW.md),
@@ -467,7 +481,8 @@ See [PhiReflex v0.1](docs/PHIOS_REFLEX_V0.1.md),
 [PhiReflex v0.4 calibration aggregation](docs/PHIOS_REFLEX_V0.4_CALIBRATION_AGGREGATION.md),
 [PhiReflex v0.5 governed influence adoption](docs/PHIOS_REFLEX_V0.5_GOVERNED_INFLUENCE_ADOPTION.md),
 [PhiReflex v0.6 runtime influence](docs/PHIOS_REFLEX_V0.6_RUNTIME_INFLUENCE.md),
-and [PhiReflex v0.7 runtime control plane](docs/PHIOS_REFLEX_V0.7_RUNTIME_CONTROL_PLANE.md).
+[PhiReflex v0.7 runtime control plane](docs/PHIOS_REFLEX_V0.7_RUNTIME_CONTROL_PLANE.md),
+and [PhiReflex v0.8 authenticated authority](docs/PHIOS_REFLEX_V0.8_AUTHENTICATED_AUTHORITY.md).
 
 ---
 
