@@ -378,10 +378,17 @@ def _binary_brier(probability: float, actual: bool) -> float:
 
 
 def _probability(value: object, label: str) -> float:
-    try:
-        number = float(value)
-    except (TypeError, ValueError) as exc:
-        raise ReflexOutcomeContractError(f"{label} must be numeric") from exc
+    if isinstance(value, bool):
+        number = float(int(value))
+    elif isinstance(value, (int, float, str)):
+        try:
+            number = float(value)
+        except ValueError as exc:
+            raise ReflexOutcomeContractError(
+                f"{label} must be numeric"
+            ) from exc
+    else:
+        raise ReflexOutcomeContractError(f"{label} must be numeric")
     if not math.isfinite(number) or number < 0 or number > 1:
         raise ReflexOutcomeContractError(f"{label} must be in [0, 1]")
     return number
