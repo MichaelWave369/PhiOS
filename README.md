@@ -23,6 +23,7 @@ It currently has three major surfaces:
 | **PhiOS Shell / MCP** | operator commands, local workflows, integrations, machine-readable capability surfaces | active |
 | **PhiOS Spine** | authority-aware observation, verification, evidence, and receipts | **v0.24** |
 | **PhiOS App Platform** | governed path from public repository to installed, launchable, updateable desktop app | **v0.42** |
+| **PhiReflex** | provider-neutral fast advisory judgment / System-One shadow layer | **v0.1** |
 
 The common pattern is:
 
@@ -226,12 +227,23 @@ python -m pip install -e ".[screen]"
 python -m pip install -e ".[ocr]"
 ```
 
+Optional PhiReflex Jev provider:
+
+```bash
+python -m pip install -e ".[reflex-jev]"
+```
+
+Set `TYPESAFE_API_KEY` only in the runtime environment when using Jev. The
+local rules baseline and the rest of PhiOS do not require the TypeSafe SDK or
+network access.
+
 Inspect the main surfaces:
 
 ```bash
 phi --help
 phi-spine --help
 phi-app --help
+phi-reflex --help
 phi-mcp
 ```
 
@@ -312,6 +324,49 @@ docs/          current docs, versioned contracts, history, migration material
 tests/         regression and contract tests
 scripts/       development and policy helpers
 ```
+
+---
+
+## PhiReflex v0.1
+
+**PhiReflex** is a provider-neutral fast advisory judgment layer for bounded
+classification, risk signaling, System-Two escalation hints, and verification
+hints.
+
+v0.1 runs external providers in **shadow mode**:
+
+```text
+task
+  ├── local deterministic rules → baseline
+  └── optional Jev provider     → shadow
+                                  ↓
+                           comparison receipt
+```
+
+The optional Jev adapter uses TypeSafe AI's official Python SDK, but the
+provider never gains authority:
+
+```text
+probability
+≠ permission
+
+reflex decision
+≠ routing authority
+
+reflex decision
+≠ execution authority
+```
+
+If Jev is unavailable, unconfigured, or errors, the local baseline still
+returns and the provider failure is receipted.
+
+Try it locally:
+
+```bash
+phi-reflex "Build and test this adapter" --tool-intent
+```
+
+See [PhiReflex v0.1](docs/PHIOS_REFLEX_V0.1.md).
 
 ---
 
