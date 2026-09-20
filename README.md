@@ -227,6 +227,19 @@ python -m pip install -e ".[screen]"
 python -m pip install -e ".[ocr]"
 ```
 
+Optional governed semantic-memory backend:
+
+```bash
+python -m pip install -e ".[memory-vector]"
+```
+
+Create a disabled memory config before explicitly enabling it:
+
+```bash
+phi-memory init-config
+phi-memory status
+```
+
 Optional PhiReflex Jev provider:
 
 ```bash
@@ -244,6 +257,7 @@ phi --help
 phi-spine --help
 phi-app --help
 phi-reflex --help
+phi-memory --help
 phi-mcp
 ```
 
