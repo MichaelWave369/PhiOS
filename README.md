@@ -23,7 +23,7 @@ It currently has three major surfaces:
 | **PhiOS Shell / MCP** | operator commands, local workflows, integrations, machine-readable capability surfaces | active |
 | **PhiOS Spine** | authority-aware observation, verification, evidence, and receipts | **v0.24** |
 | **PhiOS App Platform** | governed path from public repository to installed, launchable, updateable desktop app | **v0.42** |
-| **PhiReflex** | provider-neutral System-One shadow, calibrated live influence, authenticated authority, and trust lifecycle | **v0.9** |
+| **PhiReflex** | provider-neutral System-One shadow, calibrated live influence, authenticated authority, trust lifecycle, and root attestation | **v0.10** |
 
 The common pattern is:
 
@@ -327,7 +327,7 @@ scripts/       development and policy helpers
 
 ---
 
-## PhiReflex v0.9
+## PhiReflex v0.10
 
 **PhiReflex** is a provider-neutral fast advisory judgment layer for bounded
 classification, risk signaling, System-Two escalation hints, and verification
@@ -477,20 +477,38 @@ was valid yesterday. One-shot grants can be expressed as
 `max_activations = 1`, provider manifests bind the exact adapter identity and
 version, and lease extension is possible only through an exact signed renewal.
 
-Lifecycle surfaces:
+v0.10 adds an external root pin and exact installed-adapter attestation before
+the v0.9 lifecycle path may remain live.
 
-```bash
-phi agents reflex-lifecycle status
-phi agents reflex-lifecycle trust-transition transition.json
-phi agents reflex-lifecycle use-policy policy.json
-phi agents reflex-lifecycle provider-manifest manifest.json
-phi agents reflex-lifecycle activate --request request.json --grant-id grant-001 --yes
-phi agents reflex-lifecycle checkpoint checkpoint.json
-phi agents reflex-lifecycle lease-renew renewal.json
+```text
+external root pin
++ signed provider manifest
++ signed installed-source digest
++ signed one-use activation nonce
+→ eligible for existing bounded routing influence
 ```
 
-Normal `phi dispatch` now uses the v0.9 lifecycle gate before live Reflex
-influence can reach the planner.
+The root pin is supplied through `PHIOS_REFLEX_ROOT_PIN`; PhiOS does not claim
+that a second local JSON file is a hardware root of trust. Adapter source bytes
+are hashed directly, activation nonces are burned before delegation, signed
+checkpoint bundles can be verified offline, and imported replication snapshots
+can only align or emit conflict receipts. They never overwrite local authority.
+
+Root-attestation surfaces:
+
+```bash
+phi agents reflex-root status
+phi agents reflex-root adapter-digest
+phi agents reflex-root artifact-attest provider-artifact.json
+phi agents reflex-root nonce-ingest activation-nonce.json
+phi agents reflex-root activate --request request.json --grant-id grant-001 --nonce-id nonce-001 --yes
+phi agents reflex-root checkpoint-export cp-001
+phi agents reflex-root checkpoint-verify bundle.json
+phi agents reflex-root snapshot-ingest snapshot.json
+```
+
+Normal `phi dispatch` now uses the v0.10 root-attestation gate before live
+Reflex influence can reach the planner.
 
 See [PhiReflex v0.1](docs/PHIOS_REFLEX_V0.1.md),
 [PhiReflex v0.2 dispatch shadow](docs/PHIOS_REFLEX_V0.2_DISPATCH_SHADOW.md),
@@ -500,7 +518,8 @@ See [PhiReflex v0.1](docs/PHIOS_REFLEX_V0.1.md),
 [PhiReflex v0.6 runtime influence](docs/PHIOS_REFLEX_V0.6_RUNTIME_INFLUENCE.md),
 [PhiReflex v0.7 runtime control plane](docs/PHIOS_REFLEX_V0.7_RUNTIME_CONTROL_PLANE.md),
 [PhiReflex v0.8 authenticated authority](docs/PHIOS_REFLEX_V0.8_AUTHENTICATED_AUTHORITY.md),
-and [PhiReflex v0.9 trust lifecycle and attestation](docs/PHIOS_REFLEX_V0.9_TRUST_LIFECYCLE_ATTESTATION.md).
+[PhiReflex v0.9 trust lifecycle and attestation](docs/PHIOS_REFLEX_V0.9_TRUST_LIFECYCLE_ATTESTATION.md),
+and [PhiReflex v0.10 root pinning and attestation](docs/PHIOS_REFLEX_V0.10_ROOT_ATTESTATION.md).
 
 ---
 
