@@ -88,7 +88,24 @@ class MemoryRecord:
             "text": text,
             "content_sha256": content_sha256,
         }
-        return cls(**body, record_sha256=sha256_json(body))
+        return cls(
+            record_id=record_id,
+            revision=revision,
+            source_id=source_id,
+            source_kind=source_kind,
+            provenance_refs=provenance_refs,
+            created_at=created_at,
+            scope_id=scope_id,
+            classification=classification,
+            retention_policy_id=retention_policy_id,
+            expires_at=expires_at,
+            epistemic_kind=epistemic_kind,
+            derived_from=derived_from,
+            contradicts=contradicts,
+            text=text,
+            content_sha256=content_sha256,
+            record_sha256=sha256_json(body),
+        )
 
     def to_dict(self) -> dict[str, object]:
         return {
