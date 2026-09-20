@@ -17,6 +17,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Mapping
 
+from phios.reflex.coordination import CrossProcessFileLock, runtime_locked
 from phios.reflex.influence_adoption import (
     GovernedReflexInfluenceAdoptionGate,
     ReflexInfluencePolicyState,
@@ -98,6 +99,7 @@ class ReflexRuntimeControlPlane:
         )
         self.runtime = GovernedReflexRuntimeInfluence()
         self.policy_gate = GovernedReflexInfluenceAdoptionGate()
+        self._runtime_lock = CrossProcessFileLock(self.root / "control.lock")
 
     @property
     def policy_path(self) -> Path:
@@ -123,6 +125,7 @@ class ReflexRuntimeControlPlane:
     def quarantine_dir(self) -> Path:
         return self.root / "quarantine"
 
+    @runtime_locked
     def ingest_policy_payload(
         self,
         payload: Mapping[str, Any],
@@ -168,6 +171,7 @@ class ReflexRuntimeControlPlane:
             "receipt": receipt.to_dict(),
         }
 
+    @runtime_locked
     def ingest_grant_payload(
         self,
         payload: Mapping[str, Any],
@@ -218,6 +222,7 @@ class ReflexRuntimeControlPlane:
             "receipt": receipt.to_dict(),
         }
 
+    @runtime_locked
     def activate(
         self,
         *,
@@ -298,6 +303,7 @@ class ReflexRuntimeControlPlane:
             "lease": lease.to_dict() if lease is not None else None,
         }
 
+    @runtime_locked
     def attach_or_shorten_lease(
         self,
         *,
@@ -350,6 +356,7 @@ class ReflexRuntimeControlPlane:
             "receipt": receipt.to_dict(),
         }
 
+    @runtime_locked
     def deactivate(
         self,
         *,
@@ -390,6 +397,7 @@ class ReflexRuntimeControlPlane:
             "activation_receipt": activation_receipt.to_dict(),
         }
 
+    @runtime_locked
     def evaluate_active(
         self,
         *,
@@ -440,6 +448,7 @@ class ReflexRuntimeControlPlane:
             "signal": signal.to_dict() if signal is not None else None,
         }
 
+    @runtime_locked
     def status(self, *, evaluation_epoch: int) -> dict[str, Any]:
         epoch = _epoch(evaluation_epoch)
         recovery = self.recover(evaluation_epoch=epoch)
@@ -469,6 +478,7 @@ class ReflexRuntimeControlPlane:
             ),
         }
 
+    @runtime_locked
     def ledger(self, *, tail: int | None = None) -> list[dict[str, Any]]:
         entries = self._load_ledger()
         if tail is None:
@@ -479,6 +489,7 @@ class ReflexRuntimeControlPlane:
             )
         return entries[-tail:] if tail else []
 
+    @runtime_locked
     def recover(self, *, evaluation_epoch: int) -> dict[str, Any]:
         epoch = _epoch(evaluation_epoch)
         ledger_reset = False
@@ -756,6 +767,27 @@ class ReflexRuntimeControlPlane:
         grant = activation_grant_from_payload(_read_object(path))
         self.runtime.validate_activation_grant(grant)
         return grant
+
+    @runtime_locked
+    def append_audit_receipt(
+        self,
+        *,
+        kind: str,
+        evaluation_epoch: int,
+        receipt: Mapping[str, Any],
+    ) -> None:
+        """Append a non-authorizing external governance receipt."""
+
+        normalized_kind = kind.strip()
+        if normalized_kind not in {"authority", "revocation", "coordination"}:
+            raise ReflexControlPlaneContractError(
+                "unsupported external audit receipt kind"
+            )
+        self._append_ledger(
+            normalized_kind,
+            _epoch(evaluation_epoch),
+            receipt,
+        )
 
     def _append_ledger(
         self,
