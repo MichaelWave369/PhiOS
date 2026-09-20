@@ -117,29 +117,34 @@ def observe_lifecycle_gate(
     for path in cleanup_paths:
         payload = _read_json_object(path, "retained cleanup receipt")
         try:
-            receipt = RetainedCleanupReceipt.from_dict(payload)
+            cleanup_receipt = RetainedCleanupReceipt.from_dict(payload)
         except ValueError:
             # Invalid receipt evidence can never resolve a prepared journal.
             continue
         cleanup_seen += 1
-        if receipt.app_id == normalized_app_id:
-            cleanup_by_journal.add(receipt.retained_cleanup_journal_sha256)
+        if cleanup_receipt.app_id == normalized_app_id:
+            cleanup_by_journal.add(cleanup_receipt.retained_cleanup_journal_sha256)
 
     reconciliation_by_journal: set[str] = set()
     reconciliation_seen = 0
     for path in reconciliation_paths:
         payload = _read_json_object(path, "cleanup reconciliation receipt")
         try:
-            receipt = CleanupReconciliationReceipt.from_dict(payload)
+            reconciliation_receipt = CleanupReconciliationReceipt.from_dict(payload)
         except ValueError:
             # Invalid receipt evidence can never resolve a prepared journal.
             continue
         reconciliation_seen += 1
-        if receipt.app_id == normalized_app_id and receipt.status == "cancelled":
+        if (
+            reconciliation_receipt.app_id == normalized_app_id
+            and reconciliation_receipt.status == "cancelled"
+        ):
             # complete/finalize writes a valid v0.41 cleanup receipt first; that
             # cleanup receipt is the resolving evidence. A cancellation has no
             # cleanup receipt, so its reconciliation receipt resolves the journal.
-            reconciliation_by_journal.add(receipt.retained_cleanup_journal_sha256)
+            reconciliation_by_journal.add(
+                reconciliation_receipt.retained_cleanup_journal_sha256
+            )
 
     unresolved: list[UnresolvedLifecycleJournal] = []
     for path in journal_paths:
