@@ -4,6 +4,7 @@ import json
 import sqlite3
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 from .models import MemoryRecord
 from .validation import strict_canonical_json
@@ -252,7 +253,7 @@ class MemoryStore:
         return [str(row["record_id"]) for row in rows]
 
     @staticmethod
-    def _record_from_payload(payload: dict[str, object]) -> MemoryRecord:
+    def _record_from_payload(payload: dict[str, Any]) -> MemoryRecord:
         return MemoryRecord(
             record_id=str(payload["record_id"]),
             revision=int(payload["revision"]),
