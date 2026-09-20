@@ -8,6 +8,13 @@ from .calibration_aggregation import (
     default_jev_readiness_policy,
 )
 from .dispatch_shadow import DispatchShadowReceipt, observe_dispatch
+from .influence_adoption import (
+    GovernedReflexInfluenceAdoptionGate,
+    ReflexInfluenceAdoptionContractError,
+    ReflexInfluenceAdoptionReceipt,
+    ReflexInfluenceGrant,
+    ReflexInfluencePolicyState,
+)
 from .outcome_calibration import (
     ProviderCalibration,
     ReflexCalibrationReceipt,
@@ -31,6 +38,11 @@ __all__ = [
     "ProviderAggregate",
     "aggregate_calibration_receipts",
     "default_jev_readiness_policy",
+    "GovernedReflexInfluenceAdoptionGate",
+    "ReflexInfluenceAdoptionContractError",
+    "ReflexInfluenceAdoptionReceipt",
+    "ReflexInfluenceGrant",
+    "ReflexInfluencePolicyState",
     "DispatchShadowReceipt",
     "observe_dispatch",
     "ProviderCalibration",
