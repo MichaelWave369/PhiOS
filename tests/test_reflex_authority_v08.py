@@ -395,3 +395,28 @@ def test_trust_anchor_conflict_is_rejected(tmp_path):
             conflicting.to_dict(),
             evaluation_epoch=110,
         )
+
+
+def test_corrupt_authenticated_envelope_collapses_persisted_live_state(
+    tmp_path,
+):
+    control, authority, _, request, _, grant, envelope = _setup(tmp_path)
+    authority.ingest_signed_grant(
+        envelope.to_dict(),
+        evaluation_epoch=110,
+    )
+    authority.activate_verified(
+        request=request,
+        grant_id=grant.grant_id,
+        evaluation_epoch=120,
+    )
+    envelope_path = (
+        authority.signed_grants_dir / f"{grant.grant_id}.json"
+    )
+    envelope_path.write_text("{broken", encoding="utf-8")
+
+    with pytest.raises(ReflexAuthorityContractError):
+        authority.status(evaluation_epoch=130)
+
+    control_status = control.status(evaluation_epoch=131)
+    assert control_status["routing_influence_active"] is False
