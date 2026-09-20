@@ -39,15 +39,19 @@ class PromotionReadinessPolicy:
             raise ReflexAggregationContractError(
                 "candidate_provider must be non-empty"
             )
-        for label, value in (
+        for int_label, int_value in (
             ("min_unique_runs", self.min_unique_runs),
             ("min_candidate_scored_runs", self.min_candidate_scored_runs),
         ):
-            if isinstance(value, bool) or not isinstance(value, int) or value < 1:
+            if (
+                isinstance(int_value, bool)
+                or not isinstance(int_value, int)
+                or int_value < 1
+            ):
                 raise ReflexAggregationContractError(
-                    f"{label} must be a positive integer"
+                    f"{int_label} must be a positive integer"
                 )
-        for label, value in (
+        for float_label, float_value in (
             ("min_dimension_coverage", self.min_dimension_coverage),
             ("min_shadow_availability_rate", self.min_shadow_availability_rate),
             ("max_candidate_mean_brier", self.max_candidate_mean_brier),
@@ -56,7 +60,7 @@ class PromotionReadinessPolicy:
                 self.max_regression_vs_paired_baseline,
             ),
         ):
-            _require_finite(value, label)
+            _require_finite(float_value, float_label)
         if not 0 <= self.min_dimension_coverage <= 1:
             raise ReflexAggregationContractError(
                 "min_dimension_coverage must be in [0, 1]"
