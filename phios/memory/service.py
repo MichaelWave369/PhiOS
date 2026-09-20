@@ -311,6 +311,8 @@ class GovernedMemoryService:
         *,
         limit: int = 100,
         embedding_timeout: float = 10.0,
+        allowed_scopes: tuple[str, ...] | None = None,
+        allowed_classifications: tuple[str, ...] | None = None,
     ) -> IndexSyncResult:
         """Explicitly process derived index work. This never grants memory access."""
 
@@ -363,6 +365,13 @@ class GovernedMemoryService:
                 self.store.mark_index_work_done(work_id)
                 processed += 1
                 stale += 1
+                continue
+            if allowed_scopes is not None and record.scope_id not in allowed_scopes:
+                continue
+            if (
+                allowed_classifications is not None
+                and record.classification not in allowed_classifications
+            ):
                 continue
 
             try:

@@ -1,4 +1,4 @@
-# Governed memory v0.2
+# Governed memory v0.3
 
 PhiOS governed memory is a canonical local record service. It is not an authority
 service, executor, truth engine, or automatic belief system.
@@ -95,3 +95,99 @@ deleted record vectors, and receipts successful derived indexing. If the embeddi
 model, digest, native extension, or active generation is unavailable/mismatched, the
 work remains retryable and semantic retrieval reports unavailable. There is no lexical,
 generated, or cloud fallback presented as semantic memory.
+
+
+## Operator integration v0.3
+
+The official operator surface is `phi-memory`. Governed memory remains disabled until
+an operator creates and edits a local config. Merely installing the optional vector
+backend does not enable memory or semantic retrieval.
+
+Create the initial fail-closed template:
+
+```bash
+phi-memory init-config
+phi-memory status
+```
+
+The generated config has both `enabled=false` and `semantic_enabled=false`.
+Enabling the feature changes availability only; it does not create grants. Every
+mutating or retrieval operation still requires explicit per-invocation permissions.
+
+Examples:
+
+```bash
+phi-memory \
+  --allow memory.write \
+  put \
+  --record-id note-001 \
+  --source-id operator \
+  --source-kind human \
+  --scope private \
+  --classification operator \
+  --text "bounded local memory"
+
+phi-memory \
+  --allow memory.read \
+  get note-001
+
+phi-memory \
+  --allow memory.read \
+  search "bounded local memory"
+
+phi-memory \
+  --allow memory.index \
+  reindex --full
+```
+
+Semantic search also requires `semantic_enabled=true` plus an already-installed local
+Ollama embedding model. The config declares model name and dimensions and may pin the
+model digest. The CLI never pulls a model.
+
+### Legacy agent-memory import
+
+The old `phios.services.agent_memory` narrative files are never migrated
+automatically. Import is an explicit, bounded, one-file operation.
+
+Dry-run validation reads the named JSON file and reports deterministic source/record
+identities without writing canonical memory:
+
+```bash
+phi-memory legacy-import \
+  --file ~/.phios/journal/visual_bloom/narratives/agent_memory_example.json \
+  --scope private \
+  --classification operator \
+  --dry-run
+```
+
+Actual import requires two distinct grants:
+
+```text
+memory.import
++
+memory.write
+```
+
+Imported deliberations retain the legacy file SHA-256 and deliberation ID as provenance,
+are marked as `derived`, and receive deterministic record and operation identities so
+the same unchanged source file can be replayed safely. Import does not delete or rewrite
+the legacy narrative.
+
+### Receipt reconciliation
+
+v0.3 connects the canonical SQLite outbox to the append-only Mandala ledger through an
+idempotent publisher. If a process crashes after ledger append but before the outbox row
+is marked published, replay detects the existing deterministic receipt ID and marks the
+outbox complete without appending a duplicate. Canonical writes remain unreadable until
+their required receipt has been reconciled.
+
+The operator wrapper does not release semantic-search hits when receipt reconciliation
+fails.
+
+### Reindex authority
+
+Derived-index maintenance is explicit. `memory.index` is separate from
+`memory.read`, `memory.write`, and `memory.import`. A full reindex queues only
+currently live, published records inside the configured operator scopes and
+classifications. Reindexing still changes only derived state and never changes canonical
+record authority or content.

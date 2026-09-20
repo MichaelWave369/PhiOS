@@ -314,6 +314,28 @@ class MemoryStore:
             for row in rows
         )
 
+    def enqueue_reindex(
+        self,
+        *,
+        allowed_scopes: tuple[str, ...],
+        allowed_classifications: tuple[str, ...],
+        now: datetime | None = None,
+    ) -> int:
+        """Queue fresh upserts for currently live/published versions in explicit policy bounds."""
+
+        versions = self.list_eligible_versions(
+            allowed_scopes=allowed_scopes,
+            allowed_classifications=allowed_classifications,
+            now=now,
+        )
+        with self._connect() as conn:
+            for record_id, revision, _record_sha256 in versions:
+                conn.execute(
+                    "INSERT INTO index_work(record_id, revision, action) VALUES(?,?, 'upsert')",
+                    (record_id, revision),
+                )
+        return len(versions)
+
     def pending_index_work(self, limit: int = 100) -> tuple[dict[str, object], ...]:
         bounded = max(1, min(int(limit), 1000))
         with self._connect() as conn:

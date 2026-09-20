@@ -50,6 +50,7 @@ phi-mcp = "phios.mcp.server:main"
 phi-spine = "phios.spine.cli:main"
 phi-app = "phios.apps.cli:main"
 phi-reflex = "phios.reflex.cli:main"
+phi-memory = "phios.memory.cli:main"
 
 [tool.setuptools]
 packages = ["phios", "phios.shell", "phios.core", "phios.display", "phios.desktop", "phios.adapters", "phios.services", "phios.templates", "phios.ml", "phios.mcp", "phios.mcp.resources", "phios.mcp.tools", "phios.mcp.prompts", "phios.spine", "phios.mandala", "phios.soma", "phios.reality", "phios.apps", "phios.memory", "phios.reflex", "phios.reflex.providers"]
