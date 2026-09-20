@@ -266,13 +266,7 @@ class GitHubPublicRepoProvider:
 
     def inspect(self, repository_url: str) -> RepositorySnapshot:
         ref = GitHubRepositoryRef.parse(repository_url)
-        metadata = _require_dict(
-            self.client.get_json(_canonical_api_url(ref)),
-            "GitHub repository metadata",
-        )
-        if metadata.get("private") is True:
-            raise ValueError("PhiOS v0.26 GitHub intake accepts public repositories only")
-
+        metadata = self._metadata(ref)
         default_branch = _bounded_string(metadata.get("default_branch"), "main", 128)
         branch_suffix = f"/branches/{urllib.parse.quote(default_branch, safe='')}"
         branch = _require_dict(
@@ -283,8 +277,64 @@ class GitHubPublicRepoProvider:
         head_sha = _bounded_string(commit.get("sha"), "", 64)
         if not re.fullmatch(r"[0-9a-fA-F]{40,64}", head_sha):
             raise ValueError("GitHub branch metadata did not contain a valid head SHA")
+        return self._snapshot_from_ref(
+            ref,
+            metadata,
+            ref_selector=default_branch,
+            head_sha=head_sha.lower(),
+        )
 
-        root_suffix = f"/contents?ref={urllib.parse.quote(default_branch, safe='')}"
+    def inspect_at_commit(
+        self,
+        repository_url: str,
+        commit_sha: str,
+    ) -> RepositorySnapshot:
+        """Inspect the same bounded marker set at one exact Git commit."""
+
+        ref = GitHubRepositoryRef.parse(repository_url)
+        if not re.fullmatch(r"[0-9a-fA-F]{40,64}", commit_sha):
+            raise ValueError(
+                "GitHub exact-commit intake requires a 40-64 character hexadecimal commit"
+            )
+        metadata = self._metadata(ref)
+        requested = commit_sha.lower()
+        commit_suffix = f"/commits/{urllib.parse.quote(requested, safe='')}"
+        commit = _require_dict(
+            self.client.get_json(_canonical_api_url(ref, commit_suffix)),
+            "GitHub commit metadata",
+        )
+        resolved = _bounded_string(commit.get("sha"), "", 64).lower()
+        if not re.fullmatch(r"[0-9a-f]{40,64}", resolved):
+            raise ValueError("GitHub commit metadata did not contain a valid commit SHA")
+        if resolved != requested:
+            raise ValueError("GitHub commit metadata did not match the requested exact commit")
+        return self._snapshot_from_ref(
+            ref,
+            metadata,
+            ref_selector=resolved,
+            head_sha=resolved,
+        )
+
+    def _metadata(self, ref: GitHubRepositoryRef) -> dict[str, Any]:
+        metadata = _require_dict(
+            self.client.get_json(_canonical_api_url(ref)),
+            "GitHub repository metadata",
+        )
+        if metadata.get("private") is True:
+            raise ValueError("PhiOS GitHub intake accepts public repositories only")
+        return metadata
+
+    def _snapshot_from_ref(
+        self,
+        ref: GitHubRepositoryRef,
+        metadata: dict[str, Any],
+        *,
+        ref_selector: str,
+        head_sha: str,
+    ) -> RepositorySnapshot:
+        default_branch = _bounded_string(metadata.get("default_branch"), "main", 128)
+        encoded_ref = urllib.parse.quote(ref_selector, safe="")
+        root_suffix = f"/contents?ref={encoded_ref}"
         root = self.client.get_json(_canonical_api_url(ref, root_suffix))
         if not isinstance(root, list):
             raise ValueError("GitHub repository root must be a directory listing")
@@ -307,9 +357,12 @@ class GitHubPublicRepoProvider:
         for path in selected:
             suffix = (
                 f"/contents/{urllib.parse.quote(path, safe='/')}"
-                f"?ref={urllib.parse.quote(default_branch, safe='')}"
+                f"?ref={encoded_ref}"
             )
-            content = _decode_contents_file(self.client.get_json(_canonical_api_url(ref, suffix)), path)
+            content = _decode_contents_file(
+                self.client.get_json(_canonical_api_url(ref, suffix)),
+                path,
+            )
             files.append(
                 IntakeFile(
                     path=path,
@@ -332,7 +385,7 @@ class GitHubPublicRepoProvider:
             name=ref.name,
             description=_bounded_string(metadata.get("description"), "", 512),
             default_branch=default_branch,
-            head_sha=head_sha.lower(),
+            head_sha=head_sha,
             archived=metadata.get("archived") is True,
             disabled=metadata.get("disabled") is True,
             license_spdx=license_spdx,
