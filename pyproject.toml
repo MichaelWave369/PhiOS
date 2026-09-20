@@ -33,6 +33,7 @@ ocr = ["Pillow>=10.0", "pytesseract>=0.3.10"]
 reflex-jev = ["typesafe-sdk>=0.7,<1"]
 reflex-authority = ["cryptography>=43,<47"]
 memory-vector = ["sqlite-vec==0.1.9"]
+ledger-reports = ["duckdb==1.5.5"]
 
 dev = [
   "build>=1.2.2",
