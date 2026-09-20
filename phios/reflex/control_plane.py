@@ -232,6 +232,23 @@ class ReflexRuntimeControlPlane:
         current = self._load_activation_optional()
         grant = self._require_grant(grant_id)
         existing_lease = self._load_lease_optional()
+        requested_deadline = (
+            _epoch(lease_until_epoch)
+            if lease_until_epoch is not None
+            else None
+        )
+        if requested_deadline is not None and requested_deadline <= epoch:
+            raise ReflexControlPlaneContractError(
+                "lease_until_epoch must be greater than evaluation_epoch"
+            )
+        if (
+            existing_lease is not None
+            and requested_deadline is not None
+            and requested_deadline > existing_lease.valid_through_epoch
+        ):
+            raise ReflexControlPlaneContractError(
+                "v0.7 lease may be shortened but not extended"
+            )
 
         next_state, activation_receipt = self.runtime.activate(
             policy=policy,
@@ -257,23 +274,6 @@ class ReflexRuntimeControlPlane:
                 if existing_lease is not None
                 else None
             )
-            requested_deadline = (
-                _epoch(lease_until_epoch)
-                if lease_until_epoch is not None
-                else None
-            )
-            if requested_deadline is not None and requested_deadline <= epoch:
-                raise ReflexControlPlaneContractError(
-                    "lease_until_epoch must be greater than evaluation_epoch"
-                )
-            if (
-                inherited_deadline is not None
-                and requested_deadline is not None
-                and requested_deadline > inherited_deadline
-            ):
-                raise ReflexControlPlaneContractError(
-                    "v0.7 lease may be shortened but not extended"
-                )
             deadline = (
                 requested_deadline
                 if requested_deadline is not None
