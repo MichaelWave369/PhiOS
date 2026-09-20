@@ -23,7 +23,7 @@ It currently has three major surfaces:
 | **PhiOS Shell / MCP** | operator commands, local workflows, integrations, machine-readable capability surfaces | active |
 | **PhiOS Spine** | authority-aware observation, verification, evidence, and receipts | **v0.24** |
 | **PhiOS App Platform** | governed path from public repository to installed, launchable, updateable desktop app | **v0.42** |
-| **PhiReflex** | provider-neutral fast advisory judgment / System-One shadow layer | **v0.2** |
+| **PhiReflex** | provider-neutral fast advisory judgment / System-One shadow + calibration layer | **v0.3** |
 
 The common pattern is:
 
@@ -327,7 +327,7 @@ scripts/       development and policy helpers
 
 ---
 
-## PhiReflex v0.2
+## PhiReflex v0.3
 
 **PhiReflex** is a provider-neutral fast advisory judgment layer for bounded
 classification, risk signaling, System-Two escalation hints, and verification
@@ -382,8 +382,24 @@ Observe the real dispatch path without influencing it:
 phi dispatch "build the adapter" --dry-run --reflex-shadow
 ```
 
-See [PhiReflex v0.1](docs/PHIOS_REFLEX_V0.1.md) and
-[PhiReflex v0.2 dispatch shadow](docs/PHIOS_REFLEX_V0.2_DISPATCH_SHADOW.md).
+After a shadowed run, explicit observed labels can be calibrated against both
+the deterministic baseline and Jev shadow prediction:
+
+```bash
+phi agents reflex-evaluate run_123 \
+  --outcome succeeded \
+  --observer operator-review \
+  --evidence-sha <sha256> \
+  --role builder \
+  --system2-needed yes
+```
+
+Missing labels remain unscored; dispatch success/failure is never silently
+reinterpreted as prediction ground truth.
+
+See [PhiReflex v0.1](docs/PHIOS_REFLEX_V0.1.md),
+[PhiReflex v0.2 dispatch shadow](docs/PHIOS_REFLEX_V0.2_DISPATCH_SHADOW.md),
+and [PhiReflex v0.3 outcome calibration](docs/PHIOS_REFLEX_V0.3_OUTCOME_CALIBRATION.md).
 
 ---
 
