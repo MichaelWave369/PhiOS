@@ -3,6 +3,8 @@ from pathlib import Path
 
 import pytest
 
+pytest.importorskip("duckdb")
+
 from phios.ledger_reports import LedgerReportService, LedgerSnapshotExporter
 from phios.ledger_reports.worker import _connect
 from phios.mandala import AuthorityContext
