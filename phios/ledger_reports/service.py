@@ -13,6 +13,7 @@ from typing import Any
 from phios.mandala import AuthorityContext
 
 from .projection_schema import (
+    DUCKDB_VERSION,
     PROJECTION_SCHEMA_VERSION,
     normalize_execution_row,
     normalize_mandala_row,
@@ -22,7 +23,6 @@ from .report_models import LedgerReport, ProjectionArtifact
 from .runner import LedgerWorkerRunner
 from .snapshot_input import load_validated_snapshot
 from .validation import canonical_json_bytes, sha256_bytes, sha256_json, strict_json_loads
-from .worker import DUCKDB_VERSION
 
 _PROJECTION_KIND = "phios.ledger_projection.v0.1"
 _REPORT_KIND = "phios.ledger_report.v0.1"
