@@ -25,7 +25,7 @@ the export surface.
 Export requires the explicit permission:
 
 ```text
-ledger.analytics.export
+ledger.snapshot.export
 ```
 
 ## Stable-prefix semantics
@@ -110,7 +110,7 @@ its coverage is marked incomplete and the missing links are listed in the manife
 Default location:
 
 ```text
-<state_root>/analytics/snapshots/<snapshot-id>/
+<state_root>/derived/ledger-snapshots/<snapshot-id>/
   manifest.json
   execution.jsonl
   mandala.jsonl
@@ -127,8 +127,8 @@ execution_authority = false
 ## CLI
 
 ```bash
-phi-analytics \
-  --allow ledger.analytics.export \
+phi-ledger \
+  --allow ledger.snapshot.export \
   snapshot-export
 ```
 
