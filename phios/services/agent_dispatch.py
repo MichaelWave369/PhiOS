@@ -12,6 +12,10 @@ from urllib import error, request
 
 from phios.adapters.phik import PhiKernelCLIAdapter
 from phios.core.phik_service import build_coherence_report, build_status_report
+from phios.reflex.outcome_calibration import (
+    ReflexOutcomeObservation,
+    evaluate_dispatch_outcome,
+)
 from phios.services.visualizer import (
     VisualizerError,
     add_visual_bloom_storyboard_section,
@@ -278,6 +282,78 @@ def stream_agent_run_events(run_id: str) -> list[dict[str, Any]]:
         if isinstance(item, dict):
             out.append(item)
     return out
+
+
+def evaluate_agent_run_reflex(
+    *,
+    run_id: str,
+    dispatch_outcome: str,
+    observer_label: str,
+    evidence_sha256: str,
+    actual_role: str | None = None,
+    actual_risk: str | None = None,
+    system2_needed: bool | None = None,
+    verification_needed: bool | None = None,
+) -> dict[str, Any]:
+    """Evaluate a persisted v0.2 shadow receipt against explicit observations."""
+
+    run = _read_json(_run_path(run_id), {})
+    if not isinstance(run, dict) or not run:
+        return {
+            "ok": False,
+            "run_id": run_id,
+            "error_code": "RUN_NOT_FOUND",
+        }
+
+    shadows_obj = run.get("shadow_observations", {})
+    shadows = shadows_obj if isinstance(shadows_obj, dict) else {}
+    shadow_obj = shadows.get("phireflex_v0_2")
+    if not isinstance(shadow_obj, dict):
+        return {
+            "ok": False,
+            "run_id": run_id,
+            "error_code": "REFLEX_SHADOW_NOT_FOUND",
+        }
+
+    observation = ReflexOutcomeObservation(
+        run_id=run_id,
+        dispatch_outcome=dispatch_outcome,
+        observer_label=observer_label,
+        evidence_sha256=evidence_sha256,
+        actual_role=actual_role,
+        actual_risk=actual_risk,
+        system2_needed=system2_needed,
+        verification_needed=verification_needed,
+    )
+    receipt = evaluate_dispatch_outcome(
+        dispatch_shadow=shadow_obj,
+        observation=observation,
+    )
+    calibration_obj = run.get("reflex_calibration_receipts", [])
+    calibrations = (
+        list(calibration_obj)
+        if isinstance(calibration_obj, list)
+        else []
+    )
+    payload = receipt.to_dict()
+    calibrations.append(payload)
+    run["reflex_calibration_receipts"] = calibrations
+    run["updated_at"] = _utc_now_iso()
+    _write_json(_run_path(run_id), run)
+    _append_event(
+        run_id,
+        "reflex_calibration_recorded",
+        {
+            "receipt_sha256": receipt.receipt_sha256,
+            "status": receipt.status,
+            "observer_label": observation.observer_label,
+        },
+    )
+    return {
+        "ok": True,
+        "run_id": run_id,
+        "calibration": payload,
+    }
 
 
 def persist_dispatch_storyboard(
