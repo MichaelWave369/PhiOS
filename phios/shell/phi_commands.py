@@ -53,8 +53,14 @@ from phios.mcp.policy import CAP_AGENT_DISPATCH, CAP_AGENT_KILL, CAP_AGENT_MEMOR
 
 from phios.reflex import PhiReflex
 from phios.reflex.calibration_aggregation import PromotionReadinessPolicy
+from phios.reflex.control_plane import (
+    ReflexControlPlaneContractError,
+    ReflexRuntimeControlPlane,
+    activation_request_from_payload,
+)
 from phios.reflex.dispatch_shadow import observe_dispatch
-from phios.reflex.providers import JevReflexProvider
+from phios.reflex.models import ReflexInput
+from phios.reflex.providers import JevReflexProvider, RulesReflexProvider
 
 from phios.services.agent_dispatch import (
     build_dispatch_context,
@@ -2926,12 +2932,74 @@ def cmd_dispatch(args: list[str], session: object | None = None) -> str:
         )
 
     adapter = PhiKernelCLIAdapter()
+    reflex_signal = None
+    reflex_runtime: dict[str, object] = {
+        "status": "INACTIVE",
+        "routing_influence_active": False,
+    }
+    reflex_control = ReflexRuntimeControlPlane()
+    evaluation_epoch = int(time.time())
+    try:
+        control_status = reflex_control.status(
+            evaluation_epoch=evaluation_epoch
+        )
+        activation_obj = control_status.get("activation")
+        activation = (
+            activation_obj if isinstance(activation_obj, dict) else None
+        )
+        if (
+            control_status.get("routing_influence_active") is True
+            and activation is not None
+        ):
+            provider = str(activation.get("provider", ""))
+            if provider == "jev":
+                reflex_signal, reflex_runtime = (
+                    reflex_control.evaluate_active(
+                        reflex_input=ReflexInput(
+                            task_text=task,
+                            tool_intent=True,
+                            external_side_effect=not dry_run,
+                        ),
+                        baseline_provider=RulesReflexProvider(),
+                        influence_provider=JevReflexProvider(),
+                        evaluation_epoch=evaluation_epoch,
+                    )
+                )
+            else:
+                reflex_runtime = reflex_control.deactivate(
+                    reason="unsupported_provider_adapter",
+                    evaluation_epoch=evaluation_epoch,
+                )
+    except ReflexControlPlaneContractError as exc:
+        reflex_signal = None
+        reflex_runtime = {
+            "status": "FAIL_CLOSED",
+            "reason": str(exc),
+            "routing_influence_active": False,
+        }
+
+    if reflex_shadow_enabled and reflex_signal is not None:
+        return json.dumps(
+            {
+                "ok": False,
+                "allowed": False,
+                "reason": (
+                    "Live PhiReflex influence cannot be treated as an "
+                    "independent v0.2 shadow experiment."
+                ),
+                "error_code": "REFLEX_LIVE_SHADOW_CONFLICT",
+                "reflex_runtime": reflex_runtime,
+            },
+            indent=2,
+        )
+
     context = build_dispatch_context(
         task=task,
         adapter=adapter,
         field_guided=field_guided,
         arch=arch,
         review_panel=review_panel,
+        reflex_influence=reflex_signal,
     )
 
     if coherence_gate is not None and field_guided:
@@ -2969,6 +3037,7 @@ def cmd_dispatch(args: list[str], session: object | None = None) -> str:
                 "context": context,
                 "plan": plan,
                 "reflex_shadow": reflex_shadow,
+                "reflex_runtime": reflex_runtime,
             },
             indent=2,
         )
@@ -2984,7 +3053,15 @@ def cmd_dispatch(args: list[str], session: object | None = None) -> str:
     )
     events = stream_agent_run_events(str(run.get("run_id", "")))
     storyboard = persist_dispatch_storyboard(run=run, plan=plan, events=events)
-    return json.dumps({"ok": True, "run": run, "storyboard": storyboard}, indent=2)
+    return json.dumps(
+        {
+            "ok": True,
+            "run": run,
+            "storyboard": storyboard,
+            "reflex_runtime": reflex_runtime,
+        },
+        indent=2,
+    )
 
 
 def cmd_agents(args: list[str], session: object | None = None) -> str:
@@ -3063,6 +3140,125 @@ def cmd_agents(args: list[str], session: object | None = None) -> str:
                 "experimental": True,
             },
             indent=2,
+        )
+
+    if action == "reflex-runtime":
+        subaction = args[1] if len(args) > 1 else "status"
+        control = ReflexRuntimeControlPlane()
+        evaluation_epoch = int(time.time())
+
+        def load_json_file(path_text: str) -> dict[str, object]:
+            parsed = json.loads(
+                Path(path_text).read_text(encoding="utf-8")
+            )
+            if not isinstance(parsed, dict):
+                raise ValueError("runtime artifact must be a JSON object")
+            return dict(parsed)
+
+        try:
+            if subaction == "status":
+                return json.dumps(
+                    control.status(evaluation_epoch=evaluation_epoch),
+                    indent=2,
+                )
+            if subaction == "policy-ingest":
+                if len(args) < 3:
+                    return (
+                        "Usage: agents reflex-runtime policy-ingest "
+                        "<policy.json>"
+                    )
+                return json.dumps(
+                    control.ingest_policy_payload(
+                        load_json_file(args[2]),
+                        evaluation_epoch=evaluation_epoch,
+                    ),
+                    indent=2,
+                )
+            if subaction == "grant-ingest":
+                if len(args) < 3:
+                    return (
+                        "Usage: agents reflex-runtime grant-ingest "
+                        "<grant.json>"
+                    )
+                return json.dumps(
+                    control.ingest_grant_payload(
+                        load_json_file(args[2]),
+                        evaluation_epoch=evaluation_epoch,
+                    ),
+                    indent=2,
+                )
+            if subaction == "activate":
+                request_path = _arg_value(args, "--request")
+                grant_id = _arg_value(args, "--grant-id")
+                lease_raw = _arg_value(args, "--lease-until-epoch")
+                if not request_path or not grant_id:
+                    return (
+                        "Usage: agents reflex-runtime activate "
+                        "--request <request.json> --grant-id <id> "
+                        "[--lease-until-epoch <int>]"
+                    )
+                request = activation_request_from_payload(
+                    load_json_file(request_path)
+                )
+                lease_until = (
+                    int(lease_raw) if lease_raw is not None else None
+                )
+                return json.dumps(
+                    control.activate(
+                        request=request,
+                        grant_id=grant_id,
+                        evaluation_epoch=evaluation_epoch,
+                        lease_until_epoch=lease_until,
+                    ),
+                    indent=2,
+                )
+            if subaction == "lease":
+                deadline_raw = _arg_value(args, "--until-epoch")
+                if deadline_raw is None:
+                    return (
+                        "Usage: agents reflex-runtime lease "
+                        "--until-epoch <int>"
+                    )
+                return json.dumps(
+                    control.attach_or_shorten_lease(
+                        valid_through_epoch=int(deadline_raw),
+                        evaluation_epoch=evaluation_epoch,
+                    ),
+                    indent=2,
+                )
+            if subaction == "deactivate":
+                reason = _arg_value(args, "--reason")
+                if not reason:
+                    return (
+                        "Usage: agents reflex-runtime deactivate "
+                        "--reason <text>"
+                    )
+                return json.dumps(
+                    control.deactivate(
+                        reason=reason,
+                        evaluation_epoch=evaluation_epoch,
+                    ),
+                    indent=2,
+                )
+            if subaction == "ledger":
+                tail_raw = _arg_value(args, "--tail")
+                tail = int(tail_raw) if tail_raw is not None else None
+                return json.dumps(
+                    {"entries": control.ledger(tail=tail)},
+                    indent=2,
+                )
+        except (
+            ReflexControlPlaneContractError,
+            ValueError,
+            OSError,
+            json.JSONDecodeError,
+        ) as exc:
+            return f"Reflex runtime error: {exc}"
+
+        return (
+            "Usage: agents reflex-runtime "
+            "[status|policy-ingest|grant-ingest|activate|lease|"
+            "deactivate|ledger]"
         )
 
     if action == "reflex-report":
@@ -3148,7 +3344,7 @@ def cmd_agents(args: list[str], session: object | None = None) -> str:
             return f"Reflex evaluation error: {exc}"
         return json.dumps(result, indent=2)
 
-    return "Usage: agents [list|status <run_id>|kill <run_id> --yes|log <run_id>|reflex-report [policy options]|reflex-evaluate <run_id> ...|figures [--top <n>] [--sector <name>]|evolve [--top <n>] [--sector <name>] [--task-key <key>] [--skill <skill>] [--min-coherence <v>]]"
+    return "Usage: agents [list|status <run_id>|kill <run_id> --yes|log <run_id>|reflex-runtime ...|reflex-report [policy options]|reflex-evaluate <run_id> ...|figures [--top <n>] [--sector <name>]|evolve [--top <n>] [--sector <name>] [--task-key <key>] [--skill <skill>] [--min-coherence <v>]]"
 
 
 def cmd_recommend_arch(args: list[str], session: object | None = None) -> str:
