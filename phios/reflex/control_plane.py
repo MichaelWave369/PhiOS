@@ -843,6 +843,7 @@ class ReflexRuntimeControlPlane:
             "usage",
             "manifest",
             "lease",
+            "replication",
         }:
             raise ReflexControlPlaneContractError(
                 "unsupported external audit receipt kind"
