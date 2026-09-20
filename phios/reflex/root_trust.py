@@ -41,6 +41,8 @@ from phios.reflex.lifecycle import (
     ReflexProviderManifest,
     ReflexTrustLifecyclePlane,
     ledger_checkpoint_from_payload,
+    provider_manifest_from_payload,
+    _validate_checkpoint_shape,
 )
 from phios.reflex.models import ReflexInput
 from phios.reflex.providers.base import ReflexProvider
@@ -385,6 +387,10 @@ class ReflexRootTrustPlane:
         epoch = _epoch(evaluation_epoch)
         attestation = provider_code_attestation_from_payload(payload)
         _validate_code_attestation(attestation)
+        if attestation.issued_at_epoch > epoch:
+            raise ReflexRootTrustContractError(
+                "code attestation cannot be ingested before issued_at_epoch"
+            )
         self._require_pinned_live_key(
             attestation.issuer_id,
             attestation.key_id,
@@ -862,6 +868,8 @@ class ReflexRootTrustPlane:
                 continue
             if attestation.artifact_sha256 != adapter_artifact_sha256:
                 continue
+            if evaluation_epoch < attestation.issued_at_epoch:
+                continue
             if (
                 attestation.valid_until_epoch is not None
                 and evaluation_epoch >= attestation.valid_until_epoch
@@ -1007,49 +1015,45 @@ class ReflexRootTrustPlane:
         self,
         envelope_sha256: str,
     ) -> ReflexProviderManifest | None:
-        status = self.lifecycle.status(evaluation_epoch=0)
-        manifests = status.get("provider_manifests")
-        if not isinstance(manifests, list):
+        if not self.lifecycle.manifests_dir.exists():
             return None
-        for item in manifests:
-            if isinstance(item, dict) and item.get("envelope_sha256") == envelope_sha256:
-                from phios.reflex.lifecycle import provider_manifest_from_payload
-
-                return provider_manifest_from_payload(item)
+        for path in sorted(self.lifecycle.manifests_dir.glob("*.json")):
+            manifest = provider_manifest_from_payload(_read_object(path))
+            if manifest.envelope_sha256 == envelope_sha256:
+                return manifest
         return None
 
     def _find_anchor_by_sha(
         self,
         anchor_sha256: str,
     ) -> ReflexAuthorityTrustAnchor | None:
-        status = self.authority.status(evaluation_epoch=0)
-        anchors = status.get("trust_anchors")
-        if not isinstance(anchors, list):
+        if not self.authority.trust_dir.exists():
             return None
-        for item in anchors:
-            if isinstance(item, dict) and item.get("anchor_sha256") == anchor_sha256:
-                return trust_anchor_from_payload(item)
+        for path in sorted(self.authority.trust_dir.glob("*.json")):
+            anchor = trust_anchor_from_payload(_read_object(path))
+            _validate_trust_anchor(anchor)
+            if anchor.anchor_sha256 == anchor_sha256:
+                return anchor
         return None
 
     def _checkpoint_exists(self, envelope_sha256: str) -> bool:
-        status = self.lifecycle.status(evaluation_epoch=0)
-        checkpoints = status.get("checkpoints")
-        if not isinstance(checkpoints, list):
+        if not self.lifecycle.checkpoints_dir.exists():
             return False
-        return any(
-            isinstance(item, dict)
-            and item.get("envelope_sha256") == envelope_sha256
-            for item in checkpoints
-        )
+        for path in sorted(self.lifecycle.checkpoints_dir.glob("*.json")):
+            checkpoint = ledger_checkpoint_from_payload(_read_object(path))
+            _validate_checkpoint_shape(checkpoint)
+            if checkpoint.envelope_sha256 == envelope_sha256:
+                return True
+        return False
 
     def _find_checkpoint_by_id(self, checkpoint_id: str):
-        status = self.lifecycle.status(evaluation_epoch=0)
-        checkpoints = status.get("checkpoints")
-        if not isinstance(checkpoints, list):
+        if not self.lifecycle.checkpoints_dir.exists():
             return None
-        for item in checkpoints:
-            if isinstance(item, dict) and item.get("checkpoint_id") == checkpoint_id:
-                return ledger_checkpoint_from_payload(item)
+        for path in sorted(self.lifecycle.checkpoints_dir.glob("*.json")):
+            checkpoint = ledger_checkpoint_from_payload(_read_object(path))
+            _validate_checkpoint_shape(checkpoint)
+            if checkpoint.checkpoint_id == checkpoint_id:
+                return checkpoint
         return None
 
     def _collapse_if_grant_key(
@@ -1465,6 +1469,7 @@ def verify_offline_checkpoint_bundle(
     anchor = trust_anchor_from_payload(anchor_obj)
     _validate_trust_anchor(anchor)
     checkpoint = ledger_checkpoint_from_payload(checkpoint_obj)
+    _validate_checkpoint_shape(checkpoint)
     if checkpoint.issuer_id != anchor.issuer_id or checkpoint.key_id != anchor.key_id:
         raise ReflexRootTrustContractError(
             "checkpoint signer does not match bundled trust anchor"
