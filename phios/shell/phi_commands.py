@@ -52,11 +52,13 @@ from phios.core.sectors import list_visual_bloom_sectors
 from phios.mcp.policy import CAP_AGENT_DISPATCH, CAP_AGENT_KILL, CAP_AGENT_MEMORY_WRITE, is_capability_allowed
 
 from phios.reflex import PhiReflex
+from phios.reflex.calibration_aggregation import PromotionReadinessPolicy
 from phios.reflex.dispatch_shadow import observe_dispatch
 from phios.reflex.providers import JevReflexProvider
 
 from phios.services.agent_dispatch import (
     build_dispatch_context,
+    build_reflex_readiness_report,
     cancel_agent_run,
     dispatch_agentception_run,
     evaluate_agent_run_reflex,
@@ -3063,6 +3065,44 @@ def cmd_agents(args: list[str], session: object | None = None) -> str:
             indent=2,
         )
 
+    if action == "reflex-report":
+        candidate = _arg_value(args, "--candidate") or "jev"
+        policy_id = _arg_value(args, "--policy-id") or (
+            f"phios.reflex.{candidate}.shadow-readiness.v0.4"
+        )
+
+        def int_arg(flag: str, default: int) -> int:
+            raw = _arg_value(args, flag)
+            if raw is None:
+                return default
+            return int(raw)
+
+        def float_arg(flag: str, default: float) -> float:
+            raw = _arg_value(args, flag)
+            if raw is None:
+                return default
+            return float(raw)
+
+        try:
+            policy = PromotionReadinessPolicy(
+                policy_id=policy_id,
+                candidate_provider=candidate,
+                min_unique_runs=int_arg("--min-runs", 20),
+                min_candidate_scored_runs=int_arg("--min-scored", 12),
+                min_dimension_coverage=float_arg("--min-coverage", 0.50),
+                min_shadow_availability_rate=float_arg(
+                    "--min-availability", 0.80
+                ),
+                max_candidate_mean_brier=float_arg("--max-brier", 0.20),
+                max_regression_vs_paired_baseline=float_arg(
+                    "--max-regression", 0.02
+                ),
+            )
+            result = build_reflex_readiness_report(policy=policy)
+        except ValueError as exc:
+            return f"Reflex report error: {exc}"
+        return json.dumps(result, indent=2)
+
     if action == "reflex-evaluate":
         if len(args) < 2:
             return (
@@ -3108,7 +3148,7 @@ def cmd_agents(args: list[str], session: object | None = None) -> str:
             return f"Reflex evaluation error: {exc}"
         return json.dumps(result, indent=2)
 
-    return "Usage: agents [list|status <run_id>|kill <run_id> --yes|log <run_id>|reflex-evaluate <run_id> ...|figures [--top <n>] [--sector <name>]|evolve [--top <n>] [--sector <name>] [--task-key <key>] [--skill <skill>] [--min-coherence <v>]]"
+    return "Usage: agents [list|status <run_id>|kill <run_id> --yes|log <run_id>|reflex-report [policy options]|reflex-evaluate <run_id> ...|figures [--top <n>] [--sector <name>]|evolve [--top <n>] [--sector <name>] [--task-key <key>] [--skill <skill>] [--min-coherence <v>]]"
 
 
 def cmd_recommend_arch(args: list[str], session: object | None = None) -> str:
