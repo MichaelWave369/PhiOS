@@ -25,8 +25,6 @@ from phios.reflex.authority import (
     ReflexAuthorityPlane,
     ReflexAuthorityTrustAnchor,
     SignedActivationGrantEnvelope,
-    build_trust_anchor,
-    canonical_authority_bytes,
     trust_anchor_from_payload,
 )
 from phios.reflex.control_plane import ReflexRuntimeControlPlane
