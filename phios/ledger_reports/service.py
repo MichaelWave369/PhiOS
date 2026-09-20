@@ -88,8 +88,11 @@ class LedgerReportService:
 
         parent = final_dir.parent
         parent.mkdir(parents=True, exist_ok=True)
-        workspace = Path(tempfile.mkdtemp(prefix=".projection-", dir=str(parent)))
+        workspace: Path | None = Path(
+            tempfile.mkdtemp(prefix=".projection-", dir=str(parent))
+        )
         try:
+            assert workspace is not None
             self._write_json(workspace / "request.json", request)
             worker_run = self.runner.run_build(workspace)
             database = workspace / "projection.duckdb"
@@ -120,7 +123,7 @@ class LedgerReportService:
                 workspace.rename(final_dir)
             except FileExistsError:
                 return self._load_projection(final_dir, snapshot_id, projection_id)
-            workspace = Path()
+            workspace = None
             return ProjectionArtifact(
                 projection_id=projection_id,
                 snapshot_id=snapshot_id,
@@ -134,7 +137,7 @@ class LedgerReportService:
                 sandbox_policy_sha256=worker_run.sandbox_policy_sha256,
             )
         finally:
-            if workspace and workspace.exists():
+            if workspace is not None and workspace.exists():
                 shutil.rmtree(workspace)
 
     def run_report(
@@ -173,7 +176,10 @@ class LedgerReportService:
             source_database = Path(projection.projection_path)
             worker_database = workspace / "projection.duckdb"
             shutil.copyfile(source_database, worker_database)
-            if sha256_bytes(worker_database.read_bytes()) != projection.projection_sha256:
+            if (
+                self._hash_regular_file(worker_database, label="worker projection copy")
+                != projection.projection_sha256
+            ):
                 raise RuntimeError("worker projection copy hash mismatch")
 
             request = {
@@ -274,6 +280,8 @@ class LedgerReportService:
             raise RuntimeError("projection DuckDB version mismatch")
         if manifest["schema_version"] != PROJECTION_SCHEMA_VERSION:
             raise RuntimeError("projection schema version mismatch")
+        if not isinstance(manifest["sandbox_backend"], dict):
+            raise RuntimeError("projection sandbox backend identity is invalid")
         if manifest["promotion_status"] != "not_promoted":
             raise RuntimeError("projection promotion status is invalid")
         if manifest["action_authority"] is not False or manifest["execution_authority"] is not False:
@@ -349,7 +357,11 @@ class LedgerReportService:
         path = root / f"{report_id}.json"
         if path.exists():
             existing = self._load_json_object(path, max_bytes=_MAX_RESULT_BYTES, label="report")
-            if existing.get("report_id") != report_id or existing.get("core") != core:
+            if (
+                existing.get("report_id") != report_id
+                or existing.get("report_sha256") != report_id
+                or existing.get("core") != core
+            ):
                 raise RuntimeError("existing report artifact mismatch")
             created_at = existing.get("created_at")
             if not isinstance(created_at, str) or not created_at:
