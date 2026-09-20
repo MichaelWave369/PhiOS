@@ -236,3 +236,86 @@ hash before the worker receives a disposable copy.
 
 DuckDB failure or sandbox unavailability affects only report capability. It cannot alter
 canonical Ledger state, execution receipts, grants, governed memory, or action authority.
+
+
+## Observational evidence v0.1
+
+PhiOS may also export a separate immutable observation snapshot from already-persisted
+kernel rollout, agent-dispatch, and PhiReflex evidence. This is intentionally separate
+from canonical Reality Ledger snapshots and DuckDB projections.
+
+The exporter reads only fixed sibling stores under the parent of the configured Spine
+state root:
+
+```text
+<phios-root>/kernel_rollout/compare_records.jsonl
+<phios-root>/agents/runs/run_*.json
+```
+
+It does not accept arbitrary input paths and does not read agent event files.
+
+Export requires:
+
+```text
+ledger.observation.export
+```
+
+Reading a derived observation report separately requires:
+
+```text
+ledger.observation.read
+```
+
+The exported allowlist contains only:
+
+- kernel adapter/verdict/mode scores and compare deltas;
+- dispatch status/outcome, bounded planner availability metadata, and counts;
+- PhiReflex shadow provider/model, bounded decision scores, and agreement flags;
+- PhiReflex calibration Brier scores and explicit observed labels backed by evidence
+  SHA-256 values.
+
+The exporter explicitly excludes:
+
+- dispatch task text;
+- raw dispatch context;
+- raw plans and planner responses;
+- remote run IDs;
+- kernel `raw_compare_json`, summary notes, and source labels;
+- Reflex shadow reasons;
+- observer labels;
+- activation requests, grants, activation state, routing-influence state, or signals;
+- arbitrary debug/private fields.
+
+Any persisted PhiReflex shadow/calibration receipt that claims action or execution
+authority is rejected rather than projected.
+
+Default output:
+
+```text
+<state_root>/derived/observations/<snapshot-id>/
+  manifest.json
+  kernel.jsonl
+  dispatch.jsonl
+  reflex-shadow.jsonl
+  reflex-calibration.jsonl
+```
+
+The closed observation report catalog is:
+
+```text
+kernel_compare_deltas_v1
+agent_dispatch_outcomes_v1
+reflex_shadow_agreement_v1
+reflex_calibration_summary_v1
+```
+
+These reports are descriptive derived artifacts only. They carry:
+
+```text
+promotion_status = not_promoted
+action_authority = false
+execution_authority = false
+```
+
+No observation report feeds automatically into adapter promotion, routing grants,
+execution, Reality verdicts, or memory promotion.
