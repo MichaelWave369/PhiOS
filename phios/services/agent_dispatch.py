@@ -189,6 +189,7 @@ def dispatch_agentception_run(
     context: dict[str, Any],
     plan: dict[str, Any],
     stream: bool,
+    shadow_observations: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     run_id = f"run_{uuid.uuid4().hex[:12]}"
     remote_run_id = ""
@@ -218,6 +219,7 @@ def dispatch_agentception_run(
         "remote_status": remote_status,
         "context": context,
         "plan": plan,
+        "shadow_observations": shadow_observations or {},
         "outcome": "pending",
     }
     _write_json(_run_path(run_id), record)
@@ -299,6 +301,7 @@ def persist_dispatch_storyboard(
             "event_count": len(events),
             "latest_event": events[-1] if events else None,
         },
+        "shadow_observations": run.get("shadow_observations", {}),
         "outcome_status": run.get("status", "unknown"),
     }
 

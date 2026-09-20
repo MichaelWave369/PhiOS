@@ -51,6 +51,10 @@ from phios.core.bioeffector_layer import (
 from phios.core.sectors import list_visual_bloom_sectors
 from phios.mcp.policy import CAP_AGENT_DISPATCH, CAP_AGENT_KILL, CAP_AGENT_MEMORY_WRITE, is_capability_allowed
 
+from phios.reflex import PhiReflex
+from phios.reflex.dispatch_shadow import observe_dispatch
+from phios.reflex.providers import JevReflexProvider
+
 from phios.services.agent_dispatch import (
     build_dispatch_context,
     cancel_agent_run,
@@ -432,7 +436,7 @@ def cmd_help(_: list[str], session: object | None = None) -> str:
             "  launch [artifacts|announce|distrowatch|investor]",
             "  build [iso|status|clean]",
             "  notify [test|status|history]",
-            "  dispatch <task> [--field-guided] [--arch <name>] [--review-panel] [--coherence-gate <float>] [--dry-run] [--stream]",
+            "  dispatch <task> [--field-guided] [--arch <name>] [--review-panel] [--coherence-gate <float>] [--reflex-shadow] [--dry-run] [--stream]",
             "  dispatch optimize --graph <json> [--json]",
             "  agents [list|status <id>|kill <id> --yes|log <id>|figures [--top <n>] [--sector <name>]|evolve [--top <n>] [--sector <name>] [--task-key <key>] [--skill <skill>] [--min-coherence <v>]]",
             "  recommend-arch [--json]      Show field-guided cognitive architecture recommendation",
@@ -2875,7 +2879,7 @@ def cmd_dispatch(args: list[str], session: object | None = None) -> str:
     if not args:
         return (
             "Usage: dispatch <task> [--field-guided] [--arch <name>] [--review-panel] "
-            "[--coherence-gate <float>] [--dry-run] [--stream]"
+            "[--coherence-gate <float>] [--reflex-shadow] [--dry-run] [--stream]"
         )
 
     value_flags = {"--arch", "--coherence-gate"}
@@ -2899,6 +2903,7 @@ def cmd_dispatch(args: list[str], session: object | None = None) -> str:
     dry_run = "--dry-run" in args
     review_panel = "--review-panel" in args
     stream = "--stream" in args
+    reflex_shadow_enabled = "--reflex-shadow" in args
     arch = _arg_value(args, "--arch")
     coherence_gate_raw = _arg_value(args, "--coherence-gate")
     coherence_gate = float(coherence_gate_raw) if coherence_gate_raw else None
@@ -2941,6 +2946,17 @@ def cmd_dispatch(args: list[str], session: object | None = None) -> str:
             )
 
     plan = run_agentception_plan(task=task, context=context)
+
+    reflex_shadow = None
+    if reflex_shadow_enabled:
+        reflex_shadow = observe_dispatch(
+            task=task,
+            operational_context=context,
+            operational_plan=plan,
+            reflex=PhiReflex(shadow=JevReflexProvider()),
+            external_side_effect=not dry_run,
+        ).to_dict()
+
     if dry_run:
         return json.dumps(
             {
@@ -2949,11 +2965,20 @@ def cmd_dispatch(args: list[str], session: object | None = None) -> str:
                 "task": task,
                 "context": context,
                 "plan": plan,
+                "reflex_shadow": reflex_shadow,
             },
             indent=2,
         )
 
-    run = dispatch_agentception_run(task=task, context=context, plan=plan, stream=stream)
+    run = dispatch_agentception_run(
+        task=task,
+        context=context,
+        plan=plan,
+        stream=stream,
+        shadow_observations=(
+            {"phireflex_v0_2": reflex_shadow} if reflex_shadow else None
+        ),
+    )
     events = stream_agent_run_events(str(run.get("run_id", "")))
     storyboard = persist_dispatch_storyboard(run=run, plan=plan, events=events)
     return json.dumps({"ok": True, "run": run, "storyboard": storyboard}, indent=2)
