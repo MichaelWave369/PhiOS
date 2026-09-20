@@ -4,7 +4,6 @@ import hashlib
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
 
 from .models import MemoryRecord
 from .validation import require_utc_timestamp, sha256_json, strict_canonical_json
