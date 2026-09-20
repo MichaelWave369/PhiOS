@@ -59,6 +59,7 @@ from phios.services.agent_dispatch import (
     build_dispatch_context,
     cancel_agent_run,
     dispatch_agentception_run,
+    evaluate_agent_run_reflex,
     get_agent_run_status,
     list_agent_runs,
     persist_dispatch_storyboard,
@@ -3062,7 +3063,52 @@ def cmd_agents(args: list[str], session: object | None = None) -> str:
             indent=2,
         )
 
-    return "Usage: agents [list|status <run_id>|kill <run_id> --yes|log <run_id>|figures [--top <n>] [--sector <name>]|evolve [--top <n>] [--sector <name>] [--task-key <key>] [--skill <skill>] [--min-coherence <v>]]"
+    if action == "reflex-evaluate":
+        if len(args) < 2:
+            return (
+                "Usage: agents reflex-evaluate <run_id> "
+                "--outcome <succeeded|failed|cancelled|partial|unknown> "
+                "--observer <label> --evidence-sha <sha256> "
+                "[--role <role>] [--risk <risk>] "
+                "[--system2-needed <yes|no>] "
+                "[--verification-needed <yes|no>]"
+            )
+        run_id = args[1]
+        outcome = _arg_value(args, "--outcome") or ""
+        observer = _arg_value(args, "--observer") or ""
+        evidence_sha = _arg_value(args, "--evidence-sha") or ""
+        actual_role = _arg_value(args, "--role")
+        actual_risk = _arg_value(args, "--risk")
+
+        def optional_bool(flag: str) -> bool | None:
+            raw = _arg_value(args, flag)
+            if raw is None:
+                return None
+            normalized = raw.strip().lower()
+            if normalized in {"yes", "true", "1"}:
+                return True
+            if normalized in {"no", "false", "0"}:
+                return False
+            raise ValueError(f"{flag} must be yes or no")
+
+        try:
+            system2_needed = optional_bool("--system2-needed")
+            verification_needed = optional_bool("--verification-needed")
+            result = evaluate_agent_run_reflex(
+                run_id=run_id,
+                dispatch_outcome=outcome,
+                observer_label=observer,
+                evidence_sha256=evidence_sha,
+                actual_role=actual_role,
+                actual_risk=actual_risk,
+                system2_needed=system2_needed,
+                verification_needed=verification_needed,
+            )
+        except ValueError as exc:
+            return f"Reflex evaluation error: {exc}"
+        return json.dumps(result, indent=2)
+
+    return "Usage: agents [list|status <run_id>|kill <run_id> --yes|log <run_id>|reflex-evaluate <run_id> ...|figures [--top <n>] [--sector <name>]|evolve [--top <n>] [--sector <name>] [--task-key <key>] [--skill <skill>] [--min-coherence <v>]]"
 
 
 def cmd_recommend_arch(args: list[str], session: object | None = None) -> str:

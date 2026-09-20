@@ -241,3 +241,14 @@ calibration / usefulness receipt
 
 Only after sufficient observed evidence should PhiOS consider a separately
 governed contract that allows Reflex signals to influence routing.
+
+
+---
+
+## Next rung
+
+PhiReflex v0.2 is followed by
+[PhiReflex v0.3 Shadow Outcome Calibration](PHIOS_REFLEX_V0.3_OUTCOME_CALIBRATION.md).
+v0.3 binds explicit post-run observations to the exact v0.2 shadow receipt and
+scores only dimensions with real labels. Dispatch success/failure remains
+outcome provenance, not implicit prediction ground truth.
