@@ -23,7 +23,7 @@ It currently has three major surfaces:
 | **PhiOS Shell / MCP** | operator commands, local workflows, integrations, machine-readable capability surfaces | active |
 | **PhiOS Spine** | authority-aware observation, verification, evidence, and receipts | **v0.24** |
 | **PhiOS App Platform** | governed path from public repository to installed, launchable, updateable desktop app | **v0.42** |
-| **PhiReflex** | provider-neutral System-One shadow, calibration, and readiness-evidence layer | **v0.4** |
+| **PhiReflex** | provider-neutral System-One shadow, calibration, readiness, and governed influence-policy adoption | **v0.5** |
 
 The common pattern is:
 
@@ -327,7 +327,7 @@ scripts/       development and policy helpers
 
 ---
 
-## PhiReflex v0.4
+## PhiReflex v0.5
 
 **PhiReflex** is a provider-neutral fast advisory judgment layer for bounded
 classification, risk signaling, System-Two escalation hints, and verification
@@ -407,10 +407,22 @@ The report can say `INSUFFICIENT_EVIDENCE`, `NOT_REVIEW_ELIGIBLE`, or
 `REVIEW_ELIGIBLE`. Even `REVIEW_ELIGIBLE` carries zero routing, promotion,
 action, or execution authority.
 
+v0.5 adds the next governance boundary: a `REVIEW_ELIGIBLE` receipt may be
+adopted into an immutable influence-policy state only with an exact scoped
+external grant. The adopted state records provider/model scope, allowed signal
+dimensions, maximum influence weight, and rollback posture, but still keeps:
+
+```text
+routing_influence_active = false
+runtime_activation_authority = false
+promotion_authority = false
+```
+
 See [PhiReflex v0.1](docs/PHIOS_REFLEX_V0.1.md),
 [PhiReflex v0.2 dispatch shadow](docs/PHIOS_REFLEX_V0.2_DISPATCH_SHADOW.md),
 [PhiReflex v0.3 outcome calibration](docs/PHIOS_REFLEX_V0.3_OUTCOME_CALIBRATION.md),
-and [PhiReflex v0.4 calibration aggregation](docs/PHIOS_REFLEX_V0.4_CALIBRATION_AGGREGATION.md).
+[PhiReflex v0.4 calibration aggregation](docs/PHIOS_REFLEX_V0.4_CALIBRATION_AGGREGATION.md),
+and [PhiReflex v0.5 governed influence adoption](docs/PHIOS_REFLEX_V0.5_GOVERNED_INFLUENCE_ADOPTION.md).
 
 ---
 
