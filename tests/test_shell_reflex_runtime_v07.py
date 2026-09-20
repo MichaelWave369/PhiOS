@@ -1,8 +1,21 @@
 from __future__ import annotations
 
+import base64
 import hashlib
 import json
 
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric.ed25519 import (
+    Ed25519PrivateKey,
+)
+
+from phios.reflex.authority import (
+    ReflexAuthorityPlane,
+    activation_grant_signature_payload,
+    build_signed_activation_grant_envelope,
+    build_trust_anchor,
+    canonical_authority_bytes,
+)
 from phios.reflex.control_plane import ReflexRuntimeControlPlane
 from phios.reflex.influence_adoption import ReflexInfluencePolicyState
 from phios.reflex.models import ReflexDecision
@@ -66,35 +79,79 @@ def _policy() -> ReflexInfluencePolicyState:
     )
 
 
-def _activate(tmp_path):
-    control = ReflexRuntimeControlPlane(root=tmp_path)
-    policy = _policy()
-    request = ReflexActivationRequest(
+def _request() -> ReflexActivationRequest:
+    return ReflexActivationRequest(
         provider="jev",
         models=("jev-test",),
         routing_surface=ROUTING_SURFACE,
         allowed_dimensions=("role", "system2"),
         influence_weight=0.20,
     )
+
+
+def _signed_artifacts(
+    policy: ReflexInfluencePolicyState,
+    request: ReflexActivationRequest,
+    grant_id: str = "grant-001",
+):
+    private = Ed25519PrivateKey.generate()
+    public = private.public_key().public_bytes(
+        encoding=serialization.Encoding.Raw,
+        format=serialization.PublicFormat.Raw,
+    )
+    anchor = build_trust_anchor(
+        issuer_id="operator",
+        key_id="key-1",
+        public_key_b64=base64.b64encode(public).decode("ascii"),
+    )
     grant = ReflexActivationGrant(
-        grant_id="grant-001",
+        grant_id=grant_id,
         authority_source="operator",
         policy_state_sha256=policy.state_sha256,
         current_activation_sha256=None,
         activation_request_sha256=request.request_sha256,
         disposition="ACTIVATE",
     )
-    control.ingest_policy_payload(
-        policy.to_dict(),
+    signing_payload = activation_grant_signature_payload(
+        issuer_id="operator",
+        key_id="key-1",
+        issued_at_epoch=100,
+        valid_from_epoch=100,
+        valid_until_epoch=500,
+        grant=grant,
+    )
+    envelope = build_signed_activation_grant_envelope(
+        issuer_id="operator",
+        key_id="key-1",
+        issued_at_epoch=100,
+        valid_from_epoch=100,
+        valid_until_epoch=500,
+        grant=grant,
+        signature_b64=base64.b64encode(
+            private.sign(canonical_authority_bytes(signing_payload))
+        ).decode("ascii"),
+    )
+    return anchor, grant, envelope
+
+
+def _activate_authenticated(tmp_path):
+    control = ReflexRuntimeControlPlane(root=tmp_path)
+    authority = ReflexAuthorityPlane(control=control)
+    policy = _policy()
+    request = _request()
+    anchor, grant, envelope = _signed_artifacts(policy, request)
+    control.ingest_policy_payload(policy.to_dict(), evaluation_epoch=100)
+    authority.ingest_trust_anchor(
+        anchor.to_dict(),
         evaluation_epoch=100,
     )
-    control.ingest_grant_payload(
-        grant.to_payload(),
+    authority.ingest_signed_grant(
+        envelope.to_dict(),
         evaluation_epoch=100,
     )
-    result = control.activate(
+    result = authority.activate_verified(
         request=request,
-        grant_id="grant-001",
+        grant_id=grant.grant_id,
         evaluation_epoch=101,
     )
     assert result["ok"] is True
@@ -147,7 +204,7 @@ class FakeJevProvider:
         )
 
 
-def test_dispatch_restores_persisted_runtime_influence(
+def test_dispatch_restores_persisted_authenticated_runtime_influence(
     monkeypatch,
     tmp_path,
 ):
@@ -162,7 +219,7 @@ def test_dispatch_restores_persisted_runtime_influence(
         "phios.shell.phi_commands.JevReflexProvider",
         FakeJevProvider,
     )
-    _activate(tmp_path)
+    _activate_authenticated(tmp_path)
 
     out, code = route_command(
         ["dispatch", "build", "adapter", "--dry-run"]
@@ -179,7 +236,7 @@ def test_dispatch_restores_persisted_runtime_influence(
     assert payload["reflex_runtime"]["status"] == "INFLUENCED"
 
 
-def test_live_influence_refuses_shadow_contamination(
+def test_live_authenticated_influence_refuses_shadow_contamination(
     monkeypatch,
     tmp_path,
 ):
@@ -194,7 +251,7 @@ def test_live_influence_refuses_shadow_contamination(
         "phios.shell.phi_commands.JevReflexProvider",
         FakeJevProvider,
     )
-    _activate(tmp_path)
+    _activate_authenticated(tmp_path)
 
     out, code = route_command(
         [
@@ -212,13 +269,13 @@ def test_live_influence_refuses_shadow_contamination(
     assert payload["error_code"] == "REFLEX_LIVE_SHADOW_CONFLICT"
 
 
-def test_reflex_runtime_status_and_deactivate_commands(
+def test_reflex_runtime_status_and_deactivate_commands_still_work(
     monkeypatch,
     tmp_path,
 ):
     monkeypatch.setenv("PHIOS_REFLEX_HOME", str(tmp_path))
     monkeypatch.setattr("phios.shell.phi_commands.time.time", lambda: 200)
-    _activate(tmp_path)
+    _activate_authenticated(tmp_path)
 
     out, code = route_command(["agents", "reflex-runtime", "status"])
     assert code == 0
@@ -238,11 +295,38 @@ def test_reflex_runtime_status_and_deactivate_commands(
     stopped = json.loads(out)
     assert stopped["activation"]["routing_influence_active"] is False
 
-    out, _ = route_command(["agents", "reflex-runtime", "status"])
-    assert json.loads(out)["routing_influence_active"] is False
+
+def test_unsigned_runtime_cli_expansion_is_disabled(monkeypatch, tmp_path):
+    monkeypatch.setenv("PHIOS_REFLEX_HOME", str(tmp_path))
+    monkeypatch.setattr("phios.shell.phi_commands.time.time", lambda: 200)
+
+    out, code = route_command(
+        [
+            "agents",
+            "reflex-runtime",
+            "grant-ingest",
+            "legacy.json",
+        ]
+    )
+    assert code == 0
+    assert "Unsigned live grant ingestion is disabled" in out
+
+    out, code = route_command(
+        [
+            "agents",
+            "reflex-runtime",
+            "activate",
+            "--request",
+            "request.json",
+            "--grant-id",
+            "legacy",
+        ]
+    )
+    assert code == 0
+    assert "Unsigned live activation is disabled" in out
 
 
-def test_reflex_runtime_policy_and_grant_ingest_files(
+def test_reflex_authority_file_ingest_and_activation(
     monkeypatch,
     tmp_path,
 ):
@@ -251,26 +335,22 @@ def test_reflex_runtime_policy_and_grant_ingest_files(
     monkeypatch.setattr("phios.shell.phi_commands.time.time", lambda: 200)
 
     policy = _policy()
-    request = ReflexActivationRequest(
-        provider="jev",
-        models=("jev-test",),
-        routing_surface=ROUTING_SURFACE,
-        allowed_dimensions=("role", "system2"),
-        influence_weight=0.20,
-    )
-    grant = ReflexActivationGrant(
+    request = _request()
+    anchor, grant, envelope = _signed_artifacts(
+        policy,
+        request,
         grant_id="grant-file",
-        authority_source="operator",
-        policy_state_sha256=policy.state_sha256,
-        current_activation_sha256=None,
-        activation_request_sha256=request.request_sha256,
-        disposition="ACTIVATE",
     )
     policy_path = tmp_path / "policy.json"
-    grant_path = tmp_path / "grant.json"
+    anchor_path = tmp_path / "anchor.json"
+    envelope_path = tmp_path / "signed-grant.json"
     request_path = tmp_path / "request.json"
     policy_path.write_text(json.dumps(policy.to_dict()), encoding="utf-8")
-    grant_path.write_text(json.dumps(grant.to_payload()), encoding="utf-8")
+    anchor_path.write_text(json.dumps(anchor.to_dict()), encoding="utf-8")
+    envelope_path.write_text(
+        json.dumps(envelope.to_dict()),
+        encoding="utf-8",
+    )
     request_path.write_text(
         json.dumps(request.to_payload()),
         encoding="utf-8",
@@ -290,9 +370,10 @@ def test_reflex_runtime_policy_and_grant_ingest_files(
     out, code = route_command(
         [
             "agents",
-            "reflex-runtime",
-            "grant-ingest",
-            str(grant_path),
+            "reflex-authority",
+            "trust-ingest",
+            str(anchor_path),
+            "--yes",
         ]
     )
     assert code == 0
@@ -301,17 +382,37 @@ def test_reflex_runtime_policy_and_grant_ingest_files(
     out, code = route_command(
         [
             "agents",
-            "reflex-runtime",
+            "reflex-authority",
+            "grant-ingest",
+            str(envelope_path),
+        ]
+    )
+    assert code == 0
+    assert json.loads(out)["ok"] is True
+
+    out, code = route_command(
+        [
+            "agents",
+            "reflex-authority",
             "activate",
             "--request",
             str(request_path),
             "--grant-id",
-            "grant-file",
+            grant.grant_id,
             "--lease-until-epoch",
             "500",
+            "--yes",
         ]
     )
     assert code == 0
     activated = json.loads(out)
     assert activated["ok"] is True
     assert activated["lease"]["valid_through_epoch"] == 500
+
+    out, code = route_command(
+        ["agents", "reflex-authority", "status"]
+    )
+    assert code == 0
+    status = json.loads(out)
+    assert status["routing_influence_active"] is True
+    assert len(status["control_sha256"]) == 64
