@@ -154,19 +154,22 @@ class OllamaEmbeddingProvider:
             self._identity = self._resolve_identity()
         return self._identity
 
-    def _resolve_identity(self) -> EmbeddingIdentity:
+    def _resolve_identity(self, *, timeout: float | None = None) -> EmbeddingIdentity:
+        request_timeout = self.timeout if timeout is None else min(self.timeout, timeout)
+        if request_timeout <= 0:
+            raise TimeoutError("embedding deadline expired")
         version_payload = self.transport.request_json(
             "GET",
             f"{self.endpoint}/api/version",
             payload=None,
-            timeout=self.timeout,
+            timeout=request_timeout,
         )
         provider_version = require_nonempty(str(version_payload.get("version", "")), "version")
         tags = self.transport.request_json(
             "GET",
             f"{self.endpoint}/api/tags",
             payload=None,
-            timeout=self.timeout,
+            timeout=request_timeout,
         )
         models = tags.get("models")
         if not isinstance(models, list):
@@ -175,7 +178,9 @@ class OllamaEmbeddingProvider:
         for item in models:
             if not isinstance(item, dict):
                 continue
-            candidate = str(item.get("model") or item.get("name") or "")
+            candidate = str(item.get("model") or item.get("name") or "").strip()
+            if not candidate:
+                continue
             if _canonical_model_name(candidate) == self.model:
                 match = item
                 break
@@ -201,7 +206,10 @@ class OllamaEmbeddingProvider:
         if remaining <= 0:
             raise TimeoutError("embedding deadline expired")
         # Refresh immediately before inference so the receipt binds the local artifact used.
-        self._identity = self._resolve_identity()
+        self._identity = self._resolve_identity(timeout=remaining)
+        remaining = min(self.timeout, deadline - time.monotonic())
+        if remaining <= 0:
+            raise TimeoutError("embedding deadline expired")
         payload = self.transport.request_json(
             "POST",
             f"{self.endpoint}/api/embed",
