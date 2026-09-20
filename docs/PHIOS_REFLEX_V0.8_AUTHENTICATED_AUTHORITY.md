@@ -525,3 +525,15 @@ Possible v0.9 work:
 
 The planner influence surface should remain exactly as narrow as v0.6 until
 those guarantees are proven.
+
+
+---
+
+## Next rung
+
+PhiReflex v0.8 is followed by
+[PhiReflex v0.9 Trust Lifecycle and Attestation](PHIOS_REFLEX_V0.9_TRUST_LIFECYCLE_ATTESTATION.md).
+v0.9 retires or rotates trusted signing keys through signed transitions,
+requires authenticated provider manifests and activation-use policy for the
+official live path, supports exact signed lease renewal, and adds signed
+checkpoints over the current runtime ledger and control fingerprint.
