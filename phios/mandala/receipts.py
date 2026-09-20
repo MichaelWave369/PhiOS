@@ -150,6 +150,24 @@ class ActionReceipt(ReceiptEnvelope):
 
 
 @dataclass(frozen=True, kw_only=True)
+class MemoryOperationReceipt(ReceiptEnvelope):
+    operation_id: str
+    operation: str
+    source_ids: tuple[str, ...] = field(default_factory=tuple)
+    record_versions: tuple[dict[str, Any], ...] = field(default_factory=tuple)
+    authorization_policy_sha256: str = ""
+    input_sha256: str = ""
+    canonical_status: str = "unchanged"
+    index_status: str = "unavailable"
+    error_code: str | None = None
+    promotion_status: str = "not_promoted"
+    action_authority: bool = False
+    execution_authority: bool = False
+    receipt_sha256: str = ""
+    receipt_type: str = field(init=False, default="MemoryOperationReceipt")
+
+
+@dataclass(frozen=True, kw_only=True)
 class MemoryPromotionReceipt(ReceiptEnvelope):
     candidate_memory: dict[str, Any] = field(default_factory=dict)
     source_refs: tuple[str, ...] = field(default_factory=tuple)
