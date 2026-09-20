@@ -135,7 +135,10 @@ def observe_lifecycle_gate(
             # Invalid receipt evidence can never resolve a prepared journal.
             continue
         reconciliation_seen += 1
-        if receipt.app_id == normalized_app_id:
+        if receipt.app_id == normalized_app_id and receipt.status == "cancelled":
+            # complete/finalize writes a valid v0.41 cleanup receipt first; that
+            # cleanup receipt is the resolving evidence. A cancellation has no
+            # cleanup receipt, so its reconciliation receipt resolves the journal.
             reconciliation_by_journal.add(receipt.retained_cleanup_journal_sha256)
 
     unresolved: list[UnresolvedLifecycleJournal] = []
