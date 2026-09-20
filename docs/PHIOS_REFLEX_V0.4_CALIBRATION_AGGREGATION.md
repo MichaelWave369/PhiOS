@@ -320,3 +320,15 @@ specific:
 - rollback condition.
 
 Only then should PhiReflex move from observation into bounded routing influence.
+
+
+---
+
+## Next rung
+
+PhiReflex v0.4 is followed by
+[PhiReflex v0.5 Governed Influence Adoption](PHIOS_REFLEX_V0.5_GOVERNED_INFLUENCE_ADOPTION.md).
+v0.5 consumes an exact `REVIEW_ELIGIBLE` readiness receipt plus an exact
+external grant and may adopt a scoped immutable influence-policy state. The
+state remains runtime-inactive and carries zero promotion, action, or execution
+authority.
