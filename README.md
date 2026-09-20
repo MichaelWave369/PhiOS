@@ -317,8 +317,8 @@ scripts/       development and policy helpers
 
 ## Geometric, relational, and dynamic field reasoning
 
-PhiOS now has a seven-rung governed reasoning core for computational state,
-plan selection, and action binding before separately authorized execution.
+PhiOS now has an eight-rung governed reasoning and execution-handoff core for
+computational state, plan selection, action binding, and bounded side effects.
 
 **Geometric Reasoning v0.1** reduces state spaces through constraints,
 equivalence classes, and conserved invariants.
@@ -349,6 +349,13 @@ existing Spine capability plus one canonical payload SHA-256. The binding
 records requested permissions but does not grant them; the existing Spine
 `PermissionGate` remains the execution authority checkpoint.
 
+**Governed Execution Handoff v0.8** revalidates the current plan, binding,
+payload digest, and current capability contract immediately before execution,
+then delegates authority evaluation and side effects to the existing Spine.
+Bindings are atomically claimed to prevent duplicate execution; denied
+permission releases the claim, while successful or failed executor entry
+consumes it.
+
 The critical boundaries are:
 
 ```text
@@ -375,6 +382,10 @@ EXECUTE
 BOUND ACTION
 does not mean
 PERMISSION GRANTED
+
+EARLIER VALIDATION
+does not replace
+EXECUTION-TIME REVALIDATION
 ```
 
 Authority therefore remains a gate, not a score, and plan adoption remains
@@ -392,6 +403,7 @@ See:
 - [Governed Replanning v0.5](docs/PHIOS_GOVERNED_REPLANNING_V0.5.md)
 - [Governed Plan Adoption v0.6](docs/PHIOS_GOVERNED_PLAN_ADOPTION_V0.6.md)
 - [Governed Action Binding v0.7](docs/PHIOS_GOVERNED_ACTION_BINDING_V0.7.md)
+- [Governed Execution Handoff v0.8](docs/PHIOS_GOVERNED_EXECUTION_HANDOFF_V0.8.md)
 
 ---
 

@@ -303,3 +303,15 @@ mypy phios/ --ignore-missing-imports
 pytest -q
 bash scripts/policy_no_telemetry_runtime.sh
 ```
+
+
+---
+
+## Next rung
+
+Governed Action Binding v0.7 is followed by
+[Governed Execution Handoff v0.8](PHIOS_GOVERNED_EXECUTION_HANDOFF_V0.8.md).
+v0.8 revalidates the exact current plan, binding, payload digest, and current
+Spine capability contract immediately before execution, atomically claims the
+binding against replay, and then delegates permission evaluation and side
+effects to the existing Spine.
