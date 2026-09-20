@@ -12,7 +12,6 @@ pretend a second local JSON file is a hardware root of trust.
 from __future__ import annotations
 
 import importlib.util
-import json
 import os
 from dataclasses import dataclass
 from pathlib import Path
@@ -25,7 +24,6 @@ from phios.reflex.authority import (
     PURPOSE_REPLICATION_SNAPSHOT,
     ReflexAuthorityContractError,
     ReflexAuthorityPlane,
-    ReflexAuthorityTrustAnchor,
     canonical_authority_bytes,
     trust_anchor_from_payload,
     _atomic_write_json,
@@ -39,7 +37,6 @@ from phios.reflex.authority import (
 )
 from phios.reflex.coordination import runtime_locked
 from phios.reflex.lifecycle import (
-    ReflexLifecycleContractError,
     ReflexLedgerCheckpoint,
     ReflexProviderManifest,
     ReflexTrustLifecyclePlane,
