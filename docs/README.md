@@ -16,7 +16,7 @@ PhiOS changes quickly, so use this source-of-truth order when documents disagree
 |---|---:|---|
 | App Platform | **v0.42** | [overview](../README_APP_PLATFORM_V0.42.md) · [contract](PHIOS_APP_PLATFORM_V0.42_CLEANUP_RECONCILIATION.md) |
 | Spine | **v0.24** | [overview](../README_SPINE_V0.24.md) · [contract](PHIOS_SPINE_V0.24_NUMERIC_TRANSITION_CONTRACT.md) |
-| PhiReflex | **v0.1** | [shadow System-One contract](PHIOS_REFLEX_V0.1.md) |
+| PhiReflex | **v0.2** | [v0.1 provider contract](PHIOS_REFLEX_V0.1.md) · [v0.2 dispatch shadow](PHIOS_REFLEX_V0.2_DISPATCH_SHADOW.md) |
 | Core geometric / relational reasoning | **v0.8** | [v0.1 geometry](PHIOS_GEOMETRIC_REASONING_V0.1.md) · [v0.2 relational field](PHIOS_RELATIONAL_FIELD_V0.2.md) · [v0.3 dynamic field](PHIOS_DYNAMIC_FIELD_V0.3.md) · [v0.4 field-aware routing](PHIOS_FIELD_AWARE_ROUTING_V0.4.md) · [v0.5 governed replanning](PHIOS_GOVERNED_REPLANNING_V0.5.md) · [v0.6 plan adoption](PHIOS_GOVERNED_PLAN_ADOPTION_V0.6.md) · [v0.7 action binding](PHIOS_GOVERNED_ACTION_BINDING_V0.7.md) · [v0.8 execution handoff](PHIOS_GOVERNED_EXECUTION_HANDOFF_V0.8.md) |
 | Living specification | current | [PHIOS_LIVING_SPEC.md](PHIOS_LIVING_SPEC.md) |
 | Architecture blueprint | current / evolving | [BLUEPRINT.md](BLUEPRINT.md) |
@@ -60,6 +60,7 @@ The App Platform trail is intentionally retained. Each overview explains the run
 | Version | Capability | Contract |
 |---|---|---|
 | v0.1 | Provider-neutral rules baseline + optional Jev shadow evaluation | [contract](PHIOS_REFLEX_V0.1.md) |
+| v0.2 | Real dispatch-path shadow observation with planner isolation | [contract](PHIOS_REFLEX_V0.2_DISPATCH_SHADOW.md) |
 
 ## Core reasoning version trail
 
