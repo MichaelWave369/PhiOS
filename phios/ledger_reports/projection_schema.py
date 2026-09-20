@@ -4,6 +4,7 @@ import json
 from typing import Any
 
 PROJECTION_SCHEMA_VERSION = "phios.ledger_projection.v0.1"
+DUCKDB_VERSION = "1.5.5"
 
 EXECUTION_COLUMNS = (
     "receipt_id",
