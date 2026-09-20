@@ -296,3 +296,14 @@ v0.1 tests verify:
 
 Live TypeSafe calls are intentionally excluded from CI because CI must not
 require credentials or external network availability.
+
+
+---
+
+## Next rung
+
+PhiReflex v0.1 is followed by
+[PhiReflex v0.2 Dispatch Shadow Integration](PHIOS_REFLEX_V0.2_DISPATCH_SHADOW.md).
+v0.2 observes the real PhiOS dispatch path only after the operational plan
+already exists, binding the Reflex receipt to exact context and plan hashes
+without inserting Reflex/Jev material into planner inputs.
