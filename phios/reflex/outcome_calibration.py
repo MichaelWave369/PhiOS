@@ -149,6 +149,8 @@ def evaluate_dispatch_outcome(
     baseline = _score_provider(baseline_decision, observation)
 
     shadow_status = str(reflex_obj.get("shadow_status", ""))
+    if shadow_status not in {"ok", "unavailable", "error"}:
+        raise ReflexOutcomeContractError("unsupported nested shadow_status")
     shadow_decision_obj = reflex_obj.get("shadow")
     shadow: ProviderCalibration | None = None
     if shadow_status == "ok":
