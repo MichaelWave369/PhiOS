@@ -122,18 +122,18 @@ def main() -> int:
 
     if args.command == "observation-export":
         try:
-            result = ObservationSnapshotExporter(
+            observation_snapshot = ObservationSnapshotExporter(
                 state_root=Path(args.state_root)
             ).export(authority=authority)
         except (PermissionError, ValueError, RuntimeError, OSError) as exc:
             print(json.dumps({"ok": False, "error": str(exc)}, indent=2))
             return 2
-        print(json.dumps(result.to_dict(), indent=2))
+        print(json.dumps(observation_snapshot.to_dict(), indent=2))
         return 0
 
     if args.command == "observation-report":
         try:
-            result = ObservationReportService(
+            observation_report = ObservationReportService(
                 state_root=Path(args.state_root)
             ).run(
                 snapshot_id=args.snapshot_id,
@@ -143,7 +143,7 @@ def main() -> int:
         except (PermissionError, ValueError, RuntimeError, OSError) as exc:
             print(json.dumps({"ok": False, "error": str(exc)}, indent=2))
             return 2
-        print(json.dumps(result.to_dict(), indent=2))
+        print(json.dumps(observation_report.to_dict(), indent=2))
         return 0
 
     service = LedgerReportService(state_root=Path(args.state_root))
