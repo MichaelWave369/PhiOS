@@ -140,7 +140,59 @@ class MemoryAccessDecision:
 
 
 @dataclass(frozen=True, kw_only=True)
+class EmbeddingIdentity:
+    provider: str
+    provider_version: str
+    model: str
+    model_digest: str
+    dimensions: int
+    preprocessing_version: str = "text-v1"
+    metric: Literal["l2"] = "l2"
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "provider": self.provider,
+            "provider_version": self.provider_version,
+            "model": self.model,
+            "model_digest": self.model_digest,
+            "dimensions": self.dimensions,
+            "preprocessing_version": self.preprocessing_version,
+            "metric": self.metric,
+        }
+
+    @property
+    def generation_id(self) -> str:
+        return sha256_json(self.to_dict())
+
+
+@dataclass(frozen=True, kw_only=True)
+class VectorCandidate:
+    record_id: str
+    revision: int
+    record_sha256: str
+    retrieval_distance: float
+
+
+@dataclass(frozen=True, kw_only=True)
+class MemoryHit:
+    record: MemoryRecord
+    retrieval_distance: float
+
+
+@dataclass(frozen=True, kw_only=True)
+class IndexSyncResult:
+    status: Literal["ok", "unavailable", "degraded"]
+    processed: int = 0
+    indexed: int = 0
+    removed: int = 0
+    stale: int = 0
+    error_code: str | None = None
+
+
+@dataclass(frozen=True, kw_only=True)
 class MemoryResult:
-    status: Literal["ok", "blocked", "unavailable", "invalid"]
+    status: Literal["ok", "blocked", "unavailable", "invalid", "degraded"]
     record: MemoryRecord | None = None
+    hits: tuple[MemoryHit, ...] = field(default_factory=tuple)
+    receipt_id: str | None = None
     error_code: str | None = None
