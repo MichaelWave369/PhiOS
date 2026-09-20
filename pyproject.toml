@@ -30,6 +30,7 @@ Repository = "https://github.com/MichaelWave369/PhiOS"
 [project.optional-dependencies]
 screen = ["Pillow>=10.0"]
 ocr = ["Pillow>=10.0", "pytesseract>=0.3.10"]
+reflex-jev = ["typesafe-sdk>=0.7,<1"]
 
 dev = [
   "build>=1.2.2",
@@ -45,9 +46,10 @@ phi = "phios.shell.phi_session:main"
 phi-mcp = "phios.mcp.server:main"
 phi-spine = "phios.spine.cli:main"
 phi-app = "phios.apps.cli:main"
+phi-reflex = "phios.reflex.cli:main"
 
 [tool.setuptools]
-packages = ["phios", "phios.shell", "phios.core", "phios.display", "phios.desktop", "phios.adapters", "phios.services", "phios.templates", "phios.ml", "phios.mcp", "phios.mcp.resources", "phios.mcp.tools", "phios.mcp.prompts", "phios.spine", "phios.mandala", "phios.soma", "phios.reality", "phios.apps"]
+packages = ["phios", "phios.shell", "phios.core", "phios.display", "phios.desktop", "phios.adapters", "phios.services", "phios.templates", "phios.ml", "phios.mcp", "phios.mcp.resources", "phios.mcp.tools", "phios.mcp.prompts", "phios.spine", "phios.mandala", "phios.soma", "phios.reality", "phios.apps", "phios.reflex", "phios.reflex.providers"]
 
 [tool.setuptools.dynamic]
 version = {attr = "phios.__version__"}
