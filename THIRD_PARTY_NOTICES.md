@@ -18,6 +18,14 @@ This document is informational and does not replace any upstream license text.
 - PhiOS requirement: `mcp>=1.26,<2`
 - Upstream license: MIT
 
+### TypeSafe AI Python SDK (optional)
+
+- Purpose: optional Jev / System One provider for PhiReflex shadow evaluation
+- PhiOS extra: `reflex-jev`
+- PhiOS requirement: `typesafe-sdk>=0.7,<1`
+- Upstream license: MIT
+- Runtime note: the SDK calls TypeSafe's external API when configured; Jev model weights are not bundled or redistributed by PhiOS.
+
 ## Development and test dependencies
 
 The project also uses development tools listed in `pyproject.toml` such as build, twine, requests, pytest, Ruff, and mypy.
