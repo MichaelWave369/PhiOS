@@ -63,6 +63,10 @@ from phios.reflex.control_plane import (
     activation_request_from_payload,
 )
 from phios.reflex.dispatch_shadow import observe_dispatch
+from phios.reflex.lifecycle import (
+    ReflexLifecycleContractError,
+    ReflexTrustLifecyclePlane,
+)
 from phios.reflex.models import ReflexInput
 from phios.reflex.providers import JevReflexProvider, RulesReflexProvider
 
@@ -2943,10 +2947,22 @@ def cmd_dispatch(args: list[str], session: object | None = None) -> str:
     }
     reflex_control = ReflexRuntimeControlPlane()
     reflex_authority = ReflexAuthorityPlane(control=reflex_control)
+    reflex_lifecycle = ReflexTrustLifecyclePlane(
+        control=reflex_control,
+        authority=reflex_authority,
+    )
     evaluation_epoch = int(time.time())
     try:
-        authority_status = reflex_authority.status(
-            evaluation_epoch=evaluation_epoch
+        lifecycle_status = reflex_lifecycle.status(
+            evaluation_epoch=evaluation_epoch,
+            adapter_id=JevReflexProvider.adapter_id,
+            adapter_version=JevReflexProvider.adapter_version,
+        )
+        authority_status_obj = lifecycle_status.get("authority")
+        authority_status = (
+            authority_status_obj
+            if isinstance(authority_status_obj, dict)
+            else {}
         )
         control_status_obj = authority_status.get("control")
         control_status = (
@@ -2959,13 +2975,13 @@ def cmd_dispatch(args: list[str], session: object | None = None) -> str:
             activation_obj if isinstance(activation_obj, dict) else None
         )
         if (
-            authority_status.get("routing_influence_active") is True
+            lifecycle_status.get("routing_influence_active") is True
             and activation is not None
         ):
             provider = str(activation.get("provider", ""))
             if provider == "jev":
                 reflex_signal, reflex_runtime = (
-                    reflex_authority.evaluate_active(
+                    reflex_lifecycle.evaluate_active(
                         reflex_input=ReflexInput(
                             task_text=task,
                             tool_intent=True,
@@ -2973,6 +2989,8 @@ def cmd_dispatch(args: list[str], session: object | None = None) -> str:
                         ),
                         baseline_provider=RulesReflexProvider(),
                         influence_provider=JevReflexProvider(),
+                        adapter_id=JevReflexProvider.adapter_id,
+                        adapter_version=JevReflexProvider.adapter_version,
                         evaluation_epoch=evaluation_epoch,
                     )
                 )
@@ -2984,6 +3002,7 @@ def cmd_dispatch(args: list[str], session: object | None = None) -> str:
     except (
         ReflexAuthorityContractError,
         ReflexControlPlaneContractError,
+        ReflexLifecycleContractError,
     ) as exc:
         reflex_signal = None
         reflex_runtime = {
@@ -3156,6 +3175,150 @@ def cmd_agents(args: list[str], session: object | None = None) -> str:
             indent=2,
         )
 
+    if action == "reflex-lifecycle":
+        subaction = args[1] if len(args) > 1 else "status"
+        control = ReflexRuntimeControlPlane()
+        authority = ReflexAuthorityPlane(control=control)
+        lifecycle = ReflexTrustLifecyclePlane(
+            control=control,
+            authority=authority,
+        )
+        evaluation_epoch = int(time.time())
+
+        def load_lifecycle_json(path_text: str) -> dict[str, object]:
+            parsed = json.loads(
+                Path(path_text).read_text(encoding="utf-8")
+            )
+            if not isinstance(parsed, dict):
+                raise ValueError("lifecycle artifact must be a JSON object")
+            return dict(parsed)
+
+        try:
+            if subaction == "status":
+                return json.dumps(
+                    lifecycle.status(
+                        evaluation_epoch=evaluation_epoch,
+                        adapter_id=JevReflexProvider.adapter_id,
+                        adapter_version=JevReflexProvider.adapter_version,
+                    ),
+                    indent=2,
+                )
+            if subaction == "trust-transition":
+                if len(args) < 3:
+                    return (
+                        "Usage: agents reflex-lifecycle trust-transition "
+                        "<transition.json>"
+                    )
+                return json.dumps(
+                    lifecycle.ingest_trust_transition(
+                        load_lifecycle_json(args[2]),
+                        evaluation_epoch=evaluation_epoch,
+                    ),
+                    indent=2,
+                )
+            if subaction == "use-policy":
+                if len(args) < 3:
+                    return (
+                        "Usage: agents reflex-lifecycle use-policy "
+                        "<policy.json>"
+                    )
+                return json.dumps(
+                    lifecycle.ingest_grant_use_policy(
+                        load_lifecycle_json(args[2]),
+                        evaluation_epoch=evaluation_epoch,
+                    ),
+                    indent=2,
+                )
+            if subaction == "provider-manifest":
+                if len(args) < 3:
+                    return (
+                        "Usage: agents reflex-lifecycle provider-manifest "
+                        "<manifest.json>"
+                    )
+                return json.dumps(
+                    lifecycle.ingest_provider_manifest(
+                        load_lifecycle_json(args[2]),
+                        evaluation_epoch=evaluation_epoch,
+                    ),
+                    indent=2,
+                )
+            if subaction == "checkpoint":
+                if len(args) < 3:
+                    return (
+                        "Usage: agents reflex-lifecycle checkpoint "
+                        "<checkpoint.json>"
+                    )
+                return json.dumps(
+                    lifecycle.ingest_checkpoint(
+                        load_lifecycle_json(args[2]),
+                        evaluation_epoch=evaluation_epoch,
+                    ),
+                    indent=2,
+                )
+            if subaction == "lease-renew":
+                if len(args) < 3:
+                    return (
+                        "Usage: agents reflex-lifecycle lease-renew "
+                        "<renewal.json>"
+                    )
+                return json.dumps(
+                    lifecycle.renew_lease(
+                        load_lifecycle_json(args[2]),
+                        evaluation_epoch=evaluation_epoch,
+                    ),
+                    indent=2,
+                )
+            if subaction == "activate":
+                request_path = _arg_value(args, "--request")
+                grant_id = _arg_value(args, "--grant-id")
+                lease_raw = _arg_value(args, "--lease-until-epoch")
+                expected = _arg_value(args, "--expect-control-sha")
+                if not request_path or not grant_id:
+                    return (
+                        "Usage: agents reflex-lifecycle activate "
+                        "--request <request.json> --grant-id <id> --yes "
+                        "[--lease-until-epoch <int>] "
+                        "[--expect-control-sha <sha>]"
+                    )
+                if "--yes" not in args:
+                    return (
+                        "Refusing lifecycle-governed routing activation "
+                        "without explicit confirmation. Re-run with --yes."
+                    )
+                request = activation_request_from_payload(
+                    load_lifecycle_json(request_path)
+                )
+                lease_until = (
+                    int(lease_raw) if lease_raw is not None else None
+                )
+                return json.dumps(
+                    lifecycle.activate_verified(
+                        request=request,
+                        grant_id=grant_id,
+                        adapter_id=JevReflexProvider.adapter_id,
+                        adapter_version=JevReflexProvider.adapter_version,
+                        evaluation_epoch=evaluation_epoch,
+                        lease_until_epoch=lease_until,
+                        expected_control_sha256=expected,
+                    ),
+                    indent=2,
+                )
+        except (
+            ReflexAuthorityContractError,
+            ReflexControlPlaneContractError,
+            ReflexLifecycleContractError,
+            ValueError,
+            OSError,
+            json.JSONDecodeError,
+        ) as exc:
+            return f"Reflex lifecycle error: {exc}"
+
+        return (
+            "Usage: agents reflex-lifecycle "
+            "[status|trust-transition|use-policy|provider-manifest|"
+            "checkpoint|lease-renew|activate]"
+        )
+
     if action == "reflex-authority":
         subaction = args[1] if len(args) > 1 else "status"
         control = ReflexRuntimeControlPlane()
@@ -3211,36 +3374,10 @@ def cmd_agents(args: list[str], session: object | None = None) -> str:
                     indent=2,
                 )
             if subaction == "activate":
-                request_path = _arg_value(args, "--request")
-                grant_id = _arg_value(args, "--grant-id")
-                lease_raw = _arg_value(args, "--lease-until-epoch")
-                if not request_path or not grant_id:
-                    return (
-                        "Usage: agents reflex-authority activate "
-                        "--request <request.json> --grant-id <id> --yes "
-                        "[--lease-until-epoch <int>] "
-                        "[--expect-control-sha <sha>]"
-                    )
-                if "--yes" not in args:
-                    return (
-                        "Refusing routing-authority activation without "
-                        "explicit confirmation. Re-run with --yes."
-                    )
-                request = activation_request_from_payload(
-                    load_authority_json(request_path)
-                )
-                lease_until = (
-                    int(lease_raw) if lease_raw is not None else None
-                )
-                return json.dumps(
-                    authority.activate_verified(
-                        request=request,
-                        grant_id=grant_id,
-                        evaluation_epoch=evaluation_epoch,
-                        lease_until_epoch=lease_until,
-                        expected_control_sha256=expected,
-                    ),
-                    indent=2,
+                return (
+                    "Direct v0.8 activation is disabled by PhiReflex v0.9. "
+                    "Use: phi agents reflex-lifecycle activate "
+                    "--request <request.json> --grant-id <id> --yes"
                 )
             if subaction == "revoke":
                 if len(args) < 3:
@@ -3459,7 +3596,7 @@ def cmd_agents(args: list[str], session: object | None = None) -> str:
             return f"Reflex evaluation error: {exc}"
         return json.dumps(result, indent=2)
 
-    return "Usage: agents [list|status <run_id>|kill <run_id> --yes|log <run_id>|reflex-authority ...|reflex-runtime ...|reflex-report [policy options]|reflex-evaluate <run_id> ...|figures [--top <n>] [--sector <name>]|evolve [--top <n>] [--sector <name>] [--task-key <key>] [--skill <skill>] [--min-coherence <v>]]"
+    return "Usage: agents [list|status <run_id>|kill <run_id> --yes|log <run_id>|reflex-lifecycle ...|reflex-authority ...|reflex-runtime ...|reflex-report [policy options]|reflex-evaluate <run_id> ...|figures [--top <n>] [--sector <name>]|evolve [--top <n>] [--sector <name>] [--task-key <key>] [--skill <skill>] [--min-coherence <v>]]"
 
 
 def cmd_recommend_arch(args: list[str], session: object | None = None) -> str:
