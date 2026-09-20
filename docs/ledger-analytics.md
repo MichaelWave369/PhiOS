@@ -168,7 +168,7 @@ Windows is intentionally unqualified for this worker in this increment.
 
 The worker starts DuckDB with external access disabled. Known-extension auto-install
 and autoload are disabled, community and unsigned extensions are disabled, persistent
-secrets and global S3 configuration are disabled, logging is disabled, threads and
+secrets are disabled, logging is disabled, threads and
 memory are bounded, temporary storage is bounded, and configuration is then locked.
 
 Projection construction uses fixed `CREATE TABLE` statements and parameterized inserts.
