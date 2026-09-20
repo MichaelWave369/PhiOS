@@ -380,3 +380,14 @@ A future v0.7 could add:
 
 Only after that operational control plane is proven should PhiReflex gain
 additional routing surfaces.
+
+
+---
+
+## Next rung
+
+PhiReflex v0.6 is followed by
+[PhiReflex v0.7 Runtime Control Plane](PHIOS_REFLEX_V0.7_RUNTIME_CONTROL_PLANE.md).
+v0.7 persists policy/activation/grants, restores valid live state on ordinary
+dispatch, supports one-way privilege-limiting leases, maintains a hash-chained
+runtime ledger, and fails closed on persisted-state or ledger corruption.
