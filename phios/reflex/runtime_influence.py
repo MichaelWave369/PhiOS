@@ -285,6 +285,14 @@ class GovernedReflexRuntimeInfluence:
     def __init__(self) -> None:
         self._policy_gate = GovernedReflexInfluenceAdoptionGate()
 
+    def validate_activation_grant(
+        self,
+        grant: ReflexActivationGrant,
+    ) -> None:
+        """Validate an external activation grant without consuming it."""
+
+        self._validate_grant(grant)
+
     def activate(
         self,
         *,
