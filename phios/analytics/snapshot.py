@@ -84,7 +84,7 @@ class LedgerSnapshotExporter:
             "created_at": created_at,
             "core": core,
         }
-        self._publish_snapshot(
+        effective_created_at = self._publish_snapshot(
             final_dir=final_dir,
             manifest=manifest,
             execution_bytes=execution.projected_bytes,
@@ -93,7 +93,7 @@ class LedgerSnapshotExporter:
         return LedgerSnapshot(
             snapshot_id=snapshot_id,
             snapshot_path=str(final_dir),
-            created_at=created_at,
+            created_at=effective_created_at,
             mapping_version=MAPPING_VERSION,
             policy_sha256=self.policy.policy_sha256,
             streams=stream_manifests,
@@ -174,11 +174,11 @@ class LedgerSnapshotExporter:
         *,
         logical_source: str,
     ) -> tuple[bytes, str, int, int]:
+        if path.is_symlink():
+            raise ValueError(f"{logical_source} must not be a symlink")
         if not path.exists():
             identity = sha256_json({"logical_source": logical_source, "state": "absent"})
             return b"", identity, 0, 0
-        if path.is_symlink():
-            raise ValueError(f"{logical_source} must not be a symlink")
 
         flags = os.O_RDONLY
         if hasattr(os, "O_NOFOLLOW"):
@@ -263,11 +263,10 @@ class LedgerSnapshotExporter:
         manifest: dict[str, Any],
         execution_bytes: bytes,
         mandala_bytes: bytes,
-    ) -> None:
+    ) -> str:
         self.output_root.mkdir(parents=True, exist_ok=True)
         if final_dir.exists():
-            self._validate_existing_snapshot(final_dir, manifest)
-            return
+            return self._validate_existing_snapshot(final_dir, manifest)
 
         temp_dir = Path(
             tempfile.mkdtemp(prefix=".snapshot-", dir=str(self.output_root))
@@ -283,7 +282,8 @@ class LedgerSnapshotExporter:
             try:
                 temp_dir.rename(final_dir)
             except FileExistsError:
-                self._validate_existing_snapshot(final_dir, manifest)
+                return self._validate_existing_snapshot(final_dir, manifest)
+            return str(manifest["created_at"])
         finally:
             if temp_dir.exists():
                 shutil.rmtree(temp_dir)
@@ -299,7 +299,7 @@ class LedgerSnapshotExporter:
     def _validate_existing_snapshot(
         final_dir: Path,
         expected_manifest: dict[str, Any],
-    ) -> None:
+    ) -> str:
         manifest_path = final_dir / "manifest.json"
         try:
             existing = json.loads(manifest_path.read_text(encoding="utf-8"))
@@ -311,3 +311,32 @@ class LedgerSnapshotExporter:
             raise RuntimeError("existing snapshot ID mismatch")
         if existing.get("core") != expected_manifest.get("core"):
             raise RuntimeError("existing snapshot core mismatch")
+        core = existing.get("core")
+        if not isinstance(core, dict):
+            raise RuntimeError("existing snapshot core is invalid")
+        if sha256_json(core) != existing.get("snapshot_id"):
+            raise RuntimeError("existing snapshot manifest hash mismatch")
+        streams = core.get("streams")
+        if not isinstance(streams, list):
+            raise RuntimeError("existing snapshot stream manifest is invalid")
+        projection_files = {
+            "execution": final_dir / "execution.jsonl",
+            "mandala": final_dir / "mandala.jsonl",
+        }
+        for stream in streams:
+            if not isinstance(stream, dict):
+                raise RuntimeError("existing snapshot stream entry is invalid")
+            name = stream.get("stream")
+            expected_hash = stream.get("projection_sha256")
+            if name not in projection_files or not isinstance(expected_hash, str):
+                raise RuntimeError("existing snapshot stream metadata is invalid")
+            try:
+                actual_hash = sha256_bytes(projection_files[name].read_bytes())
+            except FileNotFoundError as exc:
+                raise RuntimeError("existing snapshot projection is missing") from exc
+            if actual_hash != expected_hash:
+                raise RuntimeError("existing snapshot projection hash mismatch")
+        created_at = existing.get("created_at")
+        if not isinstance(created_at, str) or not created_at:
+            raise RuntimeError("existing snapshot created_at is invalid")
+        return created_at
