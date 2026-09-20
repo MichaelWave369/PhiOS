@@ -341,3 +341,29 @@ def test_policy_replacement_requires_live_influence_to_be_deactivated(tmp_path):
             changed.to_dict(),
             evaluation_epoch=102,
         )
+
+def test_rejected_lease_extension_is_mutation_free(tmp_path):
+    control = ReflexRuntimeControlPlane(root=tmp_path)
+    _, request, _ = _setup(control)
+    control.activate(
+        request=request,
+        grant_id="grant-001",
+        evaluation_epoch=101,
+        lease_until_epoch=500,
+    )
+    before = control.status(evaluation_epoch=200)
+    before_sha = before["activation"]["state_sha256"]
+    before_ledger = before["ledger_entries"]
+
+    with pytest.raises(ReflexControlPlaneContractError):
+        control.activate(
+            request=request,
+            grant_id="grant-001",
+            evaluation_epoch=201,
+            lease_until_epoch=600,
+        )
+
+    after = control.status(evaluation_epoch=202)
+    assert after["activation"]["state_sha256"] == before_sha
+    assert after["lease"]["valid_through_epoch"] == 500
+    assert after["ledger_entries"] == before_ledger
