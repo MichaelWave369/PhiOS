@@ -463,6 +463,60 @@ class ReflexTrustLifecyclePlane:
         return {"ok": True, "manifest": manifest.to_dict(), "receipt": receipt.to_dict()}
 
     @runtime_locked
+    def require_provider_manifest(
+        self,
+        *,
+        grant_id: str,
+        provider: str,
+        models: tuple[str, ...],
+        adapter_id: str,
+        adapter_version: str,
+        evaluation_epoch: int,
+    ) -> ReflexProviderManifest:
+        """Return the exact effective provider manifest for a live candidate."""
+
+        envelope = self._require_grant_by_id(grant_id)
+        return self._require_provider_manifest(
+            envelope=envelope,
+            provider=provider,
+            models=models,
+            adapter_id=adapter_id,
+            adapter_version=adapter_version,
+            evaluation_epoch=_epoch(evaluation_epoch),
+        )
+
+    @runtime_locked
+    def require_grant_use_policy(
+        self,
+        *,
+        grant_sha256: str,
+        evaluation_epoch: int,
+    ) -> ReflexGrantUsePolicy:
+        """Return the effective signed activation-use policy for one grant."""
+
+        return self._require_use_policy(
+            grant_sha256,
+            evaluation_epoch=_epoch(evaluation_epoch),
+        )
+
+    @runtime_locked
+    def is_key_live(
+        self,
+        *,
+        issuer_id: str,
+        key_id: str,
+        evaluation_epoch: int,
+    ) -> bool:
+        """Report whether a trusted signing key is live under v0.9 lifecycle."""
+
+        self._materialize_effective_rotations(_epoch(evaluation_epoch))
+        return self._key_is_live(
+            issuer_id,
+            key_id,
+            _epoch(evaluation_epoch),
+        )
+
+    @runtime_locked
     def activate_verified(
         self,
         *,
