@@ -135,3 +135,104 @@ phi-ledger \
 No DuckDB dependency exists in v0.1. That is intentionally deferred to the next
 increment, where a disposable projection will consume only validated snapshots and will
 expose named reports rather than arbitrary SQL.
+
+
+## Read-only DuckDB reports v0.2
+
+DuckDB is an optional, derived report engine. Install the reviewed backend with:
+
+```bash
+python -m pip install -e ".[ledger-reports]"
+```
+
+PhiOS pins `duckdb==1.5.5` for this increment. DuckDB does not open the live Ledger
+files. The trusted parent validates the immutable snapshot, maps approved fields into
+fixed typed rows, and passes only those rows to a disposable worker workspace.
+
+### Isolation
+
+The worker is qualified only on Linux in v0.2. It reuses the existing PhiOS bubblewrap
+and rlimit controls with:
+
+- network namespace denied;
+- private home and temporary directory;
+- read-only system roots;
+- a single disposable writable workspace;
+- bounded CPU, address space, open files, output size, and wall clock;
+- no canonical PhiOS state root mount;
+- no unsandboxed fallback.
+
+Windows is intentionally unqualified for this worker in this increment.
+
+### DuckDB configuration
+
+The worker starts DuckDB with external access disabled. Known-extension auto-install
+and autoload are disabled, community and unsigned extensions are disabled, persistent
+secrets are disabled, logging is disabled, threads and
+memory are bounded, temporary storage is bounded, and configuration is then locked.
+
+Projection construction uses fixed `CREATE TABLE` statements and parameterized inserts.
+DuckDB never receives snapshot file paths, Python data-frame objects, replacement scans,
+or live Ledger locations.
+
+Report connections reopen the finished database with `read_only=True`.
+
+### Authority
+
+Three permissions remain separate:
+
+```text
+ledger.snapshot.export
+ledger.report.build
+ledger.report.read
+```
+
+None implies either of the others.
+
+Derived projections and reports explicitly carry:
+
+```text
+promotion_status = not_promoted
+action_authority = false
+execution_authority = false
+```
+
+DuckDB has no grant writer, Ledger writer, executor registry, memory service, or callback
+into the Spine execution loop.
+
+### Closed query catalog
+
+The public surface accepts report names, never SQL text:
+
+```text
+execution_outcomes_v1
+permission_denials_v1
+repeated_failures_v1
+lineage_v1
+coverage_v1
+```
+
+Results are bounded and every report binds its snapshot ID, projection ID, projection
+SHA-256, query catalog version, row limit, exact rows, and truncation state.
+
+The first reports deliberately do not fabricate metrics the current receipts do not
+contain. In particular, no latency, resource-use, fallback, or inferred root-cause
+fields are synthesized.
+
+### Derived storage
+
+```text
+<state_root>/derived/ledger-projections/
+  <snapshot-id>/<projection-id>/
+    manifest.json
+    projection.duckdb
+
+<state_root>/derived/ledger-reports/
+  <report-id>.json
+```
+
+A projection database is hashed before publication. Every later report verifies that
+hash before the worker receives a disposable copy.
+
+DuckDB failure or sandbox unavailability affects only report capability. It cannot alter
+canonical Ledger state, execution receipts, grants, governed memory, or action authority.
