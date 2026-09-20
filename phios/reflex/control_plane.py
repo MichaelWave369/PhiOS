@@ -357,6 +357,61 @@ class ReflexRuntimeControlPlane:
         }
 
     @runtime_locked
+    def renew_lease_authorized(
+        self,
+        *,
+        valid_through_epoch: int,
+        evaluation_epoch: int,
+        authorization_sha256: str,
+    ) -> dict[str, Any]:
+        """Extend a lease only when an upstream authenticated authority binds it."""
+
+        epoch = _epoch(evaluation_epoch)
+        deadline = _epoch(valid_through_epoch)
+        _require_sha256(authorization_sha256, "authorization_sha256")
+        self.recover(evaluation_epoch=epoch)
+        policy = self._require_policy()
+        state = self._require_activation()
+        if not state.routing_influence_active:
+            raise ReflexControlPlaneContractError(
+                "cannot renew lease for inactive runtime influence"
+            )
+        current = self._load_lease_optional()
+        if current is None:
+            raise ReflexControlPlaneContractError(
+                "authorized renewal requires an existing lease"
+            )
+        if deadline <= current.valid_through_epoch:
+            raise ReflexControlPlaneContractError(
+                "authorized lease renewal must extend the current deadline"
+            )
+        if deadline <= epoch:
+            raise ReflexControlPlaneContractError(
+                "authorized lease renewal must remain in the future"
+            )
+
+        lease = _build_lease(
+            activation_state_sha256=state.state_sha256,
+            valid_through_epoch=deadline,
+            set_at_evaluation_epoch=epoch,
+        )
+        _atomic_write_json(self.lease_path, lease.to_dict())
+        receipt = self._control_receipt(
+            status="LEASE_RENEWED",
+            reason="upstream_authenticated_authority_extended_runtime_lease",
+            evaluation_epoch=epoch,
+            policy_sha=policy.state_sha256,
+            activation_sha=state.state_sha256,
+            related_sha=authorization_sha256,
+        )
+        self._append_ledger("authority", epoch, receipt.to_dict())
+        return {
+            "ok": True,
+            "lease": lease.to_dict(),
+            "receipt": receipt.to_dict(),
+        }
+
+    @runtime_locked
     def deactivate(
         self,
         *,
