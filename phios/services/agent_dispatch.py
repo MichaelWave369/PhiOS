@@ -12,6 +12,11 @@ from urllib import error, request
 
 from phios.adapters.phik import PhiKernelCLIAdapter
 from phios.core.phik_service import build_coherence_report, build_status_report
+from phios.reflex.calibration_aggregation import (
+    PromotionReadinessPolicy,
+    aggregate_calibration_receipts,
+    default_jev_readiness_policy,
+)
 from phios.reflex.outcome_calibration import (
     ReflexOutcomeObservation,
     evaluate_dispatch_outcome,
@@ -353,6 +358,38 @@ def evaluate_agent_run_reflex(
         "ok": True,
         "run_id": run_id,
         "calibration": payload,
+    }
+
+
+def build_reflex_readiness_report(
+    *,
+    policy: PromotionReadinessPolicy | None = None,
+) -> dict[str, Any]:
+    """Aggregate persisted v0.3 calibration evidence into one advisory report."""
+
+    active_policy = policy or default_jev_readiness_policy()
+    runs = list_agent_runs(active_only=False)
+    receipts: list[dict[str, Any]] = []
+    runs_with_calibration = 0
+    for run in runs:
+        items_obj = run.get("reflex_calibration_receipts", [])
+        if not isinstance(items_obj, list) or not items_obj:
+            continue
+        runs_with_calibration += 1
+        for item in items_obj:
+            if isinstance(item, dict):
+                receipts.append(dict(item))
+
+    report = aggregate_calibration_receipts(
+        receipts,
+        policy=active_policy,
+    )
+    return {
+        "ok": True,
+        "runs_scanned": len(runs),
+        "runs_with_calibration": runs_with_calibration,
+        "calibration_receipts_found": len(receipts),
+        "report": report.to_dict(),
     }
 
 

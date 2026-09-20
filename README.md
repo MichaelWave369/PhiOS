@@ -23,7 +23,7 @@ It currently has three major surfaces:
 | **PhiOS Shell / MCP** | operator commands, local workflows, integrations, machine-readable capability surfaces | active |
 | **PhiOS Spine** | authority-aware observation, verification, evidence, and receipts | **v0.24** |
 | **PhiOS App Platform** | governed path from public repository to installed, launchable, updateable desktop app | **v0.42** |
-| **PhiReflex** | provider-neutral fast advisory judgment / System-One shadow + calibration layer | **v0.3** |
+| **PhiReflex** | provider-neutral System-One shadow, calibration, and readiness-evidence layer | **v0.4** |
 
 The common pattern is:
 
@@ -327,7 +327,7 @@ scripts/       development and policy helpers
 
 ---
 
-## PhiReflex v0.3
+## PhiReflex v0.4
 
 **PhiReflex** is a provider-neutral fast advisory judgment layer for bounded
 classification, risk signaling, System-Two escalation hints, and verification
@@ -397,9 +397,20 @@ phi agents reflex-evaluate run_123 \
 Missing labels remain unscored; dispatch success/failure is never silently
 reinterpreted as prediction ground truth.
 
+Aggregate many calibrated runs into an advisory readiness report:
+
+```bash
+phi agents reflex-report
+```
+
+The report can say `INSUFFICIENT_EVIDENCE`, `NOT_REVIEW_ELIGIBLE`, or
+`REVIEW_ELIGIBLE`. Even `REVIEW_ELIGIBLE` carries zero routing, promotion,
+action, or execution authority.
+
 See [PhiReflex v0.1](docs/PHIOS_REFLEX_V0.1.md),
 [PhiReflex v0.2 dispatch shadow](docs/PHIOS_REFLEX_V0.2_DISPATCH_SHADOW.md),
-and [PhiReflex v0.3 outcome calibration](docs/PHIOS_REFLEX_V0.3_OUTCOME_CALIBRATION.md).
+[PhiReflex v0.3 outcome calibration](docs/PHIOS_REFLEX_V0.3_OUTCOME_CALIBRATION.md),
+and [PhiReflex v0.4 calibration aggregation](docs/PHIOS_REFLEX_V0.4_CALIBRATION_AGGREGATION.md).
 
 ---
 
