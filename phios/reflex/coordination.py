@@ -37,7 +37,9 @@ class CrossProcessFileLock:
                     handle.flush()
                     os.fsync(handle.fileno())
                 handle.seek(0)
-                msvcrt.locking(handle.fileno(), msvcrt.LK_LOCK, 1)
+                locking = getattr(msvcrt, "locking")
+                lk_lock = getattr(msvcrt, "LK_LOCK")
+                locking(handle.fileno(), lk_lock, 1)
             elif os.name == "posix":
                 import fcntl
 
@@ -70,7 +72,9 @@ class CrossProcessFileLock:
                 import msvcrt
 
                 handle.seek(0)
-                msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
+                locking = getattr(msvcrt, "locking")
+                lk_unlck = getattr(msvcrt, "LK_UNLCK")
+                locking(handle.fileno(), lk_unlck, 1)
             elif os.name == "posix":
                 import fcntl
 
