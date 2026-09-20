@@ -23,7 +23,7 @@ It currently has three major surfaces:
 | **PhiOS Shell / MCP** | operator commands, local workflows, integrations, machine-readable capability surfaces | active |
 | **PhiOS Spine** | authority-aware observation, verification, evidence, and receipts | **v0.24** |
 | **PhiOS App Platform** | governed path from public repository to installed, launchable, updateable desktop app | **v0.42** |
-| **PhiReflex** | provider-neutral System-One shadow, calibrated live influence, persistent control, and authenticated authority | **v0.8** |
+| **PhiReflex** | provider-neutral System-One shadow, calibrated live influence, authenticated authority, and trust lifecycle | **v0.9** |
 
 The common pattern is:
 
@@ -327,7 +327,7 @@ scripts/       development and policy helpers
 
 ---
 
-## PhiReflex v0.8
+## PhiReflex v0.9
 
 **PhiReflex** is a provider-neutral fast advisory judgment layer for bounded
 classification, risk signaling, System-Two escalation hints, and verification
@@ -462,18 +462,35 @@ The v0.7 control plane is also serialized across processes with an OS advisory
 lock, and v0.8 exposes a deterministic `control_sha256` for optional
 compare-and-swap protection against stale operator state.
 
-Authenticated authority surfaces:
+v0.9 adds lifecycle rules around that authenticated authority:
 
-```bash
-phi agents reflex-authority status
-phi agents reflex-authority trust-ingest anchor.json --yes
-phi agents reflex-authority grant-ingest signed-grant.json
-phi agents reflex-authority activate --request request.json --grant-id grant-001 --yes
-phi agents reflex-authority revoke revocation.json
-phi agents reflex-authority deactivate --reason operator-stop
+```text
+signed trust rotation / disablement
+signed provider manifests
+signed grant-use limits
+signed ledger checkpoints
+signed lease renewal
 ```
 
-Unsigned CLI grant ingestion/activation is disabled for live v0.8 authority.
+A live grant signed by a retired key no longer remains live merely because it
+was valid yesterday. One-shot grants can be expressed as
+`max_activations = 1`, provider manifests bind the exact adapter identity and
+version, and lease extension is possible only through an exact signed renewal.
+
+Lifecycle surfaces:
+
+```bash
+phi agents reflex-lifecycle status
+phi agents reflex-lifecycle trust-transition transition.json
+phi agents reflex-lifecycle use-policy policy.json
+phi agents reflex-lifecycle provider-manifest manifest.json
+phi agents reflex-lifecycle activate --request request.json --grant-id grant-001 --yes
+phi agents reflex-lifecycle checkpoint checkpoint.json
+phi agents reflex-lifecycle lease-renew renewal.json
+```
+
+Normal `phi dispatch` now uses the v0.9 lifecycle gate before live Reflex
+influence can reach the planner.
 
 See [PhiReflex v0.1](docs/PHIOS_REFLEX_V0.1.md),
 [PhiReflex v0.2 dispatch shadow](docs/PHIOS_REFLEX_V0.2_DISPATCH_SHADOW.md),
@@ -482,7 +499,8 @@ See [PhiReflex v0.1](docs/PHIOS_REFLEX_V0.1.md),
 [PhiReflex v0.5 governed influence adoption](docs/PHIOS_REFLEX_V0.5_GOVERNED_INFLUENCE_ADOPTION.md),
 [PhiReflex v0.6 runtime influence](docs/PHIOS_REFLEX_V0.6_RUNTIME_INFLUENCE.md),
 [PhiReflex v0.7 runtime control plane](docs/PHIOS_REFLEX_V0.7_RUNTIME_CONTROL_PLANE.md),
-and [PhiReflex v0.8 authenticated authority](docs/PHIOS_REFLEX_V0.8_AUTHENTICATED_AUTHORITY.md).
+[PhiReflex v0.8 authenticated authority](docs/PHIOS_REFLEX_V0.8_AUTHENTICATED_AUTHORITY.md),
+and [PhiReflex v0.9 trust lifecycle and attestation](docs/PHIOS_REFLEX_V0.9_TRUST_LIFECYCLE_ATTESTATION.md).
 
 ---
 
