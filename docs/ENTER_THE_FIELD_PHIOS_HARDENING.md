@@ -30,8 +30,8 @@ increment independently reviewable and replaceable.
 | P0 | Capability is classified by environmental effects, not method labels | `EffectBoundaryReceipt` | **v0.3 merged via PR #183** |
 | P0 | Containment/negative claims are bounded by demonstrated observation coverage | `ObservationFrontier`, `ObservabilityBoundaryReceipt` | **v0.4 merged via PR #184** |
 | P1 | Transformations preserve source, taint, exactness, and derivation lineage | `TransformationLineageReceipt`, `ExactnessClass` | **v0.5 merged via PR #185** |
-| P1 | Multi-agent corroboration reflects evidence-path independence | `IndependenceReceipt`, `DisagreementDecompositionReceipt` | **v0.6 candidate implemented on this branch** |
-| P1 | Detection can reach bounded remediation without minting authority | `GovernanceEscalationReceipt` | planned; not promoted |
+| P1 | Multi-agent corroboration reflects evidence-path independence | `IndependenceReceipt`, `DisagreementDecompositionReceipt` | **v0.6 merged via PR #186** |
+| P1 | Detection can reach bounded remediation without minting authority | `VerifierSemanticsReceipt`, `GovernanceEscalationReceipt` | **v0.7 candidate implemented on this branch** |
 | P2 | Corrective/advisory state can decay and terminate deterministically | dynamic-state attenuation / termination | planned; not promoted |
 | P2 | Memory phase and evidence horizon are explicit | reconsolidation / evidence-horizon receipts | planned; not promoted |
 | P2 | Identity and recovery are invariant-based rather than topology-based | identity/recovery equivalence receipts | planned; not promoted |
@@ -604,8 +604,8 @@ semantically equivalent to its source.
 
 ## Research-hardening v0.6
 
-This branch implements the next P1 seam: evidence-path independence and explicit
-disagreement decomposition for multi-participant deliberation.
+v0.6 implemented the next P1 seam: evidence-path independence and explicit
+disagreement decomposition for multi-participant deliberation, merged through PR #186.
 
 The governing distinction is:
 
@@ -755,6 +755,149 @@ An explicit independence basis is still evidence that must ultimately be grounde
 real acquisition/runtime boundary. Distinct model identities, different prose, or
 unanimous outputs do not by themselves prove independent evidence.
 
+## Research-hardening v0.7
+
+This branch implements the next P1 seam: bounded governance escalation from verifier
+findings without granting the verifier remediation authority.
+
+The governing distinction is:
+
+```text
+DETECTION
+!=
+AUTHORIZED REMEDIATION
+```
+
+### VerifierSemanticsReceipt
+
+A Reality Gate finding can now be wrapped in an explicit verifier-semantics receipt
+before any escalation is routed.
+
+The receipt binds:
+
+- the exact persisted `RealityReceipt` ID and canonical SHA-256;
+- verifier identity and verification method;
+- source Mandala status and verdict summary;
+- the exact observation-frontier / observability receipt hashes and status;
+- `detects_evidence_state = true`;
+- `may_emit_escalation_request = true`;
+- `may_authorize_remediation = false`;
+- `may_execute_remediation = false`;
+- `may_promote = false`;
+- zero operational/action/execution authority.
+
+This makes the verifier's semantics explicit: it may detect and report evidence state,
+but it cannot convert that detection into permission.
+
+### EscalationRequest
+
+A bounded request may ask for one of:
+
+```text
+REVIEW
+REVERIFY
+REMEDIATE
+```
+
+`REVIEW` and `REVERIFY` cannot carry an action candidate.
+
+`REMEDIATE` must bind an exact candidate capability contract:
+
+- capability ID/version/risk;
+- capability-contract SHA-256;
+- payload SHA-256;
+- requested permission tuple;
+- requested environmental-effect tuple.
+
+The request therefore identifies what a future governed action would need to authorize
+without itself becoming that authorization.
+
+### GovernanceEscalationReceipt
+
+The escalation receipt is parent-linked to the exact `VerifierSemanticsReceipt` and
+binds the source verifier receipt again.
+
+Routing outcomes are:
+
+```text
+ROUTED_FOR_REVIEW
+ROUTED_FOR_REVERIFICATION
+ROUTED_FOR_AUTHORIZATION
+HELD
+```
+
+A remediation candidate is only routed for downstream authorization when every selected
+trigger claim is `CONTRADICTED`.
+
+`UNRESOLVED` or `BLOCKED` evidence may be routed for review/reverification, but
+cannot directly become a remediation candidate.
+
+A supported-only finding cannot manufacture an escalation problem.
+
+Every escalation receipt fixes:
+
+```text
+downstream_authority_required = true
+remediation_authorized = false
+remediation_executed = false
+promotion_status = not_promoted
+operational_authority = false
+action_authority = false
+execution_authority = false
+```
+
+### Persisted-source binding
+
+When the service is attached to a Mandala ledger, the source Reality receipt must already
+exist in that ledger and its canonical contents must match the supplied receipt exactly.
+
+A forged or modified copy with the same receipt ID cannot be escalated as though it were
+the persisted verifier finding.
+
+The Spine wrapper also requires the verifier receipt to belong to the active task.
+
+### Spine integration
+
+`PhiOSSpine.escalate_reality_finding(...)` exposes the seam.
+
+For `REMEDIATE`, the Spine snapshots the currently registered capability contract and
+candidate payload digest into the escalation request.
+
+It does **not** call the executor, consume an action binding, create an
+`ActionBindingGrant`, or expand `AuthorityContext`.
+
+The lineage is:
+
+```text
+GateReceipt
+    ↓
+RealityReceipt
+    ↓
+VerifierSemanticsReceipt
+    ↓
+GovernanceEscalationReceipt
+    ↓
+future external/governed authorization boundary
+```
+
+### Ledger analytics
+
+Read-only Ledger projection exposes bounded governance metadata including source receipt
+hashes, verifier semantics, observability linkage, routing status, candidate contract
+hashes, and aggregate permission/effect counts.
+
+Detailed remediation reasons, trigger claim IDs/verdicts, and raw requested
+permission/effect lists are intentionally excluded from the analytics projection.
+
+### v0.7 bounded claim
+
+v0.7 proves a verifier finding can become a traceable governance request while the
+verifier and request remain non-authoritative.
+
+It does not prove the proposed remediation is correct, safe, sufficient, or authorized.
+Those remain responsibilities of the existing downstream authority, action-binding,
+effect-boundary, execution-handoff, and observation contracts.
+
 ## Finding traceability
 
 The table records architecture candidates motivated by F01–F26. A mapping is not a
@@ -794,8 +937,10 @@ isolation. F15 drives the v0.3 effect boundary. F22 directly drives v0.4 observa
 frontiers. F25 directly drives v0.5 transformation lineage, with F20 reinforcing
 exactness requirements for retained/derived information. F17 directly drives v0.6
 independence and disagreement decomposition, while F12/F19 reinforce that apparent
-corroboration cannot exceed demonstrated evidence-path independence. F26 reinforces
-provenance through composition. F01 continues to require that containment claims not
+corroboration cannot exceed demonstrated evidence-path independence. F16 directly
+drives v0.7 governance escalation and verifier semantics, with F26 reinforcing that
+composed workflows must preserve the authority boundary from detection through
+remediation request. F26 also reinforces provenance through composition. F01 continues to require that containment claims not
 exceed demonstrated coverage. All remaining rows stay candidates until their own bounded
 increments and Crucibles exist.
 
@@ -915,6 +1060,31 @@ The focused independence/disagreement test set must prove at minimum:
 12. Ledger projection exposes aggregate independence metadata without exposing raw
     evidence-path or basis details.
 
+## v0.7 Crucibles
+
+The focused verifier/escalation test set must prove at minimum:
+
+1. a contradicted Reality finding can route to operator review without changing the
+   Spine authority context;
+2. verifier semantics explicitly deny remediation authorization, execution, and
+   promotion;
+3. a `REMEDIATE` request snapshots the exact current capability contract and payload
+   digest but creates no `ActionReceipt`;
+4. remediation is only routed for authorization when every selected trigger claim is
+   `CONTRADICTED`;
+5. unresolved evidence can route to reverification but cannot directly route
+   remediation;
+6. supported-only evidence cannot manufacture an escalation problem;
+7. non-remediation dispositions cannot smuggle an action candidate;
+8. the exact persisted Reality receipt contents are required, not merely a matching
+   receipt ID;
+9. cross-task verifier findings cannot be escalated through the active Spine task;
+10. VerifierSemanticsReceipt preserves observation-frontier / observability lineage;
+11. GovernanceEscalationReceipt remains zero-authority and
+    `remediation_authorized = false`;
+12. Ledger projection excludes raw trigger details and requested permission/effect lists
+    while preserving bounded routing metadata.
+
 ## Explicit non-goals
 
 The current research-hardening track does **not**:
@@ -934,6 +1104,10 @@ The current research-hardening track does **not**:
 - treat model multiplicity, output agreement, or different wording as proof of
   evidence-path independence;
 - let consensus mint action/execution authority or self-promote a claim;
+- let a verifier authorize or execute the remediation it recommends;
+- treat an escalation request as an `ActionBindingGrant`, execution claim, or
+  permission expansion;
+- let unresolved or blocked evidence silently become a mutation request;
 - auto-promote any research finding into policy.
 
 Those remain separate, independently reviewable increments.
