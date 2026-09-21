@@ -6,6 +6,7 @@ from typing import Any
 
 from phios.mandala import (
     AuthorityContext,
+    ExactnessClass,
     Gate,
     GateReceipt,
     MandalaPacket,
@@ -15,6 +16,8 @@ from phios.mandala import (
     OriginRef,
     OcrReceipt,
     PerceptionReceipt,
+    TransformationLineageBuilder,
+    TransformationLineageReceipt,
 )
 from phios.mandala.receipts import receipt_meta
 
@@ -62,6 +65,7 @@ class SomaPerceptionService:
         self.ledger = ledger
         self.task_id = task_id
         self.authority = authority
+        self.transformations = TransformationLineageBuilder()
 
     @staticmethod
     def _apply_transform(text: str, transform: str) -> str:
@@ -144,7 +148,12 @@ class SomaPerceptionService:
         acquisition_method: str,
         source_locator: str | None = None,
         source_root_ref: str | None = None,
-    ) -> tuple[PerceptionReceipt, str | None, str | None]:
+    ) -> tuple[
+        PerceptionReceipt,
+        str | None,
+        str | None,
+        tuple[TransformationLineageReceipt, ...],
+    ]:
         unsupported = tuple(item for item in transforms if item not in SUPPORTED_TRANSFORMS)
         if unsupported:
             receipt = PerceptionReceipt(
@@ -173,7 +182,7 @@ class SomaPerceptionService:
                 source_root_ref=source_root_ref,
             )
             self.ledger.append(receipt)
-            return receipt, None, None
+            return receipt, None, None, ()
 
         observation = text
         changed = False
@@ -199,6 +208,35 @@ class SomaPerceptionService:
             status = MandalaStatus.ACCEPTED
             acuity = AcuityStatus.NATIVE
 
+        exactness = (
+            ExactnessClass.NORMALIZED
+            if changed
+            else ExactnessClass.BYTE_EXACT
+        )
+        lineage = self.transformations.build(
+            transform_id=(
+                "soma.text.normalize"
+                if changed
+                else "soma.text.identity"
+            ),
+            transform_version="v0.1",
+            source_refs=(native.evidence_ref,),
+            source_sha256s=(native.sha256,),
+            output_ref=(
+                f"observation:sha256:{observation_sha256}"
+                if changed
+                else native.evidence_ref
+            ),
+            output_sha256=observation_sha256,
+            parameters={"transforms": list(transforms)},
+            requested_exactness=exactness,
+            added_taints=(
+                ("normalized_representation",) if changed else ()
+            ),
+            information_loss_possible=changed,
+            semantic_inference=False,
+            limitations=("native_source_preserved",),
+        )
         receipt = PerceptionReceipt(
             **receipt_meta(
                 packet,
@@ -219,9 +257,12 @@ class SomaPerceptionService:
             acquisition_status="accepted" if status is MandalaStatus.ACCEPTED else "degraded",
             source_locator=source_locator,
             source_root_ref=source_root_ref,
+            transformation_lineage_sha256s=(lineage.receipt_sha256,),
+            exactness_class=lineage.exactness_class.value,
+            taint_labels=lineage.effective_taints,
         )
         self.ledger.append(receipt)
-        return receipt, observation, observation_sha256
+        return receipt, observation, observation_sha256, (lineage,)
 
     def perceive_text(
         self,
@@ -245,7 +286,7 @@ class SomaPerceptionService:
             status=MandalaStatus.ACCEPTED,
             reason="native source admitted; no truth or action authority conferred",
         )
-        receipt, observation, observation_sha256 = self._derive_text(
+        receipt, observation, observation_sha256, lineage = self._derive_text(
             packet=packet,
             native=native,
             text=text,
@@ -262,6 +303,7 @@ class SomaPerceptionService:
             receipt=receipt,
             observation_sha256=observation_sha256,
             observation_text=observation,
+            transformation_lineage=lineage,
         )
 
     def perceive_file(
@@ -394,7 +436,7 @@ class SomaPerceptionService:
                 source_root_ref=root_ref,
             )
 
-        receipt, observation, observation_sha256 = self._derive_text(
+        receipt, observation, observation_sha256, lineage = self._derive_text(
             packet=packet,
             native=native,
             text=text,
@@ -405,6 +447,7 @@ class SomaPerceptionService:
             acquisition_method="bounded_file",
             source_locator=acquired.relative_path,
             source_root_ref=root_ref,
+            transformation_lineage=lineage,
         )
         return FileObservationResult(
             packet=packet,
