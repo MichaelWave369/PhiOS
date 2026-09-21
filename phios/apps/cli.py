@@ -74,6 +74,7 @@ from .retained_cleanup import (
     review_retained_cleanup,
 )
 from .registry import AppRegistry
+from .release_compatibility import ReleaseChangeEvidenceService
 from .release_discovery import (
     ReleaseDiscoveryService,
     inspect_selected_release,
@@ -165,6 +166,35 @@ def _parser() -> argparse.ArgumentParser:
     inspect_release_parser.add_argument(
         "--approve-release-selection-sha",
         required=True,
+    )
+
+    compare_release_parser = subparsers.add_parser(
+        "compare-release-candidate",
+        help=(
+            "Compare verified active app structure with one approved exact-commit "
+            "release candidate without issuing a compatibility verdict."
+        ),
+    )
+    compare_release_parser.add_argument("active_bundle_path", type=Path)
+    compare_release_parser.add_argument("release_candidate_intake_json", type=Path)
+    compare_release_parser.add_argument(
+        "--approve-release-candidate-intake-sha",
+        required=True,
+    )
+    compare_release_parser.add_argument(
+        "--install-root",
+        type=Path,
+        default=Path.home() / ".phios" / "apps" / "installed",
+    )
+    compare_release_parser.add_argument(
+        "--desktop-root",
+        type=Path,
+        default=Path.home() / ".local" / "share" / "phios" / "desktop-apps",
+    )
+    compare_release_parser.add_argument(
+        "--applications-root",
+        type=Path,
+        default=Path.home() / ".local" / "share" / "applications",
     )
 
     inspect_parser = subparsers.add_parser(
@@ -1065,6 +1095,25 @@ def main(argv: Sequence[str] | None = None) -> int:
             print(json.dumps({"status": "blocked", "error": str(exc)}, sort_keys=True))
             return 2
         print(json.dumps(candidate_intake.to_dict(), sort_keys=True, indent=2))
+        return 0
+
+    if args.command == "compare-release-candidate":
+        try:
+            candidate_payload = _load_json_file(args.release_candidate_intake_json)
+            change_evidence = ReleaseChangeEvidenceService().compare(
+                args.active_bundle_path,
+                candidate_payload,
+                approved_release_candidate_intake_sha256=(
+                    args.approve_release_candidate_intake_sha
+                ),
+                install_root=args.install_root,
+                desktop_root=args.desktop_root,
+                applications_root=args.applications_root,
+            )
+        except (OSError, ValueError) as exc:
+            print(json.dumps({"status": "blocked", "error": str(exc)}, sort_keys=True))
+            return 2
+        print(json.dumps(change_evidence.to_dict(), sort_keys=True, indent=2))
         return 0
 
     if args.command == "inspect-github":
