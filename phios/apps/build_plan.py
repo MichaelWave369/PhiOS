@@ -1117,11 +1117,9 @@ def plan_build_from_payloads(
         "v0.27 acquisition_tree_sha256 remains separate provenance because executable-mode "
         "metadata is not portable across all supported host filesystems"
     )
-    if advancement_sha256 is None:
-        notes.append("build steps are declarative argv arrays; v0.28 executes no process")
-    else:
+    notes.append("build steps are declarative argv arrays; v0.28 executes no process")
+    if advancement_sha256 is not None:
         notes.append(
-            "build steps are declarative argv arrays; v0.28 executes no process; "
             f"release_candidate_advancement_sha256={advancement_sha256}"
         )
 
