@@ -7,7 +7,12 @@ from dataclasses import replace
 from datetime import UTC, datetime
 from typing import Protocol
 
-from phios.mandala import AuthorityContext, MandalaStatus, MemoryOperationReceipt
+from phios.mandala import (
+    AuthorityContext,
+    MandalaStatus,
+    MemoryOperationReceipt,
+    ReadAdmissibilityReceipt,
+)
 
 from .embeddings import EmbeddingProvider
 from .models import (
@@ -161,7 +166,25 @@ class GovernedMemoryService:
             return MemoryResult(status="unavailable", error_code="MEMORY_NOT_AVAILABLE")
         if not self.policy.permits(decision, record):
             return MemoryResult(status="blocked", error_code="MEMORY_READ_DENIED")
-        return MemoryResult(status="ok", record=record)
+        evaluated_at = datetime.now(UTC).isoformat()
+        admissibility = self._read_admissibility_receipt(
+            operation_id=(
+                f"get:{task_id}:{principal_id}:{record.record_id}:"
+                f"{record.revision}:{evaluated_at}"
+            ),
+            packet_id="",
+            task_id=task_id,
+            principal_id=principal_id,
+            record=record,
+            policy_sha256=decision.policy_sha256,
+            authority=authority,
+            evaluated_at=evaluated_at,
+        )
+        return MemoryResult(
+            status="ok",
+            record=record,
+            read_admissibility_receipts=(admissibility,),
+        )
 
     def semantic_search(
         self,
@@ -262,6 +285,8 @@ class GovernedMemoryService:
 
         hits: list[MemoryHit] = []
         records: list[MemoryRecord] = []
+        admissibility_receipts: list[ReadAdmissibilityReceipt] = []
+        evaluated_at = datetime.now(UTC).isoformat()
         for candidate in candidates:
             record = self.store.get_current_version(
                 candidate.record_id,
@@ -278,6 +303,20 @@ class GovernedMemoryService:
                 MemoryHit(
                     record=record,
                     retrieval_distance=candidate.retrieval_distance,
+                )
+            )
+            admissibility_receipts.append(
+                self._read_admissibility_receipt(
+                    operation_id=(
+                        f"{operation_id}:hit:{record.record_id}:{record.revision}"
+                    ),
+                    packet_id=packet_id,
+                    task_id=task_id,
+                    principal_id=principal_id,
+                    record=record,
+                    policy_sha256=decision.policy_sha256,
+                    authority=authority,
+                    evaluated_at=evaluated_at,
                 )
             )
 
@@ -303,6 +342,7 @@ class GovernedMemoryService:
         return MemoryResult(
             status="ok",
             hits=tuple(hits),
+            read_admissibility_receipts=tuple(admissibility_receipts),
             receipt_id=receipt.receipt_id,
         )
 
@@ -538,6 +578,45 @@ class GovernedMemoryService:
             receipt_id=receipt.receipt_id,
             error_code=error_code,
         )
+
+    @staticmethod
+    def _read_admissibility_receipt(
+        *,
+        operation_id: str,
+        packet_id: str,
+        task_id: str,
+        principal_id: str,
+        record: MemoryRecord,
+        policy_sha256: str,
+        authority: AuthorityContext,
+        evaluated_at: str,
+    ) -> ReadAdmissibilityReceipt:
+        body = ReadAdmissibilityReceipt(
+            receipt_id=str(
+                uuid.uuid5(
+                    uuid.NAMESPACE_URL,
+                    f"phios.memory.read-admissibility:{operation_id}",
+                )
+            ),
+            packet_id=packet_id or f"memory:{operation_id}",
+            task_id=task_id,
+            status=MandalaStatus.ACCEPTED,
+            produced_by="phios.memory",
+            timestamp_utc=evaluated_at,
+            operation_id=operation_id,
+            principal_id=principal_id,
+            record_id=record.record_id,
+            revision=record.revision,
+            record_sha256=record.record_sha256,
+            readable_as_context=True,
+            currentness="current",
+            scope_id=record.scope_id,
+            classification=record.classification,
+            authorization_policy_sha256=policy_sha256,
+            authority_context_sha256=sha256_json(authority.to_dict()),
+            epistemic_kind=record.epistemic_kind,
+        )
+        return replace(body, receipt_sha256=sha256_json(body.to_dict()))
 
     @staticmethod
     def _operation_receipt(
