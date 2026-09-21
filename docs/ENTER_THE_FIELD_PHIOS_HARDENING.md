@@ -1144,9 +1144,13 @@ Being eligible for re-evaluation is not itself re-evaluation.
 
 ### ReconsolidationGate
 
-When the currently published head is already outside direct context admission, a new
-canonical revision must carry fresh provenance before the write is accepted on the
-hardened memory path.
+When the currently published head is already outside direct context admission but still
+inside the configured reactivation window, a new canonical revision must carry fresh
+provenance before the write is accepted on the hardened memory path.
+
+Once the reactivation window closes, in-place reconsolidation is rejected even if new
+provenance is supplied; the caller must create a new memory identity rather than renew an
+arbitrarily old canonical head.
 
 The candidate must:
 
