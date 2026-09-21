@@ -154,6 +154,14 @@ class GovernedMemoryService:
                 evaluated_at_utc=record.created_at,
             )
             if not prior_horizon.horizon.readable_as_context:
+                if (
+                    prior_horizon.reactivation is None
+                    or not prior_horizon.reactivation.within_window
+                ):
+                    return MemoryResult(
+                        status="invalid",
+                        error_code="MEMORY_REACTIVATION_WINDOW_CLOSED",
+                    )
                 reconsolidation = self.reconsolidation_gate.evaluate(
                     previous=previous,
                     candidate=record,
