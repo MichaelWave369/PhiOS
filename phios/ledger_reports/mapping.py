@@ -17,6 +17,7 @@ MANDALA_RECEIPT_TYPES = {
     "OcrReceipt",
     "RealityReceipt",
     "ActionReceipt",
+    "EffectBoundaryReceipt",
     "MemoryOperationReceipt",
     "MemoryPromotionReceipt",
     "AbortReceipt",
@@ -180,6 +181,50 @@ def project_mandala_row(
             "verification_method",
         )
         projected["promotion_status"] = _required_str(payload, "promotion_status")
+    elif receipt_type == "EffectBoundaryReceipt":
+        projected["capability_id"] = _required_str(payload, "capability_id")
+        projected["capability_version"] = _required_str(
+            payload,
+            "capability_version",
+        )
+        projected["capability_risk"] = _required_str(payload, "capability_risk")
+        projected["capability_effects"] = _string_list(
+            payload.get("capability_effects", []),
+            "capability_effects",
+        )
+        projected["executor_effects"] = _string_list(
+            payload.get("executor_effects", []),
+            "executor_effects",
+        )
+        projected["active_effects"] = _string_list(
+            payload.get("active_effects", []),
+            "active_effects",
+        )
+        projected["effect_contract_match"] = _required_bool(
+            payload,
+            "effect_contract_match",
+        )
+        projected["classification_complete"] = _required_bool(
+            payload,
+            "classification_complete",
+        )
+        projected["semantic_read_label_conflict"] = _required_bool(
+            payload,
+            "semantic_read_label_conflict",
+        )
+        projected["effect_policy_sha256"] = _required_str(
+            payload,
+            "effect_policy_sha256",
+        )
+        projected["reason"] = _required_str(payload, "reason")
+        projected["action_authority"] = _required_bool(
+            payload,
+            "action_authority",
+        )
+        projected["execution_authority"] = _required_bool(
+            payload,
+            "execution_authority",
+        )
     elif receipt_type == "ActionReceipt":
         projected["outcome"] = _required_str(payload, "outcome")
         side_effect = payload.get("side_effect")
