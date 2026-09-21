@@ -421,9 +421,16 @@ def test_receipted_decay_changes_routing_pressure_and_is_bound_to_route() -> Non
 
     assert early_route.path_ids == ("A", "C", "D")
     assert late_route.path_ids == ("A", "B", "D")
-    assert early_route.dynamic_state_receipt_sha256 == early.receipt.receipt_sha256
-    assert early_route.dynamic_state_status == "ATTENUATED"
-    assert late_route.dynamic_state_receipt_sha256 == late.receipt.receipt_sha256
+    assert (
+        early_route.field_state_sha256
+        == early.require_consumable_state().state_sha256
+    )
+    assert (
+        late_route.field_state_sha256
+        == late.require_consumable_state().state_sha256
+    )
+    assert early.receipt.status == "ATTENUATED"
+    assert late.receipt.status == "ATTENUATED"
 
 
 def test_terminated_dynamic_state_blocks_before_routing() -> None:
