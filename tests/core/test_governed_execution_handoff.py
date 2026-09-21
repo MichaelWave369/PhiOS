@@ -271,6 +271,7 @@ def test_capability_contract_drift_is_held(tmp_path: Path) -> None:
             name="Custom",
             description="runtime version",
             permissions=("custom.write",),
+            effects=("filesystem.change",),
             risk="low",
             version="2.0.0",
         )
