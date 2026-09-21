@@ -3,6 +3,7 @@ from pathlib import Path
 
 import pytest
 
+from phios.mandala import ExactnessClass
 from phios.memory import MemoryAccessPolicy, MemoryPolicyRule
 from phios.memory.config import MemoryRuntimeConfig
 from phios.memory.legacy import plan_legacy_agent_memory_import
@@ -59,6 +60,17 @@ def test_legacy_plan_is_deterministic_and_marks_content_derived(tmp_path: Path) 
     assert a.items[0].record.record_id == b.items[0].record.record_id
     assert a.items[0].record.epistemic_kind == "derived"
     assert a.items[0].record.source_kind == "file"
+    assert a.items[0].record.exactness_class == (
+        ExactnessClass.LOSSY_DERIVED.value
+    )
+    assert a.items[0].record.transformation_lineage_sha256s == (
+        a.items[0].transformation_lineage[0].receipt_sha256,
+    )
+    assert a.items[0].record.taint_labels == (
+        "canonicalized_representation",
+        "extracted_subset",
+    )
+    assert a.items[0].transformation_lineage[0].action_authority is False
 
 
 def test_legacy_import_requires_distinct_import_and_write_authority(tmp_path: Path) -> None:
