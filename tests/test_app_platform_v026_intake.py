@@ -235,3 +235,37 @@ def test_no_supported_marker_remains_insufficient_metadata() -> None:
 
     assert result.proposal.status == "insufficient_metadata"
     assert result.manifest_candidate is None
+
+
+def test_provider_can_inspect_exact_commit_without_default_branch_drift() -> None:
+    repository = "https://api.github.com/repos/MichaelWave369/Browsallax"
+    commit_sha = "c" * 40
+    package = json.dumps(
+        {"name": "browsallax", "version": "2.0.0", "description": "Release"}
+    ).encode()
+    client = FakeClient(
+        {
+            repository: {
+                "private": False,
+                "default_branch": "main",
+                "description": "Browser",
+                "archived": False,
+                "disabled": False,
+                "license": {"spdx_id": "MIT"},
+            },
+            repository + f"/commits/{commit_sha}": {"sha": commit_sha},
+            repository + f"/contents?ref={commit_sha}": [
+                {"path": "package.json", "type": "file"},
+            ],
+            repository + f"/contents/package.json?ref={commit_sha}": _contents(package),
+        }
+    )
+
+    snapshot = GitHubPublicRepoProvider(client).inspect_at_commit(
+        "https://github.com/MichaelWave369/Browsallax",
+        commit_sha,
+    )
+
+    assert snapshot.head_sha == commit_sha
+    assert [item.path for item in snapshot.files] == ["package.json"]
+    assert client.request_count == 4

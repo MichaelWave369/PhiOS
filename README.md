@@ -22,7 +22,7 @@ It currently has three major surfaces:
 |---|---|---:|
 | **PhiOS Shell / MCP** | operator commands, local workflows, integrations, machine-readable capability surfaces | active |
 | **PhiOS Spine** | authority-aware observation, verification, evidence, and receipts | **v0.24** |
-| **PhiOS App Platform** | governed path from public repository to installed, launchable, updateable desktop app | **v0.42** |
+| **PhiOS App Platform** | governed app lifecycle plus explicit release discovery and candidate selection | **v0.44** |
 | **PhiReflex** | provider-neutral System-One shadow, calibrated live influence, authenticated authority, trust lifecycle, and root attestation | **v0.10** |
 
 The common pattern is:
@@ -121,9 +121,9 @@ Current Spine docs:
 - [Spine v0.24 numeric-transition contract](docs/PHIOS_SPINE_V0.24_NUMERIC_TRANSITION_CONTRACT.md)
 - [Complete Spine version trail](docs/README.md#spine-version-trail)
 
-### App Platform v0.42
+### App Platform v0.44
 
-The App Platform now covers a governed lifecycle from public source through desktop update and rollback:
+The App Platform now covers a governed lifecycle from public source through cleanup recovery, then loops back into bounded release discovery without granting update authority:
 
 ```text
 public repository
@@ -157,6 +157,14 @@ separately approved rollback
 explicit retained-version cleanup
     ↓
 stranded-cleanup reconciliation
+    ↓
+unresolved-transition gate
+    ↓
+bounded release discovery
+    ↓
+explicit exact candidate selection
+    ↓
+exact-commit intake re-entry
 ```
 
 Important boundaries remain explicit:
@@ -185,13 +193,23 @@ retained version
 
 prepared cleanup journal
 ≠ cleanup completed
+
+release observed
+≠ release selected
+
+release selected
+≠ source acquired
+
+candidate selected
+≠ update authorized
 ```
 
 Current App Platform docs:
 
-- [App Platform v0.42 overview](README_APP_PLATFORM_V0.42.md)
+- [App Platform v0.44 overview](README_APP_PLATFORM_V0.44.md)
+- [v0.44 governed release discovery contract](docs/PHIOS_APP_PLATFORM_V0.44_GOVERNED_RELEASE_DISCOVERY.md)
+- [v0.43 unresolved lifecycle gate](docs/PHIOS_APP_PLATFORM_V0.43_UNRESOLVED_LIFECYCLE_GATE.md)
 - [v0.42 cleanup reconciliation contract](docs/PHIOS_APP_PLATFORM_V0.42_CLEANUP_RECONCILIATION.md)
-- [v0.41 retained cleanup contract](docs/PHIOS_APP_PLATFORM_V0.41_RETAINED_CLEANUP.md)
 - [Complete App Platform version trail](docs/README.md#app-platform-version-trail)
 
 ---

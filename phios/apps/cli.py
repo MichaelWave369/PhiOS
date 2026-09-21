@@ -74,6 +74,11 @@ from .retained_cleanup import (
     review_retained_cleanup,
 )
 from .registry import AppRegistry
+from .release_discovery import (
+    ReleaseDiscoveryService,
+    inspect_selected_release,
+    select_release_candidate,
+)
 from .runtime import (
     InstalledRuntimeService,
     RuntimeLaunchRequest,
@@ -114,6 +119,53 @@ def _parser() -> argparse.ArgumentParser:
         description="PhiOS App Platform utilities.",
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
+
+    discover_release_parser = subparsers.add_parser(
+        "discover-releases",
+        help="Discover bounded GitHub release evidence for one active governed desktop app.",
+    )
+    discover_release_parser.add_argument("active_bundle_path", type=Path)
+    discover_release_parser.add_argument(
+        "--install-root",
+        type=Path,
+        default=Path.home() / ".phios" / "apps" / "installed",
+    )
+    discover_release_parser.add_argument(
+        "--desktop-root",
+        type=Path,
+        default=Path.home() / ".local" / "share" / "phios" / "desktop-apps",
+    )
+    discover_release_parser.add_argument(
+        "--applications-root",
+        type=Path,
+        default=Path.home() / ".local" / "share" / "applications",
+    )
+
+    select_release_parser = subparsers.add_parser(
+        "select-release",
+        help="Select one exact discovered release candidate without granting mutation authority.",
+    )
+    select_release_parser.add_argument("release_discovery_json", type=Path)
+    select_release_parser.add_argument("--tag", required=True)
+    select_release_parser.add_argument(
+        "--approve-release-discovery-sha",
+        required=True,
+    )
+    select_release_parser.add_argument(
+        "--allow-prerelease",
+        action="store_true",
+        default=False,
+    )
+
+    inspect_release_parser = subparsers.add_parser(
+        "inspect-selected-release",
+        help="Inspect one selected release at its exact commit for the existing intake/acquisition pipeline.",
+    )
+    inspect_release_parser.add_argument("release_selection_json", type=Path)
+    inspect_release_parser.add_argument(
+        "--approve-release-selection-sha",
+        required=True,
+    )
 
     inspect_parser = subparsers.add_parser(
         "inspect-github",
@@ -970,6 +1022,50 @@ def _parser() -> argparse.ArgumentParser:
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = _parser().parse_args(argv)
+
+    if args.command == "discover-releases":
+        try:
+            discovery = ReleaseDiscoveryService().discover(
+                args.active_bundle_path,
+                install_root=args.install_root,
+                desktop_root=args.desktop_root,
+                applications_root=args.applications_root,
+            )
+        except (OSError, ValueError) as exc:
+            print(json.dumps({"status": "blocked", "error": str(exc)}, sort_keys=True))
+            return 2
+        print(json.dumps(discovery.to_dict(), sort_keys=True, indent=2))
+        return 0
+
+    if args.command == "select-release":
+        try:
+            discovery_payload = _load_json_file(args.release_discovery_json)
+            selection = select_release_candidate(
+                discovery_payload,
+                tag_name=args.tag,
+                approved_release_discovery_sha256=args.approve_release_discovery_sha,
+                allow_prerelease=args.allow_prerelease,
+            )
+        except (OSError, ValueError) as exc:
+            print(json.dumps({"status": "blocked", "error": str(exc)}, sort_keys=True))
+            return 2
+        print(json.dumps(selection.to_dict(), sort_keys=True, indent=2))
+        return 0
+
+    if args.command == "inspect-selected-release":
+        try:
+            selection_payload = _load_json_file(args.release_selection_json)
+            candidate_intake = inspect_selected_release(
+                selection_payload,
+                approved_release_candidate_selection_sha256=(
+                    args.approve_release_selection_sha
+                ),
+            )
+        except (OSError, ValueError) as exc:
+            print(json.dumps({"status": "blocked", "error": str(exc)}, sort_keys=True))
+            return 2
+        print(json.dumps(candidate_intake.to_dict(), sort_keys=True, indent=2))
+        return 0
 
     if args.command == "inspect-github":
         try:
