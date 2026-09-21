@@ -111,3 +111,76 @@ def test_tampered_receipt_fails_hash_validation() -> None:
     tampered = replace(receipt, effective_taints=())
     with pytest.raises(TransformationLineageError, match="hash"):
         builder.validate(tampered)
+
+
+def test_validator_rejects_effective_exactness_stronger_than_requested() -> None:
+    builder = TransformationLineageBuilder()
+    receipt = builder.build(
+        transform_id="normalize",
+        transform_version="v1",
+        source_refs=("source:text",),
+        source_sha256s=("a" * 64,),
+        output_ref="derived:text",
+        output_sha256="b" * 64,
+        parameters={},
+        requested_exactness=ExactnessClass.NORMALIZED,
+        information_loss_possible=True,
+    )
+
+    tampered = replace(
+        receipt,
+        exactness_class=ExactnessClass.BYTE_EXACT,
+    )
+    body = tampered.body_dict()
+    import hashlib
+    import json
+
+    forged_hash = hashlib.sha256(
+        json.dumps(
+            body,
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=False,
+            allow_nan=False,
+        ).encode("utf-8")
+    ).hexdigest()
+    tampered = replace(tampered, receipt_sha256=forged_hash)
+
+    with pytest.raises(TransformationLineageError, match="cannot exceed"):
+        builder.validate(tampered)
+
+
+def test_validator_rejects_dropped_added_taint_even_with_recomputed_hash() -> None:
+    builder = TransformationLineageBuilder()
+    receipt = builder.build(
+        transform_id="ocr",
+        transform_version="v1",
+        source_refs=("source:image",),
+        source_sha256s=("a" * 64,),
+        output_ref="derived:text",
+        output_sha256="b" * 64,
+        parameters={},
+        requested_exactness=ExactnessClass.INTERPRETIVE,
+        added_taints=("machine_interpretation",),
+        information_loss_possible=True,
+        semantic_inference=True,
+    )
+
+    tampered = replace(receipt, effective_taints=())
+    body = tampered.body_dict()
+    import hashlib
+    import json
+
+    forged_hash = hashlib.sha256(
+        json.dumps(
+            body,
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=False,
+            allow_nan=False,
+        ).encode("utf-8")
+    ).hexdigest()
+    tampered = replace(tampered, receipt_sha256=forged_hash)
+
+    with pytest.raises(TransformationLineageError, match="drop added taints"):
+        builder.validate(tampered)
