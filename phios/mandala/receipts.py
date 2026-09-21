@@ -191,6 +191,9 @@ class ReadAdmissibilityReceipt(ReceiptEnvelope):
     authorization_policy_sha256: str
     authority_context_sha256: str
     epistemic_kind: str
+    exactness_class: str | None = None
+    transformation_lineage_sha256s: tuple[str, ...] = field(default_factory=tuple)
+    taint_labels: tuple[str, ...] = field(default_factory=tuple)
     operational_authority: bool = False
     action_authority: bool = False
     execution_authority: bool = False
