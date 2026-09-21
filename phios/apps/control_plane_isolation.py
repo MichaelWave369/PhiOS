@@ -173,6 +173,7 @@ class SandboxReachabilitySnapshot:
     user_namespace_enforced: bool
     pid_namespace_enforced: bool
     ipc_namespace_enforced: bool
+    network_namespace_enforced: bool
 
     @classmethod
     def build(
@@ -187,6 +188,7 @@ class SandboxReachabilitySnapshot:
         user_namespace_enforced: bool,
         pid_namespace_enforced: bool,
         ipc_namespace_enforced: bool,
+        network_namespace_enforced: bool,
     ) -> "SandboxReachabilitySnapshot":
         if network_mode not in {"deny", "inherit"}:
             raise ControlPlaneIsolationError("network_mode must be deny or inherit")
@@ -214,6 +216,7 @@ class SandboxReachabilitySnapshot:
             user_namespace_enforced=bool(user_namespace_enforced),
             pid_namespace_enforced=bool(pid_namespace_enforced),
             ipc_namespace_enforced=bool(ipc_namespace_enforced),
+            network_namespace_enforced=bool(network_namespace_enforced),
         )
 
     def to_dict(self) -> dict[str, object]:
@@ -295,7 +298,11 @@ def evaluate_control_plane_isolation(
     """Evaluate reachability only; this receipt grants no authority."""
 
     evaluated = _utc(evaluated_at)
-    source_and_read = (snapshot.source_root, *snapshot.read_only_host_paths)
+    source_and_read = (
+        snapshot.source_root,
+        *snapshot.read_only_host_paths,
+        *snapshot.read_write_host_paths,
+    )
     source_and_write = (snapshot.source_root, *snapshot.read_write_host_paths)
 
     read_reachable = tuple(
@@ -334,14 +341,8 @@ def evaluate_control_plane_isolation(
         namespace_gaps.append("pid_namespace")
     if not snapshot.ipc_namespace_enforced:
         namespace_gaps.append("ipc_namespace")
-    if (
-        surface_map.loopback_endpoints
-        and snapshot.network_mode == "deny"
-        and "network_namespace" not in namespace_gaps
-    ):
-        # Network namespace enforcement is represented by deny mode in the
-        # Bubblewrap contract. A future backend should model this explicitly.
-        pass
+    if snapshot.network_mode == "deny" and not snapshot.network_namespace_enforced:
+        namespace_gaps.append("network_namespace")
 
     control_plane_reachable = bool(
         read_reachable
