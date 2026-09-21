@@ -283,12 +283,19 @@ class DynamicStateController:
             before = float(current[variable])
             baseline = baselines[variable]
             elapsed = max(0.0, age_seconds - rule.grace_seconds)
-            after = _move_toward(
-                before,
-                baseline,
-                rule.attenuation_rate_per_second * elapsed,
+            attenuation_amount = (
+                rule.attenuation_rate_per_second * elapsed
             )
-            after = _stable_float(after)
+            if attenuation_amount <= 0.0 or before == baseline:
+                after = before
+            else:
+                after = _stable_float(
+                    _move_toward(
+                        before,
+                        baseline,
+                        attenuation_amount,
+                    )
+                )
             effective[variable] = after
             if after != before:
                 changes.append(
