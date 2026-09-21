@@ -14,8 +14,8 @@ from typing import Any, cast
 from .manifest import AppManifest
 from .registry import AppRegistry
 
-BUILD_PACKAGE_PLAN_SCHEMA_VERSION = "phios.build_package_plan.v0.1"
-BUILD_PACKAGE_REVIEW_SCHEMA_VERSION = "phios.build_package_plan_review.v0.1"
+BUILD_PACKAGE_PLAN_SCHEMA_VERSION = "phios.build_package_plan.v0.2"
+BUILD_PACKAGE_REVIEW_SCHEMA_VERSION = "phios.build_package_plan_review.v0.2"
 APP_INSTALL_RECEIPT_SCHEMA_VERSION = "phios.app_install_receipt.v0.1"
 APP_UNINSTALL_RECEIPT_SCHEMA_VERSION = "phios.app_uninstall_receipt.v0.1"
 
@@ -116,6 +116,7 @@ class SuccessfulBuildBinding:
     execution_workspace_path: str
     artifacts: tuple[PackageArtifact, ...]
     network_sandbox_enforced: bool
+    release_build_review_sha256: str | None
 
     @classmethod
     def from_payloads(
@@ -126,7 +127,7 @@ class SuccessfulBuildBinding:
         execution = _mapping(build_execution_receipt_value, "build execution receipt")
         offline = _mapping(offline_build_receipt_value, "offline build receipt")
 
-        required_execution = {
+        base_required_execution = {
             "schema_version",
             "execution_id",
             "timestamp_utc",
@@ -149,10 +150,22 @@ class SuccessfulBuildBinding:
             "failure_reason",
             "receipt_sha256",
         }
+        execution_schema = execution.get("schema_version")
+        if execution_schema == "phios.build_execution_receipt.v0.1":
+            required_execution = base_required_execution
+            release_build_review_sha256: str | None = None
+        elif execution_schema == "phios.build_execution_receipt.v0.2":
+            required_execution = base_required_execution | {"release_build_review_sha256"}
+            raw_release_review = execution.get("release_build_review_sha256")
+            release_build_review_sha256 = (
+                None
+                if raw_release_review is None
+                else _sha256(raw_release_review, "release_build_review_sha256")
+            )
+        else:
+            raise ValueError("v0.49 requires a supported build execution receipt")
         if set(execution) != required_execution:
             raise ValueError("build execution receipt contains missing or unknown fields")
-        if execution["schema_version"] != "phios.build_execution_receipt.v0.1":
-            raise ValueError("v0.33 requires a v0.29 build execution receipt")
         if execution["status"] != "success":
             raise ValueError("v0.33 packages only successful builds")
         if execution["failure_reason"] is not None:
@@ -268,6 +281,7 @@ class SuccessfulBuildBinding:
             execution_workspace_path=str(workspace),
             artifacts=artifacts,
             network_sandbox_enforced=True,
+            release_build_review_sha256=release_build_review_sha256,
         )
 
 
@@ -285,12 +299,24 @@ class BuildPackagePlan:
     artifact_set_sha256: str
     artifacts: tuple[PackageArtifact, ...]
     install_relative_path: str
+    release_build_review_sha256: str | None = None
     launch_authority: bool = False
     schema_version: str = BUILD_PACKAGE_PLAN_SCHEMA_VERSION
 
     def __post_init__(self) -> None:
-        if self.schema_version != BUILD_PACKAGE_PLAN_SCHEMA_VERSION:
+        if self.schema_version not in {
+            "phios.build_package_plan.v0.1",
+            BUILD_PACKAGE_PLAN_SCHEMA_VERSION,
+        }:
             raise ValueError(f"Unsupported build package plan schema: {self.schema_version}")
+        if self.schema_version == "phios.build_package_plan.v0.1":
+            if self.release_build_review_sha256 is not None:
+                raise ValueError("legacy package plans cannot carry release review lineage")
+        elif self.release_build_review_sha256 is not None:
+            _sha256(
+                self.release_build_review_sha256,
+                "release_build_review_sha256",
+            )
         _string(self.app_id, "package app_id", maximum=64)
         _string(self.app_version, "package app_version", maximum=128)
         for value, label in (
@@ -327,6 +353,11 @@ class BuildPackagePlan:
             "artifact_set_sha256": self.artifact_set_sha256,
             "artifacts": [item.to_dict() for item in self.artifacts],
             "install_relative_path": self.install_relative_path,
+            **(
+                {"release_build_review_sha256": self.release_build_review_sha256}
+                if self.schema_version == BUILD_PACKAGE_PLAN_SCHEMA_VERSION
+                else {}
+            ),
             "launch_authority": self.launch_authority,
         }
 
@@ -341,7 +372,8 @@ class BuildPackagePlan:
     @classmethod
     def from_dict(cls, value: Any) -> BuildPackagePlan:
         data = _mapping(value, "build package plan")
-        expected = {
+        schema_version = data.get("schema_version")
+        legacy_expected = {
             "schema_version",
             "app_id",
             "app_version",
@@ -358,6 +390,12 @@ class BuildPackagePlan:
             "launch_authority",
             "package_plan_sha256",
         }
+        if schema_version == "phios.build_package_plan.v0.1":
+            expected = legacy_expected
+        elif schema_version == BUILD_PACKAGE_PLAN_SCHEMA_VERSION:
+            expected = legacy_expected | {"release_build_review_sha256"}
+        else:
+            raise ValueError(f"Unsupported build package plan schema: {schema_version}")
         if set(data) != expected:
             raise ValueError("build package plan contains missing or unknown fields")
         raw_artifacts = data["artifacts"]
@@ -396,6 +434,15 @@ class BuildPackagePlan:
                 data["install_relative_path"],
                 "install_relative_path",
             ),
+            release_build_review_sha256=(
+                None
+                if schema_version == "phios.build_package_plan.v0.1"
+                or data["release_build_review_sha256"] is None
+                else _sha256(
+                    data["release_build_review_sha256"],
+                    "release_build_review_sha256",
+                )
+            ),
             launch_authority=data["launch_authority"],
         )
         if data["package_plan_sha256"] != plan.sha256():
@@ -413,6 +460,7 @@ class BuildPackageReview:
     artifact_set_sha256: str
     artifact_count: int
     install_relative_path: str
+    release_build_review_sha256: str | None
     launch_authority: bool
     schema_version: str = BUILD_PACKAGE_REVIEW_SCHEMA_VERSION
 
@@ -457,6 +505,7 @@ def plan_build_package(
         artifact_set_sha256=binding.artifact_set_sha256,
         artifacts=binding.artifacts,
         install_relative_path=install_relative,
+        release_build_review_sha256=binding.release_build_review_sha256,
         launch_authority=False,
     )
 
@@ -472,6 +521,7 @@ def review_build_package(value: Any) -> BuildPackageReview:
         artifact_set_sha256=plan.artifact_set_sha256,
         artifact_count=len(plan.artifacts),
         install_relative_path=plan.install_relative_path,
+        release_build_review_sha256=plan.release_build_review_sha256,
         launch_authority=plan.launch_authority,
     )
 
