@@ -14,7 +14,7 @@ PhiOS changes quickly, so use this source-of-truth order when documents disagree
 
 | Surface | Current line | Start here |
 |---|---:|---|
-| App Platform | **v0.44** | [overview](../README_APP_PLATFORM_V0.44.md) · [contract](PHIOS_APP_PLATFORM_V0.44_GOVERNED_RELEASE_DISCOVERY.md) |
+| App Platform | **v0.45** | [overview](../README_APP_PLATFORM_V0.45.md) · [contract](PHIOS_APP_PLATFORM_V0.45_RELEASE_CHANGE_EVIDENCE.md) |
 | Spine | **v0.24** | [overview](../README_SPINE_V0.24.md) · [contract](PHIOS_SPINE_V0.24_NUMERIC_TRANSITION_CONTRACT.md) |
 | PhiReflex | **v0.10** | [v0.1 provider contract](PHIOS_REFLEX_V0.1.md) · [v0.2 dispatch shadow](PHIOS_REFLEX_V0.2_DISPATCH_SHADOW.md) · [v0.3 outcome calibration](PHIOS_REFLEX_V0.3_OUTCOME_CALIBRATION.md) · [v0.4 calibration aggregation](PHIOS_REFLEX_V0.4_CALIBRATION_AGGREGATION.md) · [v0.5 influence adoption](PHIOS_REFLEX_V0.5_GOVERNED_INFLUENCE_ADOPTION.md) · [v0.6 runtime influence](PHIOS_REFLEX_V0.6_RUNTIME_INFLUENCE.md) · [v0.7 runtime control plane](PHIOS_REFLEX_V0.7_RUNTIME_CONTROL_PLANE.md) · [v0.8 authenticated authority](PHIOS_REFLEX_V0.8_AUTHENTICATED_AUTHORITY.md) · [v0.9 trust lifecycle](PHIOS_REFLEX_V0.9_TRUST_LIFECYCLE_ATTESTATION.md) · [v0.10 root attestation](PHIOS_REFLEX_V0.10_ROOT_ATTESTATION.md) |
 | Core geometric / relational reasoning | **v0.8** | [v0.1 geometry](PHIOS_GEOMETRIC_REASONING_V0.1.md) · [v0.2 relational field](PHIOS_RELATIONAL_FIELD_V0.2.md) · [v0.3 dynamic field](PHIOS_DYNAMIC_FIELD_V0.3.md) · [v0.4 field-aware routing](PHIOS_FIELD_AWARE_ROUTING_V0.4.md) · [v0.5 governed replanning](PHIOS_GOVERNED_REPLANNING_V0.5.md) · [v0.6 plan adoption](PHIOS_GOVERNED_PLAN_ADOPTION_V0.6.md) · [v0.7 action binding](PHIOS_GOVERNED_ACTION_BINDING_V0.7.md) · [v0.8 execution handoff](PHIOS_GOVERNED_EXECUTION_HANDOFF_V0.8.md) |
@@ -56,6 +56,7 @@ The App Platform trail is intentionally retained. Each overview explains the run
 | v0.42 | Cleanup journal reconciliation | [overview](../README_APP_PLATFORM_V0.42.md) | [contract](PHIOS_APP_PLATFORM_V0.42_CLEANUP_RECONCILIATION.md) |
 | v0.43 | Unresolved lifecycle transition gate | — | [contract](PHIOS_APP_PLATFORM_V0.43_UNRESOLVED_LIFECYCLE_GATE.md) |
 | v0.44 | Governed release discovery / candidate selection | [overview](../README_APP_PLATFORM_V0.44.md) | [contract](PHIOS_APP_PLATFORM_V0.44_GOVERNED_RELEASE_DISCOVERY.md) |
+| v0.45 | Release structural change evidence | [overview](../README_APP_PLATFORM_V0.45.md) | [contract](PHIOS_APP_PLATFORM_V0.45_RELEASE_CHANGE_EVIDENCE.md) |
 
 ## PhiReflex version trail
 
