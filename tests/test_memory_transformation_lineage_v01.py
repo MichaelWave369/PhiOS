@@ -152,3 +152,33 @@ def test_valid_derived_memory_persists_exactness_and_lineage(
     assert stored.exactness_class == ExactnessClass.INTERPRETIVE.value
     assert stored.transformation_lineage_sha256s == (lineage.receipt_sha256,)
     assert stored.taint_labels == ("machine_interpretation",)
+
+
+def test_derived_memory_requires_all_declared_sources_in_lineage(
+    tmp_path: Path,
+) -> None:
+    text = "derived content"
+    lineage = _lineage(text)
+    record = MemoryRecord.build(
+        record_id="derived-multi-source",
+        revision=1,
+        source_id="derived-test",
+        source_kind="subsystem",
+        provenance_refs=("source:evidence", "source:missing"),
+        created_at="2026-09-21T18:00:00+00:00",
+        scope_id="private",
+        classification="operator",
+        retention_policy_id="retain",
+        expires_at=None,
+        epistemic_kind="derived",
+        derived_from=("source:evidence", "source:missing"),
+        exactness_class=ExactnessClass.INTERPRETIVE.value,
+        transformation_lineage_sha256s=(lineage.receipt_sha256,),
+        taint_labels=("machine_interpretation",),
+        text=text,
+    )
+
+    result = _put(_service(tmp_path), record, lineage=(lineage,))
+
+    assert result.status == "invalid"
+    assert result.error_code == "DERIVED_MEMORY_SOURCE_LINEAGE_MISMATCH"
