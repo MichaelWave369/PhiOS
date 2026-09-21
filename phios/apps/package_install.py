@@ -16,7 +16,7 @@ from .registry import AppRegistry
 
 BUILD_PACKAGE_PLAN_SCHEMA_VERSION = "phios.build_package_plan.v0.2"
 BUILD_PACKAGE_REVIEW_SCHEMA_VERSION = "phios.build_package_plan_review.v0.2"
-APP_INSTALL_RECEIPT_SCHEMA_VERSION = "phios.app_install_receipt.v0.1"
+APP_INSTALL_RECEIPT_SCHEMA_VERSION = "phios.app_install_receipt.v0.2"
 APP_UNINSTALL_RECEIPT_SCHEMA_VERSION = "phios.app_uninstall_receipt.v0.1"
 
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
@@ -546,11 +546,25 @@ class AppInstallReceipt:
     install_path: str
     launch_authority: bool
     status: str
+    release_install_proposal_sha256: str | None = None
     schema_version: str = APP_INSTALL_RECEIPT_SCHEMA_VERSION
 
     def __post_init__(self) -> None:
-        if self.schema_version != APP_INSTALL_RECEIPT_SCHEMA_VERSION:
+        if self.schema_version not in {
+            "phios.app_install_receipt.v0.1",
+            APP_INSTALL_RECEIPT_SCHEMA_VERSION,
+        }:
             raise ValueError(f"Unsupported app install receipt schema: {self.schema_version}")
+        if self.schema_version == "phios.app_install_receipt.v0.1":
+            if self.release_install_proposal_sha256 is not None:
+                raise ValueError(
+                    "legacy install receipts cannot carry release install proposal lineage"
+                )
+        elif self.release_install_proposal_sha256 is not None:
+            _sha256(
+                self.release_install_proposal_sha256,
+                "release_install_proposal_sha256",
+            )
         try:
             uuid.UUID(self.receipt_id)
         except ValueError as exc:
@@ -587,7 +601,32 @@ class AppInstallReceipt:
             raise ValueError("v0.33 install receipt status must be installed")
 
     def body_dict(self) -> dict[str, Any]:
-        return asdict(self)
+        result = {
+            "receipt_id": self.receipt_id,
+            "timestamp_utc": self.timestamp_utc,
+            "app_id": self.app_id,
+            "app_version": self.app_version,
+            "package_plan_sha256": self.package_plan_sha256,
+            "manifest_sha256": self.manifest_sha256,
+            "registry_snapshot_sha256": self.registry_snapshot_sha256,
+            "build_plan_sha256": self.build_plan_sha256,
+            "execution_receipt_sha256": self.execution_receipt_sha256,
+            "offline_build_receipt_sha256": self.offline_build_receipt_sha256,
+            "artifact_set_sha256": self.artifact_set_sha256,
+            "installed_payload_sha256": self.installed_payload_sha256,
+            "installed_tree_sha256": self.installed_tree_sha256,
+            "artifact_count": self.artifact_count,
+            "total_bytes": self.total_bytes,
+            "install_path": self.install_path,
+            "launch_authority": self.launch_authority,
+            "status": self.status,
+            "schema_version": self.schema_version,
+        }
+        if self.schema_version == APP_INSTALL_RECEIPT_SCHEMA_VERSION:
+            result["release_install_proposal_sha256"] = (
+                self.release_install_proposal_sha256
+            )
+        return result
 
     def sha256(self) -> str:
         return hashlib.sha256(_canonical_json(self.body_dict()).encode("utf-8")).hexdigest()
@@ -600,7 +639,8 @@ class AppInstallReceipt:
     @classmethod
     def from_dict(cls, value: Any) -> AppInstallReceipt:
         data = _mapping(value, "app install receipt")
-        expected = {
+        schema_version = data.get("schema_version")
+        legacy_expected = {
             "schema_version",
             "receipt_id",
             "timestamp_utc",
@@ -622,6 +662,12 @@ class AppInstallReceipt:
             "status",
             "install_receipt_sha256",
         }
+        if schema_version == "phios.app_install_receipt.v0.1":
+            expected = legacy_expected
+        elif schema_version == APP_INSTALL_RECEIPT_SCHEMA_VERSION:
+            expected = legacy_expected | {"release_install_proposal_sha256"}
+        else:
+            raise ValueError(f"Unsupported app install receipt schema: {schema_version}")
         if set(data) != expected:
             raise ValueError("app install receipt contains missing or unknown fields")
         receipt = cls(
@@ -662,6 +708,15 @@ class AppInstallReceipt:
             install_path=_string(data["install_path"], "install_path", maximum=4096),
             launch_authority=data["launch_authority"],
             status=_string(data["status"], "install status", maximum=32),
+            release_install_proposal_sha256=(
+                None
+                if schema_version == "phios.app_install_receipt.v0.1"
+                or data["release_install_proposal_sha256"] is None
+                else _sha256(
+                    data["release_install_proposal_sha256"],
+                    "release_install_proposal_sha256",
+                )
+            ),
         )
         if data["install_receipt_sha256"] != receipt.sha256():
             raise ValueError("app install receipt digest does not match canonical receipt")
@@ -752,6 +807,8 @@ class AppInstallService:
         approved_package_plan_sha256: str,
         install_root: Path,
         receipt_root: Path | None = None,
+        release_install_proposal_value: Any | None = None,
+        approved_release_install_proposal_sha256: str | None = None,
     ) -> AppInstallReceipt:
         plan = BuildPackagePlan.from_dict(plan_value)
         if _sha256(
@@ -759,6 +816,33 @@ class AppInstallService:
             "approved_package_plan_sha256",
         ) != plan.sha256():
             raise ValueError("Approved package-plan SHA-256 does not match canonical plan")
+
+        proposal_sha256: str | None = None
+        if plan.release_build_review_sha256 is not None:
+            if (
+                release_install_proposal_value is None
+                or approved_release_install_proposal_sha256 is None
+            ):
+                raise ValueError(
+                    "release package install requires v0.50 proposal and exact proposal approval"
+                )
+            from .release_install_proposal import validate_release_install_proposal
+
+            proposal = validate_release_install_proposal(
+                plan,
+                release_install_proposal_value,
+                approved_release_install_proposal_sha256=(
+                    approved_release_install_proposal_sha256
+                ),
+            )
+            proposal_sha256 = proposal.sha256()
+        elif (
+            release_install_proposal_value is not None
+            or approved_release_install_proposal_sha256 is not None
+        ):
+            raise ValueError(
+                "release install proposal inputs are valid only for a release-lineage package"
+            )
 
         if registry.snapshot_sha256() != plan.registry_snapshot_sha256:
             raise ValueError("App registry changed after package-plan review")
@@ -776,6 +860,8 @@ class AppInstallService:
             raise ValueError("offline build receipt does not match package plan")
         if binding.artifact_set_sha256 != plan.artifact_set_sha256:
             raise ValueError("artifact set does not match package plan")
+        if binding.release_build_review_sha256 != plan.release_build_review_sha256:
+            raise ValueError("release build review lineage does not match package plan")
 
         source = Path(binding.execution_workspace_path)
         source_count, source_bytes = _verify_source_artifacts(source, plan.artifacts)
@@ -862,6 +948,7 @@ class AppInstallService:
                 install_path=str(final_dir),
                 launch_authority=False,
                 status="installed",
+                release_install_proposal_sha256=proposal_sha256,
             )
             receipts = (
                 receipt_root or (root / ".phios-receipts")
