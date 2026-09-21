@@ -29,6 +29,12 @@ from phios.apps.npm_offline import (
 )
 from phios.apps.release_advancement import ReleaseCandidateAdvancementRecord
 from phios.apps.release_build_review import review_release_build_plan
+from phios.apps.control_plane_isolation import (
+    ControlPlaneIsolationReceipt,
+    SandboxReachabilitySnapshot,
+    default_phios_control_plane_surfaces,
+    evaluate_control_plane_isolation,
+)
 from phios.apps.sandbox import (
     BuildSandboxPolicy,
     BubblewrapSandboxRunner,
@@ -255,6 +261,29 @@ class FakeOfflineSandboxRunner:
             seccomp_enforced=False,
             network_allowlist_enforced=False,
             parent_death_enforced=True,
+        )
+
+    def control_plane_isolation_receipt(
+        self,
+        *,
+        source_root: Path,
+        evaluated_at: str,
+    ) -> ControlPlaneIsolationReceipt:
+        controls = self.control_evidence()
+        snapshot = SandboxReachabilitySnapshot.build(
+            source_root=source_root,
+            read_write_host_paths=(self.cache_path,),
+            network_mode=self.policy.network_mode,
+            mount_namespace_enforced=controls.mount_namespace_enforced,
+            user_namespace_enforced=controls.user_namespace_enforced,
+            pid_namespace_enforced=controls.pid_namespace_enforced,
+            ipc_namespace_enforced=controls.ipc_namespace_enforced,
+            network_namespace_enforced=controls.network_namespace_enforced,
+        )
+        return evaluate_control_plane_isolation(
+            surface_map=default_phios_control_plane_surfaces(),
+            snapshot=snapshot,
+            evaluated_at=evaluated_at,
         )
 
     def probe(
@@ -484,6 +513,8 @@ def test_offline_build_executes_derived_plan_with_network_denied(tmp_path: Path)
     assert result.sandboxed_build.execution.network_sandbox_enforced is True
     assert result.sandboxed_build.sandbox.controls.network_namespace_enforced is True
     assert result.sandboxed_build.sandbox.controls.host_network_inherited is False
+    assert result.sandboxed_build.control_plane_isolation.status == "ISOLATED"
+    assert result.sandboxed_build.control_plane_receipt_persisted is True
     assert result.offline_receipt.network_mode == "deny"
     assert result.offline_receipt.npm_offline_plan_sha256 == offline.sha256()
     assert result.offline_receipt.npm_cache_receipt_sha256 == cache.sha256()
