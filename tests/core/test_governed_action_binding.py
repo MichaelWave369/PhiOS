@@ -76,6 +76,7 @@ def _capability():
         name="Text Artifact",
         description="test",
         permissions=("artifact.write",),
+        effects=("filesystem.change",),
         risk="low",
         version="0.1.0",
     )
@@ -132,6 +133,8 @@ def test_exact_grant_binds_plan_edge_to_spine_capability():
     assert binding.target_state_id == "B"
     assert binding.capability_id == "commons.text_artifact"
     assert binding.permissions_requested == ("artifact.write",)
+    assert binding.effects_declared == ("filesystem.change",)
+    assert receipt.effects_declared == ("filesystem.change",)
     assert binding.action_authority is False
     assert binding.execution_authority is False
 
