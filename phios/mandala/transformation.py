@@ -190,6 +190,41 @@ class TransformationLineageBuilder:
             raise TransformationLineageError(
                 "effective taints must be unique and sorted"
             )
+        if receipt.requested_exactness is ExactnessClass.BYTE_EXACT:
+            if len(receipt.source_sha256s) != 1:
+                raise TransformationLineageError(
+                    "BYTE_EXACT requires exactly one source"
+                )
+            if receipt.source_sha256s[0] != receipt.output_sha256:
+                raise TransformationLineageError(
+                    "BYTE_EXACT requires identical source/output SHA-256"
+                )
+            if receipt.information_loss_possible or receipt.semantic_inference:
+                raise TransformationLineageError(
+                    "BYTE_EXACT cannot claim loss or semantic inference"
+                )
+        elif receipt.requested_exactness is ExactnessClass.REVERSIBLE:
+            if receipt.information_loss_possible or receipt.semantic_inference:
+                raise TransformationLineageError(
+                    "REVERSIBLE cannot claim loss or semantic inference"
+                )
+        elif receipt.requested_exactness is ExactnessClass.NORMALIZED:
+            if receipt.semantic_inference:
+                raise TransformationLineageError(
+                    "NORMALIZED cannot include semantic inference"
+                )
+        elif receipt.requested_exactness is ExactnessClass.LOSSY_DERIVED:
+            if not receipt.information_loss_possible or receipt.semantic_inference:
+                raise TransformationLineageError(
+                    "LOSSY_DERIVED requires possible information loss and no semantic inference"
+                )
+        elif receipt.requested_exactness is ExactnessClass.INTERPRETIVE:
+            if not receipt.semantic_inference:
+                raise TransformationLineageError(
+                    "INTERPRETIVE requires semantic inference"
+                )
+        if receipt.exactness_class not in ExactnessClass:
+            raise TransformationLineageError("invalid effective exactness class")
         if receipt.operational_authority is not False:
             raise TransformationLineageError(
                 "transformation lineage cannot carry operational authority"
