@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from phios.mandala import MandalaStatus
+from phios.mandala import ExactnessClass, MandalaStatus
 from phios.soma import (
     AcuityStatus,
     EnhancedFrame,
@@ -105,6 +105,11 @@ def test_valid_sharpening_preserves_source_and_creates_derived(tmp_path: Path) -
     assert result.receipt.observation_evidence_ref == result.derived_evidence.evidence_ref
     assert result.receipt.enhancement_method == "unsharp_mask"
     assert "enhancement_does_not_recover_lost_information" in result.receipt.limitations
+    assert result.receipt.exactness_class == ExactnessClass.LOSSY_DERIVED.value
+    assert result.receipt.taint_labels == ("enhanced_pixels",)
+    assert result.transformation_lineage[0].receipt_sha256 == (
+        result.receipt.transformation_lineage_sha256s[0]
+    )
 
 
 def test_enhancement_records_derivation_chain(tmp_path: Path) -> None:
