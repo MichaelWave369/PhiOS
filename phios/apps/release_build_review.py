@@ -13,6 +13,9 @@ from .release_advancement import ReleaseCandidateAdvancementRecord
 RELEASE_BUILD_REVIEW_SCHEMA_VERSION = "phios.release_build_review.v0.1"
 
 _ADVANCEMENT_NOTE_PREFIX = "release_candidate_advancement_sha256="
+_ADVANCEMENT_NOTE_RE = re.compile(
+    r"(?:^|;\\s*)release_candidate_advancement_sha256=([0-9a-f]{64})$"
+)
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 
 
@@ -54,11 +57,14 @@ def _digest(value: Any) -> str:
 
 
 def release_advancement_sha256_from_plan(plan: BuildPlan) -> str | None:
-    matches = [
-        note[len(_ADVANCEMENT_NOTE_PREFIX) :]
-        for note in plan.notes
-        if note.startswith(_ADVANCEMENT_NOTE_PREFIX)
-    ]
+    matches: list[str] = []
+    for note in plan.notes:
+        if note.startswith(_ADVANCEMENT_NOTE_PREFIX):
+            matches.append(note[len(_ADVANCEMENT_NOTE_PREFIX) :])
+            continue
+        legacy_match = _ADVANCEMENT_NOTE_RE.search(note)
+        if legacy_match is not None:
+            matches.append(legacy_match.group(1))
     if not matches:
         return None
     if len(matches) != 1:
