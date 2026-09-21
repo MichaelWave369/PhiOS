@@ -358,7 +358,7 @@ A hardened router can instead be configured with:
 
 ```text
 require_dynamic_state_receipt = true
-expected_dynamic_state_policy_sha256 = <frozen policy hash>
+dynamic_state_controller = <controller bound to the frozen policy>
 ```
 
 Then:
@@ -366,7 +366,7 @@ Then:
 - raw DynamicFieldState is rejected;
 - only a valid consumable DynamicStateEvaluation is accepted;
 - the receipt field-law hash must match the router DynamicField law;
-- the policy hash must match the frozen expected policy;
+- the configured controller recomputes the policy result from the exact source state and receipt times;
 - terminated state fails before route search begins.
 
 The existing FieldAwareRouteReceipt format remains unchanged.
