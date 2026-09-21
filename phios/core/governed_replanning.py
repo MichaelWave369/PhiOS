@@ -14,6 +14,7 @@ from dataclasses import dataclass
 from typing import Any, Callable, Iterable, Mapping, Sequence
 
 from phios.core.dynamic_field import DynamicFieldState
+from phios.core.dynamic_state import DynamicStateEvaluation
 from phios.core.field_aware_routing import (
     FieldAwarePathAssessmentReceipt,
     FieldAwareRouteReceipt,
@@ -125,7 +126,7 @@ class GovernedReplanner:
         self,
         *,
         previous_route: FieldAwareRouteReceipt,
-        current_field_state: DynamicFieldState,
+        current_field_state: DynamicFieldState | DynamicStateEvaluation,
         incumbent_path: Sequence[State],
         starts: Iterable[State],
         expand: StateExpansion,
@@ -134,6 +135,12 @@ class GovernedReplanner:
         max_states: int = 10_000,
     ) -> GovernedReplanReceipt:
         self._validate_previous_route(previous_route)
+
+        resolved_current_state = (
+            current_field_state.require_consumable_state()
+            if isinstance(current_field_state, DynamicStateEvaluation)
+            else current_field_state
+        )
 
         incumbent = self._router.assess_path(
             current_field_state,
@@ -144,11 +151,11 @@ class GovernedReplanner:
             raise GovernedReplanningContractError(
                 "incumbent path does not match previous route receipt"
             )
-        if current_field_state.law_sha256 != previous_route.field_law_sha256:
+        if resolved_current_state.law_sha256 != previous_route.field_law_sha256:
             raise GovernedReplanningContractError(
                 "current field law differs from previous route law"
             )
-        if current_field_state.revision < previous_route.field_revision:
+        if resolved_current_state.revision < previous_route.field_revision:
             raise GovernedReplanningContractError(
                 "current field revision cannot precede previous route revision"
             )
@@ -171,7 +178,7 @@ class GovernedReplanner:
             reason=reason,
             improvement=improvement,
             previous_route=previous_route,
-            current_field_state=current_field_state,
+            current_field_state=resolved_current_state,
             incumbent=incumbent,
             candidate=candidate,
         )
