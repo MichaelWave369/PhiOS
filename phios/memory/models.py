@@ -4,7 +4,7 @@ import hashlib
 from dataclasses import dataclass, field
 from typing import Literal
 
-from phios.mandala import OriginKind
+from phios.mandala import OriginKind, ReadAdmissibilityReceipt
 
 from .validation import require_nonempty, require_utc_timestamp, sha256_json, validate_text
 
@@ -194,5 +194,8 @@ class MemoryResult:
     status: Literal["ok", "blocked", "unavailable", "invalid", "degraded"]
     record: MemoryRecord | None = None
     hits: tuple[MemoryHit, ...] = field(default_factory=tuple)
+    read_admissibility_receipts: tuple[ReadAdmissibilityReceipt, ...] = field(
+        default_factory=tuple
+    )
     receipt_id: str | None = None
     error_code: str | None = None
