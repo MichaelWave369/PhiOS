@@ -204,6 +204,7 @@ class DeliberationEvidenceAssessor:
                 raise IndependenceContractError(
                     "parent_path_ids must reference paths in the same assessment"
                 )
+        self._validate_parent_graph(normalized_paths)
 
         assertion_map: dict[tuple[str, str], IndependenceAssertion] = {}
         for raw in assertions:
@@ -372,6 +373,30 @@ class DeliberationEvidenceAssessor:
             independence_receipt=independence,
             disagreement_receipt=disagreement,
         )
+
+    @staticmethod
+    def _validate_parent_graph(
+        paths: tuple[EvidencePathDeclaration, ...],
+    ) -> None:
+        parents = {path.path_id: path.parent_path_ids for path in paths}
+        visiting: set[str] = set()
+        visited: set[str] = set()
+
+        def visit(path_id: str) -> None:
+            if path_id in visited:
+                return
+            if path_id in visiting:
+                raise IndependenceContractError(
+                    "evidence path parent graph must be acyclic"
+                )
+            visiting.add(path_id)
+            for parent_id in parents[path_id]:
+                visit(parent_id)
+            visiting.remove(path_id)
+            visited.add(path_id)
+
+        for path_id in sorted(parents):
+            visit(path_id)
 
     @staticmethod
     def _forced_dependency_reasons(
