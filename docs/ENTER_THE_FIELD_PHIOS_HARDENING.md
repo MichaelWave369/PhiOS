@@ -28,8 +28,8 @@ increment independently reviewable and replaceable.
 | P0 | Derived memory cannot originate authority | `AuthorityProjection`, `ReadAdmissibilityReceipt`, no-mint Crucibles | **v0.1 merged via PR #181** |
 | P0 | Actor cannot re-enter or mutate its governing control plane | `ControlPlaneIsolationReceipt` | **v0.2 merged via PR #182** |
 | P0 | Capability is classified by environmental effects, not method labels | `EffectBoundaryReceipt` | **v0.3 merged via PR #183** |
-| P0 | Containment/negative claims are bounded by demonstrated observation coverage | `ObservationFrontier`, `ObservabilityBoundaryReceipt` | **v0.4 candidate implemented on this branch** |
-| P1 | Transformations preserve source, taint, exactness, and derivation lineage | `TransformationLineageReceipt`, `ExactnessClass` | planned; not promoted |
+| P0 | Containment/negative claims are bounded by demonstrated observation coverage | `ObservationFrontier`, `ObservabilityBoundaryReceipt` | **v0.4 merged via PR #184** |
+| P1 | Transformations preserve source, taint, exactness, and derivation lineage | `TransformationLineageReceipt`, `ExactnessClass` | **v0.5 candidate implemented on this branch** |
 | P1 | Multi-agent corroboration reflects evidence-path independence | `IndependenceReceipt`, `DisagreementDecompositionReceipt` | planned; not promoted |
 | P1 | Detection can reach bounded remediation without minting authority | `GovernanceEscalationReceipt` | planned; not promoted |
 | P2 | Corrective/advisory state can decay and terminate deterministically | dynamic-state attenuation / termination | planned; not promoted |
@@ -288,8 +288,8 @@ bound negative/containment claims by what was actually observable and tested.
 
 ## Research-hardening v0.4
 
-This branch implements the fourth P0 seam: explicit observation-frontier evidence for
-Reality Gate claims.
+v0.4 implemented the fourth P0 seam: explicit observation-frontier evidence for
+Reality Gate claims, merged through PR #184.
 
 The governing distinction is:
 
@@ -440,6 +440,168 @@ see covert channels. A `COVERED` entry means the declared bounded observer compl
 the stated observation contract, not that reality outside that contract ceased to
 exist.
 
+## Research-hardening v0.5
+
+This branch begins the P1 hardening line with explicit transformation lineage and
+representation exactness.
+
+The governing distinction is:
+
+```text
+DERIVED FROM X
+!=
+IDENTICAL TO X
+```
+
+### ExactnessClass
+
+PhiOS now uses a bounded exactness vocabulary for derived artifacts:
+
+```text
+BYTE_EXACT
+REVERSIBLE
+NORMALIZED
+LOSSY_DERIVED
+INTERPRETIVE
+UNKNOWN
+```
+
+The classes describe representation/provenance properties. They do not establish truth.
+
+`BYTE_EXACT` requires one source and an identical source/output SHA-256.
+`INTERPRETIVE` requires explicit semantic inference. `LOSSY_DERIVED` requires the
+transform to admit possible information loss.
+
+A child transform cannot improve the effective exactness inherited from its parents.
+A byte-exact copy of a lossy crop therefore remains `LOSSY_DERIVED`, rather than
+washing the crop history away with a reassuring new hash.
+
+### TransformationLineageReceipt
+
+`phios.transformation_lineage_receipt.v0.1` binds:
+
+- transform identity and version;
+- exact source references and source SHA-256 values;
+- exact output reference and SHA-256;
+- transform-parameter SHA-256;
+- parent transformation receipt hashes;
+- requested and effective exactness class;
+- inherited and newly-added taint labels;
+- possible information loss;
+- semantic-inference status;
+- explicit limitations;
+- zero operational/action/execution authority.
+
+Receipt identity is deterministic over the transformation contract and lineage.
+
+### Taint monotonicity
+
+Transformation taints are monotone across a lineage.
+
+A child inherits parent taints and may add new ones, but cannot silently remove prior
+limitations. Examples in the current adapters include:
+
+```text
+normalized_representation
+cropped_context
+resampled_pixels
+enhanced_pixels
+machine_interpretation
+canonicalized_representation
+extracted_subset
+```
+
+This is provenance taint, not malware taint and not an automatic truth score.
+
+### SOMA transformations
+
+The first integration attaches lineage to existing SOMA transformation seams without
+creating another Mandala authority plane.
+
+- unchanged text is `BYTE_EXACT`;
+- BOM/newline normalization is `NORMALIZED`;
+- screen crop and nearest-neighbor enlargement are conservatively
+  `LOSSY_DERIVED`;
+- deterministic screen enhancement is `LOSSY_DERIVED`;
+- OCR text is `INTERPRETIVE`.
+
+Existing `PerceptionReceipt` and `OcrReceipt` rows bind the transformation receipt
+hashes, effective exactness, and taints. The detailed lineage is returned inline with
+the SOMA result.
+
+Native/source evidence remains preserved under the existing contracts.
+
+### Governed derived memory
+
+A canonical memory record with:
+
+```text
+epistemic_kind = "derived"
+```
+
+must now carry:
+
+- `derived_from`;
+- an exactness class;
+- one or more transformation-lineage receipt SHA-256 values;
+- the effective taint set.
+
+At `GovernedMemoryService.put()`, PhiOS validates the full supplied transformation
+receipt chain before accepting derived memory.
+
+The write fails closed if:
+
+- lineage receipts are absent or malformed;
+- record lineage hashes do not match the supplied receipts;
+- a parent link is broken;
+- a child tries to upgrade inherited exactness;
+- an inherited taint disappears;
+- the final output digest does not equal canonical memory content;
+- final exactness/taints differ from the record metadata;
+- the declared `derived_from` source is absent from the lineage.
+
+Source memory cannot carry derived exactness or transformation taints.
+
+The generic operator CLI therefore no longer permits an arbitrary
+`--epistemic-kind derived` write. Derived writes must come through a subsystem or
+importer that can produce verifiable lineage.
+
+### Legacy memory import
+
+The explicit legacy agent-memory importer now receipts the extraction of each
+deliberation from the source JSON file.
+
+The imported deliberation is marked `LOSSY_DERIVED`, because one deliberation is a
+bounded extracted subset of the complete source file, and carries:
+
+```text
+canonicalized_representation
+extracted_subset
+```
+
+The source-file hash remains preserved.
+
+### Consumption and analytics
+
+`ReadAdmissibilityReceipt` now surfaces derived memory exactness, transformation
+receipt hashes, and taints alongside its existing zero-authority/currentness fields.
+
+`MemoryOperationReceipt` binds the supplied transformation lineage for canonical
+writes.
+
+Read-only Ledger projection exposes only bounded lineage hashes, exactness classes, and
+taint labels from Perception/OCR/Memory receipts. Transformation lineage remains
+evidence, never authority.
+
+### v0.5 bounded claim
+
+A correctly receipted transformation proves how PhiOS says an artifact was derived and
+what representational guarantees it is willing to make.
+
+It does not prove that an OCR interpretation is true, that a summary is complete, that
+an enhancement recovered missing information, or that a model-derived statement is
+semantically equivalent to its source.
+
 ## Finding traceability
 
 The table records architecture candidates motivated by F01–F26. A mapping is not a
@@ -476,9 +638,11 @@ promotion decision.
 
 F12/F23 are the direct evidence drivers for v0.1. F24 drives v0.2 control-plane
 isolation. F15 drives the v0.3 effect boundary. F22 directly drives v0.4 observation
-frontiers, with F01 reinforcing that containment claims must not exceed demonstrated
-coverage and F26 reinforcing effect semantics through composition. All remaining rows
-stay candidates until their own bounded increments and Crucibles exist.
+frontiers. F25 directly drives v0.5 transformation lineage, with F20 reinforcing
+exactness requirements for retained/derived information and F26 reinforcing provenance
+through composed transformations. F01 continues to require that containment claims not
+exceed demonstrated coverage. All remaining rows stay candidates until their own bounded
+increments and Crucibles exist.
 
 ## v0.1 Crucibles
 
@@ -552,6 +716,28 @@ The focused observation-frontier test set must prove at minimum:
 12. read-only Ledger projection can expose observability status/hashes without exposing
     hidden authority state.
 
+## v0.5 Crucibles
+
+The focused transformation-lineage test set must prove at minimum:
+
+1. `BYTE_EXACT` requires an identical single-source/output SHA-256;
+2. a child transform cannot upgrade a weaker parent exactness class;
+3. inherited taints survive downstream transformation;
+4. `INTERPRETIVE` cannot be claimed without semantic inference;
+5. tampering with a lineage receipt invalidates its receipt hash;
+6. unchanged text receives byte-exact lineage while normalization is explicitly
+   `NORMALIZED`;
+7. crop/enlarge and enhancement outputs remain derived and cannot replace native
+   evidence;
+8. OCR output is explicitly `INTERPRETIVE`, not source-equivalent text;
+9. derived memory without supplied transformation receipts is rejected;
+10. derived memory output digest/exactness/taints must match the final lineage receipt;
+11. legacy memory extraction produces deterministic lossy lineage;
+12. memory read admissibility exposes exactness/taint while preserving zero authority;
+13. direct CLI creation of unreceipted derived memory is blocked;
+14. read-only Ledger projection can expose bounded lineage metadata without creating a
+    new authority plane.
+
 ## Explicit non-goals
 
 The current research-hardening track does **not**:
@@ -565,6 +751,9 @@ The current research-hardening track does **not**:
 - treat declared effect classification as proof that every real effect was observed;
 - treat a COVERED frontier as universal observation completeness;
 - infer covert-channel absence from bounded provider observations;
+- treat an exactness class as truth, semantic correctness, or independent validation;
+- let a downstream transformation erase inherited taints or improve inherited
+  exactness;
 - auto-promote any research finding into policy.
 
 Those remain separate, independently reviewable increments.
