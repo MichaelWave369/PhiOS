@@ -19,6 +19,14 @@ from .contracts import (
     PhiCoreState,
 )
 from .ledger import MandalaReceiptLedger
+from .transformation import (
+    TRANSFORMATION_LINEAGE_RECEIPT_SCHEMA_VERSION,
+    ExactnessClass,
+    TransformationLineageBuilder,
+    TransformationLineageError,
+    TransformationLineageReceipt,
+    weakest_exactness,
+)
 from .receipts import (
     AbortReceipt,
     ActionReceipt,
@@ -38,6 +46,7 @@ __all__ = [
     "MANDALA_CONTRACT_VERSION",
     "AbortReceipt",
     "ActionReceipt",
+    "ExactnessClass",
     "EffectBoundaryReceipt",
     "AuthoritativeAuthorityEvent",
     "AuthorityContext",
@@ -62,4 +71,9 @@ __all__ = [
     "RealityReceipt",
     "ReceiptEnvelope",
     "RouteReceipt",
+    "TRANSFORMATION_LINEAGE_RECEIPT_SCHEMA_VERSION",
+    "TransformationLineageBuilder",
+    "TransformationLineageError",
+    "TransformationLineageReceipt",
+    "weakest_exactness",
 ]
