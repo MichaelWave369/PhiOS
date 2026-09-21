@@ -19,6 +19,7 @@ from phios.core.field_aware_routing import (
     FieldAwareRouter,
     FieldAwareRoutingContractError,
 )
+from phios.core.governed_replanning import GovernedReplanner, ReplanPolicy
 
 
 def _field() -> DynamicField:
@@ -489,3 +490,56 @@ def test_hardened_router_rejects_wrong_temporal_policy() -> None:
             expand=lambda item: [],
             goal=lambda item: False,
         )
+
+
+def test_governed_replanning_consumes_receipted_temporal_state() -> None:
+    field = _field()
+    source = _failed_state(field)
+    controller = DynamicStateController(
+        dynamic_field=field,
+        policy=_policy(),
+    )
+    router = _hardened_router(field, controller)
+    replanner = GovernedReplanner(
+        router=router,
+        policy=ReplanPolicy(
+            policy_id="temporal-replan",
+            minimum_cost_improvement=0.0,
+        ),
+    )
+    states = _states()
+    graph = _graph()
+
+    early = controller.evaluate(
+        source,
+        activated_at_utc="2026-09-21T20:00:00+00:00",
+        observed_at_utc="2026-09-21T20:00:01+00:00",
+    )
+    previous = router.route(
+        early,
+        [states["A"]],
+        expand=lambda item: [states[key] for key in graph[_id(item)]],
+        goal=lambda item: _id(item) == "D",
+    )
+    assert previous.path_ids == ("A", "C", "D")
+
+    late = controller.evaluate(
+        source,
+        activated_at_utc="2026-09-21T20:00:00+00:00",
+        observed_at_utc="2026-09-21T20:00:10+00:00",
+    )
+    receipt = replanner.assess(
+        previous_route=previous,
+        current_field_state=late,
+        incumbent_path=[states["A"], states["C"], states["D"]],
+        starts=[states["A"]],
+        expand=lambda item: [states[key] for key in graph[_id(item)]],
+        goal=lambda item: _id(item) == "D",
+    )
+
+    assert receipt.decision == "REPLAN"
+    assert receipt.candidate_path_ids == ("A", "B", "D")
+    assert (
+        receipt.current_field_state_sha256
+        == late.require_consumable_state().state_sha256
+    )
