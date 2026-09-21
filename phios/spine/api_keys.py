@@ -316,6 +316,49 @@ class ApiKeyBoundary:
         self._register_unique(normalized.key_id)
         self._outbound[normalized.key_id] = normalized
 
+    def authenticate_inbound_headers(
+        self,
+        *,
+        key_id: str,
+        headers: Mapping[str, str],
+        audience: str,
+        header_name: str = "X-API-Key",
+    ) -> ApiKeyAuthReceipt:
+        normalized_header = _require_text(header_name, "header_name")
+        if not _HEADER_NAME.fullmatch(normalized_header):
+            raise ApiKeyContractError("header_name is invalid")
+        presented: str | None = None
+        for name, value in headers.items():
+            if name.lower() == normalized_header.lower():
+                presented = value
+                break
+        if presented is None:
+            spec = self._inbound.get(_require_text(key_id, "key_id"))
+            public_sha = (
+                spec.public_contract_sha256
+                if spec is not None
+                else _sha256(
+                    {
+                        "key_id": key_id,
+                        "audience": audience,
+                        "known": False,
+                    }
+                )
+            )
+            return self._auth_receipt(
+                key_id=key_id,
+                audience=audience,
+                scopes=(),
+                status="DENIED",
+                reason="inbound_key_header_missing",
+                public_contract_sha256=public_sha,
+            )
+        return self.authenticate_inbound(
+            key_id=key_id,
+            presented_key=presented,
+            audience=audience,
+        )
+
     def authenticate_inbound(
         self,
         *,
