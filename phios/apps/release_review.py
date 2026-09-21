@@ -80,6 +80,27 @@ class MarkerChangeAcknowledgement:
         return asdict(self)
 
     @classmethod
+    def from_dict(cls, value: Any) -> MarkerChangeAcknowledgement:
+        if not isinstance(value, dict):
+            raise ValueError("marker acknowledgement must be an object")
+        if set(value) != {"path", "change"}:
+            raise ValueError(
+                "marker acknowledgement contains missing or unknown fields"
+            )
+        return cls(
+            path=_string(
+                value["path"],
+                "marker acknowledgement path",
+                maximum=256,
+            ),
+            change=_string(
+                value["change"],
+                "marker acknowledgement change",
+                maximum=32,
+            ),
+        )
+
+    @classmethod
     def from_text(cls, value: str) -> MarkerChangeAcknowledgement:
         text = _string(value, "marker acknowledgement", maximum=320)
         if "=" not in text:
@@ -152,23 +173,33 @@ class ReleaseChangeAcceptanceRecord:
             or self.update_authority
         ):
             raise ValueError("v0.46 acceptance grants no mutation authority")
-        _unique_sorted(
-            self.acknowledged_manifest_changes,
-            "acknowledged_manifest_changes",
-        )
-        _unique_sorted(
-            self.acknowledged_permissions_added,
-            "acknowledged_permissions_added",
-        )
-        _unique_sorted(
-            self.acknowledged_permissions_removed,
-            "acknowledged_permissions_removed",
-        )
+        for values, label in (
+            (
+                self.acknowledged_manifest_changes,
+                "acknowledged_manifest_changes",
+            ),
+            (
+                self.acknowledged_permissions_added,
+                "acknowledged_permissions_added",
+            ),
+            (
+                self.acknowledged_permissions_removed,
+                "acknowledged_permissions_removed",
+            ),
+        ):
+            if values != _unique_sorted(values, label):
+                raise ValueError(f"{label} must be canonically sorted")
         marker_pairs = tuple(
             f"{item.path}={item.change}"
             for item in self.acknowledged_source_marker_changes
         )
-        _unique_sorted(marker_pairs, "acknowledged_source_marker_changes")
+        if marker_pairs != _unique_sorted(
+            marker_pairs,
+            "acknowledged_source_marker_changes",
+        ):
+            raise ValueError(
+                "acknowledged_source_marker_changes must be canonically sorted"
+            )
 
     def body_dict(self) -> dict[str, Any]:
         return {
@@ -210,6 +241,133 @@ class ReleaseChangeAcceptanceRecord:
         result = self.body_dict()
         result["release_change_acceptance_sha256"] = self.sha256()
         return result
+
+    @classmethod
+    def from_dict(cls, value: Any) -> ReleaseChangeAcceptanceRecord:
+        if not isinstance(value, dict):
+            raise ValueError("release change acceptance must be an object")
+        expected = {
+            "schema_version",
+            "release_change_evidence_sha256",
+            "app_id",
+            "repository_url",
+            "active_version",
+            "candidate_version",
+            "active_commit_sha",
+            "candidate_commit_sha",
+            "acknowledged_manifest_changes",
+            "acknowledged_permissions_added",
+            "acknowledged_permissions_removed",
+            "acknowledged_source_marker_changes",
+            "review_note",
+            "review_scope",
+            "review_state",
+            "compatibility_verdict",
+            "permission_grant_authority",
+            "build_authority",
+            "install_authority",
+            "update_authority",
+            "release_change_acceptance_sha256",
+        }
+        if set(value) != expected:
+            raise ValueError(
+                "release change acceptance contains missing or unknown fields"
+            )
+        list_fields = (
+            "acknowledged_manifest_changes",
+            "acknowledged_permissions_added",
+            "acknowledged_permissions_removed",
+            "acknowledged_source_marker_changes",
+        )
+        for field in list_fields:
+            if not isinstance(value[field], list):
+                raise ValueError(f"{field} must be an array")
+        for field in (
+            "permission_grant_authority",
+            "build_authority",
+            "install_authority",
+            "update_authority",
+        ):
+            if not isinstance(value[field], bool):
+                raise ValueError(f"{field} must be boolean")
+        record = cls(
+            schema_version=_string(
+                value["schema_version"],
+                "release change acceptance schema_version",
+                maximum=64,
+            ),
+            release_change_evidence_sha256=_sha256(
+                value["release_change_evidence_sha256"],
+                "release_change_evidence_sha256",
+            ),
+            app_id=_string(value["app_id"], "app_id", maximum=64),
+            repository_url=_string(
+                value["repository_url"],
+                "repository_url",
+                maximum=512,
+            ),
+            active_version=_string(
+                value["active_version"],
+                "active_version",
+                maximum=128,
+            ),
+            candidate_version=_string(
+                value["candidate_version"],
+                "candidate_version",
+                maximum=128,
+            ),
+            active_commit_sha=_string(
+                value["active_commit_sha"],
+                "active_commit_sha",
+                maximum=64,
+            ),
+            candidate_commit_sha=_string(
+                value["candidate_commit_sha"],
+                "candidate_commit_sha",
+                maximum=64,
+            ),
+            acknowledged_manifest_changes=tuple(
+                _string(item, "acknowledged manifest change", maximum=64)
+                for item in value["acknowledged_manifest_changes"]
+            ),
+            acknowledged_permissions_added=tuple(
+                _string(item, "acknowledged added permission", maximum=128)
+                for item in value["acknowledged_permissions_added"]
+            ),
+            acknowledged_permissions_removed=tuple(
+                _string(item, "acknowledged removed permission", maximum=128)
+                for item in value["acknowledged_permissions_removed"]
+            ),
+            acknowledged_source_marker_changes=tuple(
+                MarkerChangeAcknowledgement.from_dict(item)
+                for item in value["acknowledged_source_marker_changes"]
+            ),
+            review_note=_optional_note(value["review_note"]),
+            review_scope=_string(
+                value["review_scope"],
+                "review_scope",
+                maximum=64,
+            ),
+            review_state=_string(
+                value["review_state"],
+                "review_state",
+                maximum=64,
+            ),
+            compatibility_verdict=_string(
+                value["compatibility_verdict"],
+                "compatibility_verdict",
+                maximum=32,
+            ),
+            permission_grant_authority=value["permission_grant_authority"],
+            build_authority=value["build_authority"],
+            install_authority=value["install_authority"],
+            update_authority=value["update_authority"],
+        )
+        if value["release_change_acceptance_sha256"] != record.sha256():
+            raise ValueError(
+                "release change acceptance digest does not match canonical record"
+            )
+        return record
 
 
 def accept_release_change_evidence(
