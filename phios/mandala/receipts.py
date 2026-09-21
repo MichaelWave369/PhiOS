@@ -215,6 +215,9 @@ class VerifierSemanticsReceipt(ReceiptEnvelope):
     verifier_id: str
     verification_method: str
     source_status: str
+    observation_frontier_sha256: str | None
+    observability_receipt_sha256: str | None
+    observability_status: str
     semantics_schema_version: str = "phios.verifier_semantics.v0.1"
     verdict_summary: dict[str, int] = field(default_factory=dict)
     detects_evidence_state: bool = True
