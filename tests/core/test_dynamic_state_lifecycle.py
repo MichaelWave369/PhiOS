@@ -507,8 +507,20 @@ def test_governed_replanning_consumes_receipted_temporal_state() -> None:
             minimum_cost_improvement=0.0,
         ),
     )
-    states = _states()
-    graph = _graph()
+    states = {
+        "A": {"id": "A"},
+        "B": {"id": "B"},
+        "C": {"id": "C"},
+        "E": {"id": "E"},
+        "D": {"id": "D"},
+    }
+    graph = {
+        "A": ["B", "C"],
+        "B": ["D"],
+        "C": ["E"],
+        "E": ["D"],
+        "D": [],
+    }
 
     early = controller.evaluate(
         source,
@@ -521,7 +533,7 @@ def test_governed_replanning_consumes_receipted_temporal_state() -> None:
         expand=lambda item: [states[key] for key in graph[_id(item)]],
         goal=lambda item: _id(item) == "D",
     )
-    assert previous.path_ids == ("A", "C", "D")
+    assert previous.path_ids == ("A", "C", "E", "D")
 
     late = controller.evaluate(
         source,
@@ -531,7 +543,12 @@ def test_governed_replanning_consumes_receipted_temporal_state() -> None:
     receipt = replanner.assess(
         previous_route=previous,
         current_field_state=late,
-        incumbent_path=[states["A"], states["C"], states["D"]],
+        incumbent_path=[
+            states["A"],
+            states["C"],
+            states["E"],
+            states["D"],
+        ],
         starts=[states["A"]],
         expand=lambda item: [states[key] for key in graph[_id(item)]],
         goal=lambda item: _id(item) == "D",
