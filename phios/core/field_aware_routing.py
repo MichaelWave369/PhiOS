@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from typing import Any, Callable, Iterable, Mapping, Sequence
 
 from phios.core.dynamic_field import DynamicField, DynamicFieldState
-from phios.core.dynamic_state import DynamicStateEvaluation
+from phios.core.dynamic_state import DynamicStateController, DynamicStateEvaluation
 from phios.core.relational_field import (
     FieldAxisSpec,
     FieldPathReceipt,
@@ -149,7 +149,7 @@ class FieldAwareRouter:
         constraints: Sequence[TransitionConstraintSpec] = (),
         dynamic_bindings: Sequence[DynamicCostBinding] = (),
         require_dynamic_state_receipt: bool = False,
-        expected_dynamic_state_policy_sha256: str | None = None,
+        dynamic_state_controller: DynamicStateController | None = None,
     ) -> None:
         self._dynamic_field = dynamic_field
         self._state_id = state_id
@@ -160,23 +160,19 @@ class FieldAwareRouter:
         self._require_dynamic_state_receipt = bool(
             require_dynamic_state_receipt
         )
-        self._expected_dynamic_state_policy_sha256 = (
-            expected_dynamic_state_policy_sha256.strip().lower()
-            if expected_dynamic_state_policy_sha256 is not None
-            else None
-        )
-        if self._require_dynamic_state_receipt:
-            if (
-                self._expected_dynamic_state_policy_sha256 is None
-                or len(self._expected_dynamic_state_policy_sha256) != 64
-                or any(
-                    char not in "0123456789abcdef"
-                    for char in self._expected_dynamic_state_policy_sha256
-                )
-            ):
-                raise FieldAwareRoutingContractError(
-                    "hardened dynamic routing requires an expected policy SHA-256"
-                )
+        self._dynamic_state_controller = dynamic_state_controller
+        if self._require_dynamic_state_receipt and dynamic_state_controller is None:
+            raise FieldAwareRoutingContractError(
+                "hardened dynamic routing requires a DynamicStateController"
+            )
+        if (
+            dynamic_state_controller is not None
+            and dynamic_state_controller.field_law_sha256
+            != self._dynamic_field.law.law_sha256
+        ):
+            raise FieldAwareRoutingContractError(
+                "dynamic state controller is bound to another field law"
+            )
 
         names = [binding.name.strip() for binding in self._dynamic_bindings]
         if any(not name for name in names):
@@ -318,18 +314,19 @@ class FieldAwareRouter:
     ) -> DynamicFieldState:
         if isinstance(field_state, DynamicStateEvaluation):
             receipt = field_state.receipt
+            if self._dynamic_state_controller is not None:
+                try:
+                    self._dynamic_state_controller.validate_evaluation(
+                        field_state
+                    )
+                except Exception as exc:
+                    if isinstance(exc, FieldAwareRoutingContractError):
+                        raise
+                    raise FieldAwareRoutingContractError(str(exc)) from exc
             state = field_state.require_consumable_state()
             if receipt.field_law_sha256 != self._dynamic_field.law.law_sha256:
                 raise FieldAwareRoutingContractError(
                     "dynamic state receipt is bound to another field law"
-                )
-            if (
-                self._expected_dynamic_state_policy_sha256 is not None
-                and receipt.policy_sha256
-                != self._expected_dynamic_state_policy_sha256
-            ):
-                raise FieldAwareRoutingContractError(
-                    "dynamic state receipt is bound to another temporal policy"
                 )
             return state
 
