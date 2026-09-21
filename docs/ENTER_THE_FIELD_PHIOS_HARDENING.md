@@ -32,8 +32,8 @@ increment independently reviewable and replaceable.
 | P1 | Transformations preserve source, taint, exactness, and derivation lineage | `TransformationLineageReceipt`, `ExactnessClass` | **v0.5 merged via PR #185** |
 | P1 | Multi-agent corroboration reflects evidence-path independence | `IndependenceReceipt`, `DisagreementDecompositionReceipt` | **v0.6 merged via PR #186** |
 | P1 | Detection can reach bounded remediation without minting authority | `VerifierSemanticsReceipt`, `GovernanceEscalationReceipt` | **v0.7 merged via PR #187** |
-| P2 | Corrective/advisory state can decay and terminate deterministically | `DynamicStatePolicy`, `DynamicStateReceipt` | **v0.8 candidate implemented on this branch** |
-| P2 | Memory phase and evidence horizon are explicit | reconsolidation / evidence-horizon receipts | planned; not promoted |
+| P2 | Corrective/advisory state can decay and terminate deterministically | `DynamicStatePolicy`, `DynamicStateReceipt` | **v0.8 merged via PR #188** |
+| P2 | Memory phase and evidence horizon are explicit | `EvidenceHorizonReceipt`, `ReactivationWindowReceipt`, `ReconsolidationGate` | **v0.9 candidate implemented on this branch** |
 | P2 | Identity and recovery are invariant-based rather than topology-based | identity/recovery equivalence receipts | planned; not promoted |
 
 ## Research-hardening v0.1
@@ -900,8 +900,8 @@ effect-boundary, execution-handoff, and observation contracts.
 
 ## Research-hardening v0.8
 
-This branch begins the P2 line with deterministic decay and hard termination for
-advisory dynamic field state.
+v0.8 began the P2 line with deterministic decay and hard termination for
+advisory dynamic field state and merged through PR #188.
 
 The governing distinction is:
 
@@ -1074,6 +1074,116 @@ It does not:
 
 The hardened router path must be explicitly configured with the intended DynamicStateController and its immutable policy.
 
+## Research-hardening v0.9
+
+This branch adds a temporal-context boundary to governed memory.
+
+The governing distinction is:
+
+```text
+RETRIEVABLE
+!=
+CURRENTLY ADMISSIBLE FOR THIS CONTEXT
+```
+
+Canonical retention, publication, scope/classification policy, and expiry remain the
+first memory boundary. v0.9 adds a second, explicitly contextual question:
+
+> even if this record still exists and the caller may read it, is the record recent
+> enough to enter present reasoning without fresh linked evidence?
+
+### EvidenceHorizonPolicy
+
+The optional policy declares an active-context window, a larger reactivation window,
+and a freshness window for reconsolidating evidence. Every horizon receipt binds the
+exact policy SHA-256.
+
+The freshness window cannot exceed the active-context window, and the reactivation
+window must be larger than the active window.
+
+### Phase semantics
+
+A live/published canonical record can be:
+
+```text
+ACTIVE
+REACTIVATION_REQUIRED
+REACTIVATED
+REACTIVATION_HELD
+OUTSIDE_HORIZON
+```
+
+`ACTIVE` may enter context normally. `REACTIVATION_REQUIRED` remains canonical and
+retrievable but cannot enter the governed read result without newer linked evidence.
+`OUTSIDE_HORIZON` cannot be reactivated through this v0.9 gate.
+
+That distinction prevents retention from silently becoming permanent present-tense
+relevance.
+
+### ReconsolidationGate
+
+Reactivation uses another current canonical memory record as evidence. The evidence
+must be a different record, newer than the record being reactivated, still inside the
+fresh-evidence window, policy-readable by the same caller, in the same
+scope/classification domain, and contain the exact immutable reference
+`memory:<record_id>:<revision>:<record_sha256>` in `provenance_refs`. A record that
+contradicts the target cannot reactivate it.
+
+The gate does not rewrite either record, extend retention, reset `created_at`, or grant
+authority. A merely similar memory is not sufficient.
+
+### EvidenceHorizonReceipt and ReactivationWindowReceipt
+
+The horizon receipt binds the exact record/version/hash, creation and evaluation time,
+record age, policy hash, phase, reactivation linkage, and contextual-admissibility
+decision. The reactivation receipt binds both exact canonical records.
+
+Accepted reactivation fixes:
+
+```text
+context_reactivated = true
+canonical_record_mutated = false
+retention_mutated = false
+operational_authority = false
+action_authority = false
+execution_authority = false
+```
+
+Reactivation therefore means bounded contextual use. It does not declare the older
+memory true again and it grants no execution permission.
+
+### ReadAdmissibility linkage
+
+A successful `ReadAdmissibilityReceipt` now binds the exact horizon receipt SHA-256
+and, when used, the exact reactivation receipt SHA-256. Temporal limits therefore
+survive the final consumption seam.
+
+### Semantic-search prefilter
+
+When enabled, semantic retrieval removes context-inadmissible canonical versions
+before vector ranking. Similarity cannot promote a stale record back into current
+context.
+
+### Operator configuration
+
+```json
+{
+  "evidence_horizon_enabled": true,
+  "active_context_window_seconds": 86400,
+  "reactivation_window_seconds": 2592000,
+  "fresh_evidence_window_seconds": 21600
+}
+```
+
+`phi-memory get` accepts `--reactivate-with <newer-linked-record-id>`. Semantic search
+accepts explicit `--reactivate TARGET=EVIDENCE` mappings.
+
+### v0.9 bounded claim
+
+v0.9 proves temporal context admissibility over canonical PhiOS memory. It does not
+prove that a fresh linked memory is true, independent, or semantically sufficient
+beyond the explicit provenance/contradiction contract.
+
 ## Finding traceability
 
 The table records architecture candidates motivated by F01–F26. A mapping is not a
@@ -1116,7 +1226,8 @@ independence and disagreement decomposition, while F12/F19 reinforce that appare
 corroboration cannot exceed demonstrated evidence-path independence. F16 directly
 drives v0.7 governance escalation and verifier semantics, with F26 reinforcing that
 composed workflows must preserve the authority boundary from detection through
-remediation request. F18 directly drives v0.8 dynamic-state attenuation and termination.
+remediation request. F18 directly drives v0.8 dynamic-state attenuation and termination. F08 and F14
+directly drive v0.9 reactivation windows, reconsolidation gating, and evidence horizons.
 F26 also reinforces provenance through composition. F01 continues to require that containment claims not
 exceed demonstrated coverage. All remaining rows stay candidates until their own bounded
 increments and Crucibles exist.
@@ -1284,6 +1395,25 @@ The focused dynamic-state lifecycle test set must prove at minimum:
 13. terminated state fails before route computation;
 14. governed replanning can consume the same exact receipted temporal snapshot.
 
+## v0.9 Crucibles
+
+The focused memory-horizon test set must prove at minimum:
+
+1. a current canonical record inside the active window remains context-admissible;
+2. a retained/live record can remain retrievable while being blocked from current context;
+3. the final read-admissibility receipt binds the exact horizon receipt;
+4. reactivation requires a newer exact-linked canonical record;
+5. similarity or an unlinked newer record cannot reactivate context;
+6. a contradiction cannot reactivate the contradicted record;
+7. cross-scope/classification reactivation is held;
+8. stale reactivation evidence is held;
+9. an out-of-horizon record cannot be renewed by a fresh record;
+10. reactivation mutates neither canonical content nor retention;
+11. semantic ranking receives only horizon-admissible canonical versions;
+12. horizon/reactivation receipts carry zero operational/action/execution authority;
+13. explicit evaluation time produces deterministic replay;
+14. disabling the optional horizon preserves the previous governed-memory API.
+
 ## Explicit non-goals
 
 The current research-hardening track does **not**:
@@ -1312,6 +1442,9 @@ The current research-hardening track does **not**:
 - let decay or termination grant action/execution authority or mutate the governing
   field law;
 - treat a supplied activation timestamp as authenticated wall-clock evidence;
+- equate canonical memory retention with present-context admissibility;
+- let similarity, retrieval score, or mere recency reactivate stale context;
+- let reconsolidation mutate retention or mint action/execution authority;
 - auto-promote any research finding into policy.
 
 Those remain separate, independently reviewable increments.
