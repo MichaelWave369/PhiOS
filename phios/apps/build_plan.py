@@ -1041,7 +1041,47 @@ def _components_for(
 def plan_build_from_payloads(
     intake_value: Any,
     acquisition_receipt_value: Any,
+    *,
+    release_change_evidence_value: Any | None = None,
+    release_change_acceptance_value: Any | None = None,
+    release_candidate_advancement_value: Any | None = None,
+    approved_release_candidate_advancement_sha256: str | None = None,
 ) -> BuildPlan:
+    release_candidate = (
+        isinstance(intake_value, dict)
+        and intake_value.get("schema_version") == "phios.release_candidate_intake.v0.1"
+    )
+    release_gate_values = (
+        release_change_evidence_value,
+        release_change_acceptance_value,
+        release_candidate_advancement_value,
+        approved_release_candidate_advancement_sha256,
+    )
+    advancement_sha256: str | None = None
+    if release_candidate:
+        if any(value is None for value in release_gate_values):
+            raise ValueError(
+                "release candidate build planning requires v0.45 evidence, "
+                "v0.46 acceptance, v0.47 advancement, and exact advancement approval"
+            )
+        from .release_advancement import validate_release_candidate_advancement
+
+        advancement = validate_release_candidate_advancement(
+            intake_value,
+            release_change_evidence_value,
+            release_change_acceptance_value,
+            release_candidate_advancement_value,
+            approved_release_candidate_advancement_sha256=cast(
+                str,
+                approved_release_candidate_advancement_sha256,
+            ),
+        )
+        advancement_sha256 = advancement.sha256()
+    elif any(value is not None for value in release_gate_values):
+        raise ValueError(
+            "release advancement inputs are valid only for release-candidate intake"
+        )
+
     intake = review_intake_for_acquisition(intake_value)
     binding = AcquisitionBinding.from_dict(acquisition_receipt_value)
 
@@ -1077,7 +1117,13 @@ def plan_build_from_payloads(
         "v0.27 acquisition_tree_sha256 remains separate provenance because executable-mode "
         "metadata is not portable across all supported host filesystems"
     )
-    notes.append("build steps are declarative argv arrays; v0.28 executes no process")
+    if advancement_sha256 is None:
+        notes.append("build steps are declarative argv arrays; v0.28 executes no process")
+    else:
+        notes.append(
+            "build steps are declarative argv arrays; v0.28 executes no process; "
+            f"release_candidate_advancement_sha256={advancement_sha256}"
+        )
 
     return BuildPlan(
         app_id=intake.manifest.app_id,

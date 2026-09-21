@@ -74,6 +74,7 @@ from .retained_cleanup import (
     review_retained_cleanup,
 )
 from .registry import AppRegistry
+from .release_advancement import advance_release_candidate
 from .release_compatibility import ReleaseChangeEvidenceService
 from .release_review import (
     MarkerChangeAcknowledgement,
@@ -240,6 +241,21 @@ def _parser() -> argparse.ArgumentParser:
     )
     accept_release_parser.add_argument("--review-note", default=None)
 
+    advance_release_parser = subparsers.add_parser(
+        "advance-release-candidate",
+        help=(
+            "Bind exact v0.44 candidate, v0.45 evidence, and v0.46 human "
+            "acceptance into a non-authoritative v0.47 advancement record."
+        ),
+    )
+    advance_release_parser.add_argument("release_candidate_intake_json", type=Path)
+    advance_release_parser.add_argument("release_change_evidence_json", type=Path)
+    advance_release_parser.add_argument("release_change_acceptance_json", type=Path)
+    advance_release_parser.add_argument(
+        "--approve-release-change-acceptance-sha",
+        required=True,
+    )
+
     inspect_parser = subparsers.add_parser(
         "inspect-github",
         help="Read a bounded public GitHub repository snapshot and propose app metadata.",
@@ -272,6 +288,13 @@ def _parser() -> argparse.ArgumentParser:
     )
     plan_parser.add_argument("intake_json", type=Path)
     plan_parser.add_argument("acquisition_receipt_json", type=Path)
+    plan_parser.add_argument("--release-change-evidence-json", type=Path, default=None)
+    plan_parser.add_argument("--release-change-acceptance-json", type=Path, default=None)
+    plan_parser.add_argument("--release-candidate-advancement-json", type=Path, default=None)
+    plan_parser.add_argument(
+        "--approve-release-candidate-advancement-sha",
+        default=None,
+    )
 
     review_plan_parser = subparsers.add_parser(
         "review-build-plan",
@@ -1183,6 +1206,25 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(json.dumps(acceptance.to_dict(), sort_keys=True, indent=2))
         return 0
 
+    if args.command == "advance-release-candidate":
+        try:
+            candidate_payload = _load_json_file(args.release_candidate_intake_json)
+            evidence_payload = _load_json_file(args.release_change_evidence_json)
+            acceptance_payload = _load_json_file(args.release_change_acceptance_json)
+            advancement = advance_release_candidate(
+                candidate_payload,
+                evidence_payload,
+                acceptance_payload,
+                approved_release_change_acceptance_sha256=(
+                    args.approve_release_change_acceptance_sha
+                ),
+            )
+        except (OSError, ValueError) as exc:
+            print(json.dumps({"status": "blocked", "error": str(exc)}, sort_keys=True))
+            return 2
+        print(json.dumps(advancement.to_dict(), sort_keys=True, indent=2))
+        return 0
+
     if args.command == "inspect-github":
         try:
             result = inspect_public_github_app(args.repository_url)
@@ -1225,7 +1267,31 @@ def main(argv: Sequence[str] | None = None) -> int:
         try:
             intake_payload = _load_json_file(args.intake_json)
             receipt_payload = _load_json_file(args.acquisition_receipt_json)
-            plan = plan_build_from_payloads(intake_payload, receipt_payload)
+            release_evidence_payload = (
+                _load_json_file(args.release_change_evidence_json)
+                if args.release_change_evidence_json is not None
+                else None
+            )
+            release_acceptance_payload = (
+                _load_json_file(args.release_change_acceptance_json)
+                if args.release_change_acceptance_json is not None
+                else None
+            )
+            release_advancement_payload = (
+                _load_json_file(args.release_candidate_advancement_json)
+                if args.release_candidate_advancement_json is not None
+                else None
+            )
+            plan = plan_build_from_payloads(
+                intake_payload,
+                receipt_payload,
+                release_change_evidence_value=release_evidence_payload,
+                release_change_acceptance_value=release_acceptance_payload,
+                release_candidate_advancement_value=release_advancement_payload,
+                approved_release_candidate_advancement_sha256=(
+                    args.approve_release_candidate_advancement_sha
+                ),
+            )
         except (OSError, ValueError) as exc:
             print(json.dumps({"status": "blocked", "error": str(exc)}, sort_keys=True))
             return 2
