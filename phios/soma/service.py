@@ -447,7 +447,6 @@ class SomaPerceptionService:
             acquisition_method="bounded_file",
             source_locator=acquired.relative_path,
             source_root_ref=root_ref,
-            transformation_lineage=lineage,
         )
         return FileObservationResult(
             packet=packet,
@@ -457,6 +456,7 @@ class SomaPerceptionService:
             observation_text=observation,
             relative_path=acquired.relative_path,
             source_root_ref=root_ref,
+            transformation_lineage=lineage,
         )
 
 
