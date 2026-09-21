@@ -83,6 +83,7 @@ class BuildExecutionRequest:
     approved_plan_sha256: str
     approved_source_snapshot_sha256: str
     approved_permissions: tuple[str, ...]
+    release_build_review_sha256: str | None = None
     schema_version: str = BUILD_EXECUTION_REQUEST_SCHEMA_VERSION
 
     def __post_init__(self) -> None:
@@ -109,6 +110,23 @@ class BuildExecutionRequest:
             raise ValueError("Approved plan SHA-256 does not match canonical build plan")
         if self.approved_source_snapshot_sha256 != self.plan.source_snapshot_sha256:
             raise ValueError("Approved source snapshot SHA-256 does not match build plan")
+
+        from .release_build_review import release_advancement_sha256_from_plan
+
+        release_advancement_sha256 = release_advancement_sha256_from_plan(self.plan)
+        if release_advancement_sha256 is not None:
+            if self.release_build_review_sha256 is None:
+                raise ValueError(
+                    "release build execution requires an exact v0.48 release build review"
+                )
+            _sha256(
+                self.release_build_review_sha256,
+                "release_build_review_sha256",
+            )
+        elif self.release_build_review_sha256 is not None:
+            raise ValueError(
+                "release build review is valid only for a release-lineage build plan"
+            )
 
         if len(set(self.approved_permissions)) != len(self.approved_permissions):
             raise ValueError("Approved build permissions must not contain duplicates")
@@ -157,9 +175,44 @@ class BuildExecutionRequest:
         approved_plan_sha256: str,
         approved_source_snapshot_sha256: str,
         approved_permissions: tuple[str, ...],
+        release_build_review_value: Any | None = None,
+        approved_release_build_review_sha256: str | None = None,
     ) -> BuildExecutionRequest:
+        plan = BuildPlan.from_dict(plan_value)
+
+        from .release_build_review import (
+            release_advancement_sha256_from_plan,
+            validate_release_build_review,
+        )
+
+        release_advancement_sha256 = release_advancement_sha256_from_plan(plan)
+        review_sha256: str | None = None
+        if release_advancement_sha256 is not None:
+            if (
+                release_build_review_value is None
+                or approved_release_build_review_sha256 is None
+            ):
+                raise ValueError(
+                    "release build execution requires v0.48 review and exact review approval"
+                )
+            review = validate_release_build_review(
+                plan,
+                release_build_review_value,
+                approved_release_build_review_sha256=(
+                    approved_release_build_review_sha256
+                ),
+            )
+            review_sha256 = review.sha256()
+        elif (
+            release_build_review_value is not None
+            or approved_release_build_review_sha256 is not None
+        ):
+            raise ValueError(
+                "release build review inputs are valid only for a release-lineage build plan"
+            )
+
         return cls(
-            plan=BuildPlan.from_dict(plan_value),
+            plan=plan,
             acquisition=AcquisitionBinding.from_dict(acquisition_receipt_value),
             approved_plan_sha256=_sha256(
                 approved_plan_sha256,
@@ -170,6 +223,7 @@ class BuildExecutionRequest:
                 "approved_source_snapshot_sha256",
             ),
             approved_permissions=tuple(sorted(approved_permissions)),
+            release_build_review_sha256=review_sha256,
         )
 
 
