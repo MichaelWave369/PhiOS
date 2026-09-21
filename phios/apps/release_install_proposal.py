@@ -104,14 +104,14 @@ class ReleaseInstallProposalRecord:
             raise ValueError("unsupported release install proposal scope")
         if self.compatibility_verdict != "not_assessed":
             raise ValueError("release install proposal does not assess compatibility")
-        for value, label in (
+        for authority_value, authority_label in (
             (self.install_authority, "install_authority"),
             (self.launch_authority, "launch_authority"),
             (self.update_authority, "update_authority"),
             (self.rollback_authority, "rollback_authority"),
         ):
-            if not isinstance(value, bool):
-                raise ValueError(f"{label} must be Boolean")
+            if not isinstance(authority_value, bool):
+                raise ValueError(f"{authority_label} must be Boolean")
         if any(
             (
                 self.install_authority,
