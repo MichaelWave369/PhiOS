@@ -76,6 +76,7 @@ from .retained_cleanup import (
 from .registry import AppRegistry
 from .release_advancement import advance_release_candidate
 from .release_build_review import review_release_build_plan
+from .release_install_proposal import propose_release_install
 from .release_compatibility import ReleaseChangeEvidenceService
 from .release_review import (
     MarkerChangeAcknowledgement,
@@ -476,6 +477,19 @@ def _parser() -> argparse.ArgumentParser:
     )
     package_review_parser.add_argument("package_plan_json", type=Path)
 
+    release_install_proposal_parser = subparsers.add_parser(
+        "propose-release-install",
+        help=(
+            "Bind one exact v0.49 release-lineage package plan into a non-authoritative "
+            "v0.50 side-by-side install proposal."
+        ),
+    )
+    release_install_proposal_parser.add_argument("package_plan_json", type=Path)
+    release_install_proposal_parser.add_argument(
+        "--approve-package-plan-sha",
+        required=True,
+    )
+
     install_parser = subparsers.add_parser(
         "install-package",
         help="Atomically install one explicitly approved artifact package.",
@@ -485,6 +499,15 @@ def _parser() -> argparse.ArgumentParser:
     install_parser.add_argument("build_execution_receipt_json", type=Path)
     install_parser.add_argument("offline_build_receipt_json", type=Path)
     install_parser.add_argument("--approve-package-plan-sha", required=True)
+    install_parser.add_argument(
+        "--release-install-proposal-json",
+        type=Path,
+        default=None,
+    )
+    install_parser.add_argument(
+        "--approve-release-install-proposal-sha",
+        default=None,
+    )
     install_parser.add_argument(
         "--install-root",
         type=Path,
@@ -1595,12 +1618,30 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(json.dumps(package_review.to_dict(), sort_keys=True, indent=2))
         return 0
 
+    if args.command == "propose-release-install":
+        try:
+            package_payload = _load_json_file(args.package_plan_json)
+            proposal = propose_release_install(
+                package_payload,
+                approved_package_plan_sha256=args.approve_package_plan_sha,
+            )
+        except (OSError, ValueError) as exc:
+            print(json.dumps({"status": "blocked", "error": str(exc)}, sort_keys=True))
+            return 2
+        print(json.dumps(proposal.to_dict(), sort_keys=True, indent=2))
+        return 0
+
     if args.command == "install-package":
         try:
             package_payload = _load_json_file(args.package_plan_json)
             registry = AppRegistry.load(args.registry_json)
             execution_payload = _load_json_file(args.build_execution_receipt_json)
             offline_build_payload = _load_json_file(args.offline_build_receipt_json)
+            release_install_proposal_payload = (
+                _load_json_file(args.release_install_proposal_json)
+                if args.release_install_proposal_json is not None
+                else None
+            )
             install_receipt = AppInstallService().install(
                 package_payload,
                 registry,
@@ -1609,6 +1650,10 @@ def main(argv: Sequence[str] | None = None) -> int:
                 approved_package_plan_sha256=args.approve_package_plan_sha,
                 install_root=args.install_root,
                 receipt_root=args.receipt_root,
+                release_install_proposal_value=release_install_proposal_payload,
+                approved_release_install_proposal_sha256=(
+                    args.approve_release_install_proposal_sha
+                ),
             )
         except (OSError, ValueError, KeyError) as exc:
             print(json.dumps({"status": "blocked", "error": str(exc)}, sort_keys=True))
