@@ -15,6 +15,13 @@ from phios.apps.build_execution import (
 )
 from phios.apps.build_plan import plan_build_from_payloads
 from phios.apps.manifest import AppManifest
+from phios.apps.control_plane_isolation import (
+    ControlPlaneIsolationReceipt,
+    ControlPlaneSurfaceMap,
+    SandboxReachabilitySnapshot,
+    default_phios_control_plane_surfaces,
+    evaluate_control_plane_isolation,
+)
 from phios.apps.sandbox import (
     BuildSandboxPolicy,
     BubblewrapSandboxRunner,
@@ -119,8 +126,16 @@ def _empty_capture() -> StreamCapture:
 class FakeSandboxRunner:
     isolation_mode = "fake_linux_namespace_sandbox"
 
-    def __init__(self, policy: BuildSandboxPolicy) -> None:
+    def __init__(
+        self,
+        policy: BuildSandboxPolicy,
+        *,
+        control_plane_surfaces: ControlPlaneSurfaceMap | None = None,
+    ) -> None:
         self.policy = policy
+        self.control_plane_surfaces = (
+            control_plane_surfaces or default_phios_control_plane_surfaces()
+        )
         self.network_sandbox_enforced = policy.network_mode == "deny"
         self.preflight_calls = 0
         self.runs: list[str] = []
@@ -161,6 +176,28 @@ class FakeSandboxRunner:
             seccomp_enforced=False,
             network_allowlist_enforced=False,
             parent_death_enforced=True,
+        )
+
+    def control_plane_isolation_receipt(
+        self,
+        *,
+        source_root: Path,
+        evaluated_at: str,
+    ) -> ControlPlaneIsolationReceipt:
+        controls = self.control_evidence()
+        snapshot = SandboxReachabilitySnapshot.build(
+            source_root=source_root,
+            network_mode=self.policy.network_mode,
+            mount_namespace_enforced=controls.mount_namespace_enforced,
+            user_namespace_enforced=controls.user_namespace_enforced,
+            pid_namespace_enforced=controls.pid_namespace_enforced,
+            ipc_namespace_enforced=controls.ipc_namespace_enforced,
+            network_namespace_enforced=controls.network_namespace_enforced,
+        )
+        return evaluate_control_plane_isolation(
+            surface_map=self.control_plane_surfaces,
+            snapshot=snapshot,
+            evaluated_at=evaluated_at,
         )
 
     def probe(
@@ -312,14 +349,43 @@ def test_sandbox_service_emits_dual_bound_receipts(tmp_path: Path) -> None:
     assert result.sandbox.controls.network_allowlist_enforced is False
     assert result.sandbox.controls.seccomp_enforced is False
     assert result.sandbox.containment_level == "linux_namespaces_network_denied_rlimits"
+    assert result.control_plane_isolation.status == "ISOLATED"
+    assert result.control_plane_isolation.control_plane_reachable is False
+    assert result.control_plane_isolation.mutation_reachable is False
+    assert result.control_plane_isolation.action_authority is False
+    assert result.control_plane_isolation.execution_authority is False
     assert result.sandbox_receipt_persisted is True
     assert result.sandbox_receipt_path is not None
     assert Path(result.sandbox_receipt_path).is_file()
+    assert result.control_plane_receipt_persisted is True
+    assert result.control_plane_receipt_path is not None
+    assert Path(result.control_plane_receipt_path).is_file()
     assert runner.preflight_calls == 1
     assert runner.runs == ["dependencies", "build"]
 
     persisted = json.loads(Path(result.sandbox_receipt_path).read_text(encoding="utf-8"))
     assert persisted["sandbox_receipt_sha256"] == result.sandbox.sha256()
+
+
+def test_control_plane_overlap_blocks_before_backend_preflight(tmp_path: Path) -> None:
+    source = tmp_path / "control" / "source"
+    source.mkdir(parents=True)
+    receipt, plan = _locked_node_plan(source)
+    policy = BuildSandboxPolicy(network_mode="deny")
+    surfaces = ControlPlaneSurfaceMap.build(
+        protected_paths=(tmp_path / "control",),
+        source="test-control-plane",
+    )
+    runner = FakeSandboxRunner(policy, control_plane_surfaces=surfaces)
+
+    with pytest.raises(ValueError, match="control-plane isolation failed closed"):
+        SandboxedBuildExecutionService(policy, runner=runner).execute(
+            _request(plan, receipt),
+            execution_root=tmp_path / "executions",
+        )
+
+    assert runner.preflight_calls == 0
+    assert runner.runs == []
 
 
 def test_host_network_inheritance_requires_network_permission(tmp_path: Path) -> None:
