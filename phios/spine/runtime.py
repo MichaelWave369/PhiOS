@@ -4,6 +4,7 @@ import hashlib
 import json
 import uuid
 from collections.abc import Iterable
+from dataclasses import replace
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -11,6 +12,7 @@ from typing import Any
 from phios.mandala import (
     AbortReceipt,
     ActionReceipt,
+    EffectBoundaryReceipt,
     Gate,
     GateReceipt,
     MandalaPacket,
@@ -55,6 +57,7 @@ from phios.soma import (
 )
 
 from .collaborator import PhiVesselAdapter
+from .effects import EffectBoundaryPolicy
 from .executor import ExecutorRegistry, text_artifact_handler
 from .gate import PermissionGate
 from .ledger import RealityLedger
@@ -74,6 +77,7 @@ class PhiOSSpine:
         self.state_root = (state_root or Path.home() / ".phios" / "spine-v0.1").expanduser()
         allowed = tuple(dict.fromkeys(allowed_permissions))
         self.registry = CapabilityRegistry()
+        self.effect_policy = EffectBoundaryPolicy()
         self.gate = PermissionGate(allowed)
         self.executors = ExecutorRegistry()
         self.vessel = PhiVesselAdapter()
@@ -107,12 +111,14 @@ class PhiOSSpine:
             name="Text Artifact",
             description="Write user-supplied text into the PhiOS artifact store.",
             permissions=("artifact.write",),
+            effects=("filesystem.change",),
             risk="low",
         )
         self.registry.register(capability)
         self.executors.register(
             capability.id,
             text_artifact_handler(self.state_root / "artifacts"),
+            effects=("filesystem.change",),
         )
 
     @staticmethod
@@ -277,18 +283,60 @@ class PhiOSSpine:
             allowed_destinations=(Gate.MEMORY,),
         )
 
+    def _effect_receipt(
+        self,
+        packet: MandalaPacket,
+        capability: Capability,
+    ) -> EffectBoundaryReceipt:
+        try:
+            executor_effects = self.executors.effects(capability.id)
+        except KeyError:
+            executor_effects = ()
+        decision = self.effect_policy.evaluate(
+            capability,
+            executor_effects=executor_effects,
+        )
+        body = EffectBoundaryReceipt(
+            **receipt_meta(
+                packet,
+                status=(
+                    MandalaStatus.ACCEPTED
+                    if decision.allowed
+                    else MandalaStatus.BLOCKED
+                ),
+                produced_by="phios.effect_boundary",
+            ),
+            capability_id=decision.capability_id,
+            capability_version=decision.capability_version,
+            capability_risk=decision.capability_risk,
+            capability_effects=decision.capability_effects,
+            executor_effects=decision.executor_effects,
+            active_effects=decision.active_effects,
+            effect_contract_match=decision.effect_contract_match,
+            classification_complete=decision.classification_complete,
+            semantic_read_label_conflict=decision.semantic_read_label_conflict,
+            effect_policy_sha256=decision.policy_sha256,
+            reason=decision.reason,
+        )
+        return replace(
+            body,
+            receipt_sha256=self._hash_payload(body.to_dict()),
+        )
+
     def _gate_receipt(
         self,
         packet: MandalaPacket,
         *,
         allowed: bool,
         reason: str,
+        parent_receipt_id: str | None = None,
     ) -> GateReceipt:
         return GateReceipt(
             **receipt_meta(
                 packet,
                 status=MandalaStatus.ACCEPTED if allowed else MandalaStatus.BLOCKED,
                 produced_by="phios.action_gate",
+                parent_receipt_id=parent_receipt_id,
             ),
             gate=Gate.ACTION,
             reason=reason,
@@ -306,12 +354,59 @@ class PhiOSSpine:
         plan = self.vessel.plan(capability_id=capability_id, payload=payload)
         capability = self.registry.get(plan.capability_id)
         packet = self._action_packet(plan, capability)
-        decision = self.gate.evaluate(capability)
 
+        effect_receipt = self._effect_receipt(packet, capability)
+        self.mandala_ledger.append(effect_receipt)
+        if effect_receipt.status is MandalaStatus.BLOCKED:
+            gate_receipt = self._gate_receipt(
+                packet,
+                allowed=False,
+                reason=f"Effect boundary blocked: {effect_receipt.reason}",
+                parent_receipt_id=effect_receipt.receipt_id,
+            )
+            self.mandala_ledger.append(gate_receipt)
+            receipt = ExecutionReceipt(
+                schema_version="phios.execution_receipt.v0.1",
+                receipt_id=str(uuid.uuid4()),
+                timestamp_utc=datetime.now(UTC).isoformat(),
+                capability_id=capability.id,
+                planner=plan.planner,
+                input_sha256=self._hash_payload(plan.payload),
+                permissions_requested=list(capability.permissions),
+                permission_status="denied",
+                execution_status="not_executed",
+                packet_id=packet.packet_id,
+                gate_receipt_id=gate_receipt.receipt_id,
+                governed_provenance=governed_provenance,
+                error=f"effect_boundary:{effect_receipt.reason}",
+            )
+            action_receipt = ActionReceipt(
+                **receipt_meta(
+                    packet,
+                    status=MandalaStatus.BLOCKED,
+                    produced_by="phios.action_gate",
+                    parent_receipt_id=gate_receipt.receipt_id,
+                ),
+                approved_grant=(),
+                side_effect={
+                    "capability_id": capability.id,
+                    "effect_boundary_receipt_id": effect_receipt.receipt_id,
+                },
+                outcome="not_executed",
+                external_identifiers={},
+            )
+            self.mandala_ledger.append(action_receipt)
+            receipt.action_receipt_id = action_receipt.receipt_id
+            receipt.mandala_status = action_receipt.status.value
+            self.ledger.append(receipt)
+            return receipt
+
+        decision = self.gate.evaluate(capability)
         gate_receipt = self._gate_receipt(
             packet,
             allowed=decision.allowed,
             reason=decision.reason,
+            parent_receipt_id=effect_receipt.receipt_id,
         )
         self.mandala_ledger.append(gate_receipt)
 
