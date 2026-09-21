@@ -14,6 +14,7 @@ from dataclasses import dataclass
 from typing import Any, Callable, Iterable, Mapping, Sequence
 
 from phios.core.dynamic_field import DynamicField, DynamicFieldState
+from phios.core.dynamic_state import DynamicStateController, DynamicStateEvaluation
 from phios.core.relational_field import (
     FieldAxisSpec,
     FieldPathReceipt,
@@ -147,6 +148,8 @@ class FieldAwareRouter:
         relation_costs: Sequence[RelationCostSpec] = (),
         constraints: Sequence[TransitionConstraintSpec] = (),
         dynamic_bindings: Sequence[DynamicCostBinding] = (),
+        require_dynamic_state_receipt: bool = False,
+        dynamic_state_controller: DynamicStateController | None = None,
     ) -> None:
         self._dynamic_field = dynamic_field
         self._state_id = state_id
@@ -154,6 +157,22 @@ class FieldAwareRouter:
         self._relation_costs = tuple(relation_costs)
         self._constraints = tuple(constraints)
         self._dynamic_bindings = tuple(dynamic_bindings)
+        self._require_dynamic_state_receipt = bool(
+            require_dynamic_state_receipt
+        )
+        self._dynamic_state_controller = dynamic_state_controller
+        if self._require_dynamic_state_receipt and dynamic_state_controller is None:
+            raise FieldAwareRoutingContractError(
+                "hardened dynamic routing requires a DynamicStateController"
+            )
+        if (
+            dynamic_state_controller is not None
+            and dynamic_state_controller.field_law_sha256
+            != self._dynamic_field.law.law_sha256
+        ):
+            raise FieldAwareRoutingContractError(
+                "dynamic state controller is bound to another field law"
+            )
 
         names = [binding.name.strip() for binding in self._dynamic_bindings]
         if any(not name for name in names):
@@ -188,7 +207,7 @@ class FieldAwareRouter:
 
     def route(
         self,
-        field_state: DynamicFieldState,
+        field_state: DynamicFieldState | DynamicStateEvaluation,
         starts: Iterable[State],
         *,
         expand: StateExpansion,
@@ -196,7 +215,8 @@ class FieldAwareRouter:
         base_cost: float = 1.0,
         max_states: int = 10_000,
     ) -> FieldAwareRouteReceipt:
-        reasoner, snapshots = self._reasoner_for_state(field_state)
+        resolved_state = self._resolve_field_state(field_state)
+        reasoner, snapshots = self._reasoner_for_state(resolved_state)
         try:
             path = reasoner.least_cost_path(
                 starts,
@@ -209,21 +229,22 @@ class FieldAwareRouter:
             raise FieldAwareRoutingContractError(str(exc)) from exc
 
         return self._build_receipt(
-            field_state=field_state,
+            field_state=resolved_state,
             snapshots=snapshots,
             path=path,
         )
 
     def assess_path(
         self,
-        field_state: DynamicFieldState,
+        field_state: DynamicFieldState | DynamicStateEvaluation,
         path_states: Sequence[State],
         *,
         base_cost: float = 1.0,
     ) -> FieldAwarePathAssessmentReceipt:
         """Re-score one explicit path under one exact validated field snapshot."""
 
-        reasoner, snapshots = self._reasoner_for_state(field_state)
+        resolved_state = self._resolve_field_state(field_state)
+        reasoner, snapshots = self._reasoner_for_state(resolved_state)
         states = tuple(path_states)
         if not states:
             raise FieldAwareRoutingContractError(
@@ -262,9 +283,9 @@ class FieldAwareRouter:
         payload: dict[str, object] = {
             "schema": "phios.field_aware_path_assessment.v0.5",
             "status": status,
-            "field_law_sha256": field_state.law_sha256,
-            "field_state_sha256": field_state.state_sha256,
-            "field_revision": field_state.revision,
+            "field_law_sha256": resolved_state.law_sha256,
+            "field_state_sha256": resolved_state.state_sha256,
+            "field_revision": resolved_state.revision,
             "bindings": [item.to_dict() for item in snapshots],
             "path_ids": list(path_ids),
             "transition_receipt_sha256s": transition_hashes,
@@ -275,9 +296,9 @@ class FieldAwareRouter:
         return FieldAwarePathAssessmentReceipt(
             schema="phios.field_aware_path_assessment.v0.5",
             status=status,
-            field_law_sha256=field_state.law_sha256,
-            field_state_sha256=field_state.state_sha256,
-            field_revision=field_state.revision,
+            field_law_sha256=resolved_state.law_sha256,
+            field_state_sha256=resolved_state.state_sha256,
+            field_revision=resolved_state.revision,
             bindings=snapshots,
             path_ids=path_ids,
             transition_receipt_sha256s=tuple(transition_hashes),
@@ -286,6 +307,34 @@ class FieldAwareRouter:
             action_authority=False,
             receipt_sha256=_payload_digest(payload),
         )
+
+    def _resolve_field_state(
+        self,
+        field_state: DynamicFieldState | DynamicStateEvaluation,
+    ) -> DynamicFieldState:
+        if isinstance(field_state, DynamicStateEvaluation):
+            receipt = field_state.receipt
+            if self._dynamic_state_controller is not None:
+                try:
+                    self._dynamic_state_controller.validate_evaluation(
+                        field_state
+                    )
+                except Exception as exc:
+                    if isinstance(exc, FieldAwareRoutingContractError):
+                        raise
+                    raise FieldAwareRoutingContractError(str(exc)) from exc
+            state = field_state.require_consumable_state()
+            if receipt.field_law_sha256 != self._dynamic_field.law.law_sha256:
+                raise FieldAwareRoutingContractError(
+                    "dynamic state receipt is bound to another field law"
+                )
+            return state
+
+        if self._require_dynamic_state_receipt:
+            raise FieldAwareRoutingContractError(
+                "hardened dynamic routing requires a DynamicStateEvaluation"
+            )
+        return field_state
 
     def _reasoner_for_state(
         self,

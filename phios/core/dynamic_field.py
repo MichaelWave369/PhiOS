@@ -289,6 +289,66 @@ class DynamicField:
         )
         return next_state, receipt
 
+    def materialize_temporal_transition(
+        self,
+        state: DynamicFieldState,
+        *,
+        transition_id: str,
+        transition_sha256: str,
+        values: Mapping[str, float],
+    ) -> DynamicFieldState:
+        """Materialize one validated lifecycle-only advisory transition.
+
+        This method is intentionally narrow. It accepts only transition IDs in the
+        dynamic-state namespace, preserves the immutable field law, and cannot grant
+        action authority. The temporal policy/receipt is validated by the lifecycle
+        controller before this method is called.
+        """
+
+        self._validate_state(state)
+        normalized_id = transition_id.strip()
+        if not normalized_id.startswith("dynamic-state:"):
+            raise DynamicFieldContractError(
+                "temporal transition_id must use dynamic-state namespace"
+            )
+        normalized_sha = transition_sha256.strip().lower()
+        if not _is_sha256(normalized_sha):
+            raise DynamicFieldContractError(
+                "transition_sha256 must be a 64-character hexadecimal SHA-256"
+            )
+        if normalized_id in state.applied_event_ids:
+            raise DynamicFieldContractError("temporal transition replay")
+
+        expected_names = set(self._rules)
+        if set(values) != expected_names:
+            raise DynamicFieldContractError(
+                "temporal transition values must cover every field variable"
+            )
+
+        normalized_values: dict[str, float] = {}
+        for name in sorted(self._rules):
+            numeric = _require_finite(values[name], f"{name} temporal value")
+            rule = self._rules[name]
+            if numeric < rule.minimum or numeric > rule.maximum:
+                raise DynamicFieldContractError(
+                    f"{name} temporal value is outside governing bounds"
+                )
+            normalized_values[name] = numeric
+
+        next_values = tuple(sorted(normalized_values.items()))
+        if next_values == state.values:
+            return state
+
+        next_chain = _text_digest(
+            f"{state.event_chain_sha256}:{normalized_sha}"
+        )
+        return self._build_state(
+            revision=state.revision + 1,
+            values=next_values,
+            applied_event_ids=state.applied_event_ids + (normalized_id,),
+            event_chain_sha256=next_chain,
+        )
+
     def _validate_law(
         self,
         law: DynamicFieldLaw,

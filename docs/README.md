@@ -28,6 +28,7 @@ PhiOS changes quickly, so use this source-of-truth order when documents disagree
 - [Transformation Lineage v0.1](PHIOS_TRANSFORMATION_LINEAGE_V0.1.md) — exact source/output lineage, monotone exactness classes, taint propagation, and fail-closed derived-memory provenance.
 - [Evidence Independence v0.1](PHIOS_EVIDENCE_INDEPENDENCE_V0.1.md) — conservative evidence-path independence, disagreement decomposition, and zero-authority consensus accounting.
 - [Governance Escalation v0.1](PHIOS_GOVERNANCE_ESCALATION_V0.1.md) — verifier semantics, bounded review/reverification/remediation requests, and explicit non-authoritative escalation.
+- [Dynamic State Lifecycle v0.1](PHIOS_DYNAMIC_STATE_LIFECYCLE_V0.1.md) — deterministic advisory-state attenuation, hard expiry, non-renewing lifecycle anchors, and hardened temporal routing.
 - [Observation Frontier v0.1](PHIOS_OBSERVATION_FRONTIER_V0.1.md) — per-claim observation coverage, bounded negative-state support, and zero-authority observability lineage.
 - [Root README](../README.md) — concise project front door and current capabilities.
 - [AGENTS.md](../AGENTS.md) — repository operating constraints for computational collaborators.
