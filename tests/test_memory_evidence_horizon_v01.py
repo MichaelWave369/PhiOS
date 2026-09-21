@@ -360,3 +360,37 @@ def test_semantic_search_filters_horizon_before_vector_ranking(
         "fresh": "ADMISSIBLE",
         "stale": "REACTIVATION_REQUIRED",
     }
+
+
+def test_reconsolidation_is_blocked_after_reactivation_window_closes(
+    tmp_path: Path,
+) -> None:
+    now = datetime.now(UTC)
+    service = _service(
+        tmp_path,
+        max_age=5.0,
+        reactivation_window=5.0,
+    )
+    previous = _record(
+        created_at=now - timedelta(seconds=30),
+        provenance_refs=("source:initial",),
+    )
+    _put_and_publish(service, previous, operation_id="put-window-v1")
+
+    candidate = _record(
+        revision=2,
+        created_at=now,
+        text="late attempted refresh",
+        provenance_refs=("source:initial", "evidence:fresh-observation"),
+    )
+    result = service.put(
+        candidate,
+        principal_id="operator",
+        task_id="task",
+        authority=_authority("memory.write"),
+        operation_id="put-window-v2",
+        reconsolidation_evidence_refs=("evidence:fresh-observation",),
+    )
+
+    assert result.status == "invalid"
+    assert result.error_code == "MEMORY_REACTIVATION_WINDOW_CLOSED"
