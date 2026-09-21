@@ -440,7 +440,9 @@ class ObservationFrontierBuilder:
             observed = isinstance(result.get("observed_is_up"), bool)
             if observed and evidence_refs:
                 status: CoverageStatus = "COVERED"
-                limitations = ("exact_interface_point_in_time_only",)
+                limitations: tuple[str, ...] = (
+                    "exact_interface_point_in_time_only",
+                )
             elif result.get("reason") == "local_interface_not_found":
                 status = "PARTIAL"
                 limitations = (
@@ -562,7 +564,9 @@ class ObservationFrontierBuilder:
         evidence_refs = self._evidence_refs(result)
         if not evidence_refs:
             status: CoverageStatus = "UNOBSERVED"
-            limitations = ("local_http_observation_not_completed",)
+            limitations: tuple[str, ...] = (
+                "local_http_observation_not_completed",
+            )
         elif (
             claim.kind in _SEMANTIC_HTTP_KINDS
             and result.get("body_truncated") is True
@@ -649,7 +653,7 @@ class ObservationFrontierBuilder:
 
         if not samples or observed_sample_count == 0:
             status: CoverageStatus = "UNOBSERVED"
-            limitations = ("series_observation_not_completed",)
+            limitations: tuple[str, ...] = ("series_observation_not_completed",)
         elif (
             requested is not None
             and observed_sample_count == requested
