@@ -150,6 +150,27 @@ class ActionReceipt(ReceiptEnvelope):
 
 
 @dataclass(frozen=True, kw_only=True)
+class ReadAdmissibilityReceipt(ReceiptEnvelope):
+    operation_id: str
+    principal_id: str
+    record_id: str
+    revision: int
+    record_sha256: str
+    readable_as_context: bool
+    currentness: str
+    scope_id: str
+    classification: str
+    authorization_policy_sha256: str
+    authority_context_sha256: str
+    epistemic_kind: str
+    operational_authority: bool = False
+    action_authority: bool = False
+    execution_authority: bool = False
+    receipt_sha256: str = ""
+    receipt_type: str = field(init=False, default="ReadAdmissibilityReceipt")
+
+
+@dataclass(frozen=True, kw_only=True)
 class MemoryOperationReceipt(ReceiptEnvelope):
     operation_id: str
     operation: str
