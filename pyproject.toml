@@ -55,7 +55,7 @@ phi-memory = "phios.memory.cli:main"
 phi-ledger = "phios.ledger_reports.cli:main"
 
 [tool.setuptools]
-packages = ["phios", "phios.shell", "phios.core", "phios.display", "phios.desktop", "phios.adapters", "phios.services", "phios.templates", "phios.ml", "phios.mcp", "phios.mcp.resources", "phios.mcp.tools", "phios.mcp.prompts", "phios.spine", "phios.mandala", "phios.soma", "phios.reality", "phios.apps", "phios.memory", "phios.ledger_reports", "phios.reflex", "phios.reflex.providers"]
+packages = ["phios", "phios.shell", "phios.core", "phios.display", "phios.desktop", "phios.adapters", "phios.services", "phios.templates", "phios.ml", "phios.mcp", "phios.mcp.resources", "phios.mcp.tools", "phios.mcp.prompts", "phios.spine", "phios.mandala", "phios.soma", "phios.reality", "phios.apps", "phios.memory", "phios.ledger_reports", "phios.reflex", "phios.reflex.providers", "phios.covenant"]
 
 [tool.setuptools.dynamic]
 version = {attr = "phios.__version__"}
