@@ -20,6 +20,8 @@ MANDALA_RECEIPT_TYPES = {
     "EffectBoundaryReceipt",
     "IndependenceReceipt",
     "DisagreementDecompositionReceipt",
+    "VerifierSemanticsReceipt",
+    "GovernanceEscalationReceipt",
     "MemoryOperationReceipt",
     "MemoryPromotionReceipt",
     "AbortReceipt",
@@ -347,6 +349,106 @@ def project_mandala_row(
             payload,
             "execution_authority",
         )
+    elif receipt_type == "VerifierSemanticsReceipt":
+        projected["semantics_schema_version"] = _required_str(
+            payload,
+            "semantics_schema_version",
+        )
+        projected["source_reality_receipt_id"] = _required_str(
+            payload,
+            "source_reality_receipt_id",
+        )
+        projected["source_reality_receipt_sha256"] = _required_str(
+            payload,
+            "source_reality_receipt_sha256",
+        )
+        projected["verifier_id"] = _required_str(payload, "verifier_id")
+        projected["verification_method"] = _required_str(
+            payload,
+            "verification_method",
+        )
+        projected["source_status"] = _required_str(payload, "source_status")
+        verdict_summary = payload.get("verdict_summary")
+        if not isinstance(verdict_summary, dict):
+            raise ValueError("verdict_summary must be an object")
+        projected["verdict_summary"] = {
+            str(key): _coerce_nonnegative_int(value, f"verdict_summary.{key}")
+            for key, value in sorted(verdict_summary.items())
+        }
+        for field in (
+            "detects_evidence_state",
+            "may_emit_escalation_request",
+            "may_authorize_remediation",
+            "may_execute_remediation",
+            "may_promote",
+            "operational_authority",
+            "action_authority",
+            "execution_authority",
+        ):
+            projected[field] = _required_bool(payload, field)
+    elif receipt_type == "GovernanceEscalationReceipt":
+        projected["escalation_schema_version"] = _required_str(
+            payload,
+            "escalation_schema_version",
+        )
+        projected["source_reality_receipt_id"] = _required_str(
+            payload,
+            "source_reality_receipt_id",
+        )
+        projected["source_reality_receipt_sha256"] = _required_str(
+            payload,
+            "source_reality_receipt_sha256",
+        )
+        projected["verifier_semantics_receipt_sha256"] = _required_str(
+            payload,
+            "verifier_semantics_receipt_sha256",
+        )
+        projected["request_id"] = _required_str(payload, "request_id")
+        projected["disposition"] = _required_str(payload, "disposition")
+        projected["routing_status"] = _required_str(payload, "routing_status")
+        projected["target_ref"] = _required_str(payload, "target_ref")
+        projected["trigger_claim_count"] = len(
+            _string_list(payload.get("trigger_claim_ids", []), "trigger_claim_ids")
+        )
+        projected["candidate_capability_id"] = _optional_str(
+            payload.get("candidate_capability_id"),
+            "candidate_capability_id",
+        )
+        projected["candidate_capability_version"] = _optional_str(
+            payload.get("candidate_capability_version"),
+            "candidate_capability_version",
+        )
+        projected["candidate_capability_risk"] = _optional_str(
+            payload.get("candidate_capability_risk"),
+            "candidate_capability_risk",
+        )
+        projected["candidate_capability_contract_sha256"] = _optional_str(
+            payload.get("candidate_capability_contract_sha256"),
+            "candidate_capability_contract_sha256",
+        )
+        projected["candidate_payload_sha256"] = _optional_str(
+            payload.get("candidate_payload_sha256"),
+            "candidate_payload_sha256",
+        )
+        projected["requested_permission_count"] = len(
+            _string_list(
+                payload.get("requested_permissions", []),
+                "requested_permissions",
+            )
+        )
+        projected["requested_effect_count"] = len(
+            _string_list(payload.get("requested_effects", []), "requested_effects")
+        )
+        for field in (
+            "downstream_authority_required",
+            "remediation_authorized",
+            "remediation_executed",
+            "operational_authority",
+            "action_authority",
+            "execution_authority",
+        ):
+            projected[field] = _required_bool(payload, field)
+        projected["promotion_status"] = _required_str(payload, "promotion_status")
     elif receipt_type == "ActionReceipt":
         projected["outcome"] = _required_str(payload, "outcome")
         side_effect = payload.get("side_effect")
