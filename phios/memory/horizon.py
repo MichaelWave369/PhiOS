@@ -314,7 +314,23 @@ class EvidenceHorizonController:
             "execution_authority": False,
         }
         receipt = EvidenceHorizonReceipt(
-            **payload,
+            schema=EVIDENCE_HORIZON_RECEIPT_SCHEMA_VERSION,
+            receipt_id=str(payload["receipt_id"]),
+            policy_id=self._policy.policy_id,
+            policy_sha256=self._policy.policy_sha256,
+            record_id=record.record_id,
+            revision=record.revision,
+            record_sha256=record.record_sha256,
+            created_at_utc=created.isoformat(),
+            evaluated_at_utc=evaluated.isoformat(),
+            age_seconds=age,
+            max_context_age_seconds=max_age,
+            status=status,
+            readable_as_context=readable,
+            reactivation_required=reactivation_required,
+            operational_authority=False,
+            action_authority=False,
+            execution_authority=False,
             receipt_sha256=_sha256(payload),
         )
         return EvidenceHorizonEvaluation(
@@ -362,7 +378,22 @@ class EvidenceHorizonController:
             "execution_authority": False,
         }
         return ReactivationWindowReceipt(
-            **payload,
+            schema=REACTIVATION_WINDOW_RECEIPT_SCHEMA_VERSION,
+            receipt_id=str(payload["receipt_id"]),
+            policy_id=self._policy.policy_id,
+            policy_sha256=self._policy.policy_sha256,
+            record_id=record.record_id,
+            revision=record.revision,
+            record_sha256=record.record_sha256,
+            evaluated_at_utc=evaluated_at.isoformat(),
+            window_opens_at_utc=opens_at,
+            window_closes_at_utc=closes_at,
+            within_window=within_window,
+            reactivation_authorized=False,
+            reactivation_completed=False,
+            operational_authority=False,
+            action_authority=False,
+            execution_authority=False,
             receipt_sha256=_sha256(payload),
         )
 
@@ -416,6 +447,15 @@ class ReconsolidationGate:
             "execution_authority": False,
         }
         return ReconsolidationGateDecision(
-            **payload,
+            schema=RECONSOLIDATION_GATE_SCHEMA_VERSION,
+            status=status,
+            reason=reason,
+            previous_record_sha256=previous.record_sha256,
+            candidate_record_sha256=candidate.record_sha256,
+            fresh_provenance_refs=fresh_refs,
+            promotion_status="not_promoted",
+            operational_authority=False,
+            action_authority=False,
+            execution_authority=False,
             decision_sha256=_sha256(payload),
         )
