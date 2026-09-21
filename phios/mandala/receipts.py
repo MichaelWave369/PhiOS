@@ -137,6 +137,9 @@ class RealityReceipt(ReceiptEnvelope):
     verification_method: str | None = None
     promotion_status: str = "not_promoted"
     limitations: tuple[str, ...] = field(default_factory=tuple)
+    observation_frontier_sha256: str | None = None
+    observability_receipt_sha256: str | None = None
+    observability_status: str = "not_evaluated"
     receipt_type: str = field(init=False, default="RealityReceipt")
 
 
