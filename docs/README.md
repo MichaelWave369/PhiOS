@@ -23,6 +23,7 @@ PhiOS changes quickly, so use this source-of-truth order when documents disagree
 
 ## Project and contributor docs
 
+- [ENTER THE FIELD → PhiOS research hardening](ENTER_THE_FIELD_PHIOS_HARDENING.md) — evidence-to-architecture traceability, priority stack, and candidate Crucibles. Research mappings remain non-authoritative until independently tested and promoted.
 - [Root README](../README.md) — concise project front door and current capabilities.
 - [AGENTS.md](../AGENTS.md) — repository operating constraints for computational collaborators.
 - [CONTRIBUTING.md](../CONTRIBUTING.md) — contribution workflow.
