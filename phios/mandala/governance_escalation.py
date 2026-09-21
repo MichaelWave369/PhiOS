@@ -447,7 +447,7 @@ def _child_meta(
     status: MandalaStatus,
     produced_by: str,
     parent_receipt_id: str,
-) -> dict[str, object]:
+) -> dict[str, Any]:
     return {
         "receipt_id": str(uuid.uuid4()),
         "packet_id": source_receipt.packet_id,
