@@ -15,6 +15,7 @@ from phios.mandala import (
     TransformationLineageBuilder,
     TransformationLineageError,
     TransformationLineageReceipt,
+    weakest_exactness,
 )
 
 from .embeddings import EmbeddingProvider
@@ -621,10 +622,20 @@ class GovernedMemoryService:
             return "DERIVED_MEMORY_LINEAGE_HASH_MISMATCH"
 
         for index in range(1, len(receipts)):
-            if receipts[index - 1].receipt_sha256 not in (
-                receipts[index].parent_receipt_sha256s
-            ):
+            previous = receipts[index - 1]
+            current = receipts[index]
+            if previous.receipt_sha256 not in current.parent_receipt_sha256s:
                 return "DERIVED_MEMORY_LINEAGE_CHAIN_BROKEN"
+            expected_exactness = weakest_exactness(
+                current.requested_exactness,
+                previous.exactness_class,
+            )
+            if current.exactness_class is not expected_exactness:
+                return "DERIVED_MEMORY_EXACTNESS_ESCALATION"
+            if not set(previous.effective_taints).issubset(
+                set(current.effective_taints)
+            ):
+                return "DERIVED_MEMORY_TAINT_DROPPED"
 
         final = receipts[-1]
         if final.output_sha256 != record.content_sha256:
