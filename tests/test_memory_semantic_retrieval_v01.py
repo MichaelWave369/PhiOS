@@ -188,6 +188,12 @@ def test_authorization_filters_before_ranking_and_receipts_embedding_identity(tm
     )
     assert result.status == "ok"
     assert [hit.record.record_id for hit in result.hits] == ["private-1"]
+    assert len(result.read_admissibility_receipts) == 1
+    admissibility = result.read_admissibility_receipts[0]
+    assert admissibility.record_id == "private-1"
+    assert admissibility.operational_authority is False
+    assert admissibility.action_authority is False
+    assert admissibility.execution_authority is False
     assert index.last_eligible == (("private-1", 1, private.record_sha256),)
     receipt = next(
         item for item in service.store.pending_receipts() if item["operation_id"] == "search-1"
