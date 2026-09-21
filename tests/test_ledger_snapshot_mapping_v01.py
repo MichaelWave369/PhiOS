@@ -156,3 +156,94 @@ def test_reality_projection_includes_bounded_observability_hashes(
     assert row["observability_receipt_sha256"] == observability_sha
     assert row["observability_status"] == "BOUNDED"
     assert "authority" not in row
+
+
+def test_independence_and_disagreement_projection_are_bounded(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "ledger" / "mandala-receipts.jsonl"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    rows = [
+        {
+            "receipt_id": "ind-1",
+            "packet_id": "packet-1",
+            "task_id": "task-1",
+            "status": "ACCEPTED",
+            "produced_by": "phios.deliberation_evidence",
+            "timestamp_utc": "2026-09-21T19:40:00+00:00",
+            "contract_version": "phios.mandala.v0.1",
+            "parent_receipt_id": None,
+            "receipt_type": "IndependenceReceipt",
+            "claim_id": "claim-1",
+            "evidence_paths": [{"secret": "not projected"}],
+            "pairwise_relations": [{"basis_refs": ["private"]}],
+            "independence_status": "DEPENDENT",
+            "independent_pair_count": 0,
+            "dependent_pair_count": 1,
+            "unknown_pair_count": 0,
+            "demonstrated_independent_group_count": 1,
+            "dependency_groups": [["a", "b"]],
+            "agreement_without_independence": True,
+            "assessment_sha256": "a" * 64,
+            "operational_authority": False,
+            "action_authority": False,
+            "execution_authority": False,
+            "receipt_sha256": "b" * 64,
+        },
+        {
+            "receipt_id": "dis-1",
+            "packet_id": "packet-1",
+            "task_id": "task-1",
+            "status": "ACCEPTED",
+            "produced_by": "phios.deliberation_evidence",
+            "timestamp_utc": "2026-09-21T19:40:01+00:00",
+            "contract_version": "phios.mandala.v0.1",
+            "parent_receipt_id": "ind-1",
+            "receipt_type": "DisagreementDecompositionReceipt",
+            "claim_id": "claim-1",
+            "independence_receipt_sha256": "b" * 64,
+            "stance_counts": {"SUPPORTS": 2, "CONTRADICTS": 0, "UNCERTAIN": 0},
+            "independent_stance_group_counts": {
+                "SUPPORTS": 1,
+                "CONTRADICTS": 0,
+                "UNCERTAIN": 0,
+            },
+            "contested_group_count": 0,
+            "dependency_groups": [{"path_ids": ["a", "b"], "stances": ["SUPPORTS"]}],
+            "disagreement_status": "UNANIMOUS_PARTICIPANTS",
+            "independence_qualified_agreement": False,
+            "consensus_authority": False,
+            "promotion_status": "not_promoted",
+            "assessment_sha256": "c" * 64,
+            "operational_authority": False,
+            "action_authority": False,
+            "execution_authority": False,
+            "receipt_sha256": "d" * 64,
+        },
+    ]
+    path.write_text(
+        "\n".join(json.dumps(row, sort_keys=True) for row in rows) + "\n",
+        encoding="utf-8",
+    )
+
+    snapshot = LedgerSnapshotExporter(state_root=tmp_path).export(
+        authority=_authority()
+    )
+    projected = [
+        json.loads(line)
+        for line in (Path(snapshot.snapshot_path) / "mandala.jsonl")
+        .read_text(encoding="utf-8")
+        .splitlines()
+    ]
+
+    assert projected[0]["receipt_type"] == "IndependenceReceipt"
+    assert projected[0]["demonstrated_independent_group_count"] == 1
+    assert projected[0]["agreement_without_independence"] is True
+    assert "evidence_paths" not in projected[0]
+    assert "pairwise_relations" not in projected[0]
+    assert projected[1]["receipt_type"] == "DisagreementDecompositionReceipt"
+    assert projected[1]["independence_qualified_agreement"] is False
+    assert projected[1]["consensus_authority"] is False
+    assert projected[1]["promotion_status"] == "not_promoted"
+    assert "stance_counts" not in projected[1]
+    assert "dependency_groups" not in projected[1]
