@@ -67,6 +67,15 @@ def test_contradiction_can_route_review_without_minting_authority(
     assert semantics.may_authorize_remediation is False
     assert semantics.may_execute_remediation is False
     assert semantics.may_promote is False
+    assert (
+        semantics.observation_frontier_sha256
+        == verification.receipt.observation_frontier_sha256
+    )
+    assert (
+        semantics.observability_receipt_sha256
+        == verification.receipt.observability_receipt_sha256
+    )
+    assert semantics.observability_status == verification.receipt.observability_status
     assert semantics.operational_authority is False
     assert semantics.action_authority is False
     assert semantics.execution_authority is False
