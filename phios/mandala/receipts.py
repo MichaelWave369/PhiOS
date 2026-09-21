@@ -243,6 +243,9 @@ class GovernanceEscalationReceipt(ReceiptEnvelope):
     trigger_claim_ids: tuple[str, ...] = field(default_factory=tuple)
     trigger_verdicts: tuple[dict[str, str], ...] = field(default_factory=tuple)
     candidate_capability_id: str | None = None
+    candidate_capability_version: str | None = None
+    candidate_capability_risk: str | None = None
+    candidate_capability_contract_sha256: str | None = None
     candidate_payload_sha256: str | None = None
     requested_permissions: tuple[str, ...] = field(default_factory=tuple)
     requested_effects: tuple[str, ...] = field(default_factory=tuple)
