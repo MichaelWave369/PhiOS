@@ -2,6 +2,15 @@
 
 from .config import MemoryRuntimeConfig
 from .embeddings import EmbeddingProvider, OllamaEmbeddingProvider
+from .horizon import (
+    EvidenceHorizonEvaluation,
+    EvidenceHorizonPolicy,
+    EvidenceHorizonReceipt,
+    MemoryEvidenceHorizon,
+    ReactivationWindowReceipt,
+    ReconsolidationGate,
+    memory_record_ref,
+)
 from .legacy import LegacyImportPlan, plan_legacy_agent_memory_import
 from .models import (
     EmbeddingIdentity,
@@ -22,12 +31,16 @@ from .store import MemoryStore
 __all__ = [
     "EmbeddingIdentity",
     "EmbeddingProvider",
+    "EvidenceHorizonEvaluation",
+    "EvidenceHorizonPolicy",
+    "EvidenceHorizonReceipt",
     "GovernedMemoryService",
     "IndexSyncResult",
     "LegacyImportPlan",
     "MemoryAccessDecision",
     "MemoryAccessPolicy",
     "MemoryHit",
+    "MemoryEvidenceHorizon",
     "MemoryOperatorRuntime",
     "MemoryOperatorStatus",
     "MemoryPolicyRule",
@@ -37,9 +50,12 @@ __all__ = [
     "MemoryRuntimeConfig",
     "MemoryStore",
     "OllamaEmbeddingProvider",
+    "ReactivationWindowReceipt",
+    "ReconsolidationGate",
     "RetrievalIndex",
     "SqliteVecIndex",
     "UnavailableRetrievalIndex",
     "VectorCandidate",
+    "memory_record_ref",
     "plan_legacy_agent_memory_import",
 ]
