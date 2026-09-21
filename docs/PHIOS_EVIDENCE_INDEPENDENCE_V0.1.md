@@ -38,6 +38,10 @@ v0.1 does not infer independence from:
 Instead, each path declares the evidence structure PhiOS can inspect and pairwise
 independence must be supported explicitly.
 
+Shared deliberation context is recorded as a correlation signal. It does not by itself
+force dependency when separately acquired root evidence is independently attested, but
+it also does not count as evidence of independence.
+
 ## EvidencePathDeclaration
 
 Each path binds:
