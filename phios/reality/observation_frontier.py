@@ -275,9 +275,11 @@ class ObservationFrontierBuilder:
             entry.claim_id for entry in entries if entry.status == "UNOBSERVED"
         )
 
-        if entries and len(covered) == len(entries):
-            status: FrontierStatus = "COVERED"
-        elif entries and len(unobserved) == len(entries):
+        if not entries:
+            status: FrontierStatus = "UNOBSERVED"
+        elif len(covered) == len(entries):
+            status = "COVERED"
+        elif len(unobserved) == len(entries):
             status = "UNOBSERVED"
         else:
             status = "PARTIAL"
