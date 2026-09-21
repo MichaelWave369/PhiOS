@@ -4,6 +4,7 @@ import hashlib
 import json
 import re
 from dataclasses import asdict, dataclass
+from pathlib import PurePosixPath
 from typing import Any, cast
 
 from .package_install import BuildPackagePlan
@@ -41,6 +42,16 @@ def _sha256(value: Any, label: str) -> str:
 
 def _canonical_json(value: dict[str, Any]) -> str:
     return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+
+
+def _safe_relative(value: Any, label: str) -> str:
+    text = _string(value, label, maximum=1024)
+    if "\\" in text or text.startswith("/"):
+        raise ValueError(f"{label} must be a relative POSIX path")
+    path = PurePosixPath(text)
+    if path.is_absolute() or any(part in {"", ".", ".."} for part in path.parts):
+        raise ValueError(f"{label} contains unsafe path segments")
+    return text
 
 
 @dataclass(frozen=True)
@@ -86,13 +97,21 @@ class ReleaseInstallProposalRecord:
         _string(self.repository_url, "repository_url", maximum=512)
         if not _COMMIT_RE.fullmatch(self.commit_sha):
             raise ValueError("commit_sha must be lowercase hexadecimal")
-        _string(self.install_relative_path, "install_relative_path", maximum=1024)
+        _safe_relative(self.install_relative_path, "install_relative_path")
         if self.proposal_state != _PROPOSAL_STATE:
             raise ValueError("unsupported release install proposal state")
         if self.proposal_scope != _PROPOSAL_SCOPE:
             raise ValueError("unsupported release install proposal scope")
         if self.compatibility_verdict != "not_assessed":
             raise ValueError("release install proposal does not assess compatibility")
+        for value, label in (
+            (self.install_authority, "install_authority"),
+            (self.launch_authority, "launch_authority"),
+            (self.update_authority, "update_authority"),
+            (self.rollback_authority, "rollback_authority"),
+        ):
+            if not isinstance(value, bool):
+                raise ValueError(f"{label} must be Boolean")
         if any(
             (
                 self.install_authority,
@@ -181,10 +200,9 @@ class ReleaseInstallProposalRecord:
                 data["artifact_set_sha256"],
                 "artifact_set_sha256",
             ),
-            install_relative_path=_string(
+            install_relative_path=_safe_relative(
                 data["install_relative_path"],
                 "install_relative_path",
-                maximum=1024,
             ),
             proposal_state=_string(
                 data["proposal_state"],
