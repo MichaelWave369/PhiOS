@@ -169,6 +169,46 @@ class EffectBoundaryReceipt(ReceiptEnvelope):
 
 
 @dataclass(frozen=True, kw_only=True)
+class IndependenceReceipt(ReceiptEnvelope):
+    claim_id: str
+    evidence_paths: tuple[dict[str, Any], ...] = field(default_factory=tuple)
+    pairwise_relations: tuple[dict[str, Any], ...] = field(default_factory=tuple)
+    independence_status: str = "UNRESOLVED"
+    independent_pair_count: int = 0
+    dependent_pair_count: int = 0
+    unknown_pair_count: int = 0
+    demonstrated_independent_group_count: int = 0
+    dependency_groups: tuple[tuple[str, ...], ...] = field(default_factory=tuple)
+    agreement_without_independence: bool = False
+    assessment_sha256: str = ""
+    operational_authority: bool = False
+    action_authority: bool = False
+    execution_authority: bool = False
+    receipt_sha256: str = ""
+    receipt_type: str = field(init=False, default="IndependenceReceipt")
+
+
+@dataclass(frozen=True, kw_only=True)
+class DisagreementDecompositionReceipt(ReceiptEnvelope):
+    claim_id: str
+    independence_receipt_sha256: str
+    stance_counts: dict[str, int] = field(default_factory=dict)
+    independent_stance_group_counts: dict[str, int] = field(default_factory=dict)
+    contested_group_count: int = 0
+    dependency_groups: tuple[dict[str, Any], ...] = field(default_factory=tuple)
+    disagreement_status: str = "SINGLE_PATH"
+    independence_qualified_agreement: bool = False
+    consensus_authority: bool = False
+    promotion_status: str = "not_promoted"
+    assessment_sha256: str = ""
+    operational_authority: bool = False
+    action_authority: bool = False
+    execution_authority: bool = False
+    receipt_sha256: str = ""
+    receipt_type: str = field(init=False, default="DisagreementDecompositionReceipt")
+
+
+@dataclass(frozen=True, kw_only=True)
 class ActionReceipt(ReceiptEnvelope):
     approved_grant: tuple[str, ...] = field(default_factory=tuple)
     side_effect: dict[str, Any] = field(default_factory=dict)

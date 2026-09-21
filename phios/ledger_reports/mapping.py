@@ -18,6 +18,8 @@ MANDALA_RECEIPT_TYPES = {
     "RealityReceipt",
     "ActionReceipt",
     "EffectBoundaryReceipt",
+    "IndependenceReceipt",
+    "DisagreementDecompositionReceipt",
     "MemoryOperationReceipt",
     "MemoryPromotionReceipt",
     "AbortReceipt",
@@ -253,6 +255,90 @@ def project_mandala_row(
             "effect_policy_sha256",
         )
         projected["reason"] = _required_str(payload, "reason")
+        projected["action_authority"] = _required_bool(
+            payload,
+            "action_authority",
+        )
+        projected["execution_authority"] = _required_bool(
+            payload,
+            "execution_authority",
+        )
+    elif receipt_type == "IndependenceReceipt":
+        projected["claim_id"] = _required_str(payload, "claim_id")
+        projected["independence_status"] = _required_str(
+            payload,
+            "independence_status",
+        )
+        projected["independent_pair_count"] = _required_int(
+            payload,
+            "independent_pair_count",
+        )
+        projected["dependent_pair_count"] = _required_int(
+            payload,
+            "dependent_pair_count",
+        )
+        projected["unknown_pair_count"] = _required_int(
+            payload,
+            "unknown_pair_count",
+        )
+        projected["demonstrated_independent_group_count"] = _required_int(
+            payload,
+            "demonstrated_independent_group_count",
+        )
+        projected["agreement_without_independence"] = _required_bool(
+            payload,
+            "agreement_without_independence",
+        )
+        projected["assessment_sha256"] = _required_str(
+            payload,
+            "assessment_sha256",
+        )
+        projected["operational_authority"] = _required_bool(
+            payload,
+            "operational_authority",
+        )
+        projected["action_authority"] = _required_bool(
+            payload,
+            "action_authority",
+        )
+        projected["execution_authority"] = _required_bool(
+            payload,
+            "execution_authority",
+        )
+    elif receipt_type == "DisagreementDecompositionReceipt":
+        projected["claim_id"] = _required_str(payload, "claim_id")
+        projected["independence_receipt_sha256"] = _required_str(
+            payload,
+            "independence_receipt_sha256",
+        )
+        projected["disagreement_status"] = _required_str(
+            payload,
+            "disagreement_status",
+        )
+        projected["contested_group_count"] = _required_int(
+            payload,
+            "contested_group_count",
+        )
+        projected["independence_qualified_agreement"] = _required_bool(
+            payload,
+            "independence_qualified_agreement",
+        )
+        projected["consensus_authority"] = _required_bool(
+            payload,
+            "consensus_authority",
+        )
+        projected["promotion_status"] = _required_str(
+            payload,
+            "promotion_status",
+        )
+        projected["assessment_sha256"] = _required_str(
+            payload,
+            "assessment_sha256",
+        )
+        projected["operational_authority"] = _required_bool(
+            payload,
+            "operational_authority",
+        )
         projected["action_authority"] = _required_bool(
             payload,
             "action_authority",

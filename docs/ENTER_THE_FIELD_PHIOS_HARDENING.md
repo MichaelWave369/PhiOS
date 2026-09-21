@@ -29,8 +29,8 @@ increment independently reviewable and replaceable.
 | P0 | Actor cannot re-enter or mutate its governing control plane | `ControlPlaneIsolationReceipt` | **v0.2 merged via PR #182** |
 | P0 | Capability is classified by environmental effects, not method labels | `EffectBoundaryReceipt` | **v0.3 merged via PR #183** |
 | P0 | Containment/negative claims are bounded by demonstrated observation coverage | `ObservationFrontier`, `ObservabilityBoundaryReceipt` | **v0.4 merged via PR #184** |
-| P1 | Transformations preserve source, taint, exactness, and derivation lineage | `TransformationLineageReceipt`, `ExactnessClass` | **v0.5 candidate implemented on this branch** |
-| P1 | Multi-agent corroboration reflects evidence-path independence | `IndependenceReceipt`, `DisagreementDecompositionReceipt` | planned; not promoted |
+| P1 | Transformations preserve source, taint, exactness, and derivation lineage | `TransformationLineageReceipt`, `ExactnessClass` | **v0.5 merged via PR #185** |
+| P1 | Multi-agent corroboration reflects evidence-path independence | `IndependenceReceipt`, `DisagreementDecompositionReceipt` | **v0.6 candidate implemented on this branch** |
 | P1 | Detection can reach bounded remediation without minting authority | `GovernanceEscalationReceipt` | planned; not promoted |
 | P2 | Corrective/advisory state can decay and terminate deterministically | dynamic-state attenuation / termination | planned; not promoted |
 | P2 | Memory phase and evidence horizon are explicit | reconsolidation / evidence-horizon receipts | planned; not promoted |
@@ -442,8 +442,8 @@ exist.
 
 ## Research-hardening v0.5
 
-This branch begins the P1 hardening line with explicit transformation lineage and
-representation exactness.
+v0.5 began the P1 hardening line with explicit transformation lineage and
+representation exactness, merged through PR #185.
 
 The governing distinction is:
 
@@ -602,6 +602,159 @@ It does not prove that an OCR interpretation is true, that a summary is complete
 an enhancement recovered missing information, or that a model-derived statement is
 semantically equivalent to its source.
 
+## Research-hardening v0.6
+
+This branch implements the next P1 seam: evidence-path independence and explicit
+disagreement decomposition for multi-participant deliberation.
+
+The governing distinction is:
+
+```text
+THREE AGENTS AGREE
+!=
+THREE INDEPENDENT PIECES OF EVIDENCE
+```
+
+### EvidencePathDeclaration
+
+Each deliberation path declares the bounded evidence structure PhiOS can actually
+inspect:
+
+- path and claim identity;
+- actor identity;
+- stance: `SUPPORTS`, `CONTRADICTS`, or `UNCERTAIN`;
+- output SHA-256;
+- direct evidence references;
+- declared root-source references;
+- parent path IDs;
+- transformation-lineage receipt hashes;
+- context SHA-256 when available;
+- method label.
+
+Different model names are not treated as independence evidence.
+
+### IndependenceAssertion
+
+Independence is explicit rather than inferred from disagreement or model multiplicity.
+
+An `INDEPENDENT` pair assertion requires:
+
+- explicit basis references;
+- explicit root-source references on both paths;
+- no shared direct evidence;
+- no shared root source;
+- no shared transformation lineage;
+- no direct parent/child derivation.
+
+Known shared ancestry overrides an attempted independence assertion and fails closed.
+
+Relationships without demonstrated independence remain `UNKNOWN`.
+
+### Conservative independence credit
+
+Pairwise relations are:
+
+```text
+INDEPENDENT
+DEPENDENT
+UNKNOWN
+```
+
+Assessment status is:
+
+```text
+SINGLE_PATH
+INDEPENDENT
+DEPENDENT
+MIXED
+UNRESOLVED
+```
+
+Unknown relationships do not earn independence credit. For conservative group counting,
+both `DEPENDENT` and `UNKNOWN` relations collapse into the same evidence group unless
+explicit independence was demonstrated.
+
+This means three agreeing model outputs over the same source can remain:
+
+```text
+raw participants = 3
+demonstrated independent evidence groups = 1
+```
+
+rather than becoming artificial triple corroboration.
+
+### IndependenceReceipt
+
+`IndependenceReceipt` binds:
+
+- exact claim ID;
+- bounded path declarations;
+- pairwise dependency relations;
+- independent/dependent/unknown pair counts;
+- demonstrated independent group count;
+- dependency groups;
+- whether apparent agreement exists without demonstrated independence;
+- deterministic assessment SHA-256;
+- zero operational/action/execution authority.
+
+An unresolved independence assessment is receipted as `DEGRADED`, not silently
+converted into independence.
+
+### DisagreementDecompositionReceipt
+
+The second receipt preserves the shape of disagreement instead of collapsing it into a
+majority vote.
+
+It records:
+
+- raw stance counts;
+- stance counts across demonstrated independent groups;
+- internally contested dependency groups;
+- participant-level agreement/disagreement status;
+- whether unanimous participant agreement is also independence-qualified;
+- `consensus_authority = false`;
+- `promotion_status = not_promoted`;
+- zero operational/action/execution authority.
+
+The receipt is parent-linked to the exact `IndependenceReceipt`.
+
+### Spine integration
+
+`PhiOSSpine.assess_deliberation_evidence(...)` exposes the seam today even though the
+current checked-in `PhiVesselAdapter` remains deterministic and does not yet implement
+the full Genius Atlas / council router.
+
+That distinction is intentional. PhiOS now has a governed evidence contract ready for
+future multi-model routing without pretending the current repository already contains
+an independent multi-agent acquisition system.
+
+The assessment writes two Mandala rows:
+
+```text
+IndependenceReceipt
+        ↓
+DisagreementDecompositionReceipt
+```
+
+Neither receipt grants planning, action, or execution authority.
+
+### Ledger analytics
+
+Read-only Ledger projection exposes only bounded aggregate fields such as independence
+status, pair counts, demonstrated group count, disagreement status, and assessment
+hashes.
+
+Raw evidence-path declarations and pairwise basis references are intentionally excluded
+from the analytics projection.
+
+### v0.6 bounded claim
+
+v0.6 proves only what the supplied evidence-path and independence contracts establish.
+
+An explicit independence basis is still evidence that must ultimately be grounded by a
+real acquisition/runtime boundary. Distinct model identities, different prose, or
+unanimous outputs do not by themselves prove independent evidence.
+
 ## Finding traceability
 
 The table records architecture candidates motivated by F01–F26. A mapping is not a
@@ -639,8 +792,10 @@ promotion decision.
 F12/F23 are the direct evidence drivers for v0.1. F24 drives v0.2 control-plane
 isolation. F15 drives the v0.3 effect boundary. F22 directly drives v0.4 observation
 frontiers. F25 directly drives v0.5 transformation lineage, with F20 reinforcing
-exactness requirements for retained/derived information and F26 reinforcing provenance
-through composed transformations. F01 continues to require that containment claims not
+exactness requirements for retained/derived information. F17 directly drives v0.6
+independence and disagreement decomposition, while F12/F19 reinforce that apparent
+corroboration cannot exceed demonstrated evidence-path independence. F26 reinforces
+provenance through composition. F01 continues to require that containment claims not
 exceed demonstrated coverage. All remaining rows stay candidates until their own bounded
 increments and Crucibles exist.
 
@@ -738,6 +893,28 @@ The focused transformation-lineage test set must prove at minimum:
 14. read-only Ledger projection can expose bounded lineage metadata without creating a
     new authority plane.
 
+## v0.6 Crucibles
+
+The focused independence/disagreement test set must prove at minimum:
+
+1. three agreeing actors over one shared source receive one demonstrated independent
+   evidence group, not three;
+2. distinct actor/model identities alone do not establish independence;
+3. unknown pairwise relationships do not earn independence credit;
+4. explicit independence requires basis references and explicit root-source references;
+5. shared direct evidence/root sources/transformation lineage override an attempted
+   independence assertion;
+6. direct parent/child derivation is dependent;
+7. cyclic evidence-path ancestry is rejected;
+8. disagreement among independent paths remains explicit rather than collapsing into a
+   winner;
+9. unanimous participants are distinguished from independence-qualified agreement;
+10. consensus carries zero operational/action/execution authority and cannot promote
+    itself;
+11. the Spine assessment seam preserves the existing authority context;
+12. Ledger projection exposes aggregate independence metadata without exposing raw
+    evidence-path or basis details.
+
 ## Explicit non-goals
 
 The current research-hardening track does **not**:
@@ -754,6 +931,9 @@ The current research-hardening track does **not**:
 - treat an exactness class as truth, semantic correctness, or independent validation;
 - let a downstream transformation erase inherited taints or improve inherited
   exactness;
+- treat model multiplicity, output agreement, or different wording as proof of
+  evidence-path independence;
+- let consensus mint action/execution authority or self-promote a claim;
 - auto-promote any research finding into policy.
 
 Those remain separate, independently reviewable increments.
