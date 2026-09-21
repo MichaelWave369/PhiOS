@@ -368,6 +368,18 @@ def project_mandala_row(
             "verification_method",
         )
         projected["source_status"] = _required_str(payload, "source_status")
+        projected["observation_frontier_sha256"] = _optional_str(
+            payload.get("observation_frontier_sha256"),
+            "observation_frontier_sha256",
+        )
+        projected["observability_receipt_sha256"] = _optional_str(
+            payload.get("observability_receipt_sha256"),
+            "observability_receipt_sha256",
+        )
+        projected["observability_status"] = _required_str(
+            payload,
+            "observability_status",
+        )
         verdict_summary = payload.get("verdict_summary")
         if not isinstance(verdict_summary, dict):
             raise ValueError("verdict_summary must be an object")
