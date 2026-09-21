@@ -7,6 +7,8 @@ from pathlib import Path
 from collections.abc import Callable
 from typing import Any
 
+from .effects import normalize_effects
+
 Handler = Callable[[dict[str, Any]], "ArtifactResult"]
 
 
@@ -21,11 +23,29 @@ class ExecutorRegistry:
 
     def __init__(self) -> None:
         self._handlers: dict[str, Handler] = {}
+        self._effects: dict[str, tuple[str, ...]] = {}
 
-    def register(self, capability_id: str, handler: Handler) -> None:
+    def register(
+        self,
+        capability_id: str,
+        handler: Handler,
+        *,
+        effects: tuple[str, ...] = (),
+    ) -> None:
         if capability_id in self._handlers:
             raise ValueError(f"Executor already registered: {capability_id}")
         self._handlers[capability_id] = handler
+        self._effects[capability_id] = normalize_effects(
+            effects,
+            label="executor effects",
+            allow_empty=True,
+        )
+
+    def effects(self, capability_id: str) -> tuple[str, ...]:
+        try:
+            return self._effects[capability_id]
+        except KeyError as exc:
+            raise KeyError(f"No executor for capability: {capability_id}") from exc
 
     def execute(self, capability_id: str, payload: dict[str, Any]) -> ArtifactResult:
         try:

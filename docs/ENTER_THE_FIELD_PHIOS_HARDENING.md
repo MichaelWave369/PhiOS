@@ -26,8 +26,8 @@ increment independently reviewable and replaceable.
 | Priority | Property to prove | Candidate surface | Status |
 |---|---|---|---|
 | P0 | Derived memory cannot originate authority | `AuthorityProjection`, `ReadAdmissibilityReceipt`, no-mint Crucibles | **v0.1 merged via PR #181** |
-| P0 | Actor cannot re-enter or mutate its governing control plane | `ControlPlaneIsolationReceipt` | **v0.2 candidate implemented on this branch** |
-| P0 | Capability is classified by environmental effects, not method labels | `EffectBoundaryReceipt` | planned; not promoted |
+| P0 | Actor cannot re-enter or mutate its governing control plane | `ControlPlaneIsolationReceipt` | **v0.2 merged via PR #182** |
+| P0 | Capability is classified by environmental effects, not method labels | `EffectBoundaryReceipt` | **v0.3 candidate implemented on this branch** |
 | P0 | Containment/negative claims are bounded by demonstrated observation coverage | `ObservationFrontier` | planned; not promoted |
 | P1 | Transformations preserve source, taint, exactness, and derivation lineage | `TransformationLineageReceipt`, `ExactnessClass` | planned; not promoted |
 | P1 | Multi-agent corroboration reflects evidence-path independence | `IndependenceReceipt`, `DisagreementDecompositionReceipt` | planned; not promoted |
@@ -38,7 +38,7 @@ increment independently reviewable and replaceable.
 
 ## Research-hardening v0.1
 
-This branch implements the first P0 seam only.
+v0.1 implemented the first P0 seam and merged through PR #181.
 
 ### Read-only AuthorityProjection
 
@@ -89,8 +89,8 @@ authority store.
 
 ## Research-hardening v0.2
 
-This branch implements the second P0 seam: explicit control-plane reachability evidence
-for the Linux build sandbox.
+v0.2 implemented the second P0 seam: explicit control-plane reachability evidence
+for the Linux build sandbox, merged through PR #182.
 
 ### ControlPlaneSurfaceMap
 
@@ -169,6 +169,123 @@ unreachability only for the declared surface map and the observed sandbox bounda
 Future control APIs, sockets, plugins, or alternate state roots must be added to the map
 before the same claim can remain valid.
 
+## Research-hardening v0.3
+
+This branch implements the third P0 seam: an explicit environmental-effect boundary
+for executable Spine capabilities.
+
+### Explicit capability effects
+
+A Spine `Capability` now declares a bounded `effects` tuple independently of its
+name, description, permission labels, and risk label.
+
+The v0.1 effect vocabulary distinguishes surfaces such as:
+
+- local/filesystem reads and changes;
+- process spawning;
+- network requests;
+- external-state reads and changes;
+- IPC requests;
+- display observation/control;
+- credential reads;
+- control-plane reads and changes;
+- `none` and fail-closed `unknown`.
+
+The important rule is that transport or method semantics do not define the effect.
+A capability called `GET`, `read`, or `status` can still declare
+`network.request` and/or `external_state.change`.
+
+### Independent executor effect contract
+
+`ExecutorRegistry` now stores an effect contract separately from the capability
+metadata. Before permission evaluation, PhiOS requires the current capability effects
+and current executor effects to match exactly.
+
+This provides two independently declared surfaces:
+
+```text
+Capability.effects
+        ==
+ExecutorRegistry.effects(capability)
+```
+
+A missing, unknown, or mismatched declaration blocks before executor entry.
+
+### EffectBoundaryReceipt
+
+Every Spine execution attempt now emits a Mandala `EffectBoundaryReceipt` before the
+ordinary ACTION gate.
+
+The receipt binds:
+
+- capability ID/version/risk label;
+- capability-declared effects;
+- executor-declared effects;
+- active environmental effects;
+- exact-match status;
+- classification completeness;
+- semantic read-label conflict status;
+- effect-policy SHA-256;
+- zero action and execution authority.
+
+The lineage is:
+
+```text
+EffectBoundaryReceipt
+        ↓
+GateReceipt
+        ↓
+ActionReceipt
+```
+
+The existing permission gate remains the authority checkpoint. Effect classification
+does not grant permission.
+
+### Active effect rule
+
+The v0.1 policy treats these as active environmental effects:
+
+```text
+local_state.change
+filesystem.change
+process.spawn
+network.request
+external_state.change
+ipc.request
+display.control
+control_plane.change
+```
+
+`network.request` is intentionally active even when a protocol method is commonly
+described as read-only. A request can still trigger remote logs, counters, session
+changes, lazy initialization, cache changes, hooks, or application-specific behavior.
+The method name therefore cannot prove absence of environmental change.
+
+If a capability carries the semantic risk label `read` while declaring any active
+effect, the effect boundary blocks rather than allowing the label to launder the
+environmental effect.
+
+### Governed binding and execution-time drift
+
+Hardened action bindings now snapshot `effects_declared` in
+`phios.plan_action_binding.v0.7.1`.
+
+At governed execution handoff, PhiOS revalidates:
+
+- current capability effects against the bound effect tuple;
+- current executor effect contract against current capability effects;
+- the rest of the existing version/risk/permission/payload/plan contract.
+
+Effect drift therefore holds the action before the atomic execution claim is consumed.
+
+### Bounded claim
+
+v0.3 classifies **declared possible effects**. It does not prove that the declaration is
+complete with respect to every real-world side effect of the implementation.
+
+That gap is intentionally left for the next P0 seam, `ObservationFrontier`, which will
+bound negative/containment claims by what was actually observable and tested.
+
 ## Finding traceability
 
 The table records architecture candidates motivated by F01–F26. A mapping is not a
@@ -203,10 +320,11 @@ promotion decision.
 | F25 | `TransformationLineageReceipt`; `ContaminationLifecycleProfile`; `DefenseBottleneckReceipt`; transformation trust laundering |
 | F26 | `TransformationLineageReceipt`; `ContextAssemblyReceipt`; `EffectBoundaryReceipt`; `CovertChannelSurfaceMap`; `GovernanceEscalationReceipt` |
 
-F12/F23 are the direct evidence drivers for v0.1. F24 is the direct evidence driver for
-the v0.2 control-plane isolation candidate. F01 also supports the narrower rule that a
-containment label is not itself containment evidence. All remaining rows stay candidates
-until their own bounded increments and Crucibles exist.
+F12/F23 are the direct evidence drivers for v0.1. F24 drives v0.2 control-plane
+isolation. F15 is the direct driver for the v0.3 effect boundary, with F26 reinforcing
+the requirement that effect semantics survive composition. F01 also supports the
+narrower rule that a containment label is not itself containment evidence. All remaining
+rows stay candidates until their own bounded increments and Crucibles exist.
 
 ## v0.1 Crucibles
 
@@ -239,9 +357,28 @@ The focused control-plane test set must prove at minimum:
 9. the sandbox receipt cryptographically binds the exact isolation receipt;
 10. the isolation receipt grants zero action or execution authority.
 
+## v0.3 Crucibles
+
+The focused environmental-effect test set must prove at minimum:
+
+1. the built-in artifact writer declares `filesystem.change` at both capability and
+   executor boundaries;
+2. the effect receipt precedes the permission/action receipts in Mandala lineage;
+3. a missing capability effect declaration blocks before executor entry;
+4. a capability/executor effect mismatch blocks before executor entry;
+5. `unknown` cannot become an executable effect classification;
+6. a semantic `read` risk label cannot hide an active environmental effect;
+7. a network request remains an active effect regardless of GET/read-style naming;
+8. governed action bindings snapshot the declared effect tuple;
+9. capability-effect drift is held before the execution claim is consumed;
+10. executor-effect drift is held before the execution claim is consumed;
+11. EffectBoundaryReceipt itself carries zero action or execution authority;
+12. Ledger snapshot projection preserves bounded effect evidence without exposing new
+    authority state.
+
 ## Explicit non-goals
 
-Research-hardening v0.1 does **not**:
+The current research-hardening track does **not**:
 
 - make memory an authority service;
 - store executable grants in `MemoryRecord`;
@@ -249,7 +386,8 @@ Research-hardening v0.1 does **not**:
 - authenticate authority events;
 - replace `ActionBindingGrant`, PhiReflex grants, or execution-time revalidation;
 - treat control-plane isolation as proof of universal sandbox containment;
-- classify environmental effects or enforce an ObservationFrontier;
+- treat declared effect classification as proof that every real effect was observed;
+- enforce an ObservationFrontier;
 - auto-promote any research finding into policy.
 
 Those remain separate, independently reviewable increments.

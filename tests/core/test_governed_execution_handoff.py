@@ -255,6 +255,7 @@ def test_capability_contract_drift_is_held(tmp_path: Path) -> None:
         name="Custom",
         description="bound version",
         permissions=("custom.write",),
+        effects=("filesystem.change",),
         risk="low",
         version="1.0.0",
     )
@@ -270,6 +271,7 @@ def test_capability_contract_drift_is_held(tmp_path: Path) -> None:
             name="Custom",
             description="runtime version",
             permissions=("custom.write",),
+            effects=("filesystem.change",),
             risk="low",
             version="2.0.0",
         )
@@ -296,6 +298,7 @@ def test_failed_executor_consumes_binding_to_prevent_blind_retry(
         name="Failure",
         description="always fails",
         permissions=("custom.execute",),
+        effects=("external_state.change",),
         risk="medium",
         version="1.0.0",
     )
@@ -309,7 +312,11 @@ def test_failed_executor_consumes_binding_to_prevent_blind_retry(
     def fail_handler(data: dict[str, object]) -> ArtifactResult:
         raise RuntimeError("simulated executor failure")
 
-    spine.executors.register(capability.id, fail_handler)
+    spine.executors.register(
+        capability.id,
+        fail_handler,
+        effects=("external_state.change",),
+    )
     handoff = GovernedExecutionHandoff()
 
     failed = handoff.execute(
@@ -354,3 +361,86 @@ def test_unicode_payload_hash_matches_spine_execution_hash(tmp_path: Path) -> No
     assert receipt.status == "SUCCEEDED"
     ledger_entry = spine.ledger.recent(1)[0]
     assert ledger_entry["input_sha256"] == binding.payload_sha256
+
+
+def test_effect_contract_drift_is_held_before_binding_claim(tmp_path: Path) -> None:
+    plan = _plan()
+    payload = {"value": "effect-drift"}
+    bound_capability = Capability(
+        id="custom.effect-drift",
+        name="Effect Drift",
+        description="bound",
+        permissions=("custom.execute",),
+        effects=("external_state.read",),
+        risk="low",
+        version="1.0.0",
+    )
+    binding = _binding(plan, bound_capability, payload)
+
+    spine = PhiOSSpine(
+        state_root=tmp_path,
+        allowed_permissions=["custom.execute"],
+    )
+    runtime_capability = Capability(
+        id="custom.effect-drift",
+        name="Effect Drift",
+        description="runtime",
+        permissions=("custom.execute",),
+        effects=("external_state.change",),
+        risk="low",
+        version="1.0.0",
+    )
+    spine.registry.register(runtime_capability)
+
+    receipt = GovernedExecutionHandoff().execute(
+        plan=plan,
+        binding=binding,
+        payload=payload,
+        spine=spine,
+    )
+
+    assert receipt.status == "HELD"
+    assert receipt.reason == "capability_contract_drift"
+    assert spine.ledger.has_consumed_binding(binding.binding_sha256) is False
+
+
+def test_executor_effect_mismatch_is_held_before_binding_claim(tmp_path: Path) -> None:
+    plan = _plan()
+    payload = {"value": "executor-mismatch"}
+    capability = Capability(
+        id="custom.executor-effect-mismatch",
+        name="Executor Effect Mismatch",
+        description="test",
+        permissions=("custom.execute",),
+        effects=("external_state.read",),
+        risk="low",
+        version="1.0.0",
+    )
+    binding = _binding(plan, capability, payload)
+    spine = PhiOSSpine(
+        state_root=tmp_path,
+        allowed_permissions=["custom.execute"],
+    )
+    spine.registry.register(capability)
+
+    def handler(data: dict[str, object]) -> ArtifactResult:
+        raise AssertionError(f"executor must not be entered: {data}")
+
+    spine.executors.register(
+        capability.id,
+        handler,
+        effects=("external_state.change",),
+    )
+
+    receipt = GovernedExecutionHandoff().execute(
+        plan=plan,
+        binding=binding,
+        payload=payload,
+        spine=spine,
+    )
+
+    assert receipt.status == "HELD"
+    assert receipt.reason == (
+        "effect_boundary_capability_executor_effect_contract_mismatch"
+    )
+    assert spine.ledger.has_consumed_binding(binding.binding_sha256) is False

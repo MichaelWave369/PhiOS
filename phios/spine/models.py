@@ -12,12 +12,14 @@ class Capability:
     name: str
     description: str
     permissions: tuple[str, ...] = field(default_factory=tuple)
+    effects: tuple[str, ...] = field(default_factory=tuple)
     risk: Risk = "low"
     version: str = "0.1.0"
 
     def to_dict(self) -> dict[str, Any]:
         data = asdict(self)
         data["permissions"] = list(self.permissions)
+        data["effects"] = list(self.effects)
         return data
 
 

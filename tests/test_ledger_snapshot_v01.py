@@ -84,7 +84,12 @@ def test_snapshot_projects_safe_fields_and_excludes_binding_claims(tmp_path: Pat
         for line in (root / "mandala.jsonl").read_text(encoding="utf-8").splitlines()
     ]
     assert len(execution_rows) == 1
-    assert len(mandala_rows) == 2
+    assert len(mandala_rows) == 3
+    assert [row["receipt_type"] for row in mandala_rows] == [
+        "EffectBoundaryReceipt",
+        "GateReceipt",
+        "ActionReceipt",
+    ]
     assert "artifact_path" not in execution_rows[0]
     assert "error" not in execution_rows[0]
     assert execution_rows[0]["artifact_sha256"] == receipt.artifact_sha256

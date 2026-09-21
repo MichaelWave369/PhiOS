@@ -16,6 +16,7 @@ from phios.core.governed_plan_adoption import (
     GovernedPlanAdoptionGate,
     PlanState,
 )
+from phios.spine.effects import EffectBoundaryContractError, normalize_effects
 from phios.spine.models import Capability
 
 
@@ -71,6 +72,7 @@ class PlanActionBinding:
     capability_version: str
     capability_risk: str
     permissions_requested: tuple[str, ...]
+    effects_declared: tuple[str, ...]
     payload_sha256: str
     grant_id: str
     grant_sha256: str
@@ -92,6 +94,7 @@ class PlanActionBinding:
             "capability_version": self.capability_version,
             "capability_risk": self.capability_risk,
             "permissions_requested": list(self.permissions_requested),
+            "effects_declared": list(self.effects_declared),
             "payload_sha256": self.payload_sha256,
             "grant_id": self.grant_id,
             "grant_sha256": self.grant_sha256,
@@ -117,6 +120,7 @@ class ActionBindingReceipt:
     capability_id: str
     payload_sha256: str
     permissions_requested: tuple[str, ...]
+    effects_declared: tuple[str, ...]
     grant_id: str | None
     grant_sha256: str | None
     authority_source: str | None
@@ -139,6 +143,7 @@ class ActionBindingReceipt:
             "capability_id": self.capability_id,
             "payload_sha256": self.payload_sha256,
             "permissions_requested": list(self.permissions_requested),
+            "effects_declared": list(self.effects_declared),
             "grant_id": self.grant_id,
             "grant_sha256": self.grant_sha256,
             "authority_source": self.authority_source,
@@ -159,7 +164,7 @@ class GovernedActionBinder:
     def validate_binding(self, binding: PlanActionBinding) -> None:
         """Validate a v0.7 binding without granting or executing anything."""
 
-        if binding.schema != "phios.plan_action_binding.v0.7":
+        if binding.schema != "phios.plan_action_binding.v0.7.1":
             raise ActionBindingContractError("unsupported action binding schema")
         if binding.action_authority is not False:
             raise ActionBindingContractError(
@@ -205,6 +210,21 @@ class GovernedActionBinder:
             raise ActionBindingContractError(
                 "binding permissions must be unique"
             )
+        try:
+            effects = normalize_effects(
+                binding.effects_declared,
+                label="binding effects",
+            )
+        except EffectBoundaryContractError as exc:
+            raise ActionBindingContractError(str(exc)) from exc
+        if effects != binding.effects_declared:
+            raise ActionBindingContractError(
+                "binding effects must be canonical, unique, and sorted"
+            )
+        if "unknown" in effects:
+            raise ActionBindingContractError(
+                "binding effects cannot contain unknown"
+            )
         for label, digest in (
             ("plan_state_sha256", binding.plan_state_sha256),
             ("payload_sha256", binding.payload_sha256),
@@ -231,6 +251,7 @@ class GovernedActionBinder:
             "capability_version": binding.capability_version,
             "capability_risk": binding.capability_risk,
             "permissions_requested": list(binding.permissions_requested),
+            "effects_declared": list(binding.effects_declared),
             "payload_sha256": binding.payload_sha256,
             "grant_id": binding.grant_id,
             "grant_sha256": binding.grant_sha256,
@@ -259,7 +280,7 @@ class GovernedActionBinder:
     ) -> tuple[PlanActionBinding | None, ActionBindingReceipt]:
         self._plan_gate.validate_plan_state(plan)
         source_state_id, target_state_id = self._transition(plan, transition_index)
-        capability_id, version, risk, permissions = self._validate_capability(
+        capability_id, version, risk, permissions, effects = self._validate_capability(
             capability
         )
         payload_sha256 = _payload_digest(dict(payload))
@@ -284,6 +305,7 @@ class GovernedActionBinder:
                 capability_id=capability_id,
                 payload_sha256=payload_sha256,
                 permissions=permissions,
+                effects=effects,
                 grant=grant,
                 grant_scope_valid=False,
                 binding_sha256=None,
@@ -292,7 +314,7 @@ class GovernedActionBinder:
 
         assert grant is not None
         binding_payload: dict[str, object] = {
-            "schema": "phios.plan_action_binding.v0.7",
+            "schema": "phios.plan_action_binding.v0.7.1",
             "plan_id": plan.plan_id,
             "plan_state_sha256": plan.state_sha256,
             "plan_revision": plan.revision,
@@ -303,6 +325,7 @@ class GovernedActionBinder:
             "capability_version": version,
             "capability_risk": risk,
             "permissions_requested": list(permissions),
+            "effects_declared": list(effects),
             "payload_sha256": payload_sha256,
             "grant_id": grant.grant_id.strip(),
             "grant_sha256": grant.grant_sha256,
@@ -311,7 +334,7 @@ class GovernedActionBinder:
             "execution_authority": False,
         }
         binding = PlanActionBinding(
-            schema="phios.plan_action_binding.v0.7",
+            schema="phios.plan_action_binding.v0.7.1",
             plan_id=plan.plan_id,
             plan_state_sha256=plan.state_sha256,
             plan_revision=plan.revision,
@@ -322,6 +345,7 @@ class GovernedActionBinder:
             capability_version=version,
             capability_risk=risk,
             permissions_requested=permissions,
+            effects_declared=effects,
             payload_sha256=payload_sha256,
             grant_id=grant.grant_id.strip(),
             grant_sha256=grant.grant_sha256,
@@ -340,6 +364,7 @@ class GovernedActionBinder:
             capability_id=capability_id,
             payload_sha256=payload_sha256,
             permissions=permissions,
+            effects=effects,
             grant=grant,
             grant_scope_valid=True,
             binding_sha256=binding.binding_sha256,
@@ -369,7 +394,7 @@ class GovernedActionBinder:
     def _validate_capability(
         self,
         capability: Capability,
-    ) -> tuple[str, str, str, tuple[str, ...]]:
+    ) -> tuple[str, str, str, tuple[str, ...], tuple[str, ...]]:
         capability_id = capability.id.strip()
         version = capability.version.strip()
         risk = str(capability.risk).strip()
@@ -394,7 +419,18 @@ class GovernedActionBinder:
             raise ActionBindingContractError(
                 "capability permissions must be unique"
             )
-        return capability_id, version, risk, permissions
+        try:
+            effects = normalize_effects(
+                capability.effects,
+                label="capability effects",
+            )
+        except EffectBoundaryContractError as exc:
+            raise ActionBindingContractError(str(exc)) from exc
+        if "unknown" in effects:
+            raise ActionBindingContractError(
+                "capability effects cannot contain unknown"
+            )
+        return capability_id, version, risk, permissions, effects
 
     def _grant_scope(
         self,
@@ -443,6 +479,7 @@ class GovernedActionBinder:
         capability_id: str,
         payload_sha256: str,
         permissions: tuple[str, ...],
+        effects: tuple[str, ...],
         grant: ActionBindingGrant | None,
         grant_scope_valid: bool,
         binding_sha256: str | None,
@@ -453,7 +490,7 @@ class GovernedActionBinder:
             grant.authority_source.strip() if grant is not None else None
         )
         receipt_payload: dict[str, object] = {
-            "schema": "phios.action_binding_receipt.v0.7",
+            "schema": "phios.action_binding_receipt.v0.7.1",
             "status": status,
             "reason": reason,
             "plan_id": plan.plan_id,
@@ -464,6 +501,7 @@ class GovernedActionBinder:
             "capability_id": capability_id,
             "payload_sha256": payload_sha256,
             "permissions_requested": list(permissions),
+            "effects_declared": list(effects),
             "grant_id": grant_id,
             "grant_sha256": grant_sha256,
             "authority_source": authority_source,
@@ -473,7 +511,7 @@ class GovernedActionBinder:
             "execution_authority": False,
         }
         return ActionBindingReceipt(
-            schema="phios.action_binding_receipt.v0.7",
+            schema="phios.action_binding_receipt.v0.7.1",
             status=status,
             reason=reason,
             plan_id=plan.plan_id,
@@ -484,6 +522,7 @@ class GovernedActionBinder:
             capability_id=capability_id,
             payload_sha256=payload_sha256,
             permissions_requested=permissions,
+            effects_declared=effects,
             grant_id=grant_id,
             grant_sha256=grant_sha256,
             authority_source=authority_source,

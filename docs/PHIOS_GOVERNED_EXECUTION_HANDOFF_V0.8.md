@@ -49,6 +49,10 @@ v0.8 therefore revalidates, at execution time:
 
 Only after those checks does the handoff delegate to `PhiOSSpine.run(...)`.
 
+The Spine then independently emits and enforces its own `EffectBoundaryReceipt` before
+the existing permission gate. The handoff precheck avoids consuming an execution claim
+for a capability whose effect contract is already known to be invalid.
+
 ## Existing authority path remains canonical
 
 The execution decision still belongs to the existing Spine:
@@ -169,6 +173,12 @@ permissions = artifact.write, network.write
 
 the old binding is held rather than silently inheriting the new capability
 shape.
+
+
+The same rule now applies to environmental effects. If the current capability effect
+tuple no longer matches the hardened binding, or the current executor effect contract
+no longer matches the capability, the handoff is held before the binding claim is
+acquired.
 
 ## Payload hash parity
 
@@ -391,7 +401,8 @@ Focused coverage verifies:
 - failed executor entry also consumes the binding;
 - payload drift is held before execution;
 - a binding for another valid plan is held;
-- capability version/permission drift is held;
+- capability version/permission/effect drift is held;
+- executor-effect mismatch is held before binding consumption;
 - Unicode payload hashes match across v0.7 and the Spine;
 - existing direct Spine execution remains compatible.
 
