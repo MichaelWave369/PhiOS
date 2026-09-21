@@ -18,7 +18,7 @@ from typing import Any, Protocol, cast
 from .build_plan import AcquisitionBinding, BuildPlan, BuildStep, snapshot_source_tree
 
 BUILD_EXECUTION_REQUEST_SCHEMA_VERSION = "phios.build_execution_request.v0.1"
-BUILD_EXECUTION_RECEIPT_SCHEMA_VERSION = "phios.build_execution_receipt.v0.1"
+BUILD_EXECUTION_RECEIPT_SCHEMA_VERSION = "phios.build_execution_receipt.v0.2"
 
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 _PERMISSION_RE = re.compile(r"^[a-z0-9][a-z0-9._:-]{0,127}$")
@@ -486,7 +486,19 @@ class BuildExecutionReceipt:
     artifact_set_sha256: str
     status: str
     failure_reason: str | None
+    release_build_review_sha256: str | None = None
     schema_version: str = BUILD_EXECUTION_RECEIPT_SCHEMA_VERSION
+
+    def __post_init__(self) -> None:
+        if self.schema_version != BUILD_EXECUTION_RECEIPT_SCHEMA_VERSION:
+            raise ValueError(
+                f"Unsupported build execution receipt schema: {self.schema_version}"
+            )
+        if self.release_build_review_sha256 is not None:
+            _sha256(
+                self.release_build_review_sha256,
+                "release_build_review_sha256",
+            )
 
     def body_dict(self) -> dict[str, Any]:
         return {
@@ -508,6 +520,7 @@ class BuildExecutionReceipt:
             "steps": [item.to_dict() for item in self.steps],
             "artifacts": [item.to_dict() for item in self.artifacts],
             "artifact_set_sha256": self.artifact_set_sha256,
+            "release_build_review_sha256": self.release_build_review_sha256,
             "status": self.status,
             "failure_reason": self.failure_reason,
         }
@@ -814,6 +827,7 @@ class BuildExecutionService:
                 artifact_set_sha256=artifact_set_sha256,
                 status=status,
                 failure_reason=failure_reason,
+                release_build_review_sha256=request.release_build_review_sha256,
             )
 
             receipt_path = receipts / f"{execution_id}.json"

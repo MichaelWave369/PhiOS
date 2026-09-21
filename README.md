@@ -22,7 +22,7 @@ It currently has three major surfaces:
 |---|---|---:|
 | **PhiOS Shell / MCP** | operator commands, local workflows, integrations, machine-readable capability surfaces | active |
 | **PhiOS Spine** | authority-aware observation, verification, evidence, and receipts | **v0.24** |
-| **PhiOS App Platform** | governed app lifecycle with release review, advancement, and execution-lineage binding | **v0.48** |
+| **PhiOS App Platform** | governed app lifecycle with release review, execution lineage, and package provenance | **v0.49** |
 | **PhiReflex** | provider-neutral System-One shadow, calibrated live influence, authenticated authority, trust lifecycle, and root attestation | **v0.10** |
 
 The common pattern is:
@@ -121,9 +121,9 @@ Current Spine docs:
 - [Spine v0.24 numeric-transition contract](docs/PHIOS_SPINE_V0.24_NUMERIC_TRANSITION_CONTRACT.md)
 - [Complete Spine version trail](docs/README.md#spine-version-trail)
 
-### App Platform v0.48
+### App Platform v0.49
 
-The App Platform now covers a governed lifecycle from public source through cleanup recovery, release discovery, exact human review, candidate advancement, gated planning, and release-build review binding before execution:
+The App Platform now covers a governed lifecycle from public source through cleanup recovery, release discovery, exact human review, candidate advancement, gated planning, release-build review, and lineage-preserving execution/package evidence:
 
 ```text
 public repository
@@ -177,6 +177,12 @@ gated release-candidate build planning
 exact release-build review binding
     ↓
 review-bound build execution request
+    ↓
+lineage-bound execution receipt
+    ↓
+offline receipt preserves execution binding
+    ↓
+lineage-bound package plan / review
 ```
 
 Important boundaries remain explicit:
@@ -238,11 +244,18 @@ release build reviewed
 
 release build review
 ≠ install / update authority
+
+successful release build
+≠ install / update authority
+
+lineage-bound package plan
+≠ install / update authority
 ```
 
 Current App Platform docs:
 
-- [App Platform v0.48 overview](README_APP_PLATFORM_V0.48.md)
+- [App Platform v0.49 overview](README_APP_PLATFORM_V0.49.md)
+- [v0.49 release execution lineage](docs/PHIOS_APP_PLATFORM_V0.49_RELEASE_EXECUTION_LINEAGE.md)
 - [v0.48 release build review binding](docs/PHIOS_APP_PLATFORM_V0.48_RELEASE_BUILD_REVIEW_BINDING.md)
 - [v0.47 candidate advancement gate](docs/PHIOS_APP_PLATFORM_V0.47_CANDIDATE_ADVANCEMENT_GATE.md)
 - [v0.46 human release change review contract](docs/PHIOS_APP_PLATFORM_V0.46_HUMAN_CHANGE_REVIEW.md)
