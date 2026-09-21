@@ -19,6 +19,9 @@ requirements.
 
 v0.7 creates the explicit binding between those two domains.
 
+The research-hardening line now emits `phios.plan_action_binding.v0.7.1`, which
+adds the capability's explicit environmental-effect tuple to the immutable binding.
+
 ## Core rule
 
 ```text
@@ -144,7 +147,12 @@ The binding records:
 - capability ID;
 - capability version;
 - declared risk;
-- requested permissions.
+- requested permissions;
+- declared environmental effects.
+
+The effect tuple is descriptive too. It does not grant authority. It snapshots the
+possible environmental effects that were declared when the binding was created so a
+later effect-contract change cannot silently reuse the old binding.
 
 These requested permissions are descriptive, not grants.
 
@@ -242,6 +250,9 @@ execution_authority = false
 This may look pedantic, because it is. It is also the entire reason the layers
 remain composable without accidental privilege escalation.
 
+The hardened binding also cannot infer environmental safety from a method name. Effect
+classification remains a separate execution boundary.
+
 v0.7 cannot:
 
 - grant a Spine permission;
@@ -293,6 +304,8 @@ Focused coverage verifies:
 - non-JSON payloads are rejected;
 - bindings and receipts are deterministic;
 - requested permissions are copied from the Spine capability;
+- declared environmental effects are copied into the hardened binding;
+- binding validation rejects missing or unknown effect classifications;
 - bindings retain zero action and execution authority.
 
 The normal PhiOS CI gates remain authoritative for merge:
