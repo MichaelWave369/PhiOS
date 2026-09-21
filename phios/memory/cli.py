@@ -49,11 +49,23 @@ def build_parser() -> argparse.ArgumentParser:
 
     get = sub.add_parser("get", help="Read one governed canonical record by ID")
     get.add_argument("record_id")
+    get.add_argument(
+        "--reactivate-with",
+        metavar="RECORD_ID",
+        help="Use one newer linked canonical record as reconsolidation evidence",
+    )
 
     search = sub.add_parser("search", help="Run governed local semantic retrieval")
     search.add_argument("query")
     search.add_argument("--limit", type=int, default=10)
     search.add_argument("--operation-id")
+    search.add_argument(
+        "--reactivate",
+        action="append",
+        default=[],
+        metavar="TARGET=EVIDENCE",
+        help="Map a target memory ID to newer linked reconsolidation evidence",
+    )
 
     delete = sub.add_parser("delete", help="Tombstone one governed memory record")
     delete.add_argument("record_id")
@@ -86,6 +98,24 @@ def _runtime(args: argparse.Namespace) -> MemoryOperatorRuntime:
 
 def _task_id() -> str:
     return f"memory-cli:{uuid.uuid4()}"
+
+
+def _reactivation_mapping(values: list[str]) -> dict[str, str]:
+    mapping: dict[str, str] = {}
+    for value in values:
+        target, separator, evidence = value.partition("=")
+        target = target.strip()
+        evidence = evidence.strip()
+        if separator != "=" or not target or not evidence:
+            raise ValueError(
+                "--reactivate values must use TARGET=EVIDENCE"
+            )
+        if target in mapping:
+            raise ValueError(
+                f"duplicate --reactivate target: {target}"
+            )
+        mapping[target] = evidence
+    return mapping
 
 
 def main() -> int:
@@ -139,7 +169,11 @@ def main() -> int:
             return 0 if result.status == "ok" else 2
 
         if args.command == "get":
-            result = runtime.get(args.record_id, task_id=_task_id())
+            result = runtime.get(
+                args.record_id,
+                task_id=_task_id(),
+                reactivation_record_id=args.reactivate_with,
+            )
             print(json.dumps(_result_dict(result), indent=2))
             return 0 if result.status == "ok" else 2
 
@@ -149,6 +183,7 @@ def main() -> int:
                 operation_id=args.operation_id or str(uuid.uuid4()),
                 task_id=_task_id(),
                 limit=args.limit,
+                reactivation_record_ids=_reactivation_mapping(args.reactivate),
             )
             print(json.dumps(_result_dict(result), indent=2))
             return 0 if result.status == "ok" else 2
@@ -224,6 +259,15 @@ def _result_dict(result: object) -> dict[str, object]:
                 "retrieval_distance": hit.retrieval_distance,
             }
             for hit in result.hits
+        ],
+        "read_admissibility_receipts": [
+            receipt.to_dict() for receipt in result.read_admissibility_receipts
+        ],
+        "evidence_horizon_receipts": [
+            receipt.to_dict() for receipt in result.evidence_horizon_receipts
+        ],
+        "reactivation_window_receipts": [
+            receipt.to_dict() for receipt in result.reactivation_window_receipts
         ],
         "receipt_id": result.receipt_id,
         "error_code": result.error_code,
