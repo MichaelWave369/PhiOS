@@ -1,4 +1,6 @@
 from dataclasses import replace
+import hashlib
+import json
 
 import pytest
 
@@ -20,6 +22,7 @@ from phios.core.field_aware_routing import (
     FieldAwareRoutingContractError,
 )
 from phios.core.governed_replanning import GovernedReplanner, ReplanPolicy
+from phios.core.relational_field import TransitionConstraintSpec
 
 
 def _field() -> DynamicField:
@@ -323,6 +326,65 @@ def test_tampered_dynamic_state_receipt_is_rejected_at_consumption() -> None:
         forged.require_consumable_state()
 
 
+def test_observation_before_activation_is_rejected() -> None:
+    field = _field()
+    controller = DynamicStateController(
+        dynamic_field=field,
+        policy=_policy(),
+    )
+
+    with pytest.raises(DynamicStateContractError, match="cannot precede"):
+        controller.evaluate(
+            _failed_state(field),
+            activated_at_utc="2026-09-21T20:00:05+00:00",
+            observed_at_utc="2026-09-21T20:00:04+00:00",
+        )
+
+
+def _receipt_digest(receipt) -> str:
+    payload = receipt.to_dict()
+    payload.pop("receipt_sha256")
+    return hashlib.sha256(
+        json.dumps(
+            payload,
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=False,
+            allow_nan=False,
+        ).encode("utf-8")
+    ).hexdigest()
+
+
+def test_rehashed_temporal_receipt_cannot_lie_about_policy_evaluation() -> None:
+    field = _field()
+    source = _failed_state(field)
+    controller = DynamicStateController(
+        dynamic_field=field,
+        policy=_policy(),
+    )
+    result = controller.evaluate(
+        source,
+        activated_at_utc="2026-09-21T20:00:00+00:00",
+        observed_at_utc="2026-09-21T20:00:05+00:00",
+    )
+
+    forged_receipt = replace(result.receipt, age_seconds=4.0)
+    forged_receipt = replace(
+        forged_receipt,
+        receipt_sha256=_receipt_digest(forged_receipt),
+    )
+    forged = replace(result, receipt=forged_receipt)
+
+    # A self-consistent digest is not enough. The configured controller
+    # independently recomputes the lifecycle result from the source state
+    # and the receipt's exact activation/observation times.
+    with pytest.raises(
+        DynamicStateContractError,
+        match="does not match policy evaluation",
+    ):
+        controller.validate_evaluation(forged)
+
+
 def _id(state: dict[str, object]) -> str:
     return str(state["id"])
 
@@ -560,3 +622,63 @@ def test_governed_replanning_consumes_receipted_temporal_state() -> None:
         receipt.current_field_state_sha256
         == late.require_consumable_state().state_sha256
     )
+
+
+def test_temporal_decay_never_weakens_hard_transition_constraints() -> None:
+    field = _field()
+    source = _failed_state(field)
+    controller = DynamicStateController(
+        dynamic_field=field,
+        policy=_policy(),
+    )
+    router = FieldAwareRouter(
+        dynamic_field=field,
+        state_id=_id,
+        constraints=(
+            TransitionConstraintSpec(
+                "authority_granted",
+                lambda source, target: bool(target["authorized"]),
+            ),
+        ),
+        dynamic_bindings=(
+            DynamicCostBinding(
+                name="failure_exposure",
+                field_variable="historical_failure",
+                evaluate=lambda source, target: (
+                    10.0 if _id(target) == "B" else 0.0
+                ),
+            ),
+        ),
+        require_dynamic_state_receipt=True,
+        dynamic_state_controller=controller,
+    )
+    states = {
+        "A": {"id": "A", "authorized": True},
+        "B": {"id": "B", "authorized": False},
+        "C": {"id": "C", "authorized": True},
+        "D": {"id": "D", "authorized": True},
+    }
+    graph = {
+        "A": ["B", "C"],
+        "B": ["D"],
+        "C": ["D"],
+        "D": [],
+    }
+    decayed = controller.evaluate(
+        source,
+        activated_at_utc="2026-09-21T20:00:00+00:00",
+        observed_at_utc="2026-09-21T20:00:10+00:00",
+    )
+
+    route = router.route(
+        decayed,
+        [states["A"]],
+        expand=lambda item: [states[key] for key in graph[_id(item)]],
+        goal=lambda item: _id(item) == "D",
+    )
+
+    assert decayed.require_consumable_state().value(
+        "historical_failure"
+    ) == pytest.approx(0.0)
+    assert route.path_ids == ("A", "C", "D")
+    assert "B" not in route.path_ids
