@@ -157,3 +157,40 @@ v0.10 does not add:
 - action authorization
 - memory promotion
 - world-state truth scoring
+
+
+## Research-hardening observation frontier
+
+The current Reality Gate additionally returns an inline
+`phios.observability_boundary_receipt.v0.1` and binds its evidence into the persisted
+`RealityReceipt`.
+
+This does not change the canonical Reality verdict vocabulary. It records the narrower
+question of what was actually observable when the verdict was issued.
+
+Per-claim coverage is one of:
+
+```text
+COVERED
+PARTIAL
+UNOBSERVED
+```
+
+and the aggregate boundary status is one of:
+
+```text
+BOUNDED
+PARTIAL
+OUTSIDE_FRONTIER
+```
+
+For structured negative-state claims such as an exact TCP listener expected not to be
+listening, support is explicitly limited to the observed frontier. A point-in-time
+listener snapshot is not continuous proof, and generic world-state absence remains
+unresolved without an independent world verifier.
+
+The observability receipt is zero-authority and is not appended as a second Mandala
+governance row. The existing GateReceipt → RealityReceipt lineage remains intact, while
+the RealityReceipt binds the exact frontier and observability SHA-256 values.
+
+See [Observation Frontier v0.1](PHIOS_OBSERVATION_FRONTIER_V0.1.md).
