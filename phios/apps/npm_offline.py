@@ -913,6 +913,7 @@ class NpmOfflineBuildRequest:
     acquisition: AcquisitionBinding
     npm_cache: NpmCacheReceipt
     approved_offline_plan_sha256: str
+    release_build_review_sha256: str | None = None
 
     def __post_init__(self) -> None:
         plan = self.offline_plan
@@ -941,6 +942,23 @@ class NpmOfflineBuildRequest:
         if self.acquisition.commit_sha != derived.commit_sha:
             raise ValueError("acquisition commit does not match offline plan")
 
+        from .release_build_review import release_advancement_sha256_from_plan
+
+        release_advancement_sha256 = release_advancement_sha256_from_plan(derived)
+        if release_advancement_sha256 is not None:
+            if self.release_build_review_sha256 is None:
+                raise ValueError(
+                    "release offline npm execution requires an exact v0.48 release build review"
+                )
+            _sha256(
+                self.release_build_review_sha256,
+                "release_build_review_sha256",
+            )
+        elif self.release_build_review_sha256 is not None:
+            raise ValueError(
+                "release build review is valid only for a release-lineage offline build"
+            )
+
     @classmethod
     def from_payloads(
         cls,
@@ -949,18 +967,56 @@ class NpmOfflineBuildRequest:
         npm_cache_receipt_value: Any,
         *,
         approved_offline_plan_sha256: str,
+        release_build_review_value: Any | None = None,
+        approved_release_build_review_sha256: str | None = None,
     ) -> NpmOfflineBuildRequest:
         acquisition_data = _mapping(acquisition_receipt_value, "acquisition receipt")
         if acquisition_data.get("schema_version") != SOURCE_ACQUISITION_RECEIPT_SCHEMA_VERSION:
             raise ValueError("v0.32 requires a v0.27 acquisition receipt")
+
+        offline_plan = NpmOfflineBuildPlan.from_dict(offline_plan_value)
+        derived = offline_plan.derived_build_plan
+
+        from .release_build_review import (
+            release_advancement_sha256_from_plan,
+            validate_release_build_review,
+        )
+
+        release_advancement_sha256 = release_advancement_sha256_from_plan(derived)
+        review_sha256: str | None = None
+        if release_advancement_sha256 is not None:
+            if (
+                release_build_review_value is None
+                or approved_release_build_review_sha256 is None
+            ):
+                raise ValueError(
+                    "release offline npm execution requires v0.48 review and exact review approval"
+                )
+            review = validate_release_build_review(
+                derived,
+                release_build_review_value,
+                approved_release_build_review_sha256=(
+                    approved_release_build_review_sha256
+                ),
+            )
+            review_sha256 = review.sha256()
+        elif (
+            release_build_review_value is not None
+            or approved_release_build_review_sha256 is not None
+        ):
+            raise ValueError(
+                "release build review inputs are valid only for a release-lineage offline build"
+            )
+
         return cls(
-            offline_plan=NpmOfflineBuildPlan.from_dict(offline_plan_value),
+            offline_plan=offline_plan,
             acquisition=AcquisitionBinding.from_dict(acquisition_receipt_value),
             npm_cache=NpmCacheReceipt.from_dict(npm_cache_receipt_value),
             approved_offline_plan_sha256=_sha256(
                 approved_offline_plan_sha256,
                 "approved_offline_plan_sha256",
             ),
+            release_build_review_sha256=review_sha256,
         )
 
 
@@ -1142,6 +1198,7 @@ class NpmOfflineBuildService:
             approved_plan_sha256=derived.sha256(),
             approved_source_snapshot_sha256=derived.source_snapshot_sha256,
             approved_permissions=derived.requested_build_permissions,
+            release_build_review_sha256=request.release_build_review_sha256,
         )
         runner = self.runner_factory(self.policy, working_cache)
 
