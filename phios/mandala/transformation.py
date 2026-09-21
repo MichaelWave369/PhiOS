@@ -225,6 +225,25 @@ class TransformationLineageBuilder:
                 )
         if receipt.exactness_class not in ExactnessClass:
             raise TransformationLineageError("invalid effective exactness class")
+        if (
+            _EXACTNESS_STRENGTH[receipt.exactness_class]
+            > _EXACTNESS_STRENGTH[receipt.requested_exactness]
+        ):
+            raise TransformationLineageError(
+                "effective exactness cannot exceed requested exactness"
+            )
+        if not set(receipt.source_taints).issubset(
+            set(receipt.effective_taints)
+        ):
+            raise TransformationLineageError(
+                "effective taints cannot drop source taints"
+            )
+        if not set(receipt.added_taints).issubset(
+            set(receipt.effective_taints)
+        ):
+            raise TransformationLineageError(
+                "effective taints cannot drop added taints"
+            )
         if receipt.operational_authority is not False:
             raise TransformationLineageError(
                 "transformation lineage cannot carry operational authority"
