@@ -48,7 +48,13 @@ class AuthoritativeAuthorityEvent:
         _require_nonempty(self.event_id, "event_id")
         _require_nonempty(self.permission, "permission")
         _require_nonempty(self.authority_source, "authority_source")
-        if isinstance(self.sequence, bool) or not isinstance(self.sequence, int) or self.sequence < 0:
+        if not isinstance(self.kind, AuthorityEventKind):
+            raise AuthorityProjectionError("kind must be a canonical AuthorityEventKind")
+        if (
+            isinstance(self.sequence, bool)
+            or not isinstance(self.sequence, int)
+            or self.sequence < 0
+        ):
             raise AuthorityProjectionError("sequence must be an integer >= 0")
         effective = _utc(self.effective_at, "effective_at")
         if self.kind is AuthorityEventKind.REVOKE and self.expires_at is not None:
@@ -108,7 +114,9 @@ class AuthorityProjection:
         observed_at: str,
     ) -> AuthorityProjectionResult:
         observed = _utc(observed_at, "observed_at")
-        normalized_ceiling = tuple(sorted({_require_nonempty(item, "ceiling permission") for item in ceiling}))
+        normalized_ceiling = tuple(
+            sorted({_require_nonempty(item, "ceiling permission") for item in ceiling})
+        )
         ceiling_set = set(normalized_ceiling)
 
         ordered = tuple(sorted(events, key=lambda item: item.sequence))
