@@ -36,3 +36,17 @@ class MandalaReceiptLedger:
             if isinstance(payload, dict) and payload.get("receipt_id") == receipt_id:
                 return True
         return False
+
+    def get_receipt(self, receipt_id: str) -> dict[str, object] | None:
+        """Return the persisted receipt row for an exact receipt ID."""
+
+        if not self.path.exists():
+            return None
+        for line in self.path.read_text(encoding="utf-8").splitlines():
+            try:
+                payload = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if isinstance(payload, dict) and payload.get("receipt_id") == receipt_id:
+                return payload
+        return None

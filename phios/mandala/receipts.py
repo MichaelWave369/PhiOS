@@ -209,6 +209,61 @@ class DisagreementDecompositionReceipt(ReceiptEnvelope):
 
 
 @dataclass(frozen=True, kw_only=True)
+class VerifierSemanticsReceipt(ReceiptEnvelope):
+    source_reality_receipt_id: str
+    source_reality_receipt_sha256: str
+    verifier_id: str
+    verification_method: str
+    source_status: str
+    observation_frontier_sha256: str | None
+    observability_receipt_sha256: str | None
+    observability_status: str
+    semantics_schema_version: str = "phios.verifier_semantics.v0.1"
+    verdict_summary: dict[str, int] = field(default_factory=dict)
+    detects_evidence_state: bool = True
+    may_emit_escalation_request: bool = True
+    may_authorize_remediation: bool = False
+    may_execute_remediation: bool = False
+    may_promote: bool = False
+    operational_authority: bool = False
+    action_authority: bool = False
+    execution_authority: bool = False
+    receipt_sha256: str = ""
+    receipt_type: str = field(init=False, default="VerifierSemanticsReceipt")
+
+
+@dataclass(frozen=True, kw_only=True)
+class GovernanceEscalationReceipt(ReceiptEnvelope):
+    source_reality_receipt_id: str
+    source_reality_receipt_sha256: str
+    verifier_semantics_receipt_sha256: str
+    request_id: str
+    disposition: str
+    routing_status: str
+    reason: str
+    target_ref: str
+    escalation_schema_version: str = "phios.governance_escalation.v0.1"
+    trigger_claim_ids: tuple[str, ...] = field(default_factory=tuple)
+    trigger_verdicts: tuple[dict[str, str], ...] = field(default_factory=tuple)
+    candidate_capability_id: str | None = None
+    candidate_capability_version: str | None = None
+    candidate_capability_risk: str | None = None
+    candidate_capability_contract_sha256: str | None = None
+    candidate_payload_sha256: str | None = None
+    requested_permissions: tuple[str, ...] = field(default_factory=tuple)
+    requested_effects: tuple[str, ...] = field(default_factory=tuple)
+    downstream_authority_required: bool = True
+    remediation_authorized: bool = False
+    remediation_executed: bool = False
+    promotion_status: str = "not_promoted"
+    operational_authority: bool = False
+    action_authority: bool = False
+    execution_authority: bool = False
+    receipt_sha256: str = ""
+    receipt_type: str = field(init=False, default="GovernanceEscalationReceipt")
+
+
+@dataclass(frozen=True, kw_only=True)
 class ActionReceipt(ReceiptEnvelope):
     approved_grant: tuple[str, ...] = field(default_factory=tuple)
     side_effect: dict[str, Any] = field(default_factory=dict)

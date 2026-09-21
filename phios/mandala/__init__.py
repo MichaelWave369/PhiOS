@@ -18,6 +18,14 @@ from .contracts import (
     OriginRef,
     PhiCoreState,
 )
+from .governance_escalation import (
+    EscalationRequest,
+    GovernanceEscalationError,
+    GovernanceEscalationResult,
+    GovernanceEscalationService,
+    GOVERNANCE_ESCALATION_SCHEMA_VERSION,
+    VERIFIER_SEMANTICS_SCHEMA_VERSION,
+)
 from .independence import (
     DeliberationEvidenceAssessor,
     DeliberationEvidenceResult,
@@ -40,6 +48,7 @@ from .receipts import (
     ActionReceipt,
     DisagreementDecompositionReceipt,
     EffectBoundaryReceipt,
+    GovernanceEscalationReceipt,
     GateReceipt,
     IndependenceReceipt,
     MemoryOperationReceipt,
@@ -49,6 +58,7 @@ from .receipts import (
     PerceptionReceipt,
     RealityReceipt,
     ReceiptEnvelope,
+    VerifierSemanticsReceipt,
     RouteReceipt,
 )
 
@@ -59,6 +69,7 @@ __all__ = [
     "DeliberationEvidenceAssessor",
     "DeliberationEvidenceResult",
     "DisagreementDecompositionReceipt",
+    "EscalationRequest",
     "EvidencePathDeclaration",
     "ExactnessClass",
     "EffectBoundaryReceipt",
@@ -72,8 +83,13 @@ __all__ = [
     "AuthorityProjection",
     "AuthorityProjectionError",
     "AuthorityProjectionResult",
+    "GOVERNANCE_ESCALATION_SCHEMA_VERSION",
     "Gate",
     "GateReceipt",
+    "GovernanceEscalationError",
+    "GovernanceEscalationReceipt",
+    "GovernanceEscalationResult",
+    "GovernanceEscalationService",
     "LifecycleState",
     "MandalaPacket",
     "MandalaReceiptLedger",
@@ -93,5 +109,7 @@ __all__ = [
     "TransformationLineageBuilder",
     "TransformationLineageError",
     "TransformationLineageReceipt",
+    "VERIFIER_SEMANTICS_SCHEMA_VERSION",
+    "VerifierSemanticsReceipt",
     "weakest_exactness",
 ]

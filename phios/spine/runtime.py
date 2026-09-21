@@ -15,7 +15,10 @@ from phios.mandala import (
     DeliberationEvidenceAssessor,
     DeliberationEvidenceResult,
     EffectBoundaryReceipt,
+    EscalationRequest,
     EvidencePathDeclaration,
+    GovernanceEscalationResult,
+    GovernanceEscalationService,
     Gate,
     GateReceipt,
     MandalaPacket,
@@ -108,6 +111,9 @@ class PhiOSSpine:
             authority=self.core.authority,
         )
         self.deliberation_evidence = DeliberationEvidenceAssessor(
+            self.mandala_ledger
+        )
+        self.governance_escalation = GovernanceEscalationService(
             self.mandala_ledger
         )
         self._register_builtins()
@@ -280,6 +286,73 @@ class PhiOSSpine:
             claim_id=claim_id,
             paths=paths,
             assertions=assertions,
+        )
+
+    def escalate_reality_finding(
+        self,
+        *,
+        verification: RealityVerificationResult,
+        disposition: str,
+        trigger_claim_ids: tuple[str, ...],
+        reason: str,
+        target_ref: str,
+        candidate_capability_id: str | None = None,
+        candidate_payload: dict[str, Any] | None = None,
+    ) -> GovernanceEscalationResult:
+        if verification.receipt.task_id != self.core.task_id:
+            raise ValueError(
+                "reality escalation source must belong to the active Spine task"
+            )
+        if verification.receipt.packet_id != verification.packet.packet_id:
+            raise ValueError(
+                "reality escalation packet/receipt identity mismatch"
+            )
+
+        normalized_disposition = disposition.strip().upper()
+        capability_id: str | None = None
+        capability_version: str | None = None
+        capability_risk: str | None = None
+        capability_contract_sha256: str | None = None
+        payload_sha256: str | None = None
+        permissions: tuple[str, ...] = ()
+        effects: tuple[str, ...] = ()
+
+        if normalized_disposition == "REMEDIATE":
+            if candidate_capability_id is None or candidate_payload is None:
+                raise ValueError(
+                    "REMEDIATE escalation requires capability and payload"
+                )
+            capability = self.registry.get(candidate_capability_id)
+            capability_id = capability.id
+            capability_version = capability.version
+            capability_risk = str(capability.risk)
+            capability_contract_sha256 = self._hash_payload(
+                capability.to_dict()
+            )
+            payload_sha256 = self._hash_payload(candidate_payload)
+            permissions = tuple(capability.permissions)
+            effects = tuple(capability.effects)
+        elif candidate_capability_id is not None or candidate_payload is not None:
+            raise ValueError(
+                "non-remediation escalation cannot carry an action candidate"
+            )
+
+        request = EscalationRequest.create(
+            disposition=normalized_disposition,
+            reason=reason,
+            target_ref=target_ref,
+            trigger_claim_ids=trigger_claim_ids,
+            candidate_capability_id=capability_id,
+            candidate_capability_version=capability_version,
+            candidate_capability_risk=capability_risk,
+            candidate_capability_contract_sha256=capability_contract_sha256,
+            candidate_payload_sha256=payload_sha256,
+            requested_permissions=permissions,
+            requested_effects=effects,
+        )
+        return self.governance_escalation.assess(
+            source_receipt=verification.receipt,
+            request=request,
         )
 
     def enhance_screen_evidence(
