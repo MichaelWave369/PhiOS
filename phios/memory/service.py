@@ -175,6 +175,11 @@ class GovernedMemoryService:
                 "reconsolidation_evidence_refs": list(
                     sorted(reconsolidation_evidence_refs)
                 ),
+                "evidence_horizon_policy_sha256": (
+                    self.evidence_horizon.policy.policy_sha256
+                    if self.evidence_horizon is not None
+                    else None
+                ),
             }
         )
         receipt = self._operation_receipt(
@@ -334,6 +339,11 @@ class GovernedMemoryService:
                 "task_id": task_id,
                 "limit": limit,
                 "policy_sha256": decision.policy_sha256,
+                "evidence_horizon_policy_sha256": (
+                    self.evidence_horizon.policy.policy_sha256
+                    if self.evidence_horizon is not None
+                    else None
+                ),
             }
         )
         if not eligible:
