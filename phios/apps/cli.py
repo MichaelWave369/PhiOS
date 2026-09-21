@@ -440,6 +440,15 @@ def _parser() -> argparse.ArgumentParser:
     offline_execute_parser.add_argument("acquisition_receipt_json", type=Path)
     offline_execute_parser.add_argument("npm_cache_receipt_json", type=Path)
     offline_execute_parser.add_argument("--approve-offline-plan-sha", required=True)
+    offline_execute_parser.add_argument(
+        "--release-build-review-json",
+        type=Path,
+        default=None,
+    )
+    offline_execute_parser.add_argument(
+        "--approve-release-build-review-sha",
+        default=None,
+    )
     offline_execute_parser.add_argument("--sandbox-wall-seconds", type=int, default=900)
     offline_execute_parser.add_argument("--sandbox-cpu-seconds", type=int, default=600)
     offline_execute_parser.add_argument("--sandbox-memory-mib", type=int, default=8192)
@@ -1513,11 +1522,20 @@ def main(argv: Sequence[str] | None = None) -> int:
             offline_payload = _load_json_file(args.offline_plan_json)
             acquisition_payload = _load_json_file(args.acquisition_receipt_json)
             cache_payload = _load_json_file(args.npm_cache_receipt_json)
+            release_review_payload = (
+                _load_json_file(args.release_build_review_json)
+                if args.release_build_review_json is not None
+                else None
+            )
             offline_request = NpmOfflineBuildRequest.from_payloads(
                 offline_payload,
                 acquisition_payload,
                 cache_payload,
                 approved_offline_plan_sha256=args.approve_offline_plan_sha,
+                release_build_review_value=release_review_payload,
+                approved_release_build_review_sha256=(
+                    args.approve_release_build_review_sha
+                ),
             )
             offline_policy = BuildSandboxPolicy(
                 network_mode="deny",
