@@ -38,7 +38,7 @@ increment independently reviewable and replaceable.
 
 ## Research-hardening v0.1
 
-This branch implements the first P0 seam only.
+v0.1 implemented the first P0 seam and merged through PR #181.
 
 ### Read-only AuthorityProjection
 
@@ -89,8 +89,8 @@ authority store.
 
 ## Research-hardening v0.2
 
-This branch implements the second P0 seam: explicit control-plane reachability evidence
-for the Linux build sandbox.
+v0.2 implemented the second P0 seam: explicit control-plane reachability evidence
+for the Linux build sandbox, merged through PR #182.
 
 ### ControlPlaneSurfaceMap
 
