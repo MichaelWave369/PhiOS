@@ -286,6 +286,10 @@ class DeliberationEvidenceAssessor:
                     "relation": relation,
                     "basis_refs": list(basis_refs),
                     "reasons": list(reasons),
+                    "shared_context": bool(
+                        left.context_sha256
+                        and left.context_sha256 == right.context_sha256
+                    ),
                 }
             )
 
