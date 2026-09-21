@@ -25,8 +25,8 @@ increment independently reviewable and replaceable.
 
 | Priority | Property to prove | Candidate surface | Status |
 |---|---|---|---|
-| P0 | Derived memory cannot originate authority | `AuthorityProjection`, `ReadAdmissibilityReceipt`, no-mint Crucibles | **v0.1 candidate implemented on this branch** |
-| P0 | Actor cannot re-enter or mutate its governing control plane | `ControlPlaneIsolationReceipt` | planned; not promoted |
+| P0 | Derived memory cannot originate authority | `AuthorityProjection`, `ReadAdmissibilityReceipt`, no-mint Crucibles | **v0.1 merged via PR #181** |
+| P0 | Actor cannot re-enter or mutate its governing control plane | `ControlPlaneIsolationReceipt` | **v0.2 candidate implemented on this branch** |
 | P0 | Capability is classified by environmental effects, not method labels | `EffectBoundaryReceipt` | planned; not promoted |
 | P0 | Containment/negative claims are bounded by demonstrated observation coverage | `ObservationFrontier` | planned; not promoted |
 | P1 | Transformations preserve source, taint, exactness, and derivation lineage | `TransformationLineageReceipt`, `ExactnessClass` | planned; not promoted |
@@ -87,6 +87,88 @@ The existing durable `MemoryOperationReceipt` remains the semantic-operation rec
 The v0.1 admissibility receipt is an inline consumption-boundary artifact, not a new
 authority store.
 
+## Research-hardening v0.2
+
+This branch implements the second P0 seam: explicit control-plane reachability evidence
+for the Linux build sandbox.
+
+### ControlPlaneSurfaceMap
+
+`ControlPlaneSurfaceMap` declares host surfaces that a bounded build actor must not
+observe or mutate. The current PhiOS default map includes:
+
+- the PhiReflex runtime/control root;
+- the default Spine execution-ledger root, including governed binding claims;
+- the `PHIOS_REFLEX_HOME` control-location environment key.
+
+The surface map is explicit and hashed. Custom deployments may supply an exact map for
+non-default control roots. A surface is not silently assumed safe merely because it is
+not part of the default installation layout.
+
+### SandboxReachabilitySnapshot
+
+Before build execution, the Bubblewrap runner describes the actual host reachability
+offered to the build:
+
+- acquisition/source workspace;
+- auxiliary read-only host binds;
+- auxiliary read-write host binds;
+- explicitly injected environment keys;
+- network mode;
+- mount, user, PID, IPC, and network namespace evidence.
+
+The snapshot is separate from the declared control-plane map so policy and observation
+cannot quietly collapse into one assertion.
+
+### ControlPlaneIsolationReceipt
+
+The evaluator compares the declared control surfaces with the concrete reachability
+snapshot and returns one of:
+
+```text
+ISOLATED
+BLOCKED
+UNKNOWN
+```
+
+`BLOCKED` means a declared control-plane path, protected environment key, or declared
+loopback control endpoint is reachable. `UNKNOWN` means required namespace evidence is
+missing. Only `ISOLATED` permits the sandboxed build to continue.
+
+The receipt independently distinguishes:
+
+```text
+control_plane_reachable
+mutation_reachable
+```
+
+A read-only mount of a control surface is therefore still a reachability failure even
+when it does not itself prove mutation capability.
+
+Every isolation receipt fixes:
+
+```text
+action_authority = false
+execution_authority = false
+```
+
+The current build sandbox receipt advances to
+`phios.build_sandbox_receipt.v0.2` and binds the exact
+`ControlPlaneIsolationReceipt` SHA-256. Downstream receipts that already bind the
+sandbox receipt therefore retain this hardening evidence without treating it as
+authority.
+
+### v0.2 fail-closed boundary
+
+The control-plane check runs after Bubblewrap backend preflight but before any reviewed
+build command executes. A reachable declared control surface or incomplete required
+namespace evidence terminates the build path before tool execution.
+
+This is deliberately narrower than claiming universal containment. It proves
+unreachability only for the declared surface map and the observed sandbox boundary.
+Future control APIs, sockets, plugins, or alternate state roots must be added to the map
+before the same claim can remain valid.
+
 ## Finding traceability
 
 The table records architecture candidates motivated by F01–F26. A mapping is not a
@@ -121,9 +203,10 @@ promotion decision.
 | F25 | `TransformationLineageReceipt`; `ContaminationLifecycleProfile`; `DefenseBottleneckReceipt`; transformation trust laundering |
 | F26 | `TransformationLineageReceipt`; `ContextAssemblyReceipt`; `EffectBoundaryReceipt`; `CovertChannelSurfaceMap`; `GovernanceEscalationReceipt` |
 
-F12/F23 are the direct evidence drivers for the v0.1 candidate implemented here. Their
-architecture consequence is still subject to PhiOS tests and Crucibles. All other rows
-remain candidates only.
+F12/F23 are the direct evidence drivers for v0.1. F24 is the direct evidence driver for
+the v0.2 control-plane isolation candidate. F01 also supports the narrower rule that a
+containment label is not itself containment evidence. All remaining rows stay candidates
+until their own bounded increments and Crucibles exist.
 
 ## v0.1 Crucibles
 
@@ -139,6 +222,23 @@ The focused test set must prove at minimum:
    returned hit with zero operational/action/execution authority;
 8. existing action-binding and execution-handoff authority contracts remain unchanged.
 
+## v0.2 Crucibles
+
+The focused control-plane test set must prove at minimum:
+
+1. a normal workspace with no declared control-plane overlap remains executable;
+2. a workspace containing or contained by a protected control root blocks before build
+   commands run;
+3. a read-only bind of a protected control root is still rejected as reachability;
+4. a read-write bind of a protected control root is identified as mutation-reachable;
+5. a protected control environment key is rejected;
+6. inherited host networking is rejected when the surface map declares a loopback
+   control endpoint;
+7. network-denied mode without network-namespace evidence is `UNKNOWN`, not safe;
+8. missing IPC/PID/user/mount namespace evidence cannot produce `ISOLATED`;
+9. the sandbox receipt cryptographically binds the exact isolation receipt;
+10. the isolation receipt grants zero action or execution authority.
+
 ## Explicit non-goals
 
 Research-hardening v0.1 does **not**:
@@ -148,8 +248,8 @@ Research-hardening v0.1 does **not**:
 - infer grants from summaries, similarity, consensus, recency, or usefulness;
 - authenticate authority events;
 - replace `ActionBindingGrant`, PhiReflex grants, or execution-time revalidation;
-- implement control-plane isolation, effect classification, or observation-frontier
-  enforcement;
+- treat control-plane isolation as proof of universal sandbox containment;
+- classify environmental effects or enforce an ObservationFrontier;
 - auto-promote any research finding into policy.
 
 Those remain separate, independently reviewable increments.

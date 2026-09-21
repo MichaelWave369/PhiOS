@@ -7,7 +7,9 @@ Alpha contract.
 Schemas:
 
 - `phios.build_sandbox_policy.v0.1`
-- `phios.build_sandbox_receipt.v0.1`
+- `phios.build_sandbox_receipt.v0.2`
+- `phios.control_plane_surface_map.v0.1`
+- `phios.control_plane_isolation_receipt.v0.1`
 
 ## Purpose
 
@@ -240,6 +242,79 @@ It also does not claim:
 - SELinux/AppArmor profile enforcement;
 - cgroup CPU/memory accounting;
 - domain-specific dependency mediation.
+
+## Research-hardening control-plane isolation
+
+The current sandbox receipt line is `phios.build_sandbox_receipt.v0.2`.
+
+Before any reviewed build command executes, the sandbox now evaluates a hashed
+`ControlPlaneSurfaceMap` against a concrete `SandboxReachabilitySnapshot`.
+
+The current default protected host surfaces are:
+
+- the PhiReflex runtime/control root;
+- the default Spine ledger/binding-claim root;
+- the `PHIOS_REFLEX_HOME` control-location environment key.
+
+A custom runner may supply a more specific surface map when deployment control roots
+differ from the defaults.
+
+The reachability snapshot binds:
+
+- the acquisition workspace mounted read/write as `/workspace`;
+- every auxiliary read-only host bind;
+- every auxiliary read-write host bind;
+- explicitly injected environment keys;
+- network mode;
+- mount/user/PID/IPC/network namespace evidence.
+
+The evaluator emits a separate
+`phios.control_plane_isolation_receipt.v0.1` with status:
+
+```text
+ISOLATED
+BLOCKED
+UNKNOWN
+```
+
+Only `ISOLATED` permits build execution.
+
+A protected path is considered reachable when the visible host path is equal to,
+contains, or is contained by the protected path. This catches both direct mounts and a
+broader workspace/bind that would indirectly expose the control root.
+
+Read-only visibility is still a reachability failure. Mutation reachability is recorded
+separately for writable paths, protected environment surfaces, and declared loopback
+control endpoints.
+
+If the surface map declares a loopback control endpoint, `network_mode=inherit`
+exposes that endpoint and blocks. If `network_mode=deny`, an absent network-namespace
+claim yields `UNKNOWN` rather than silently assuming isolation.
+
+The isolation receipt always carries:
+
+```text
+action_authority = false
+execution_authority = false
+```
+
+The v0.2 sandbox receipt binds the exact isolation-receipt SHA-256. This preserves the
+evidence chain:
+
+```text
+control-plane surface map
+        +
+sandbox reachability snapshot
+        ↓
+ControlPlaneIsolationReceipt
+        ↓
+BuildSandboxReceipt v0.2
+        ↓
+existing downstream sandbox-receipt lineage
+```
+
+This proves only the declared control surfaces were unreachable under the observed
+boundary. It does not claim that all possible host control channels have been discovered.
 
 ## Receipt persistence
 

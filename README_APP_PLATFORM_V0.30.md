@@ -19,6 +19,8 @@ v0.30 sandbox policy
        ↓
 Bubblewrap backend preflight
        ↓
+control-plane surface-map reachability check
+       ↓
 Linux namespaces + read-only system roots
        ↓
 private /proc, /dev, /tmp, HOME
@@ -31,7 +33,9 @@ reviewed argv, shell=False
        ↓
 v0.29 execution receipt
        +
-v0.30 sandbox receipt
+ControlPlaneIsolationReceipt
+       ↓
+v0.30 sandbox receipt v0.2
 ```
 
 ## Command
@@ -70,9 +74,10 @@ does not silently fall back to the unsandboxed v0.29 runner.
 
 ## Evidence
 
-The v0.30 sandbox receipt binds:
+The current v0.30 sandbox receipt is `phios.build_sandbox_receipt.v0.2` and binds:
 
 - the v0.29 execution receipt SHA-256;
+- the exact zero-authority control-plane-isolation receipt SHA-256;
 - exact plan and source snapshot identities;
 - canonical sandbox-policy SHA-256;
 - Bubblewrap executable and version identity;
@@ -84,3 +89,16 @@ The v0.30 sandbox receipt binds:
 - explicitly unsupported controls.
 
 See `docs/PHIOS_APP_PLATFORM_V0.30_BUILD_SANDBOX.md`.
+
+## Control-plane isolation hardening
+
+The sandbox now fails closed before build commands execute when its declared PhiOS control-plane
+surface map is reachable through the workspace, an auxiliary bind, a protected environment key,
+or a declared loopback control endpoint.
+
+The default map protects the PhiReflex control root and the default Spine ledger/binding-claim
+root. Missing required namespace evidence produces `UNKNOWN`, which is also non-executable.
+
+This is a bounded claim about declared surfaces, not a declaration that Bubblewrap or namespaces
+magically solve containment because humans gave the feature a reassuring noun.
+
