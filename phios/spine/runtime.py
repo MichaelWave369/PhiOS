@@ -63,6 +63,7 @@ from phios.soma import (
     TesseractOcrProvider,
 )
 
+from .api_keys import ApiKeyBoundary
 from .collaborator import PhiVesselAdapter
 from .effects import EffectBoundaryPolicy
 from .executor import ExecutorRegistry, text_artifact_handler
@@ -84,6 +85,7 @@ class PhiOSSpine:
         self.state_root = (state_root or Path.home() / ".phios" / "spine-v0.1").expanduser()
         allowed = tuple(dict.fromkeys(allowed_permissions))
         self.registry = CapabilityRegistry()
+        self.api_keys = ApiKeyBoundary()
         self.effect_policy = EffectBoundaryPolicy()
         self.gate = PermissionGate(allowed)
         self.executors = ExecutorRegistry()

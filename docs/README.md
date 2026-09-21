@@ -29,6 +29,8 @@ PhiOS changes quickly, so use this source-of-truth order when documents disagree
 - [Evidence Independence v0.1](PHIOS_EVIDENCE_INDEPENDENCE_V0.1.md) — conservative evidence-path independence, disagreement decomposition, and zero-authority consensus accounting.
 - [Governance Escalation v0.1](PHIOS_GOVERNANCE_ESCALATION_V0.1.md) — verifier semantics, bounded review/reverification/remediation requests, and explicit non-authoritative escalation.
 - [Dynamic State Lifecycle v0.1](PHIOS_DYNAMIC_STATE_LIFECYCLE_V0.1.md) — deterministic advisory-state attenuation, hard expiry, non-renewing lifecycle anchors, and hardened temporal routing.
+- [Memory Evidence Horizon v0.1](PHIOS_MEMORY_EVIDENCE_HORIZON_V0.1.md) — age-bounded context admission, reactivation windows, and fresh-provenance reconsolidation.
+- [API Key Boundary v0.1](PHIOS_API_KEY_BOUNDARY_V0.1.md) — inbound authentication and ephemeral outbound credential leasing without turning keys into authority.
 - [Observation Frontier v0.1](PHIOS_OBSERVATION_FRONTIER_V0.1.md) — per-claim observation coverage, bounded negative-state support, and zero-authority observability lineage.
 - [Root README](../README.md) — concise project front door and current capabilities.
 - [AGENTS.md](../AGENTS.md) — repository operating constraints for computational collaborators.

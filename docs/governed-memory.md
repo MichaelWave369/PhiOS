@@ -179,6 +179,42 @@ Transformation provenance is therefore inspectable context, not permission.
 
 See [Transformation Lineage v0.1](PHIOS_TRANSFORMATION_LINEAGE_V0.1.md).
 
+## Research hardening v0.9: evidence horizon and reconsolidation
+
+Governed memory can now opt into an age-bounded context-admission layer without changing
+canonical retention.
+
+Configure `GovernedMemoryService` with an `EvidenceHorizonController` to separate:
+
+```text
+record exists canonically
+from
+record may enter active context now
+```
+
+The policy declares a direct-admission age and a later reactivation window.
+
+Direct reads return an `EvidenceHorizonReceipt`. A record that is still inside the
+context horizon can proceed to the existing `ReadAdmissibilityReceipt`.
+
+A record that has crossed the context horizon remains in canonical storage but is not
+returned as active context. It receives a `ReactivationWindowReceipt` stating whether
+the record is still inside the configured reactivation window. That receipt never
+authorizes or completes reactivation.
+
+Semantic retrieval applies the horizon filter before vector ranking so stale records do
+not consume the top-k ranking budget.
+
+When an already-published head is stale, a newer revision on the hardened path must pass
+the `ReconsolidationGate`. The candidate must advance one revision, have a later
+creation time, and bind at least one new provenance reference as explicit
+reconsolidation evidence.
+
+This remains a provenance/admissibility rule, not a truth engine. Fresh provenance does
+not by itself prove the new revision is correct.
+
+See [Memory Evidence Horizon v0.1](PHIOS_MEMORY_EVIDENCE_HORIZON_V0.1.md).
+
 ## Operator integration v0.3
 
 The official operator surface is `phi-memory`. Governed memory remains disabled until

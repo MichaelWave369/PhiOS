@@ -19,6 +19,12 @@ from phios.mandala import (
 )
 
 from .embeddings import EmbeddingProvider
+from .horizon import (
+    EvidenceHorizonController,
+    EvidenceHorizonReceipt,
+    ReactivationWindowReceipt,
+    ReconsolidationGate,
+)
 from .models import (
     EmbeddingIdentity,
     IndexSyncResult,
@@ -101,11 +107,15 @@ class GovernedMemoryService:
         *,
         retrieval_index: RetrievalIndex | None = None,
         embedding_provider: EmbeddingProvider | None = None,
+        evidence_horizon: EvidenceHorizonController | None = None,
+        reconsolidation_gate: ReconsolidationGate | None = None,
     ) -> None:
         self.store = store
         self.policy = policy
         self.retrieval_index = retrieval_index or UnavailableRetrievalIndex()
         self.embedding_provider = embedding_provider
+        self.evidence_horizon = evidence_horizon
+        self.reconsolidation_gate = reconsolidation_gate or ReconsolidationGate()
 
     def put(
         self,
@@ -117,6 +127,7 @@ class GovernedMemoryService:
         operation_id: str,
         packet_id: str = "",
         transformation_lineage: tuple[TransformationLineageReceipt, ...] = (),
+        reconsolidation_evidence_refs: tuple[str, ...] = (),
     ) -> MemoryResult:
         decision = self.policy.resolve(
             principal_id=principal_id,
@@ -132,6 +143,39 @@ class GovernedMemoryService:
         )
         if lineage_error is not None:
             return MemoryResult(status="invalid", error_code=lineage_error)
+
+        previous = self.store.get(
+            record.record_id,
+            now=datetime.fromisoformat(record.created_at).astimezone(UTC),
+        )
+        if previous is not None and self.evidence_horizon is not None:
+            prior_horizon = self.evidence_horizon.evaluate(
+                previous,
+                evaluated_at_utc=record.created_at,
+            )
+            if not prior_horizon.horizon.readable_as_context:
+                if (
+                    prior_horizon.reactivation is None
+                    or not prior_horizon.reactivation.within_window
+                ):
+                    return MemoryResult(
+                        status="invalid",
+                        error_code="MEMORY_REACTIVATION_WINDOW_CLOSED",
+                    )
+                reconsolidation = self.reconsolidation_gate.evaluate(
+                    previous=previous,
+                    candidate=record,
+                    evidence_refs=reconsolidation_evidence_refs,
+                )
+                if not reconsolidation.accepted:
+                    return MemoryResult(
+                        status="invalid",
+                        error_code=(
+                            "MEMORY_RECONSOLIDATION_BLOCKED:"
+                            f"{reconsolidation.reason}"
+                        ),
+                    )
+
         operation_id = require_nonempty(operation_id, "operation_id")
         request_sha256 = sha256_json(
             {
@@ -141,6 +185,14 @@ class GovernedMemoryService:
                 "transformation_lineage": [
                     item.to_dict() for item in transformation_lineage
                 ],
+                "reconsolidation_evidence_refs": list(
+                    sorted(reconsolidation_evidence_refs)
+                ),
+                "evidence_horizon_policy_sha256": (
+                    self.evidence_horizon.policy.policy_sha256
+                    if self.evidence_horizon is not None
+                    else None
+                ),
             }
         )
         receipt = self._operation_receipt(
@@ -186,6 +238,31 @@ class GovernedMemoryService:
         if not self.policy.permits(decision, record):
             return MemoryResult(status="blocked", error_code="MEMORY_READ_DENIED")
         evaluated_at = datetime.now(UTC).isoformat()
+        horizon_receipts: tuple[EvidenceHorizonReceipt, ...] = ()
+        reactivation_receipts: tuple[ReactivationWindowReceipt, ...] = ()
+        if self.evidence_horizon is not None:
+            horizon = self.evidence_horizon.evaluate(
+                record,
+                evaluated_at_utc=evaluated_at,
+            )
+            horizon_receipts = (horizon.horizon,)
+            reactivation_receipts = (
+                (horizon.reactivation,)
+                if horizon.reactivation is not None
+                else ()
+            )
+            if not horizon.horizon.readable_as_context:
+                return MemoryResult(
+                    status="degraded",
+                    evidence_horizon_receipts=horizon_receipts,
+                    reactivation_window_receipts=reactivation_receipts,
+                    error_code=(
+                        "MEMORY_REACTIVATION_REQUIRED"
+                        if horizon.horizon.status == "REACTIVATION_REQUIRED"
+                        else "MEMORY_OUTSIDE_EVIDENCE_HORIZON"
+                    ),
+                )
+
         admissibility = self._read_admissibility_receipt(
             operation_id=(
                 f"get:{task_id}:{principal_id}:{record.record_id}:"
@@ -203,6 +280,8 @@ class GovernedMemoryService:
             status="ok",
             record=record,
             read_admissibility_receipts=(admissibility,),
+            evidence_horizon_receipts=horizon_receipts,
+            reactivation_window_receipts=reactivation_receipts,
         )
 
     def semantic_search(
@@ -239,6 +318,32 @@ class GovernedMemoryService:
             allowed_scopes=decision.allowed_scopes,
             allowed_classifications=decision.allowed_classifications,
         )
+        horizon_receipts = []
+        reactivation_receipts = []
+        evaluated_at = datetime.now(UTC).isoformat()
+        if self.evidence_horizon is not None and eligible:
+            horizon_eligible: list[tuple[str, int, str]] = []
+            for record_id, revision, record_sha256 in eligible:
+                candidate_record = self.store.get_current_version(
+                    record_id,
+                    revision,
+                    record_sha256,
+                )
+                if candidate_record is None:
+                    continue
+                horizon = self.evidence_horizon.evaluate(
+                    candidate_record,
+                    evaluated_at_utc=evaluated_at,
+                )
+                horizon_receipts.append(horizon.horizon)
+                if horizon.reactivation is not None:
+                    reactivation_receipts.append(horizon.reactivation)
+                if horizon.horizon.readable_as_context:
+                    horizon_eligible.append(
+                        (record_id, revision, record_sha256)
+                    )
+            eligible = tuple(horizon_eligible)
+
         request_sha256 = sha256_json(
             {
                 "operation": "retrieve",
@@ -247,6 +352,11 @@ class GovernedMemoryService:
                 "task_id": task_id,
                 "limit": limit,
                 "policy_sha256": decision.policy_sha256,
+                "evidence_horizon_policy_sha256": (
+                    self.evidence_horizon.policy.policy_sha256
+                    if self.evidence_horizon is not None
+                    else None
+                ),
             }
         )
         if not eligible:
@@ -267,7 +377,13 @@ class GovernedMemoryService:
                 request_sha256=request_sha256,
                 receipt_json=json.dumps(receipt.to_dict(), sort_keys=True),
             )
-            return MemoryResult(status="ok", hits=(), receipt_id=receipt.receipt_id)
+            return MemoryResult(
+                status="ok",
+                hits=(),
+                evidence_horizon_receipts=tuple(horizon_receipts),
+                reactivation_window_receipts=tuple(reactivation_receipts),
+                receipt_id=receipt.receipt_id,
+            )
 
         if self.embedding_provider is None or not self.retrieval_index.available():
             return self._retrieval_unavailable(
@@ -305,7 +421,6 @@ class GovernedMemoryService:
         hits: list[MemoryHit] = []
         records: list[MemoryRecord] = []
         admissibility_receipts: list[ReadAdmissibilityReceipt] = []
-        evaluated_at = datetime.now(UTC).isoformat()
         for candidate in candidates:
             record = self.store.get_current_version(
                 candidate.record_id,
@@ -362,6 +477,8 @@ class GovernedMemoryService:
             status="ok",
             hits=tuple(hits),
             read_admissibility_receipts=tuple(admissibility_receipts),
+            evidence_horizon_receipts=tuple(horizon_receipts),
+            reactivation_window_receipts=tuple(reactivation_receipts),
             receipt_id=receipt.receipt_id,
         )
 

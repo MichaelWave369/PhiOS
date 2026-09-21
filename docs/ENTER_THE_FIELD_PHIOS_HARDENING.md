@@ -32,8 +32,8 @@ increment independently reviewable and replaceable.
 | P1 | Transformations preserve source, taint, exactness, and derivation lineage | `TransformationLineageReceipt`, `ExactnessClass` | **v0.5 merged via PR #185** |
 | P1 | Multi-agent corroboration reflects evidence-path independence | `IndependenceReceipt`, `DisagreementDecompositionReceipt` | **v0.6 merged via PR #186** |
 | P1 | Detection can reach bounded remediation without minting authority | `VerifierSemanticsReceipt`, `GovernanceEscalationReceipt` | **v0.7 merged via PR #187** |
-| P2 | Corrective/advisory state can decay and terminate deterministically | `DynamicStatePolicy`, `DynamicStateReceipt` | **v0.8 candidate implemented on this branch** |
-| P2 | Memory phase and evidence horizon are explicit | reconsolidation / evidence-horizon receipts | planned; not promoted |
+| P2 | Corrective/advisory state can decay and terminate deterministically | `DynamicStatePolicy`, `DynamicStateReceipt` | **v0.8 merged via PR #188** |
+| P2 | Memory phase and evidence horizon are explicit | `EvidenceHorizonReceipt`, `ReactivationWindowReceipt`, `ReconsolidationGate` | **v0.9 candidate implemented on this branch** |
 | P2 | Identity and recovery are invariant-based rather than topology-based | identity/recovery equivalence receipts | planned; not promoted |
 
 ## Research-hardening v0.1
@@ -900,8 +900,8 @@ effect-boundary, execution-handoff, and observation contracts.
 
 ## Research-hardening v0.8
 
-This branch begins the P2 line with deterministic decay and hard termination for
-advisory dynamic field state.
+v0.8 began the P2 line with deterministic decay and hard termination for
+advisory dynamic field state, merged through PR #188.
 
 The governing distinction is:
 
@@ -1074,6 +1074,154 @@ It does not:
 
 The hardened router path must be explicitly configured with the intended DynamicStateController and its immutable policy.
 
+## Research-hardening v0.9
+
+This branch implements the next P2 seam: explicit evidence horizons for governed memory,
+plus a parallel governed input/output API-key boundary requested for PhiOS integration.
+
+The memory rule is:
+
+```text
+RETRIEVABLE
+!=
+CURRENTLY ADMISSIBLE FOR THIS CONTEXT
+```
+
+The credential rule is:
+
+```text
+AUTHENTICATED
+!=
+AUTHORIZED
+```
+
+### EvidenceHorizonPolicy
+
+`EvidenceHorizonPolicy` declares:
+
+- policy ID/version;
+- maximum age for direct context admission;
+- an explicit reactivation window after that age.
+
+The policy is SHA-256 bound.
+
+The canonical memory record is not deleted when it crosses the context horizon. Instead,
+the consumption decision changes.
+
+### EvidenceHorizonReceipt
+
+At memory consumption the controller produces one of:
+
+```text
+ADMISSIBLE
+REACTIVATION_REQUIRED
+OUTSIDE_HORIZON
+```
+
+The receipt binds the exact record ID/revision/hash, creation time, evaluation time,
+age, policy hash, and zero-authority flags.
+
+A stale canonical record therefore remains historical evidence without automatically
+entering active context.
+
+### ReactivationWindowReceipt
+
+When a record has aged past direct admission, PhiOS emits a separate
+`ReactivationWindowReceipt`.
+
+The receipt states whether the record is still inside the policy's bounded reactivation
+window, but deliberately fixes:
+
+```text
+reactivation_authorized = false
+reactivation_completed  = false
+operational_authority   = false
+action_authority        = false
+execution_authority     = false
+```
+
+Being eligible for re-evaluation is not itself re-evaluation.
+
+### ReconsolidationGate
+
+When the currently published head is already outside direct context admission but still
+inside the configured reactivation window, a new canonical revision must carry fresh
+provenance before the write is accepted on the hardened memory path.
+
+Once the reactivation window closes, in-place reconsolidation is rejected even if new
+provenance is supplied; the caller must create a new memory identity rather than renew an
+arbitrarily old canonical head.
+
+The candidate must:
+
+- preserve the record identity;
+- advance exactly one revision;
+- have a later creation time;
+- bind explicit reconsolidation evidence in the candidate provenance;
+- introduce at least one provenance reference not present on the stale head.
+
+This gate does not certify the new claim as true. It prevents a stale head from being
+silently refreshed by copying it into a newer timestamp with no new provenance.
+
+### Governed memory consumption
+
+When an `EvidenceHorizonController` is configured on `GovernedMemoryService`:
+
+- direct `get()` never returns a stale record as active context;
+- semantic retrieval filters horizon-inadmissible records before vector ranking;
+- stale records remain in canonical storage and remain auditable;
+- horizon/reactivation receipts are returned separately from
+  `ReadAdmissibilityReceipt`;
+- only horizon-admissible records receive the existing readable-as-context receipt.
+
+The horizon policy hash is included in operation identity material so a policy change
+cannot silently reuse the same semantic-retrieval operation identity.
+
+### Parallel API-key boundary
+
+v0.9 also adds `phios.spine.ApiKeyBoundary` for explicit input and output credential
+handling.
+
+Input/inbound keys:
+
+- may be configured from a one-way SHA-256 digest or transient plaintext setup input;
+- are checked with constant-time digest comparison;
+- bind a specific key ID and audience;
+- can be read from an HTTP-style header such as `X-API-Key`;
+- return scopes only after successful authentication;
+- never place the raw presented key into receipts.
+
+Output/outbound keys:
+
+- are registered by key ID/provider plus an environment-variable reference;
+- are resolved only when an adapter requests a lease;
+- create an ephemeral `OutboundApiKeyLease`;
+- can emit `Authorization: Bearer ...` or custom headers such as `X-API-Key`;
+- refuse ambiguous overwrite of an existing credential header;
+- never serialize or repr the raw secret;
+- never place the secret or environment-variable name in the lease receipt.
+
+Both inbound authentication receipts and outbound lease receipts explicitly carry zero
+operational/action/execution authority.
+
+The Spine exposes the boundary at:
+
+```text
+PhiOSSpine.api_keys
+```
+
+This adds credential plumbing, not a network capability. Any adapter that actually makes
+an external request must still declare `credential.read`, `network.request`, and any
+other real effects through the existing effect boundary.
+
+### v0.9 bounded claim
+
+The memory horizon is an age-based context-admission rule. It does not prove that fresh
+memory is true or that old memory is false.
+
+The API-key layer proves bounded possession/secret-use handling. It does not turn an API
+key into PhiOS authority, and it does not persist plaintext secrets.
+
 ## Finding traceability
 
 The table records architecture candidates motivated by F01–F26. A mapping is not a
@@ -1116,7 +1264,9 @@ independence and disagreement decomposition, while F12/F19 reinforce that appare
 corroboration cannot exceed demonstrated evidence-path independence. F16 directly
 drives v0.7 governance escalation and verifier semantics, with F26 reinforcing that
 composed workflows must preserve the authority boundary from detection through
-remediation request. F18 directly drives v0.8 dynamic-state attenuation and termination.
+remediation request. F18 directly drives v0.8 dynamic-state attenuation and termination. F08/F14 directly
+drive v0.9 reactivation-window and evidence-horizon handling, while F12 reinforces the
+separation between historical availability and present-tense admissibility.
 F26 also reinforces provenance through composition. F01 continues to require that containment claims not
 exceed demonstrated coverage. All remaining rows stay candidates until their own bounded
 increments and Crucibles exist.
@@ -1284,6 +1434,28 @@ The focused dynamic-state lifecycle test set must prove at minimum:
 13. terminated state fails before route computation;
 14. governed replanning can consume the same exact receipted temporal snapshot.
 
+## v0.9 Crucibles
+
+The focused memory-horizon/API-key test set must prove at minimum:
+
+1. a record is directly admissible through the exact context-age boundary;
+2. after that boundary the canonical record remains stored but is not returned as active
+   context;
+3. a reactivation-window receipt never authorizes or completes reactivation;
+4. records beyond the reactivation window remain outside the context horizon;
+5. semantic retrieval filters stale records before vector ranking;
+6. stale-head revision requires fresh provenance on the hardened path;
+7. copied/stale provenance alone cannot reconsolidate the record;
+8. inbound API-key success never expands `AuthorityContext`;
+9. wrong key or wrong audience fails closed without returning configured scopes;
+10. raw inbound keys never appear in auth receipts;
+11. outbound keys are resolved ephemerally from an external secret source;
+12. raw outbound keys and environment-variable names never appear in lease receipts or
+    normal object repr/metadata;
+13. custom `X-API-Key` style output headers are supported;
+14. credential-header overwrite is rejected instead of silently replacing another
+    authentication context.
+
 ## Explicit non-goals
 
 The current research-hardening track does **not**:
@@ -1309,6 +1481,10 @@ The current research-hardening track does **not**:
 - let unresolved or blocked evidence silently become a mutation request;
 - let advisory dynamic state retain influence indefinitely without an explicit temporal
   policy on the hardened path;
+- treat canonical memory retention as automatic present-context admissibility;
+- treat a reactivation window as a grant to refresh stale memory;
+- persist plaintext API keys in PhiOS receipts, canonical memory, or repository config;
+- treat API-key possession as an action/execution authority grant;
 - let decay or termination grant action/execution authority or mutate the governing
   field law;
 - treat a supplied activation timestamp as authenticated wall-clock evidence;

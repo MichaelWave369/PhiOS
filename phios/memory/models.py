@@ -6,6 +6,8 @@ from typing import Literal
 
 from phios.mandala import ExactnessClass, OriginKind, ReadAdmissibilityReceipt
 
+from .horizon import EvidenceHorizonReceipt, ReactivationWindowReceipt
+
 from .validation import require_nonempty, require_utc_timestamp, sha256_json, validate_text
 
 EpistemicKind = Literal["source", "derived"]
@@ -252,6 +254,12 @@ class MemoryResult:
     record: MemoryRecord | None = None
     hits: tuple[MemoryHit, ...] = field(default_factory=tuple)
     read_admissibility_receipts: tuple[ReadAdmissibilityReceipt, ...] = field(
+        default_factory=tuple
+    )
+    evidence_horizon_receipts: tuple[EvidenceHorizonReceipt, ...] = field(
+        default_factory=tuple
+    )
+    reactivation_window_receipts: tuple[ReactivationWindowReceipt, ...] = field(
         default_factory=tuple
     )
     receipt_id: str | None = None
