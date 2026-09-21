@@ -4,6 +4,7 @@ import hashlib
 import json
 import uuid
 from dataclasses import dataclass, replace
+from datetime import UTC, datetime
 from typing import Iterable
 
 from .contracts import MandalaStatus
@@ -12,7 +13,6 @@ from .receipts import (
     GovernanceEscalationReceipt,
     RealityReceipt,
     VerifierSemanticsReceipt,
-    receipt_meta,
 )
 
 VERIFIER_SEMANTICS_SCHEMA_VERSION = "phios.verifier_semantics.v0.1"
@@ -346,8 +346,8 @@ class GovernanceEscalationService:
         source_sha256: str,
     ) -> VerifierSemanticsReceipt:
         receipt = VerifierSemanticsReceipt(
-            **receipt_meta(
-                source_receipt_to_packet(source_receipt),
+            **_child_meta(
+                source_receipt,
                 status=MandalaStatus.ACCEPTED,
                 produced_by="phios.verifier_semantics",
                 parent_receipt_id=source_receipt.receipt_id,
@@ -373,10 +373,9 @@ class GovernanceEscalationService:
         reason: str,
         status: MandalaStatus,
     ) -> GovernanceEscalationReceipt:
-        packet = source_receipt_to_packet(source_receipt)
         receipt = GovernanceEscalationReceipt(
-            **receipt_meta(
-                packet,
+            **_child_meta(
+                source_receipt,
                 status=status,
                 produced_by="phios.governance_escalation",
                 parent_receipt_id=semantics.receipt_id,
@@ -399,24 +398,23 @@ class GovernanceEscalationService:
         return _with_receipt_sha(receipt)
 
 
-def source_receipt_to_packet(receipt: RealityReceipt):
-    """Create a minimal packet-like object for child receipt metadata."""
-
-    from .contracts import AuthorityContext, Gate, MandalaPacket, OriginKind, OriginRef
-
-    return MandalaPacket(
-        packet_id=receipt.packet_id,
-        parent_id=None,
-        task_id=receipt.task_id,
-        gate=Gate.DELIBERATION,
-        origin=OriginRef(
-            kind=OriginKind.SUBSYSTEM,
-            identifier="reality.verifier",
-        ),
-        payload_digest="0" * 64,
-        authority=AuthorityContext(),
-        contract_version=receipt.contract_version,
-    )
+def _child_meta(
+    source_receipt: RealityReceipt,
+    *,
+    status: MandalaStatus,
+    produced_by: str,
+    parent_receipt_id: str,
+) -> dict[str, object]:
+    return {
+        "receipt_id": str(uuid.uuid4()),
+        "packet_id": source_receipt.packet_id,
+        "task_id": source_receipt.task_id,
+        "status": status,
+        "produced_by": produced_by,
+        "timestamp_utc": datetime.now(UTC).isoformat(),
+        "contract_version": source_receipt.contract_version,
+        "parent_receipt_id": parent_receipt_id,
+    }
 
 
 def _with_receipt_sha(receipt):
