@@ -211,6 +211,7 @@ class DisagreementDecompositionReceipt(ReceiptEnvelope):
 @dataclass(frozen=True, kw_only=True)
 class VerifierSemanticsReceipt(ReceiptEnvelope):
     source_reality_receipt_id: str
+    semantics_schema_version: str = "phios.verifier_semantics.v0.1"
     source_reality_receipt_sha256: str
     verifier_id: str
     verification_method: str
@@ -231,6 +232,7 @@ class VerifierSemanticsReceipt(ReceiptEnvelope):
 @dataclass(frozen=True, kw_only=True)
 class GovernanceEscalationReceipt(ReceiptEnvelope):
     source_reality_receipt_id: str
+    escalation_schema_version: str = "phios.governance_escalation.v0.1"
     source_reality_receipt_sha256: str
     verifier_semantics_receipt_sha256: str
     request_id: str
