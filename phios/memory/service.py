@@ -621,21 +621,36 @@ class GovernedMemoryService:
         if hashes != record.transformation_lineage_sha256s:
             return "DERIVED_MEMORY_LINEAGE_HASH_MISMATCH"
 
+        if receipts[0].parent_receipt_sha256s:
+            return "DERIVED_MEMORY_LINEAGE_CHAIN_BROKEN"
+
+        prior_hashes: set[str] = {receipts[0].receipt_sha256}
         for index in range(1, len(receipts)):
             previous = receipts[index - 1]
             current = receipts[index]
             if previous.receipt_sha256 not in current.parent_receipt_sha256s:
                 return "DERIVED_MEMORY_LINEAGE_CHAIN_BROKEN"
+            if not set(current.parent_receipt_sha256s).issubset(prior_hashes):
+                return "DERIVED_MEMORY_LINEAGE_CHAIN_BROKEN"
             expected_exactness = weakest_exactness(
                 current.requested_exactness,
-                previous.exactness_class,
+                *(
+                    item.exactness_class
+                    for item in receipts[:index]
+                    if item.receipt_sha256 in current.parent_receipt_sha256s
+                ),
             )
             if current.exactness_class is not expected_exactness:
                 return "DERIVED_MEMORY_EXACTNESS_ESCALATION"
-            if not set(previous.effective_taints).issubset(
-                set(current.effective_taints)
-            ):
+            inherited_taints = {
+                taint
+                for item in receipts[:index]
+                if item.receipt_sha256 in current.parent_receipt_sha256s
+                for taint in item.effective_taints
+            }
+            if not inherited_taints.issubset(set(current.effective_taints)):
                 return "DERIVED_MEMORY_TAINT_DROPPED"
+            prior_hashes.add(current.receipt_sha256)
 
         final = receipts[-1]
         if final.output_sha256 != record.content_sha256:
@@ -650,7 +665,7 @@ class GovernedMemoryService:
             for receipt in receipts
             for source_ref in receipt.source_refs
         }
-        if not set(record.derived_from).intersection(source_refs):
+        if not set(record.derived_from).issubset(source_refs):
             return "DERIVED_MEMORY_SOURCE_LINEAGE_MISMATCH"
         return None
 
