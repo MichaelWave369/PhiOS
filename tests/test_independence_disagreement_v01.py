@@ -279,3 +279,35 @@ def test_spine_exposes_deliberation_assessment_without_authority_gain(
     rows = spine.mandala_ledger.recent(2)
     assert rows[0]["receipt_type"] == "IndependenceReceipt"
     assert rows[1]["receipt_type"] == "DisagreementDecompositionReceipt"
+
+
+def test_cyclic_path_ancestry_is_rejected() -> None:
+    paths = (
+        _path("a", actor="model-a", parents=("b",)),
+        _path("b", actor="model-b", parents=("a",)),
+    )
+
+    with pytest.raises(IndependenceContractError, match="acyclic"):
+        DeliberationEvidenceAssessor().assess(
+            packet=_packet(),
+            claim_id="claim-1",
+            paths=paths,
+        )
+
+
+def test_same_actor_does_not_receive_independence_credit_from_repeat_runs() -> None:
+    paths = (
+        _path("a", actor="model-a", root="root:first"),
+        _path("b", actor="model-a", root="root:second"),
+    )
+
+    result = DeliberationEvidenceAssessor().assess(
+        packet=_packet(),
+        claim_id="claim-1",
+        paths=paths,
+    )
+
+    pair = result.independence_receipt.pairwise_relations[0]
+    assert pair["relation"] == "DEPENDENT"
+    assert "same_actor" in pair["reasons"]
+    assert result.independence_receipt.demonstrated_independent_group_count == 1
