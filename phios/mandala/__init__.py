@@ -18,6 +18,14 @@ from .contracts import (
     OriginRef,
     PhiCoreState,
 )
+from .independence import (
+    DeliberationEvidenceAssessor,
+    DeliberationEvidenceResult,
+    EvidencePathDeclaration,
+    IndependenceAssertion,
+    IndependenceContractError,
+    INDEPENDENCE_POLICY_SCHEMA_VERSION,
+)
 from .ledger import MandalaReceiptLedger
 from .transformation import (
     TRANSFORMATION_LINEAGE_RECEIPT_SCHEMA_VERSION,
@@ -30,8 +38,10 @@ from .transformation import (
 from .receipts import (
     AbortReceipt,
     ActionReceipt,
+    DisagreementDecompositionReceipt,
     EffectBoundaryReceipt,
     GateReceipt,
+    IndependenceReceipt,
     MemoryOperationReceipt,
     MemoryPromotionReceipt,
     OcrReceipt,
@@ -46,8 +56,16 @@ __all__ = [
     "MANDALA_CONTRACT_VERSION",
     "AbortReceipt",
     "ActionReceipt",
+    "DeliberationEvidenceAssessor",
+    "DeliberationEvidenceResult",
+    "DisagreementDecompositionReceipt",
+    "EvidencePathDeclaration",
     "ExactnessClass",
     "EffectBoundaryReceipt",
+    "INDEPENDENCE_POLICY_SCHEMA_VERSION",
+    "IndependenceAssertion",
+    "IndependenceContractError",
+    "IndependenceReceipt",
     "AuthoritativeAuthorityEvent",
     "AuthorityContext",
     "AuthorityEventKind",
