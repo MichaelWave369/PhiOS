@@ -251,3 +251,31 @@ def test_assessor_persists_parent_linked_zero_authority_receipts(
     assert result.disagreement_receipt.independence_receipt_sha256 == (
         result.independence_receipt.receipt_sha256
     )
+
+
+def test_spine_exposes_deliberation_assessment_without_authority_gain(
+    tmp_path: Path,
+) -> None:
+    from phios.spine.runtime import PhiOSSpine
+
+    spine = PhiOSSpine(
+        state_root=tmp_path,
+        allowed_permissions=("artifact.write",),
+        task_id="spine-deliberation",
+    )
+    authority_before = spine.core.authority
+    result = spine.assess_deliberation_evidence(
+        claim_id="claim-1",
+        paths=(
+            _path("a", actor="model-a"),
+            _path("b", actor="model-b"),
+        ),
+        assertions=(_independent("a", "b"),),
+    )
+
+    assert spine.core.authority == authority_before
+    assert result.independence_receipt.action_authority is False
+    assert result.disagreement_receipt.execution_authority is False
+    rows = spine.mandala_ledger.recent(2)
+    assert rows[0]["receipt_type"] == "IndependenceReceipt"
+    assert rows[1]["receipt_type"] == "DisagreementDecompositionReceipt"
