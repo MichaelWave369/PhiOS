@@ -56,6 +56,12 @@ def _string(value: Any, label: str, *, maximum: int = 4096) -> str:
     return value
 
 
+def _integer(value: Any, label: str) -> int:
+    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+        raise ValueError(f"{label} must be a non-negative integer")
+    return value
+
+
 def _sha(value: Any, label: str) -> str:
     text = _string(value, label, maximum=64).lower()
     if not _SHA_RE.fullmatch(text):
@@ -116,6 +122,34 @@ class SourceMarker:
     def to_dict(self) -> dict[str, object]:
         return asdict(self)
 
+    @classmethod
+    def from_dict(cls, value: Any) -> SourceMarker:
+        data = _mapping(value, "source marker")
+        expected = {
+            "path",
+            "provider_object_type",
+            "byte_count",
+            "provider_blob_id",
+        }
+        if set(data) != expected:
+            raise ValueError("source marker contains missing or unknown fields")
+        byte_count = data["byte_count"]
+        if byte_count is not None:
+            byte_count = _integer(byte_count, "source marker byte_count")
+        blob_id = data["provider_blob_id"]
+        if blob_id is not None:
+            blob_id = _string(blob_id, "source marker provider_blob_id", maximum=64).lower()
+        return cls(
+            path=_string(data["path"], "source marker path", maximum=256),
+            provider_object_type=_string(
+                data["provider_object_type"],
+                "source marker provider_object_type",
+                maximum=32,
+            ),
+            byte_count=byte_count,
+            provider_blob_id=blob_id,
+        )
+
 
 @dataclass(frozen=True)
 class SourceMarkerChange:
@@ -137,6 +171,21 @@ class SourceMarkerChange:
             "active": self.active.to_dict() if self.active is not None else None,
             "candidate": self.candidate.to_dict() if self.candidate is not None else None,
         }
+
+    @classmethod
+    def from_dict(cls, value: Any) -> SourceMarkerChange:
+        data = _mapping(value, "source marker change")
+        expected = {"path", "change", "active", "candidate"}
+        if set(data) != expected:
+            raise ValueError("source marker change contains missing or unknown fields")
+        active = data["active"]
+        candidate = data["candidate"]
+        return cls(
+            path=_string(data["path"], "source marker change path", maximum=256),
+            change=_string(data["change"], "source marker change", maximum=32),
+            active=SourceMarker.from_dict(active) if active is not None else None,
+            candidate=SourceMarker.from_dict(candidate) if candidate is not None else None,
+        )
 
 
 class BuildMarkerProvider(Protocol):
@@ -380,6 +429,138 @@ class ReleaseChangeEvidence:
         result = self.body_dict()
         result["release_change_evidence_sha256"] = self.sha256()
         return result
+
+    @classmethod
+    def from_dict(cls, value: Any) -> ReleaseChangeEvidence:
+        data = _mapping(value, "release change evidence")
+        expected = {
+            "schema_version",
+            "app_id",
+            "repository_url",
+            "active_version",
+            "candidate_version",
+            "active_commit_sha",
+            "candidate_commit_sha",
+            "active_manifest_sha256",
+            "candidate_manifest_sha256",
+            "release_candidate_intake_sha256",
+            "active_bundle_path",
+            "active_grant_sha256",
+            "manifest_changes",
+            "permissions_added",
+            "permissions_removed",
+            "source_marker_changes",
+            "provider_request_count",
+            "compatibility_verdict",
+            "build_authority",
+            "install_authority",
+            "update_authority",
+            "release_change_evidence_sha256",
+        }
+        if set(data) != expected:
+            raise ValueError(
+                "release change evidence contains missing or unknown fields"
+            )
+        manifest_changes = data["manifest_changes"]
+        permissions_added = data["permissions_added"]
+        permissions_removed = data["permissions_removed"]
+        marker_changes = data["source_marker_changes"]
+        for sequence, label in (
+            (manifest_changes, "manifest_changes"),
+            (permissions_added, "permissions_added"),
+            (permissions_removed, "permissions_removed"),
+            (marker_changes, "source_marker_changes"),
+        ):
+            if not isinstance(sequence, list):
+                raise ValueError(f"{label} must be an array")
+        for authority_field in (
+            "build_authority",
+            "install_authority",
+            "update_authority",
+        ):
+            if not isinstance(data[authority_field], bool):
+                raise ValueError(f"{authority_field} must be boolean")
+        evidence = cls(
+            schema_version=_string(
+                data["schema_version"],
+                "release change evidence schema_version",
+                maximum=64,
+            ),
+            app_id=_string(data["app_id"], "app_id", maximum=64),
+            repository_url=_string(
+                data["repository_url"],
+                "repository_url",
+                maximum=512,
+            ),
+            active_version=_string(
+                data["active_version"],
+                "active_version",
+                maximum=128,
+            ),
+            candidate_version=_string(
+                data["candidate_version"],
+                "candidate_version",
+                maximum=128,
+            ),
+            active_commit_sha=_sha(data["active_commit_sha"], "active_commit_sha"),
+            candidate_commit_sha=_sha(
+                data["candidate_commit_sha"],
+                "candidate_commit_sha",
+            ),
+            active_manifest_sha256=_sha256(
+                data["active_manifest_sha256"],
+                "active_manifest_sha256",
+            ),
+            candidate_manifest_sha256=_sha256(
+                data["candidate_manifest_sha256"],
+                "candidate_manifest_sha256",
+            ),
+            release_candidate_intake_sha256=_sha256(
+                data["release_candidate_intake_sha256"],
+                "release_candidate_intake_sha256",
+            ),
+            active_bundle_path=_string(
+                data["active_bundle_path"],
+                "active_bundle_path",
+                maximum=4096,
+            ),
+            active_grant_sha256=_sha256(
+                data["active_grant_sha256"],
+                "active_grant_sha256",
+            ),
+            manifest_changes=tuple(
+                _string(item, "manifest change", maximum=64)
+                for item in manifest_changes
+            ),
+            permissions_added=tuple(
+                _string(item, "added permission", maximum=128)
+                for item in permissions_added
+            ),
+            permissions_removed=tuple(
+                _string(item, "removed permission", maximum=128)
+                for item in permissions_removed
+            ),
+            source_marker_changes=tuple(
+                SourceMarkerChange.from_dict(item) for item in marker_changes
+            ),
+            provider_request_count=_integer(
+                data["provider_request_count"],
+                "provider_request_count",
+            ),
+            compatibility_verdict=_string(
+                data["compatibility_verdict"],
+                "compatibility_verdict",
+                maximum=32,
+            ),
+            build_authority=data["build_authority"],
+            install_authority=data["install_authority"],
+            update_authority=data["update_authority"],
+        )
+        if data["release_change_evidence_sha256"] != evidence.sha256():
+            raise ValueError(
+                "release change evidence digest does not match canonical evidence"
+            )
+        return evidence
 
 
 def _manifest_changes(
