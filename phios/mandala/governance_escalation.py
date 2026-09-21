@@ -74,6 +74,9 @@ class EscalationRequest:
     target_ref: str
     trigger_claim_ids: tuple[str, ...]
     candidate_capability_id: str | None = None
+    candidate_capability_version: str | None = None
+    candidate_capability_risk: str | None = None
+    candidate_capability_contract_sha256: str | None = None
     candidate_payload_sha256: str | None = None
     requested_permissions: tuple[str, ...] = ()
     requested_effects: tuple[str, ...] = ()
@@ -87,6 +90,9 @@ class EscalationRequest:
         target_ref: str,
         trigger_claim_ids: tuple[str, ...],
         candidate_capability_id: str | None = None,
+        candidate_capability_version: str | None = None,
+        candidate_capability_risk: str | None = None,
+        candidate_capability_contract_sha256: str | None = None,
         candidate_payload_sha256: str | None = None,
         requested_permissions: tuple[str, ...] = (),
         requested_effects: tuple[str, ...] = (),
@@ -110,11 +116,26 @@ class EscalationRequest:
         effects = _labels(requested_effects, "requested_effect")
 
         capability_id: str | None
+        capability_version: str | None
+        capability_risk: str | None
+        capability_contract_sha256: str | None
         payload_sha256: str | None
         if normalized_disposition == "REMEDIATE":
             capability_id = _require_text(
                 candidate_capability_id or "",
                 "candidate_capability_id",
+            )
+            capability_version = _require_text(
+                candidate_capability_version or "",
+                "candidate_capability_version",
+            )
+            capability_risk = _require_text(
+                candidate_capability_risk or "",
+                "candidate_capability_risk",
+            )
+            capability_contract_sha256 = _require_sha256(
+                candidate_capability_contract_sha256 or "",
+                "candidate_capability_contract_sha256",
             )
             payload_sha256 = _require_sha256(
                 candidate_payload_sha256 or "",
@@ -131,6 +152,9 @@ class EscalationRequest:
         else:
             if (
                 candidate_capability_id is not None
+                or candidate_capability_version is not None
+                or candidate_capability_risk is not None
+                or candidate_capability_contract_sha256 is not None
                 or candidate_payload_sha256 is not None
                 or permissions
                 or effects
@@ -139,6 +163,9 @@ class EscalationRequest:
                     "non-remediation escalation cannot carry an action contract"
                 )
             capability_id = None
+            capability_version = None
+            capability_risk = None
+            capability_contract_sha256 = None
             payload_sha256 = None
 
         seed = {
@@ -148,6 +175,9 @@ class EscalationRequest:
             "target_ref": normalized_target,
             "trigger_claim_ids": list(normalized_claims),
             "candidate_capability_id": capability_id,
+            "candidate_capability_version": capability_version,
+            "candidate_capability_risk": capability_risk,
+            "candidate_capability_contract_sha256": capability_contract_sha256,
             "candidate_payload_sha256": payload_sha256,
             "requested_permissions": list(permissions),
             "requested_effects": list(effects),
@@ -165,6 +195,9 @@ class EscalationRequest:
             target_ref=normalized_target,
             trigger_claim_ids=normalized_claims,
             candidate_capability_id=capability_id,
+            candidate_capability_version=capability_version,
+            candidate_capability_risk=capability_risk,
+            candidate_capability_contract_sha256=capability_contract_sha256,
             candidate_payload_sha256=payload_sha256,
             requested_permissions=permissions,
             requested_effects=effects,
@@ -178,6 +211,11 @@ class EscalationRequest:
             "target_ref": self.target_ref,
             "trigger_claim_ids": list(self.trigger_claim_ids),
             "candidate_capability_id": self.candidate_capability_id,
+            "candidate_capability_version": self.candidate_capability_version,
+            "candidate_capability_risk": self.candidate_capability_risk,
+            "candidate_capability_contract_sha256": (
+                self.candidate_capability_contract_sha256
+            ),
             "candidate_payload_sha256": self.candidate_payload_sha256,
             "requested_permissions": list(self.requested_permissions),
             "requested_effects": list(self.requested_effects),
@@ -391,6 +429,11 @@ class GovernanceEscalationService:
             trigger_claim_ids=request.trigger_claim_ids,
             trigger_verdicts=trigger_verdicts,
             candidate_capability_id=request.candidate_capability_id,
+            candidate_capability_version=request.candidate_capability_version,
+            candidate_capability_risk=request.candidate_capability_risk,
+            candidate_capability_contract_sha256=(
+                request.candidate_capability_contract_sha256
+            ),
             candidate_payload_sha256=request.candidate_payload_sha256,
             requested_permissions=request.requested_permissions,
             requested_effects=request.requested_effects,
