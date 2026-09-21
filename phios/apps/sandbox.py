@@ -31,7 +31,7 @@ from .control_plane_isolation import (
 )
 
 BUILD_SANDBOX_POLICY_SCHEMA_VERSION = "phios.build_sandbox_policy.v0.1"
-BUILD_SANDBOX_RECEIPT_SCHEMA_VERSION = "phios.build_sandbox_receipt.v0.1"
+BUILD_SANDBOX_RECEIPT_SCHEMA_VERSION = "phios.build_sandbox_receipt.v0.2"
 
 NetworkMode = Literal["deny", "inherit"]
 
@@ -232,6 +232,7 @@ class BuildSandboxReceipt:
     commit_sha: str
     plan_sha256: str
     source_snapshot_sha256: str
+    control_plane_isolation_receipt_sha256: str
     policy: BuildSandboxPolicy
     backend_identity: SandboxBackendIdentity
     controls: SandboxControlEvidence
@@ -250,6 +251,9 @@ class BuildSandboxReceipt:
             "commit_sha": self.commit_sha,
             "plan_sha256": self.plan_sha256,
             "source_snapshot_sha256": self.source_snapshot_sha256,
+            "control_plane_isolation_receipt_sha256": (
+                self.control_plane_isolation_receipt_sha256
+            ),
             "policy": self.policy.to_dict(),
             "backend_identity": self.backend_identity.to_dict(),
             "controls": self.controls.to_dict(),
@@ -802,6 +806,7 @@ class SandboxedBuildExecutionService:
                     "Host network inheritance requires build.network.dependencies approval"
                 )
 
+        backend_identity = self.runner.preflight()
         control_plane = self.runner.control_plane_isolation_receipt(
             source_root=request.acquisition.workspace_path,
             evaluated_at=datetime.now(UTC).isoformat(),
@@ -812,7 +817,6 @@ class SandboxedBuildExecutionService:
                 f"{control_plane.reason}"
             )
 
-        backend_identity = self.runner.preflight()
         execution = BuildExecutionService(
             runner=self.runner,
             step_timeout_seconds=self.policy.wall_clock_seconds,
@@ -837,6 +841,7 @@ class SandboxedBuildExecutionService:
             commit_sha=execution.commit_sha,
             plan_sha256=execution.plan_sha256,
             source_snapshot_sha256=execution.source_snapshot_sha256,
+            control_plane_isolation_receipt_sha256=control_plane.receipt_sha256,
             policy=self.policy,
             backend_identity=backend_identity,
             controls=controls,
