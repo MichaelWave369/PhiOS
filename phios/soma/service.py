@@ -2119,6 +2119,7 @@ class SomaPerceptionService:
                 text=None,
             )
 
+        source_sha256 = hashlib.sha256(source_bytes).hexdigest()
         gate_receipt = self._gate_receipt(
             packet,
             status=MandalaStatus.ACCEPTED,
@@ -2248,6 +2249,30 @@ class SomaPerceptionService:
             )
 
         text_evidence = self.evidence.put_text(text)
+        lineage = self.transformations.build(
+            transform_id="soma.ocr.interpret",
+            transform_version="v0.1",
+            source_refs=(evidence_ref,),
+            source_sha256s=(source_sha256,),
+            output_ref=text_evidence.evidence_ref,
+            output_sha256=text_evidence.sha256,
+            parameters={
+                "provider": provider.name,
+                "engine": engine_result.engine,
+                "engine_version": engine_result.engine_version,
+                "language": spec.language,
+                "page_segmentation_mode": spec.page_segmentation_mode,
+            },
+            requested_exactness=ExactnessClass.INTERPRETIVE,
+            added_taints=("machine_interpretation",),
+            information_loss_possible=True,
+            semantic_inference=True,
+            limitations=(
+                "ocr_text_is_not_byte_exact_source",
+                "confidence_is_not_truth_probability",
+                "source_evidence_preserved",
+            ),
+        )
         limitations = list(base_limitations)
         status = MandalaStatus.ACCEPTED
         if not valid_confidences:
@@ -2278,6 +2303,9 @@ class SomaPerceptionService:
             interpretation_status=(
                 "accepted" if status is MandalaStatus.ACCEPTED else "degraded"
             ),
+            transformation_lineage_sha256s=(lineage.receipt_sha256,),
+            exactness_class=lineage.exactness_class.value,
+            taint_labels=lineage.effective_taints,
         )
         self.ledger.append(receipt)
         return OcrObservationResult(
@@ -2286,4 +2314,5 @@ class SomaPerceptionService:
             source_evidence_ref=evidence_ref,
             text_evidence=text_evidence,
             text=text,
+            transformation_lineage=(lineage,),
         )
