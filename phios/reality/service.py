@@ -3582,14 +3582,6 @@ class RealityVerificationService:
                 tcp_listener_provider=selected_tcp_listener_provider,
                 local_http_provider=selected_local_http_provider,
             )
-            blocked, observability = self._apply_observation_frontier(
-                packet=packet,
-                claims=claims,
-                results=blocked,
-                interface_provider=selected_interface_provider,
-                tcp_listener_provider=selected_tcp_listener_provider,
-                local_http_provider=selected_local_http_provider,
-            )
             receipt = RealityReceipt(
                 **receipt_meta(
                     packet,
@@ -3659,6 +3651,14 @@ class RealityVerificationService:
                     "scope": claim.kind.value,
                 }
                 for claim in claims
+            )
+            blocked, observability = self._apply_observation_frontier(
+                packet=packet,
+                claims=claims,
+                results=blocked,
+                interface_provider=selected_interface_provider,
+                tcp_listener_provider=selected_tcp_listener_provider,
+                local_http_provider=selected_local_http_provider,
             )
             receipt = RealityReceipt(
                 **receipt_meta(
