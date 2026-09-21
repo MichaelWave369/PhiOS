@@ -16,7 +16,7 @@ PhiOS is under active development and should be treated as **alpha software**.
 
 PhiOS is trying to make computational systems useful without letting capability quietly become permission.
 
-It currently has three major surfaces:
+It currently has several major surfaces:
 
 | Surface | Purpose | Current line |
 |---|---|---:|
@@ -24,6 +24,7 @@ It currently has three major surfaces:
 | **PhiOS Spine** | authority-aware observation, verification, evidence, and receipts | **v0.24** |
 | **PhiOS App Platform** | governed app lifecycle with release review, execution lineage, and release-install proposal gating | **v0.50** |
 | **PhiReflex** | provider-neutral System-One shadow, calibrated live influence, authenticated authority, trust lifecycle, and root attestation | **v0.10** |
+| **Covenant Runtime** | zero-authority identity, topology, boundary, and transition-evidence contracts | **CR-01 / v0.1** |
 
 The common pattern is:
 
