@@ -22,6 +22,7 @@ from phios.core.governed_plan_adoption import (
     PlanAdoptionContractError,
     PlanState,
 )
+from phios.spine.effects import EffectBoundaryContractError, normalize_effects
 from phios.spine.models import ExecutionProvenance, ExecutionReceipt
 from phios.spine.runtime import PhiOSSpine
 
@@ -136,15 +137,46 @@ class GovernedExecutionHandoff:
             )
 
         current_permissions = tuple(capability.permissions)
+        try:
+            current_effects = normalize_effects(
+                capability.effects,
+                label="runtime capability effects",
+            )
+        except EffectBoundaryContractError:
+            return self._held(
+                plan=plan,
+                binding=binding,
+                reason="capability_effect_contract_invalid",
+            )
         if (
             capability.version != binding.capability_version
             or str(capability.risk) != binding.capability_risk
             or current_permissions != binding.permissions_requested
+            or current_effects != binding.effects_declared
         ):
             return self._held(
                 plan=plan,
                 binding=binding,
                 reason="capability_contract_drift",
+            )
+
+        try:
+            executor_effects = spine.executors.effects(capability.id)
+        except KeyError:
+            return self._held(
+                plan=plan,
+                binding=binding,
+                reason="executor_effect_contract_missing",
+            )
+        effect_decision = spine.effect_policy.evaluate(
+            capability,
+            executor_effects=executor_effects,
+        )
+        if not effect_decision.allowed:
+            return self._held(
+                plan=plan,
+                binding=binding,
+                reason=f"effect_boundary_{effect_decision.reason}",
             )
 
         try:
