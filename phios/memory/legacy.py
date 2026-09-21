@@ -5,6 +5,12 @@ import json
 from dataclasses import dataclass
 from pathlib import Path
 
+from phios.mandala import (
+    ExactnessClass,
+    TransformationLineageBuilder,
+    TransformationLineageReceipt,
+)
+
 from .models import MemoryRecord
 from .validation import require_utc_timestamp, sha256_json, strict_canonical_json
 
@@ -13,6 +19,7 @@ from .validation import require_utc_timestamp, sha256_json, strict_canonical_jso
 class LegacyImportItem:
     record: MemoryRecord
     operation_id: str
+    transformation_lineage: tuple[TransformationLineageReceipt, ...]
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -65,6 +72,34 @@ def plan_legacy_agent_memory_import(
             raise ValueError("legacy import contains duplicate canonical record identity")
         seen_ids.add(record_id)
         source_id = f"legacy-agent-memory:{source_sha256}:{legacy_id}"
+        canonical_text = strict_canonical_json(item)
+        content_sha256 = hashlib.sha256(
+            canonical_text.encode("utf-8")
+        ).hexdigest()
+        lineage = TransformationLineageBuilder().build(
+            transform_id="memory.legacy.extract_deliberation",
+            transform_version="v0.1",
+            source_refs=(f"legacy-file-sha256:{source_sha256}",),
+            source_sha256s=(source_sha256,),
+            output_ref=f"memory-content:sha256:{content_sha256}",
+            output_sha256=content_sha256,
+            parameters={
+                "legacy_id": legacy_id,
+                "index": index,
+                "serialization": "strict_canonical_json",
+            },
+            requested_exactness=ExactnessClass.LOSSY_DERIVED,
+            added_taints=(
+                "canonicalized_representation",
+                "extracted_subset",
+            ),
+            information_loss_possible=True,
+            semantic_inference=False,
+            limitations=(
+                "legacy_file_context_outside_deliberation_not_in_output",
+                "source_file_preserved",
+            ),
+        )
         record = MemoryRecord.build(
             record_id=record_id,
             revision=1,
@@ -81,11 +116,20 @@ def plan_legacy_agent_memory_import(
             expires_at=None,
             epistemic_kind="derived",
             derived_from=(f"legacy-file-sha256:{source_sha256}",),
+            exactness_class=lineage.exactness_class.value,
+            transformation_lineage_sha256s=(lineage.receipt_sha256,),
+            taint_labels=lineage.effective_taints,
             contradicts=(),
-            text=strict_canonical_json(item),
+            text=canonical_text,
         )
         operation_id = f"legacy-import:{source_sha256}:{item_digest}"
-        items.append(LegacyImportItem(record=record, operation_id=operation_id))
+        items.append(
+            LegacyImportItem(
+                record=record,
+                operation_id=operation_id,
+                transformation_lineage=(lineage,),
+            )
+        )
     return LegacyImportPlan(
         source_path=str(source),
         source_sha256=source_sha256,

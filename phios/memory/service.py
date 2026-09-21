@@ -12,6 +12,10 @@ from phios.mandala import (
     MandalaStatus,
     MemoryOperationReceipt,
     ReadAdmissibilityReceipt,
+    TransformationLineageBuilder,
+    TransformationLineageError,
+    TransformationLineageReceipt,
+    weakest_exactness,
 )
 
 from .embeddings import EmbeddingProvider
@@ -112,6 +116,7 @@ class GovernedMemoryService:
         authority: AuthorityContext,
         operation_id: str,
         packet_id: str = "",
+        transformation_lineage: tuple[TransformationLineageReceipt, ...] = (),
     ) -> MemoryResult:
         decision = self.policy.resolve(
             principal_id=principal_id,
@@ -121,9 +126,22 @@ class GovernedMemoryService:
         )
         if decision is None or not self.policy.permits(decision, record):
             return MemoryResult(status="blocked", error_code="MEMORY_WRITE_DENIED")
+        lineage_error = self._validate_transformation_lineage(
+            record,
+            transformation_lineage,
+        )
+        if lineage_error is not None:
+            return MemoryResult(status="invalid", error_code=lineage_error)
         operation_id = require_nonempty(operation_id, "operation_id")
         request_sha256 = sha256_json(
-            {"operation": "put", "record": record.to_dict(), "principal_id": principal_id}
+            {
+                "operation": "put",
+                "record": record.to_dict(),
+                "principal_id": principal_id,
+                "transformation_lineage": [
+                    item.to_dict() for item in transformation_lineage
+                ],
+            }
         )
         receipt = self._operation_receipt(
             operation_id=operation_id,
@@ -136,6 +154,7 @@ class GovernedMemoryService:
             input_sha256=request_sha256,
             canonical_status="pending_publication",
             index_status="pending" if self.retrieval_index.available() else "unavailable",
+            transformation_lineage=transformation_lineage,
         )
         self.store.put_pending(
             record,
@@ -580,6 +599,77 @@ class GovernedMemoryService:
         )
 
     @staticmethod
+    def _validate_transformation_lineage(
+        record: MemoryRecord,
+        receipts: tuple[TransformationLineageReceipt, ...],
+    ) -> str | None:
+        if record.epistemic_kind == "source":
+            if receipts:
+                return "SOURCE_MEMORY_CANNOT_HAVE_TRANSFORMATION_LINEAGE"
+            return None
+        if not receipts:
+            return "DERIVED_MEMORY_TRANSFORMATION_LINEAGE_REQUIRED"
+
+        builder = TransformationLineageBuilder()
+        try:
+            for receipt in receipts:
+                builder.validate(receipt)
+        except TransformationLineageError:
+            return "DERIVED_MEMORY_TRANSFORMATION_LINEAGE_INVALID"
+
+        hashes = tuple(item.receipt_sha256 for item in receipts)
+        if hashes != record.transformation_lineage_sha256s:
+            return "DERIVED_MEMORY_LINEAGE_HASH_MISMATCH"
+
+        if receipts[0].parent_receipt_sha256s:
+            return "DERIVED_MEMORY_LINEAGE_CHAIN_BROKEN"
+
+        prior_hashes: set[str] = {receipts[0].receipt_sha256}
+        for index in range(1, len(receipts)):
+            previous = receipts[index - 1]
+            current = receipts[index]
+            if previous.receipt_sha256 not in current.parent_receipt_sha256s:
+                return "DERIVED_MEMORY_LINEAGE_CHAIN_BROKEN"
+            if not set(current.parent_receipt_sha256s).issubset(prior_hashes):
+                return "DERIVED_MEMORY_LINEAGE_CHAIN_BROKEN"
+            expected_exactness = weakest_exactness(
+                current.requested_exactness,
+                *(
+                    item.exactness_class
+                    for item in receipts[:index]
+                    if item.receipt_sha256 in current.parent_receipt_sha256s
+                ),
+            )
+            if current.exactness_class is not expected_exactness:
+                return "DERIVED_MEMORY_EXACTNESS_ESCALATION"
+            inherited_taints = {
+                taint
+                for item in receipts[:index]
+                if item.receipt_sha256 in current.parent_receipt_sha256s
+                for taint in item.effective_taints
+            }
+            if not inherited_taints.issubset(set(current.effective_taints)):
+                return "DERIVED_MEMORY_TAINT_DROPPED"
+            prior_hashes.add(current.receipt_sha256)
+
+        final = receipts[-1]
+        if final.output_sha256 != record.content_sha256:
+            return "DERIVED_MEMORY_OUTPUT_HASH_MISMATCH"
+        if final.exactness_class.value != record.exactness_class:
+            return "DERIVED_MEMORY_EXACTNESS_MISMATCH"
+        if final.effective_taints != record.taint_labels:
+            return "DERIVED_MEMORY_TAINT_MISMATCH"
+
+        source_refs = {
+            source_ref
+            for receipt in receipts
+            for source_ref in receipt.source_refs
+        }
+        if not set(record.derived_from).issubset(source_refs):
+            return "DERIVED_MEMORY_SOURCE_LINEAGE_MISMATCH"
+        return None
+
+    @staticmethod
     def _read_admissibility_receipt(
         *,
         operation_id: str,
@@ -615,6 +705,11 @@ class GovernedMemoryService:
             authorization_policy_sha256=policy_sha256,
             authority_context_sha256=sha256_json(authority.to_dict()),
             epistemic_kind=record.epistemic_kind,
+            exactness_class=record.exactness_class,
+            transformation_lineage_sha256s=(
+                record.transformation_lineage_sha256s
+            ),
+            taint_labels=record.taint_labels,
         )
         return replace(body, receipt_sha256=sha256_json(body.to_dict()))
 
@@ -634,6 +729,7 @@ class GovernedMemoryService:
         embedding_identity: EmbeddingIdentity | None = None,
         index_generation: str | None = None,
         error_code: str | None = None,
+        transformation_lineage: tuple[TransformationLineageReceipt, ...] = (),
     ) -> MemoryOperationReceipt:
         receipt_id = str(uuid.uuid5(uuid.NAMESPACE_URL, f"phios.memory:{operation_id}"))
         timestamp = (
@@ -668,5 +764,25 @@ class GovernedMemoryService:
             ),
             index_generation=index_generation,
             error_code=error_code,
+            transformation_lineage=tuple(
+                item.to_dict() for item in transformation_lineage
+            ),
+            transformation_lineage_sha256s=tuple(
+                item.receipt_sha256 for item in transformation_lineage
+            ),
+            exactness_classes=tuple(
+                record.exactness_class
+                for record in records
+                if record.exactness_class is not None
+            ),
+            taint_labels=tuple(
+                sorted(
+                    {
+                        label
+                        for record in records
+                        for label in record.taint_labels
+                    }
+                )
+            ),
         )
         return replace(body, receipt_sha256=sha256_json(body.to_dict()))

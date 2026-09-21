@@ -4,7 +4,12 @@ from dataclasses import asdict, dataclass
 from enum import StrEnum
 from typing import Any
 
-from phios.mandala import MandalaPacket, OcrReceipt, PerceptionReceipt
+from phios.mandala import (
+    MandalaPacket,
+    OcrReceipt,
+    PerceptionReceipt,
+    TransformationLineageReceipt,
+)
 
 
 class AcuityStatus(StrEnum):
@@ -33,6 +38,7 @@ class ObservationResult:
     receipt: PerceptionReceipt
     observation_sha256: str | None
     observation_text: str | None
+    transformation_lineage: tuple[TransformationLineageReceipt, ...] = ()
 
     def to_dict(self, *, include_observation: bool = False) -> dict[str, Any]:
         data: dict[str, Any] = {
@@ -40,6 +46,9 @@ class ObservationResult:
             "evidence": self.evidence.to_dict(),
             "receipt": self.receipt.to_dict(),
             "observation_sha256": self.observation_sha256,
+            "transformation_lineage": [
+                item.to_dict() for item in self.transformation_lineage
+            ],
         }
         if include_observation:
             data["observation_text"] = self.observation_text
@@ -55,6 +64,7 @@ class FileObservationResult:
     observation_text: str | None
     relative_path: str
     source_root_ref: str
+    transformation_lineage: tuple[TransformationLineageReceipt, ...] = ()
 
     def to_dict(self, *, include_observation: bool = False) -> dict[str, Any]:
         data: dict[str, Any] = {
@@ -64,6 +74,9 @@ class FileObservationResult:
             "observation_sha256": self.observation_sha256,
             "relative_path": self.relative_path,
             "source_root_ref": self.source_root_ref,
+            "transformation_lineage": [
+                item.to_dict() for item in self.transformation_lineage
+            ],
         }
         if include_observation:
             data["observation_text"] = self.observation_text
@@ -101,6 +114,7 @@ class ScreenRecoveryResult:
     observation_evidence_ref: str | None
     observation_sha256: str | None
     recovery_steps: tuple[str, ...]
+    transformation_lineage: tuple[TransformationLineageReceipt, ...] = ()
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -111,6 +125,9 @@ class ScreenRecoveryResult:
             "observation_evidence_ref": self.observation_evidence_ref,
             "observation_sha256": self.observation_sha256,
             "recovery_steps": list(self.recovery_steps),
+            "transformation_lineage": [
+                item.to_dict() for item in self.transformation_lineage
+            ],
         }
 
 
@@ -148,6 +165,7 @@ class ScreenEnhancementResult:
     observation_sha256: str | None
     enhancement_method: str
     enhancement_parameters: dict[str, Any]
+    transformation_lineage: tuple[TransformationLineageReceipt, ...] = ()
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -163,6 +181,9 @@ class ScreenEnhancementResult:
             "observation_sha256": self.observation_sha256,
             "enhancement_method": self.enhancement_method,
             "enhancement_parameters": dict(self.enhancement_parameters),
+            "transformation_lineage": [
+                item.to_dict() for item in self.transformation_lineage
+            ],
         }
 
 
@@ -173,6 +194,7 @@ class OcrObservationResult:
     source_evidence_ref: str
     text_evidence: NativeEvidence | None
     text: str | None
+    transformation_lineage: tuple[TransformationLineageReceipt, ...] = ()
 
     def to_dict(self, *, include_text: bool = False) -> dict[str, Any]:
         data: dict[str, Any] = {
@@ -184,6 +206,9 @@ class OcrObservationResult:
                 if self.text_evidence is not None
                 else None
             ),
+            "transformation_lineage": [
+                item.to_dict() for item in self.transformation_lineage
+            ],
         }
         if include_text:
             data["text"] = self.text

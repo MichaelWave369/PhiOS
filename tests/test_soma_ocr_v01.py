@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from phios.mandala import MandalaStatus
+from phios.mandala import ExactnessClass, MandalaStatus
 from phios.soma import OcrEngineError, OcrEngineResult, OcrSpec, PNG_SIGNATURE
 from phios.spine.runtime import PhiOSSpine
 
@@ -95,6 +95,13 @@ def test_ocr_creates_separate_text_evidence_and_receipt(tmp_path: Path) -> None:
     assert result.receipt.confidence_mean == 89.0
     assert result.receipt.character_count == 9
     assert result.receipt.token_count == 2
+    assert result.receipt.exactness_class == ExactnessClass.INTERPRETIVE.value
+    assert result.receipt.taint_labels == ("machine_interpretation",)
+    assert len(result.transformation_lineage) == 1
+    assert result.transformation_lineage[0].semantic_inference is True
+    assert result.transformation_lineage[0].receipt_sha256 == (
+        result.receipt.transformation_lineage_sha256s[0]
+    )
 
     receipts = spine.mandala_ledger.recent(2)
     assert receipts[0]["receipt_type"] == "GateReceipt"

@@ -4,7 +4,7 @@ import hashlib
 from dataclasses import dataclass, field
 from typing import Literal
 
-from phios.mandala import OriginKind, ReadAdmissibilityReceipt
+from phios.mandala import ExactnessClass, OriginKind, ReadAdmissibilityReceipt
 
 from .validation import require_nonempty, require_utc_timestamp, sha256_json, validate_text
 
@@ -25,6 +25,9 @@ class MemoryRecord:
     expires_at: str | None
     epistemic_kind: EpistemicKind
     derived_from: tuple[str, ...] = field(default_factory=tuple)
+    exactness_class: str | None = None
+    transformation_lineage_sha256s: tuple[str, ...] = field(default_factory=tuple)
+    taint_labels: tuple[str, ...] = field(default_factory=tuple)
     contradicts: tuple[str, ...] = field(default_factory=tuple)
     text: str
     content_sha256: str
@@ -47,6 +50,9 @@ class MemoryRecord:
         epistemic_kind: EpistemicKind,
         text: str,
         derived_from: tuple[str, ...] = (),
+        exactness_class: str | None = None,
+        transformation_lineage_sha256s: tuple[str, ...] = (),
+        taint_labels: tuple[str, ...] = (),
         contradicts: tuple[str, ...] = (),
     ) -> "MemoryRecord":
         record_id = require_nonempty(record_id, "record_id")
@@ -67,9 +73,49 @@ class MemoryRecord:
         text = validate_text(text)
         provenance_refs = tuple(require_nonempty(v, "provenance_ref") for v in provenance_refs)
         derived_from = tuple(require_nonempty(v, "derived_from") for v in derived_from)
+        lineage_hashes = tuple(
+            require_nonempty(v, "transformation_lineage_sha256")
+            for v in transformation_lineage_sha256s
+        )
+        for digest in lineage_hashes:
+            if len(digest) != 64:
+                raise ValueError(
+                    "transformation_lineage_sha256 must be a SHA-256 hex digest"
+                )
+            try:
+                int(digest, 16)
+            except ValueError as exc:
+                raise ValueError(
+                    "transformation_lineage_sha256 must be a SHA-256 hex digest"
+                ) from exc
+        if len(set(lineage_hashes)) != len(lineage_hashes):
+            raise ValueError("transformation lineage hashes must be unique")
+        taint_labels = tuple(
+            sorted({require_nonempty(v, "taint_label") for v in taint_labels})
+        )
         contradicts = tuple(require_nonempty(v, "contradicts") for v in contradicts)
-        if epistemic_kind == "derived" and not derived_from:
-            raise ValueError("derived records require derived_from references")
+        if epistemic_kind == "derived":
+            if not derived_from:
+                raise ValueError("derived records require derived_from references")
+            if exactness_class is None:
+                raise ValueError("derived records require exactness_class")
+            try:
+                exactness_class = ExactnessClass(exactness_class).value
+            except ValueError as exc:
+                raise ValueError("invalid exactness_class") from exc
+            if not lineage_hashes:
+                raise ValueError(
+                    "derived records require transformation lineage hashes"
+                )
+        else:
+            if exactness_class is not None:
+                raise ValueError("source records cannot declare derived exactness")
+            if lineage_hashes:
+                raise ValueError(
+                    "source records cannot declare transformation lineage hashes"
+                )
+            if taint_labels:
+                raise ValueError("source records cannot declare transformation taints")
         content_sha256 = hashlib.sha256(text.encode("utf-8")).hexdigest()
         body = {
             "record_id": record_id,
@@ -84,6 +130,9 @@ class MemoryRecord:
             "expires_at": expires_at,
             "epistemic_kind": epistemic_kind,
             "derived_from": list(derived_from),
+            "exactness_class": exactness_class,
+            "transformation_lineage_sha256s": list(lineage_hashes),
+            "taint_labels": list(taint_labels),
             "contradicts": list(contradicts),
             "text": text,
             "content_sha256": content_sha256,
@@ -101,6 +150,9 @@ class MemoryRecord:
             expires_at=expires_at,
             epistemic_kind=epistemic_kind,
             derived_from=derived_from,
+            exactness_class=exactness_class,
+            transformation_lineage_sha256s=lineage_hashes,
+            taint_labels=taint_labels,
             contradicts=contradicts,
             text=text,
             content_sha256=content_sha256,
@@ -121,6 +173,11 @@ class MemoryRecord:
             "expires_at": self.expires_at,
             "epistemic_kind": self.epistemic_kind,
             "derived_from": list(self.derived_from),
+            "exactness_class": self.exactness_class,
+            "transformation_lineage_sha256s": list(
+                self.transformation_lineage_sha256s
+            ),
+            "taint_labels": list(self.taint_labels),
             "contradicts": list(self.contradicts),
             "text": self.text,
             "content_sha256": self.content_sha256,

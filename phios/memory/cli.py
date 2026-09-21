@@ -109,6 +109,11 @@ def main() -> int:
             return 0
 
         if args.command == "put":
+            if args.epistemic_kind == "derived":
+                raise ValueError(
+                    "direct derived memory writes require verified transformation lineage; "
+                    "use a lineage-producing importer or subsystem"
+                )
             record = MemoryRecord.build(
                 record_id=args.record_id,
                 revision=args.revision,

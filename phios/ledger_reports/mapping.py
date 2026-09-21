@@ -150,6 +150,18 @@ def project_mandala_row(
         projected["recovery_step_count"] = len(
             _string_list(payload.get("recovery_steps", []), "recovery_steps")
         )
+        projected["transformation_lineage_sha256s"] = _string_list(
+            payload.get("transformation_lineage_sha256s", []),
+            "transformation_lineage_sha256s",
+        )
+        projected["exactness_class"] = _optional_str(
+            payload.get("exactness_class"),
+            "exactness_class",
+        )
+        projected["taint_labels"] = _string_list(
+            payload.get("taint_labels", []),
+            "taint_labels",
+        )
     elif receipt_type == "OcrReceipt":
         projected["engine"] = _required_str(payload, "engine")
         projected["engine_version"] = _optional_str(
@@ -167,6 +179,18 @@ def project_mandala_row(
         projected["interpretation_status"] = _required_str(
             payload,
             "interpretation_status",
+        )
+        projected["transformation_lineage_sha256s"] = _string_list(
+            payload.get("transformation_lineage_sha256s", []),
+            "transformation_lineage_sha256s",
+        )
+        projected["exactness_class"] = _optional_str(
+            payload.get("exactness_class"),
+            "exactness_class",
+        )
+        projected["taint_labels"] = _string_list(
+            payload.get("taint_labels", []),
+            "taint_labels",
         )
     elif receipt_type == "RealityReceipt":
         verdict_summary = payload.get("verdict_summary")
@@ -262,6 +286,18 @@ def project_mandala_row(
         projected["index_generation"] = _optional_str(
             payload.get("index_generation"),
             "index_generation",
+        )
+        projected["transformation_lineage_sha256s"] = _string_list(
+            payload.get("transformation_lineage_sha256s", []),
+            "transformation_lineage_sha256s",
+        )
+        projected["exactness_classes"] = _string_list(
+            payload.get("exactness_classes", []),
+            "exactness_classes",
+        )
+        projected["taint_labels"] = _string_list(
+            payload.get("taint_labels", []),
+            "taint_labels",
         )
     elif receipt_type == "MemoryPromotionReceipt":
         projected["durability_reason"] = _required_str(payload, "durability_reason")

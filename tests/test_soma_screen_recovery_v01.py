@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from phios.mandala import MandalaStatus
+from phios.mandala import ExactnessClass, MandalaStatus
 from phios.soma import (
     AcuityStatus,
     CapturedFrame,
@@ -103,6 +103,11 @@ def test_tight_crop_preserves_native_and_creates_derived_evidence(tmp_path: Path
     assert spine.soma.evidence.read_bytes(evidence_ref) == native_before
     assert result.receipt.native_evidence_ref == evidence_ref
     assert result.receipt.observation_evidence_ref == result.derived_evidence[0].evidence_ref
+    assert result.receipt.exactness_class == ExactnessClass.LOSSY_DERIVED.value
+    assert result.receipt.taint_labels == ("cropped_context",)
+    assert result.transformation_lineage[0].receipt_sha256 == (
+        result.receipt.transformation_lineage_sha256s[0]
+    )
 
 
 def test_crop_then_native_enlarge_records_chain(tmp_path: Path) -> None:
@@ -138,6 +143,14 @@ def test_crop_then_native_enlarge_records_chain(tmp_path: Path) -> None:
         == result.derived_evidence[0].evidence_ref
     )
     assert result.receipt.derivation_chain[1]["method"] == "nearest_neighbor_pixel_replication"
+    assert len(result.transformation_lineage) == 2
+    assert result.transformation_lineage[1].exactness_class is (
+        ExactnessClass.LOSSY_DERIVED
+    )
+    assert result.transformation_lineage[1].effective_taints == (
+        "cropped_context",
+        "resampled_pixels",
+    )
 
 
 def test_no_recovery_request_is_blocked_without_reading_provider(tmp_path: Path) -> None:

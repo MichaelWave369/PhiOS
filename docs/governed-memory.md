@@ -132,6 +132,53 @@ reconstruct a present-tense `AuthorityContext` within a frozen ceiling, but it d
 authenticate events, mint grants, write authority state, replace `ActionBindingGrant`,
 or bypass existing execution-time revalidation.
 
+## Research hardening v0.5: derived transformation lineage
+
+Derived memory now has a stricter provenance boundary.
+
+A record with `epistemic_kind="derived"` must carry:
+
+- one or more `derived_from` source references;
+- an `ExactnessClass`;
+- the SHA-256 values of the transformation receipts that produced it;
+- the effective transformation taint labels.
+
+The full `TransformationLineageReceipt` chain is supplied to
+`GovernedMemoryService.put()` and validated before the canonical record is accepted.
+
+Validation binds the final transformation output SHA-256 to the canonical memory content
+SHA-256 and rejects broken parent links, exactness upgrades, dropped taints, source
+mismatches, or inconsistent final exactness/taint metadata.
+
+This makes the distinction explicit:
+
+```text
+derived_from(source)
+!=
+identical_to(source)
+```
+
+The generic operator `put` command therefore refuses direct derived records. A derived
+record must arrive through a lineage-producing subsystem or importer rather than through
+operator-supplied provenance claims.
+
+The legacy agent-memory importer is one such bounded path. It now receipts extraction
+of each deliberation from the complete source JSON as `LOSSY_DERIVED`, with
+`canonicalized_representation` and `extracted_subset` taints.
+
+At consumption time, `ReadAdmissibilityReceipt` exposes exactness, lineage hashes, and
+taints while retaining:
+
+```text
+operational_authority = false
+action_authority = false
+execution_authority = false
+```
+
+Transformation provenance is therefore inspectable context, not permission.
+
+See [Transformation Lineage v0.1](PHIOS_TRANSFORMATION_LINEAGE_V0.1.md).
+
 ## Operator integration v0.3
 
 The official operator surface is `phi-memory`. Governed memory remains disabled until

@@ -4,7 +4,11 @@ import importlib.util
 from dataclasses import dataclass
 from pathlib import Path
 
-from phios.mandala import AuthorityContext, MandalaReceiptLedger
+from phios.mandala import (
+    AuthorityContext,
+    MandalaReceiptLedger,
+    TransformationLineageReceipt,
+)
 
 from .config import MemoryRuntimeConfig
 from .embeddings import OllamaEmbeddingProvider
@@ -98,7 +102,14 @@ class MemoryOperatorRuntime:
         if not self.config.enabled:
             raise RuntimeError("governed memory is disabled by operator configuration")
 
-    def put(self, record: MemoryRecord, *, operation_id: str, task_id: str) -> MemoryResult:
+    def put(
+        self,
+        record: MemoryRecord,
+        *,
+        operation_id: str,
+        task_id: str,
+        transformation_lineage: tuple[TransformationLineageReceipt, ...] = (),
+    ) -> MemoryResult:
         self.require_enabled()
         result = self.service.put(
             record,
@@ -106,6 +117,7 @@ class MemoryOperatorRuntime:
             task_id=task_id,
             authority=self.authority,
             operation_id=operation_id,
+            transformation_lineage=transformation_lineage,
         )
         if result.status == "ok":
             try:
@@ -228,6 +240,7 @@ class MemoryOperatorRuntime:
                 task_id=task_id,
                 authority=self.authority,
                 operation_id=item.operation_id,
+                transformation_lineage=item.transformation_lineage,
             )
             if result.status != "ok":
                 raise RuntimeError(result.error_code or "legacy import failed")

@@ -96,6 +96,9 @@ class PerceptionReceipt(ReceiptEnvelope):
     observation_evidence_ref: str | None = None
     derivation_chain: tuple[dict[str, Any], ...] = field(default_factory=tuple)
     recovery_backend: str | None = None
+    transformation_lineage_sha256s: tuple[str, ...] = field(default_factory=tuple)
+    exactness_class: str | None = None
+    taint_labels: tuple[str, ...] = field(default_factory=tuple)
     burst_frame_refs: tuple[str, ...] = field(default_factory=tuple)
     burst_frame_records: tuple[dict[str, Any], ...] = field(default_factory=tuple)
     selected_evidence_ref: str | None = None
@@ -124,6 +127,9 @@ class OcrReceipt(ReceiptEnvelope):
     confidence_max: float | None = None
     limitations: tuple[str, ...] = field(default_factory=tuple)
     interpretation_status: str = "unknown"
+    transformation_lineage_sha256s: tuple[str, ...] = field(default_factory=tuple)
+    exactness_class: str | None = None
+    taint_labels: tuple[str, ...] = field(default_factory=tuple)
     receipt_type: str = field(init=False, default="OcrReceipt")
 
 
@@ -185,6 +191,9 @@ class ReadAdmissibilityReceipt(ReceiptEnvelope):
     authorization_policy_sha256: str
     authority_context_sha256: str
     epistemic_kind: str
+    exactness_class: str | None = None
+    transformation_lineage_sha256s: tuple[str, ...] = field(default_factory=tuple)
+    taint_labels: tuple[str, ...] = field(default_factory=tuple)
     operational_authority: bool = False
     action_authority: bool = False
     execution_authority: bool = False
@@ -205,6 +214,10 @@ class MemoryOperationReceipt(ReceiptEnvelope):
     embedding_identity: dict[str, Any] | None = None
     index_generation: str | None = None
     error_code: str | None = None
+    transformation_lineage: tuple[dict[str, Any], ...] = field(default_factory=tuple)
+    transformation_lineage_sha256s: tuple[str, ...] = field(default_factory=tuple)
+    exactness_classes: tuple[str, ...] = field(default_factory=tuple)
+    taint_labels: tuple[str, ...] = field(default_factory=tuple)
     promotion_status: str = "not_promoted"
     action_authority: bool = False
     execution_authority: bool = False

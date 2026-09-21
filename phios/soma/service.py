@@ -6,6 +6,7 @@ from typing import Any
 
 from phios.mandala import (
     AuthorityContext,
+    ExactnessClass,
     Gate,
     GateReceipt,
     MandalaPacket,
@@ -15,6 +16,8 @@ from phios.mandala import (
     OriginRef,
     OcrReceipt,
     PerceptionReceipt,
+    TransformationLineageBuilder,
+    TransformationLineageReceipt,
 )
 from phios.mandala.receipts import receipt_meta
 
@@ -62,6 +65,7 @@ class SomaPerceptionService:
         self.ledger = ledger
         self.task_id = task_id
         self.authority = authority
+        self.transformations = TransformationLineageBuilder()
 
     @staticmethod
     def _apply_transform(text: str, transform: str) -> str:
@@ -144,7 +148,12 @@ class SomaPerceptionService:
         acquisition_method: str,
         source_locator: str | None = None,
         source_root_ref: str | None = None,
-    ) -> tuple[PerceptionReceipt, str | None, str | None]:
+    ) -> tuple[
+        PerceptionReceipt,
+        str | None,
+        str | None,
+        tuple[TransformationLineageReceipt, ...],
+    ]:
         unsupported = tuple(item for item in transforms if item not in SUPPORTED_TRANSFORMS)
         if unsupported:
             receipt = PerceptionReceipt(
@@ -173,7 +182,7 @@ class SomaPerceptionService:
                 source_root_ref=source_root_ref,
             )
             self.ledger.append(receipt)
-            return receipt, None, None
+            return receipt, None, None, ()
 
         observation = text
         changed = False
@@ -199,6 +208,35 @@ class SomaPerceptionService:
             status = MandalaStatus.ACCEPTED
             acuity = AcuityStatus.NATIVE
 
+        exactness = (
+            ExactnessClass.NORMALIZED
+            if changed
+            else ExactnessClass.BYTE_EXACT
+        )
+        lineage = self.transformations.build(
+            transform_id=(
+                "soma.text.normalize"
+                if changed
+                else "soma.text.identity"
+            ),
+            transform_version="v0.1",
+            source_refs=(native.evidence_ref,),
+            source_sha256s=(native.sha256,),
+            output_ref=(
+                f"observation:sha256:{observation_sha256}"
+                if changed
+                else native.evidence_ref
+            ),
+            output_sha256=observation_sha256,
+            parameters={"transforms": list(transforms)},
+            requested_exactness=exactness,
+            added_taints=(
+                ("normalized_representation",) if changed else ()
+            ),
+            information_loss_possible=changed,
+            semantic_inference=False,
+            limitations=("native_source_preserved",),
+        )
         receipt = PerceptionReceipt(
             **receipt_meta(
                 packet,
@@ -219,9 +257,12 @@ class SomaPerceptionService:
             acquisition_status="accepted" if status is MandalaStatus.ACCEPTED else "degraded",
             source_locator=source_locator,
             source_root_ref=source_root_ref,
+            transformation_lineage_sha256s=(lineage.receipt_sha256,),
+            exactness_class=lineage.exactness_class.value,
+            taint_labels=lineage.effective_taints,
         )
         self.ledger.append(receipt)
-        return receipt, observation, observation_sha256
+        return receipt, observation, observation_sha256, (lineage,)
 
     def perceive_text(
         self,
@@ -245,7 +286,7 @@ class SomaPerceptionService:
             status=MandalaStatus.ACCEPTED,
             reason="native source admitted; no truth or action authority conferred",
         )
-        receipt, observation, observation_sha256 = self._derive_text(
+        receipt, observation, observation_sha256, lineage = self._derive_text(
             packet=packet,
             native=native,
             text=text,
@@ -262,6 +303,7 @@ class SomaPerceptionService:
             receipt=receipt,
             observation_sha256=observation_sha256,
             observation_text=observation,
+            transformation_lineage=lineage,
         )
 
     def perceive_file(
@@ -394,7 +436,7 @@ class SomaPerceptionService:
                 source_root_ref=root_ref,
             )
 
-        receipt, observation, observation_sha256 = self._derive_text(
+        receipt, observation, observation_sha256, lineage = self._derive_text(
             packet=packet,
             native=native,
             text=text,
@@ -414,6 +456,7 @@ class SomaPerceptionService:
             observation_text=observation,
             relative_path=acquired.relative_path,
             source_root_ref=root_ref,
+            transformation_lineage=lineage,
         )
 
 
@@ -982,9 +1025,11 @@ class SomaPerceptionService:
                 recovery_steps=tuple(recovery_steps),
             )
 
-        derived = []
+        derived: list[NativeEvidence] = []
         chain: list[dict[str, Any]] = []
+        lineages: list[TransformationLineageReceipt] = []
         parent_ref = evidence_ref
+        parent_sha256 = hashlib.sha256(native_bytes).hexdigest()
 
         if frames.cropped is not None:
             crop_evidence = self.evidence.put_bytes(
@@ -992,16 +1037,40 @@ class SomaPerceptionService:
                 media_type=frames.cropped.media_type,
                 suffix=frames.cropped.suffix,
             )
+            crop_lineage = self.transformations.build(
+                transform_id="soma.screen.tight_crop",
+                transform_version="v0.1",
+                source_refs=(parent_ref,),
+                source_sha256s=(parent_sha256,),
+                output_ref=crop_evidence.evidence_ref,
+                output_sha256=crop_evidence.sha256,
+                parameters={
+                    "crop": crop.to_dict() if crop is not None else None,
+                    "backend": provider.name,
+                },
+                requested_exactness=ExactnessClass.LOSSY_DERIVED,
+                parent_receipts=tuple(lineages[-1:]),
+                added_taints=("cropped_context",),
+                information_loss_possible=True,
+                semantic_inference=False,
+                limitations=(
+                    "pixels_outside_crop_are_not_present_in_output",
+                    "native_source_preserved",
+                ),
+            )
             derived.append(crop_evidence)
+            lineages.append(crop_lineage)
             chain.append(
                 {
                     "step": "tight_crop",
                     "input_evidence_ref": parent_ref,
                     "output_evidence_ref": crop_evidence.evidence_ref,
                     "crop": crop.to_dict() if crop is not None else None,
+                    "transformation_lineage_sha256": crop_lineage.receipt_sha256,
                 }
             )
             parent_ref = crop_evidence.evidence_ref
+            parent_sha256 = crop_evidence.sha256
 
         if frames.enlarged is not None:
             enlarge_evidence = self.evidence.put_bytes(
@@ -1009,19 +1078,46 @@ class SomaPerceptionService:
                 media_type=frames.enlarged.media_type,
                 suffix=frames.enlarged.suffix,
             )
+            enlarge_lineage = self.transformations.build(
+                transform_id="soma.screen.native_enlarge",
+                transform_version="v0.1",
+                source_refs=(parent_ref,),
+                source_sha256s=(parent_sha256,),
+                output_ref=enlarge_evidence.evidence_ref,
+                output_sha256=enlarge_evidence.sha256,
+                parameters={
+                    "scale": scale,
+                    "method": "nearest_neighbor_pixel_replication",
+                    "backend": provider.name,
+                },
+                requested_exactness=ExactnessClass.LOSSY_DERIVED,
+                parent_receipts=tuple(lineages[-1:]),
+                added_taints=("resampled_pixels",),
+                information_loss_possible=True,
+                semantic_inference=False,
+                limitations=(
+                    "resampling_does_not_create_new_native_detail",
+                    "reversibility_not_asserted",
+                    "native_source_preserved",
+                ),
+            )
             derived.append(enlarge_evidence)
+            lineages.append(enlarge_lineage)
             chain.append(
                 {
                     "step": f"native_enlarge_x{scale}",
                     "input_evidence_ref": parent_ref,
                     "output_evidence_ref": enlarge_evidence.evidence_ref,
                     "method": "nearest_neighbor_pixel_replication",
+                    "transformation_lineage_sha256": enlarge_lineage.receipt_sha256,
                 }
             )
             parent_ref = enlarge_evidence.evidence_ref
+            parent_sha256 = enlarge_evidence.sha256
 
         final = frames.final
         final_evidence = derived[-1]
+        final_lineage = lineages[-1]
         receipt = PerceptionReceipt(
             **receipt_meta(
                 packet,
@@ -1049,6 +1145,11 @@ class SomaPerceptionService:
             observation_evidence_ref=final_evidence.evidence_ref,
             derivation_chain=tuple(chain),
             recovery_backend=provider.name,
+            transformation_lineage_sha256s=tuple(
+                item.receipt_sha256 for item in lineages
+            ),
+            exactness_class=final_lineage.exactness_class.value,
+            taint_labels=final_lineage.effective_taints,
         )
         self.ledger.append(receipt)
         return ScreenRecoveryResult(
@@ -1059,6 +1160,7 @@ class SomaPerceptionService:
             observation_evidence_ref=final_evidence.evidence_ref,
             observation_sha256=final_evidence.sha256,
             recovery_steps=tuple(recovery_steps),
+            transformation_lineage=tuple(lineages),
         )
 
 
@@ -1560,6 +1662,7 @@ class SomaPerceptionService:
                 enhancement_parameters=parameters,
             )
 
+        source_sha256 = hashlib.sha256(source_bytes).hexdigest()
         gate_receipt = self._gate_receipt(
             packet,
             status=MandalaStatus.ACCEPTED,
@@ -1659,11 +1762,35 @@ class SomaPerceptionService:
 
         if contract_error is not None:
             preserved = None
+            lineage: TransformationLineageReceipt | None = None
             if frame.data:
                 preserved = self.evidence.put_bytes(
                     frame.data,
                     media_type=frame.media_type,
                     suffix=frame.suffix,
+                )
+                lineage = self.transformations.build(
+                    transform_id="soma.screen.enhancement",
+                    transform_version="v0.1",
+                    source_refs=(evidence_ref,),
+                    source_sha256s=(source_sha256,),
+                    output_ref=preserved.evidence_ref,
+                    output_sha256=preserved.sha256,
+                    parameters={
+                        "method": spec.method,
+                        "parameters": parameters,
+                        "backend": frame.backend,
+                        "contract_error": contract_error,
+                    },
+                    requested_exactness=ExactnessClass.LOSSY_DERIVED,
+                    added_taints=("enhanced_pixels",),
+                    information_loss_possible=True,
+                    semantic_inference=False,
+                    limitations=(
+                        "derived_output_not_promoted",
+                        "enhancement_may_amplify_artifacts",
+                        contract_error,
+                    ),
                 )
             receipt = PerceptionReceipt(
                 **receipt_meta(
@@ -1699,10 +1826,26 @@ class SomaPerceptionService:
                             "output_evidence_ref": preserved.evidence_ref,
                             "parameters": parameters,
                             "promoted": False,
+                            "transformation_lineage_sha256": (
+                                lineage.receipt_sha256
+                                if lineage is not None
+                                else None
+                            ),
                         },
                     )
                     if preserved is not None
                     else ()
+                ),
+                transformation_lineage_sha256s=(
+                    (lineage.receipt_sha256,) if lineage is not None else ()
+                ),
+                exactness_class=(
+                    lineage.exactness_class.value
+                    if lineage is not None
+                    else None
+                ),
+                taint_labels=(
+                    lineage.effective_taints if lineage is not None else ()
                 ),
             )
             self.ledger.append(receipt)
@@ -1715,12 +1858,37 @@ class SomaPerceptionService:
                 observation_sha256=None,
                 enhancement_method=spec.method,
                 enhancement_parameters=parameters,
+                transformation_lineage=(
+                    (lineage,) if lineage is not None else ()
+                ),
             )
 
         derived = self.evidence.put_bytes(
             frame.data,
             media_type=frame.media_type,
             suffix=frame.suffix,
+        )
+        lineage = self.transformations.build(
+            transform_id="soma.screen.enhancement",
+            transform_version="v0.1",
+            source_refs=(evidence_ref,),
+            source_sha256s=(source_sha256,),
+            output_ref=derived.evidence_ref,
+            output_sha256=derived.sha256,
+            parameters={
+                "method": spec.method,
+                "parameters": parameters,
+                "backend": frame.backend,
+            },
+            requested_exactness=ExactnessClass.LOSSY_DERIVED,
+            added_taints=("enhanced_pixels",),
+            information_loss_possible=True,
+            semantic_inference=False,
+            limitations=(
+                "enhancement_may_amplify_artifacts",
+                "enhancement_does_not_recover_lost_information",
+                "native_source_preserved",
+            ),
         )
         receipt = PerceptionReceipt(
             **receipt_meta(
@@ -1760,8 +1928,12 @@ class SomaPerceptionService:
                     "output_evidence_ref": derived.evidence_ref,
                     "method": spec.method,
                     "parameters": parameters,
+                    "transformation_lineage_sha256": lineage.receipt_sha256,
                 },
             ),
+            transformation_lineage_sha256s=(lineage.receipt_sha256,),
+            exactness_class=lineage.exactness_class.value,
+            taint_labels=lineage.effective_taints,
         )
         self.ledger.append(receipt)
         return ScreenEnhancementResult(
@@ -1773,6 +1945,7 @@ class SomaPerceptionService:
             observation_sha256=derived.sha256,
             enhancement_method=spec.method,
             enhancement_parameters=parameters,
+            transformation_lineage=(lineage,),
         )
 
 
@@ -1946,6 +2119,7 @@ class SomaPerceptionService:
                 text=None,
             )
 
+        source_sha256 = hashlib.sha256(source_bytes).hexdigest()
         gate_receipt = self._gate_receipt(
             packet,
             status=MandalaStatus.ACCEPTED,
@@ -2075,6 +2249,30 @@ class SomaPerceptionService:
             )
 
         text_evidence = self.evidence.put_text(text)
+        lineage = self.transformations.build(
+            transform_id="soma.ocr.interpret",
+            transform_version="v0.1",
+            source_refs=(evidence_ref,),
+            source_sha256s=(source_sha256,),
+            output_ref=text_evidence.evidence_ref,
+            output_sha256=text_evidence.sha256,
+            parameters={
+                "provider": provider.name,
+                "engine": engine_result.engine,
+                "engine_version": engine_result.engine_version,
+                "language": spec.language,
+                "page_segmentation_mode": spec.page_segmentation_mode,
+            },
+            requested_exactness=ExactnessClass.INTERPRETIVE,
+            added_taints=("machine_interpretation",),
+            information_loss_possible=True,
+            semantic_inference=True,
+            limitations=(
+                "ocr_text_is_not_byte_exact_source",
+                "confidence_is_not_truth_probability",
+                "source_evidence_preserved",
+            ),
+        )
         limitations = list(base_limitations)
         status = MandalaStatus.ACCEPTED
         if not valid_confidences:
@@ -2105,6 +2303,9 @@ class SomaPerceptionService:
             interpretation_status=(
                 "accepted" if status is MandalaStatus.ACCEPTED else "degraded"
             ),
+            transformation_lineage_sha256s=(lineage.receipt_sha256,),
+            exactness_class=lineage.exactness_class.value,
+            taint_labels=lineage.effective_taints,
         )
         self.ledger.append(receipt)
         return OcrObservationResult(
@@ -2113,4 +2314,5 @@ class SomaPerceptionService:
             source_evidence_ref=evidence_ref,
             text_evidence=text_evidence,
             text=text,
+            transformation_lineage=(lineage,),
         )
