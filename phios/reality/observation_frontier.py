@@ -537,21 +537,28 @@ class ObservationFrontierBuilder:
                 if isinstance(ref, str) and ref:
                     readable_refs.append(ref)
 
-        status: CoverageStatus = (
-            "COVERED" if readable_refs else "UNOBSERVED"
-        )
-        limitations = (
-            ("cited_readable_text_evidence_only",)
-            if status == "COVERED"
-            else ("no_readable_cited_text_evidence",)
-        )
+        unique_readable = tuple(dict.fromkeys(readable_refs))
+        if not unique_readable:
+            status: CoverageStatus = "UNOBSERVED"
+            limitations: tuple[str, ...] = (
+                "no_readable_cited_text_evidence",
+            )
+        elif len(unique_readable) == len(claim.evidence_refs):
+            status = "COVERED"
+            limitations = ("cited_readable_text_evidence_only",)
+        else:
+            status = "PARTIAL"
+            limitations = (
+                "only_subset_of_cited_evidence_was_readable_or_observed",
+                "cited_readable_text_evidence_only",
+            )
         return self._entry(
             claim=claim,
             observer_id="native-evidence-store",
             observer_version=None,
             coverage_kind="bounded_set",
             status=status,
-            evidence_refs=tuple(dict.fromkeys(readable_refs)),
+            evidence_refs=unique_readable,
             limitations=limitations,
             result=result,
         )
