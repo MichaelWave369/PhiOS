@@ -19,7 +19,12 @@ from phios.mandala import (
 )
 
 from .embeddings import EmbeddingProvider
-from .horizon import EvidenceHorizonController, ReconsolidationGate
+from .horizon import (
+    EvidenceHorizonController,
+    EvidenceHorizonReceipt,
+    ReactivationWindowReceipt,
+    ReconsolidationGate,
+)
 from .models import (
     EmbeddingIdentity,
     IndexSyncResult,
@@ -225,8 +230,8 @@ class GovernedMemoryService:
         if not self.policy.permits(decision, record):
             return MemoryResult(status="blocked", error_code="MEMORY_READ_DENIED")
         evaluated_at = datetime.now(UTC).isoformat()
-        horizon_receipts = ()
-        reactivation_receipts = ()
+        horizon_receipts: tuple[EvidenceHorizonReceipt, ...] = ()
+        reactivation_receipts: tuple[ReactivationWindowReceipt, ...] = ()
         if self.evidence_horizon is not None:
             horizon = self.evidence_horizon.evaluate(
                 record,
