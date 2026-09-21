@@ -160,9 +160,23 @@ class DynamicStateEvaluation:
     effective_state: DynamicFieldState | None
 
     def require_consumable_state(self) -> DynamicFieldState:
+        if self.receipt.schema != DYNAMIC_STATE_RECEIPT_SCHEMA_VERSION:
+            raise DynamicStateContractError(
+                "unsupported dynamic state receipt schema"
+            )
+        payload = self.receipt.to_dict()
+        supplied_sha = payload.pop("receipt_sha256")
+        if _digest(payload) != supplied_sha:
+            raise DynamicStateContractError(
+                "dynamic state receipt hash does not match receipt contents"
+            )
         if not self.receipt.state_consumable or self.effective_state is None:
             raise DynamicStateContractError(
                 "dynamic state is terminated and cannot be consumed"
+            )
+        if self.receipt.terminated:
+            raise DynamicStateContractError(
+                "terminated dynamic state cannot be consumed"
             )
         if (
             self.receipt.effective_field_state_sha256
@@ -177,6 +191,10 @@ class DynamicStateEvaluation:
         ):
             raise DynamicStateContractError(
                 "dynamic state receipt does not bind the effective revision"
+            )
+        if self.receipt.field_law_sha256 != self.effective_state.law_sha256:
+            raise DynamicStateContractError(
+                "dynamic state receipt does not bind the effective field law"
             )
         if (
             self.receipt.action_authority is not False
