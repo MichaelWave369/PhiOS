@@ -97,6 +97,41 @@ work remains retryable and semantic retrieval reports unavailable. There is no l
 generated, or cloud fallback presented as semantic memory.
 
 
+## Research hardening v0.1: consumption-time read admissibility
+
+The ENTER THE FIELD hardening track adds a narrow consumption-boundary contract without
+turning memory into an authority service.
+
+A successful canonical `get()` now returns an inline `ReadAdmissibilityReceipt`.
+Every returned semantic-search hit carries one as well. The receipt binds the exact
+record version and canonical hash to the principal/task context, current memory-policy
+digest, supplied `AuthorityContext` digest, scope, classification, epistemic kind, and
+currentness at the point the record is consumed.
+
+The receipt deliberately fixes:
+
+```text
+readable_as_context = true
+operational_authority = false
+action_authority = false
+execution_authority = false
+```
+
+This makes the no-mint boundary explicit even when a source or derived memory literally
+contains instruction-like or permission-like text. Readability means only that the
+record may enter bounded context. It does not mean the record is a grant, approval,
+verified claim, or executable instruction.
+
+The existing durable `MemoryOperationReceipt` remains the operation-level receipt for
+semantic retrieval. These per-record admissibility receipts are returned inline at the
+consumption seam; they are not a second canonical memory store or an authority ledger.
+
+The same hardening increment introduces `phios.mandala.AuthorityProjection`, a pure
+read-only replay primitive for already-authoritative grant/revoke/expiry events. It can
+reconstruct a present-tense `AuthorityContext` within a frozen ceiling, but it does not
+authenticate events, mint grants, write authority state, replace `ActionBindingGrant`,
+or bypass existing execution-time revalidation.
+
 ## Operator integration v0.3
 
 The official operator surface is `phi-memory`. Governed memory remains disabled until
