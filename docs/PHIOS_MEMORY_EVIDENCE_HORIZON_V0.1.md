@@ -95,7 +95,10 @@ The receipt answers only:
 > Is this stale revision still inside the configured window where a fresh
 > reconsolidation attempt may be considered?
 
-It does not perform that reconsolidation.
+It does not perform that reconsolidation. Once the window closes, the hardened
+`GovernedMemoryService` refuses in-place reconsolidation of that stale head even when
+new provenance is supplied. A caller must create a new memory identity rather than
+renewing an arbitrarily old canonical head.
 
 ## ReconsolidationGate
 
