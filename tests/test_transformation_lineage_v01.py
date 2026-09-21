@@ -109,7 +109,10 @@ def test_tampered_receipt_fails_hash_validation() -> None:
     )
 
     tampered = replace(receipt, effective_taints=())
-    with pytest.raises(TransformationLineageError, match="hash"):
+    with pytest.raises(
+        TransformationLineageError,
+        match="drop added taints|hash",
+    ):
         builder.validate(tampered)
 
 
