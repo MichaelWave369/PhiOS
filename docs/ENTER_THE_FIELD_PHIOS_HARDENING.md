@@ -31,8 +31,8 @@ increment independently reviewable and replaceable.
 | P0 | Containment/negative claims are bounded by demonstrated observation coverage | `ObservationFrontier`, `ObservabilityBoundaryReceipt` | **v0.4 merged via PR #184** |
 | P1 | Transformations preserve source, taint, exactness, and derivation lineage | `TransformationLineageReceipt`, `ExactnessClass` | **v0.5 merged via PR #185** |
 | P1 | Multi-agent corroboration reflects evidence-path independence | `IndependenceReceipt`, `DisagreementDecompositionReceipt` | **v0.6 merged via PR #186** |
-| P1 | Detection can reach bounded remediation without minting authority | `VerifierSemanticsReceipt`, `GovernanceEscalationReceipt` | **v0.7 candidate implemented on this branch** |
-| P2 | Corrective/advisory state can decay and terminate deterministically | dynamic-state attenuation / termination | planned; not promoted |
+| P1 | Detection can reach bounded remediation without minting authority | `VerifierSemanticsReceipt`, `GovernanceEscalationReceipt` | **v0.7 merged via PR #187** |
+| P2 | Corrective/advisory state can decay and terminate deterministically | `DynamicStatePolicy`, `DynamicStateReceipt` | **v0.8 candidate implemented on this branch** |
 | P2 | Memory phase and evidence horizon are explicit | reconsolidation / evidence-horizon receipts | planned; not promoted |
 | P2 | Identity and recovery are invariant-based rather than topology-based | identity/recovery equivalence receipts | planned; not promoted |
 
@@ -757,8 +757,8 @@ unanimous outputs do not by themselves prove independent evidence.
 
 ## Research-hardening v0.7
 
-This branch implements the next P1 seam: bounded governance escalation from verifier
-findings without granting the verifier remediation authority.
+v0.7 implemented bounded governance escalation from verifier findings without granting
+the verifier remediation authority, merged through PR #187.
 
 The governing distinction is:
 
@@ -898,6 +898,182 @@ It does not prove the proposed remediation is correct, safe, sufficient, or auth
 Those remain responsibilities of the existing downstream authority, action-binding,
 effect-boundary, execution-handoff, and observation contracts.
 
+## Research-hardening v0.8
+
+This branch begins the P2 line with deterministic decay and hard termination for
+advisory dynamic field state.
+
+The governing distinction is:
+
+```text
+VALID THEN
+!=
+VALID FOREVER
+```
+
+### DynamicStatePolicy
+
+A temporal policy is immutable and bound by SHA-256.
+
+It declares:
+
+- policy ID/version;
+- a maximum consumable state age;
+- exactly one temporal rule for every variable in the DynamicField law;
+- per-variable grace duration;
+- per-variable absolute attenuation rate toward the immutable-law initial value.
+
+Complete variable coverage is mandatory. A forgotten variable therefore cannot retain
+unbounded influence merely because nobody wrote a decay rule for it.
+
+A zero attenuation rate is allowed when a variable should hold its current value during
+the temporal window, but the state-level maximum age still terminates the snapshot.
+
+### Explicit time, no hidden clock
+
+Dynamic state evaluation requires both:
+
+```text
+activated_at_utc
+observed_at_utc
+```
+
+as timezone-aware ISO-8601 values.
+
+No wall clock is read implicitly inside the controller. The same source state, policy,
+activation time, and observation time produce the same evaluation receipt and effective
+field state.
+
+An observation before activation is rejected.
+
+v0.8 does **not** authenticate the supplied activation timestamp. A future temporal
+anchor/receipt can bind activation time to stronger persisted evidence. The current claim
+is deterministic lifecycle evaluation once the temporal anchor is supplied.
+
+### Attenuation
+
+Before the maximum age is reached, configured field variables move toward the immutable
+law's initial value:
+
+```text
+effective =
+move_toward(
+    source_value,
+    law_initial_value,
+    attenuation_rate × max(0, age - grace)
+)
+```
+
+Attenuation is absolute-rate and source-anchored rather than repeatedly multiplying the
+already-decayed value. This makes the result path-independent for one anchored source
+state.
+
+When attenuation changes a value, PhiOS materializes a new valid
+`DynamicFieldState` revision under the same immutable law and appends a deterministic
+`dynamic-state:...` transition to the existing event chain.
+
+The governing law is never changed.
+
+### Termination
+
+At:
+
+```text
+age >= max_state_age_seconds
+```
+
+the evaluation becomes:
+
+```text
+status = TERMINATED
+state_consumable = false
+effective_state = null
+```
+
+Termination does not clamp the state to a convenient value and continue routing. The
+snapshot is no longer consumable.
+
+### No self-renewing stale state
+
+A state whose newest transition is already a lifecycle-generated
+`dynamic-state:...` transition cannot simply be fed back into the lifecycle controller
+with a newer activation timestamp.
+
+A fresh external DynamicField event must occur before a new temporal anchor is accepted.
+
+This prevents decay output from renewing its own lease forever.
+
+### DynamicStateReceipt
+
+`phios.dynamic_state_receipt.v0.1` binds:
+
+- exact policy and field-law hashes;
+- exact source field-state hash/revision;
+- temporal anchor event;
+- normalized activation and observation times;
+- state age and maximum age;
+- effective state hash/revision when consumable;
+- deterministic temporal transition ID/hash when attenuation occurred;
+- per-variable before/baseline/rate/grace/effective values;
+- ACTIVE / ATTENUATED / TERMINATED status;
+- explicit consumability and termination flags;
+- `governing_law_mutated = false`;
+- zero operational/action/execution authority.
+
+The receipt is validated again at consumption. A modified receipt cannot be paired with
+an effective field state merely by retaining its old hash.
+
+### Hardened field-aware routing
+
+`FieldAwareRouter` can now be constructed with:
+
+```text
+require_dynamic_state_receipt = true
+expected_dynamic_state_policy_sha256 = ...
+```
+
+In hardened mode:
+
+- raw `DynamicFieldState` is rejected;
+- a `DynamicStateEvaluation` must be supplied;
+- the lifecycle receipt must be internally valid and consumable;
+- the receipt must bind the same immutable field law;
+- the policy hash must equal the router's frozen expected policy;
+- a terminated state fails before route computation.
+
+The existing route receipt schema is intentionally unchanged. It binds the exact
+effective `DynamicFieldState.state_sha256`; the `DynamicStateReceipt` binds that exact
+effective state back to its source state, policy, and temporal calculation.
+
+That preserves downstream v0.4-v0.8 route/adoption/action contracts instead of creating
+a gratuitous receipt-version migration.
+
+### Governed replanning
+
+`GovernedReplanner` now accepts either the existing raw field state path or a
+`DynamicStateEvaluation`.
+
+When used with a hardened router, incumbent and candidate paths are evaluated against
+the same exact receipted temporal state. A terminated evaluation cannot reach the route
+comparison.
+
+### v0.8 bounded claim
+
+v0.8 proves deterministic attenuation and termination of advisory DynamicField state
+under a supplied temporal anchor and immutable policy.
+
+It does not:
+
+- authenticate wall-clock time;
+- make dynamic state authoritative;
+- let decay weaken hard transition constraints;
+- infer that the immutable-law initial value is globally correct;
+- delete the source event or historical receipt;
+- allow a lifecycle transition to grant permissions;
+- automatically apply a default decay policy to every legacy router.
+
+The hardened router path must be explicitly configured with the expected policy hash.
+
 ## Finding traceability
 
 The table records architecture candidates motivated by F01–F26. A mapping is not a
@@ -940,7 +1116,8 @@ independence and disagreement decomposition, while F12/F19 reinforce that appare
 corroboration cannot exceed demonstrated evidence-path independence. F16 directly
 drives v0.7 governance escalation and verifier semantics, with F26 reinforcing that
 composed workflows must preserve the authority boundary from detection through
-remediation request. F26 also reinforces provenance through composition. F01 continues to require that containment claims not
+remediation request. F18 directly drives v0.8 dynamic-state attenuation and termination.
+F26 also reinforces provenance through composition. F01 continues to require that containment claims not
 exceed demonstrated coverage. All remaining rows stay candidates until their own bounded
 increments and Crucibles exist.
 
@@ -1085,6 +1262,28 @@ The focused verifier/escalation test set must prove at minimum:
 12. Ledger projection excludes raw trigger details and requested permission/effect lists
     while preserving bounded routing metadata.
 
+## v0.8 Crucibles
+
+The focused dynamic-state lifecycle test set must prove at minimum:
+
+1. every DynamicField variable must have an explicit temporal rule;
+2. an in-grace value remains byte-for-byte unchanged rather than receiving a fake decay
+   revision from float normalization;
+3. attenuation moves values toward, never away from, the immutable-law initial value;
+4. attenuation preserves the governing law and creates a deterministic lifecycle
+   transition/state;
+5. the same source/policy/times produce the same receipt and effective state;
+6. observation time before activation is rejected;
+7. the state is non-consumable at the exact maximum-age boundary;
+8. lifecycle-derived state cannot reset its own temporal anchor;
+9. a fresh external field event can establish a new anchor;
+10. a tampered DynamicStateReceipt is rejected at consumption;
+11. hardened routing rejects raw unreceipted dynamic field state and wrong policy hashes;
+12. receipted attenuation can change soft routing pressure while preserving hard
+    constraints;
+13. terminated state fails before route computation;
+14. governed replanning can consume the same exact receipted temporal snapshot.
+
 ## Explicit non-goals
 
 The current research-hardening track does **not**:
@@ -1108,6 +1307,11 @@ The current research-hardening track does **not**:
 - treat an escalation request as an `ActionBindingGrant`, execution claim, or
   permission expansion;
 - let unresolved or blocked evidence silently become a mutation request;
+- let advisory dynamic state retain influence indefinitely without an explicit temporal
+  policy on the hardened path;
+- let decay or termination grant action/execution authority or mutate the governing
+  field law;
+- treat a supplied activation timestamp as authenticated wall-clock evidence;
 - auto-promote any research finding into policy.
 
 Those remain separate, independently reviewable increments.
