@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from itertools import combinations
 from typing import Iterable, Mapping
 
@@ -504,11 +504,4 @@ class DeliberationEvidenceAssessor:
     def _with_receipt_sha(receipt):
         data = receipt.to_dict()
         data["receipt_sha256"] = ""
-        return receipt.__class__(
-            **{
-                field: value
-                for field, value in receipt.__dict__.items()
-                if field != "receipt_type"
-            },
-            receipt_sha256=_sha256(data),
-        )
+        return replace(receipt, receipt_sha256=_sha256(data))
