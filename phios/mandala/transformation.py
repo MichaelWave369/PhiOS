@@ -149,6 +149,64 @@ class TransformationLineageReceipt:
 class TransformationLineageBuilder:
     """Build immutable lineage without allowing derived artifacts to gain exactness."""
 
+    def validate(self, receipt: TransformationLineageReceipt) -> None:
+        if receipt.schema_version != TRANSFORMATION_LINEAGE_RECEIPT_SCHEMA_VERSION:
+            raise TransformationLineageError(
+                "unsupported transformation lineage schema"
+            )
+        _require_nonempty(receipt.receipt_id, "receipt_id")
+        _require_nonempty(receipt.transform_id, "transform_id")
+        _require_nonempty(receipt.transform_version, "transform_version")
+        if not receipt.source_refs:
+            raise TransformationLineageError("source_refs must not be empty")
+        if len(receipt.source_refs) != len(receipt.source_sha256s):
+            raise TransformationLineageError(
+                "source_refs and source_sha256s must have equal length"
+            )
+        for value in receipt.source_refs:
+            _require_nonempty(value, "source_ref")
+        for value in receipt.source_sha256s:
+            _require_sha256(value, "source_sha256")
+        _require_nonempty(receipt.output_ref, "output_ref")
+        _require_sha256(receipt.output_sha256, "output_sha256")
+        _require_sha256(receipt.parameters_sha256, "parameters_sha256")
+        for value in receipt.parent_receipt_sha256s:
+            _require_sha256(value, "parent_receipt_sha256")
+        if tuple(sorted(set(receipt.parent_receipt_sha256s))) != (
+            receipt.parent_receipt_sha256s
+        ):
+            raise TransformationLineageError(
+                "parent receipt hashes must be unique and sorted"
+            )
+        if tuple(sorted(set(receipt.source_taints))) != receipt.source_taints:
+            raise TransformationLineageError(
+                "source taints must be unique and sorted"
+            )
+        if tuple(sorted(set(receipt.added_taints))) != receipt.added_taints:
+            raise TransformationLineageError(
+                "added taints must be unique and sorted"
+            )
+        if tuple(sorted(set(receipt.effective_taints))) != receipt.effective_taints:
+            raise TransformationLineageError(
+                "effective taints must be unique and sorted"
+            )
+        if receipt.operational_authority is not False:
+            raise TransformationLineageError(
+                "transformation lineage cannot carry operational authority"
+            )
+        if receipt.action_authority is not False:
+            raise TransformationLineageError(
+                "transformation lineage cannot carry action authority"
+            )
+        if receipt.execution_authority is not False:
+            raise TransformationLineageError(
+                "transformation lineage cannot carry execution authority"
+            )
+        if _sha256(receipt.body_dict()) != receipt.receipt_sha256:
+            raise TransformationLineageError(
+                "transformation lineage hash does not match receipt contents"
+            )
+
     def build(
         self,
         *,
