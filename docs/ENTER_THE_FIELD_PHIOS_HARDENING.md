@@ -27,8 +27,8 @@ increment independently reviewable and replaceable.
 |---|---|---|---|
 | P0 | Derived memory cannot originate authority | `AuthorityProjection`, `ReadAdmissibilityReceipt`, no-mint Crucibles | **v0.1 merged via PR #181** |
 | P0 | Actor cannot re-enter or mutate its governing control plane | `ControlPlaneIsolationReceipt` | **v0.2 merged via PR #182** |
-| P0 | Capability is classified by environmental effects, not method labels | `EffectBoundaryReceipt` | **v0.3 candidate implemented on this branch** |
-| P0 | Containment/negative claims are bounded by demonstrated observation coverage | `ObservationFrontier` | planned; not promoted |
+| P0 | Capability is classified by environmental effects, not method labels | `EffectBoundaryReceipt` | **v0.3 merged via PR #183** |
+| P0 | Containment/negative claims are bounded by demonstrated observation coverage | `ObservationFrontier`, `ObservabilityBoundaryReceipt` | **v0.4 candidate implemented on this branch** |
 | P1 | Transformations preserve source, taint, exactness, and derivation lineage | `TransformationLineageReceipt`, `ExactnessClass` | planned; not promoted |
 | P1 | Multi-agent corroboration reflects evidence-path independence | `IndependenceReceipt`, `DisagreementDecompositionReceipt` | planned; not promoted |
 | P1 | Detection can reach bounded remediation without minting authority | `GovernanceEscalationReceipt` | planned; not promoted |
@@ -171,8 +171,8 @@ before the same claim can remain valid.
 
 ## Research-hardening v0.3
 
-This branch implements the third P0 seam: an explicit environmental-effect boundary
-for executable Spine capabilities.
+v0.3 implemented the third P0 seam: an explicit environmental-effect boundary
+for executable Spine capabilities, merged through PR #183.
 
 ### Explicit capability effects
 
@@ -286,6 +286,160 @@ complete with respect to every real-world side effect of the implementation.
 That gap is intentionally left for the next P0 seam, `ObservationFrontier`, which will
 bound negative/containment claims by what was actually observable and tested.
 
+## Research-hardening v0.4
+
+This branch implements the fourth P0 seam: explicit observation-frontier evidence for
+Reality Gate claims.
+
+The governing distinction is:
+
+```text
+NOT OBSERVED
+!=
+DID NOT OCCUR
+```
+
+### ObservationCoverage
+
+Each Reality claim now receives an `ObservationCoverage` record describing the
+surface PhiOS actually observed.
+
+Coverage binds:
+
+- exact claim ID and claim kind;
+- observation surface;
+- bounded target;
+- observer/provider identity and version when available;
+- coverage kind;
+- coverage status;
+- exact evidence references;
+- explicit limitations;
+- whether the claim is a structured negative-state claim;
+- whether negative-state support is actually bounded by the observed frontier.
+
+The v0.1 coverage statuses are:
+
+```text
+COVERED
+PARTIAL
+UNOBSERVED
+```
+
+Examples include:
+
+- one exact TCP listener filter at one point in time;
+- one exact interface at one point in time;
+- one bounded HTTP request;
+- one bounded discrete HTTP observation series;
+- one finite set of cited readable evidence;
+- no independent observer for a generic world-state claim.
+
+### ObservationFrontier
+
+The complete verification run aggregates those entries into a hashed
+`phios.observation_frontier.v0.1`.
+
+The frontier status is:
+
+```text
+COVERED
+PARTIAL
+UNOBSERVED
+```
+
+A mixed run can therefore preserve both:
+
+```text
+claim A = directly observed within an exact frontier
+claim B = outside the available observation frontier
+```
+
+without laundering the first claim's evidence into the second.
+
+### ObservabilityBoundaryReceipt
+
+Every Reality verification result now carries an inline, zero-authority
+`phios.observability_boundary_receipt.v0.1`.
+
+It binds:
+
+- the exact Reality packet;
+- exact observation-frontier SHA-256;
+- covered, partial, and unobserved claim IDs;
+- explicit structured negative-state claim IDs;
+- bounded and unbounded negative-state claim IDs;
+- limitations;
+- zero operational/action/execution authority.
+
+Its status is:
+
+```text
+BOUNDED
+PARTIAL
+OUTSIDE_FRONTIER
+```
+
+The receipt is intentionally inline rather than becoming another Mandala authority
+plane. The persisted `RealityReceipt` binds the frontier SHA-256, observability-receipt
+SHA-256, and observability status.
+
+### Negative-state scope
+
+Structured negative-state support is currently recognized only where the claim contract
+itself expresses a negative boolean state:
+
+- local interface expected down;
+- local TCP listener expected not listening.
+
+A supported negative state is annotated:
+
+```text
+supported_only_within_observation_frontier
+```
+
+That statement does not mean the state held before or after the observation, on another
+host, outside the exact listener/interface target, or through an unobserved channel.
+
+Generic prose such as:
+
+```text
+"No external side effect occurred anywhere."
+```
+
+remains unresolved and outside the observation frontier unless an independent verifier
+actually exists.
+
+### Existing Reality Gate semantics remain canonical
+
+v0.4 does not replace Reality verdicts or create permission authority.
+
+The Reality Gate still owns:
+
+```text
+SUPPORTED
+CONTRADICTED
+UNRESOLVED
+BLOCKED
+```
+
+Observation-frontier evidence answers a different question:
+
+> What could the verifier legitimately claim to have observed when it issued that
+> verdict?
+
+No additional Mandala ledger row is inserted between the existing GateReceipt and
+RealityReceipt, preserving the current authority/evidence path while strengthening the
+receipt lineage cryptographically.
+
+### v0.4 bounded claim
+
+This increment still does not establish universal observation completeness.
+
+Provider instrumentation can itself be incomplete, compromised, sampled, or unable to
+see covert channels. A `COVERED` entry means the declared bounded observer completed
+the stated observation contract, not that reality outside that contract ceased to
+exist.
+
 ## Finding traceability
 
 The table records architecture candidates motivated by F01–F26. A mapping is not a
@@ -321,10 +475,10 @@ promotion decision.
 | F26 | `TransformationLineageReceipt`; `ContextAssemblyReceipt`; `EffectBoundaryReceipt`; `CovertChannelSurfaceMap`; `GovernanceEscalationReceipt` |
 
 F12/F23 are the direct evidence drivers for v0.1. F24 drives v0.2 control-plane
-isolation. F15 is the direct driver for the v0.3 effect boundary, with F26 reinforcing
-the requirement that effect semantics survive composition. F01 also supports the
-narrower rule that a containment label is not itself containment evidence. All remaining
-rows stay candidates until their own bounded increments and Crucibles exist.
+isolation. F15 drives the v0.3 effect boundary. F22 directly drives v0.4 observation
+frontiers, with F01 reinforcing that containment claims must not exceed demonstrated
+coverage and F26 reinforcing effect semantics through composition. All remaining rows
+stay candidates until their own bounded increments and Crucibles exist.
 
 ## v0.1 Crucibles
 
@@ -376,6 +530,28 @@ The focused environmental-effect test set must prove at minimum:
 12. Ledger snapshot projection preserves bounded effect evidence without exposing new
     authority state.
 
+## v0.4 Crucibles
+
+The focused observation-frontier test set must prove at minimum:
+
+1. a supported negative TCP-listener claim is scoped to one exact point-in-time
+   listener frontier;
+2. generic world-state absence remains outside the frontier without an independent
+   observer;
+3. mixed covered and unobserved claims produce a partial frontier rather than borrowing
+   coverage across claims;
+4. a RealityReceipt binds the exact frontier and observability receipt SHA-256 values;
+5. the inline observability receipt carries zero operational/action/execution authority;
+6. no second Mandala authority plane or extra ledger row is created;
+7. a missing specific observation grant cannot produce bounded negative support;
+8. provider lookup without persisted absence evidence is PARTIAL rather than silently
+   COVERED;
+9. the same claims and observation evidence produce a deterministic frontier hash;
+10. source-content absence remains bounded to the readable cited evidence set;
+11. discrete HTTP series remain explicitly non-continuous coverage;
+12. read-only Ledger projection can expose observability status/hashes without exposing
+    hidden authority state.
+
 ## Explicit non-goals
 
 The current research-hardening track does **not**:
@@ -387,7 +563,8 @@ The current research-hardening track does **not**:
 - replace `ActionBindingGrant`, PhiReflex grants, or execution-time revalidation;
 - treat control-plane isolation as proof of universal sandbox containment;
 - treat declared effect classification as proof that every real effect was observed;
-- enforce an ObservationFrontier;
+- treat a COVERED frontier as universal observation completeness;
+- infer covert-channel absence from bounded provider observations;
 - auto-promote any research finding into policy.
 
 Those remain separate, independently reviewable increments.

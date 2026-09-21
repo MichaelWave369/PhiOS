@@ -108,3 +108,51 @@ def test_duplicate_json_keys_are_rejected(tmp_path: Path) -> None:
     )
     with pytest.raises(ValueError, match="duplicate JSON key"):
         LedgerSnapshotExporter(state_root=tmp_path).export(authority=_authority())
+
+
+
+def test_reality_projection_includes_bounded_observability_hashes(
+    tmp_path: Path,
+) -> None:
+    frontier_sha = "a" * 64
+    observability_sha = "b" * 64
+    _write(
+        tmp_path / "ledger" / "mandala-receipts.jsonl",
+        {
+            "receipt_id": "reality-frontier-1",
+            "packet_id": "packet-frontier-1",
+            "task_id": "task-frontier-1",
+            "status": "ACCEPTED",
+            "produced_by": "reality.verifier",
+            "timestamp_utc": "2026-09-21T17:30:00+00:00",
+            "contract_version": "phios.mandala.v0.1",
+            "parent_receipt_id": None,
+            "receipt_type": "RealityReceipt",
+            "claims_checked": [],
+            "evidence_used": [],
+            "unresolved_contradictions": [],
+            "unresolved_claims": [],
+            "verdict_summary": {"SUPPORTED": 1},
+            "verification_method": "bounded-evidence-v0.14",
+            "promotion_status": "not_promoted",
+            "limitations": [],
+            "observation_frontier_sha256": frontier_sha,
+            "observability_receipt_sha256": observability_sha,
+            "observability_status": "BOUNDED",
+        },
+    )
+
+    snapshot = LedgerSnapshotExporter(state_root=tmp_path).export(
+        authority=_authority()
+    )
+    row = json.loads(
+        (Path(snapshot.snapshot_path) / "mandala.jsonl")
+        .read_text(encoding="utf-8")
+        .splitlines()[0]
+    )
+
+    assert row["receipt_type"] == "RealityReceipt"
+    assert row["observation_frontier_sha256"] == frontier_sha
+    assert row["observability_receipt_sha256"] == observability_sha
+    assert row["observability_status"] == "BOUNDED"
+    assert "authority" not in row

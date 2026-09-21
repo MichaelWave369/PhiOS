@@ -77,6 +77,18 @@ details, including:
 Every projected row retains source line/byte position and a SHA-256 of the exact source
 row bytes.
 
+
+RealityReceipt projections may additionally expose the bounded observability lineage:
+
+```text
+observation_frontier_sha256
+observability_receipt_sha256
+observability_status
+```
+
+These fields identify the evidence boundary associated with a Reality verdict. They do
+not expose the full frontier or create analytics authority.
+
 ## Snapshot identity
 
 Each stream manifest binds:

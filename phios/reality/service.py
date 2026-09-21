@@ -54,6 +54,10 @@ from .models import (
     RealityVerdict,
     RealityVerificationResult,
 )
+from .observation_frontier import (
+    ObservationFrontierBuilder,
+    ObservabilityBoundaryReceipt,
+)
 
 
 class RealityVerificationService:
@@ -81,6 +85,7 @@ class RealityVerificationService:
         self.local_http_provider = (
             local_http_provider or UnavailableLocalHttpStateProvider()
         )
+        self.observation_frontier = ObservationFrontierBuilder()
 
     @staticmethod
     def _normalize_text(text: str, *, case_sensitive: bool) -> str:
@@ -3507,6 +3512,34 @@ class RealityVerificationService:
             used_refs,
         )
 
+    def _apply_observation_frontier(
+        self,
+        *,
+        packet: MandalaPacket,
+        claims: tuple[RealityClaim, ...],
+        results: tuple[dict[str, Any], ...],
+        interface_provider: InterfaceStateProvider,
+        tcp_listener_provider: TcpListenerStateProvider,
+        local_http_provider: LocalHttpStateProvider,
+    ) -> tuple[tuple[dict[str, Any], ...], ObservabilityBoundaryReceipt]:
+        frontier = self.observation_frontier.build(
+            claims=claims,
+            results=results,
+            interface_provider=interface_provider,
+            tcp_listener_provider=tcp_listener_provider,
+            local_http_provider=local_http_provider,
+        )
+        observability = self.observation_frontier.boundary_receipt(
+            packet_id=packet.packet_id,
+            task_id=packet.task_id,
+            frontier=frontier,
+        )
+        annotated = self.observation_frontier.annotate_results(
+            results=results,
+            frontier=frontier,
+        )
+        return annotated, observability
+
     def verify(
         self,
         *,
@@ -3541,6 +3574,14 @@ class RealityVerificationService:
                 }
                 for claim in claims
             )
+            blocked, observability = self._apply_observation_frontier(
+                packet=packet,
+                claims=claims,
+                results=blocked,
+                interface_provider=selected_interface_provider,
+                tcp_listener_provider=selected_tcp_listener_provider,
+                local_http_provider=selected_local_http_provider,
+            )
             receipt = RealityReceipt(
                 **receipt_meta(
                     packet,
@@ -3559,13 +3600,20 @@ class RealityVerificationService:
                     f"missing_grant:{permission}",
                     "evidence_not_read",
                     "verification_does_not_grant_action_authority",
+                    "observation_frontier_contains_no_completed_observation",
                 ),
+                observation_frontier_sha256=(
+                    observability.observation_frontier_sha256
+                ),
+                observability_receipt_sha256=observability.receipt_sha256,
+                observability_status=observability.status,
             )
             self.ledger.append(receipt)
             return RealityVerificationResult(
                 packet=packet,
                 receipt=receipt,
                 claim_results=blocked,
+                observability=observability,
             )
 
         invalid_global: tuple[str, ...]
@@ -3604,6 +3652,14 @@ class RealityVerificationService:
                 }
                 for claim in claims
             )
+            blocked, observability = self._apply_observation_frontier(
+                packet=packet,
+                claims=claims,
+                results=blocked,
+                interface_provider=selected_interface_provider,
+                tcp_listener_provider=selected_tcp_listener_provider,
+                local_http_provider=selected_local_http_provider,
+            )
             receipt = RealityReceipt(
                 **receipt_meta(
                     packet,
@@ -3623,13 +3679,20 @@ class RealityVerificationService:
                     error
                     for _, errors in invalid_claims
                     for error in errors
+                )
+                + ("observation_frontier_contains_no_completed_observation",),
+                observation_frontier_sha256=(
+                    observability.observation_frontier_sha256
                 ),
+                observability_receipt_sha256=observability.receipt_sha256,
+                observability_status=observability.status,
             )
             self.ledger.append(receipt)
             return RealityVerificationResult(
                 packet=packet,
                 receipt=receipt,
                 claim_results=blocked,
+                observability=observability,
             )
 
         gate_receipt = self._gate_receipt(
@@ -3799,6 +3862,16 @@ class RealityVerificationService:
                 }
             )
 
+        annotated_results, observability = self._apply_observation_frontier(
+            packet=packet,
+            claims=claims,
+            results=tuple(results),
+            interface_provider=selected_interface_provider,
+            tcp_listener_provider=selected_tcp_listener_provider,
+            local_http_provider=selected_local_http_provider,
+        )
+        results = list(annotated_results)
+
         verdicts = [item["verdict"] for item in results]
         counts = Counter(str(item) for item in verdicts)
 
@@ -3898,11 +3971,19 @@ class RealityVerificationService:
                 "host_observation_is_point_in_time",
                 "verification_does_not_grant_action_authority",
                 "no_automatic_memory_promotion",
+                "negative_claims_are_bounded_by_observation_frontier",
+                "absence_of_observation_is_not_global_absence",
             ),
+            observation_frontier_sha256=(
+                observability.observation_frontier_sha256
+            ),
+            observability_receipt_sha256=observability.receipt_sha256,
+            observability_status=observability.status,
         )
         self.ledger.append(receipt)
         return RealityVerificationResult(
             packet=packet,
             receipt=receipt,
             claim_results=tuple(results),
+            observability=observability,
         )

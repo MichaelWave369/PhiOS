@@ -46,6 +46,15 @@ from .local_socket import (
     TcpListenerObservationError,
     TcpListenerStateProvider,
 )
+from .observation_frontier import (
+    OBSERVABILITY_BOUNDARY_RECEIPT_SCHEMA_VERSION,
+    OBSERVATION_FRONTIER_SCHEMA_VERSION,
+    ObservationCoverage,
+    ObservationFrontier,
+    ObservationFrontierBuilder,
+    ObservationFrontierContractError,
+    ObservabilityBoundaryReceipt,
+)
 from .models import (
     RealityClaim,
     RealityClaimKind,
@@ -62,6 +71,13 @@ __all__ = [
     "JsonMixedContractClause",
     "JsonNumericTransitionClause",
     "JSON_TYPE_NAMES",
+    "OBSERVABILITY_BOUNDARY_RECEIPT_SCHEMA_VERSION",
+    "OBSERVATION_FRONTIER_SCHEMA_VERSION",
+    "ObservationCoverage",
+    "ObservationFrontier",
+    "ObservationFrontierBuilder",
+    "ObservationFrontierContractError",
+    "ObservabilityBoundaryReceipt",
     "InterfaceObservation",
     "InterfaceObservationError",
     "InterfaceStateProvider",

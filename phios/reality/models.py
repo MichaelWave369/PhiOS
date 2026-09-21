@@ -3,7 +3,10 @@ from __future__ import annotations
 import uuid
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from .observation_frontier import ObservabilityBoundaryReceipt
 
 from phios.mandala import MandalaPacket, RealityReceipt
 
@@ -713,10 +716,16 @@ class RealityVerificationResult:
     packet: MandalaPacket
     receipt: RealityReceipt
     claim_results: tuple[dict[str, Any], ...]
+    observability: "ObservabilityBoundaryReceipt | None" = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "packet": self.packet.to_dict(),
             "receipt": self.receipt.to_dict(),
             "claim_results": [dict(item) for item in self.claim_results],
+            "observability": (
+                self.observability.to_dict()
+                if self.observability is not None
+                else None
+            ),
         }
