@@ -271,6 +271,9 @@ def test_governance_escalation_projection_is_bounded(
             "verifier_id": "reality.verifier",
             "verification_method": "bounded-evidence-v0.14",
             "source_status": "DISPUTED",
+            "observation_frontier_sha256": "f" * 64,
+            "observability_receipt_sha256": "1" * 64,
+            "observability_status": "BOUNDED",
             "verdict_summary": {"CONTRADICTED": 1},
             "detects_evidence_state": True,
             "may_emit_escalation_request": True,
@@ -342,6 +345,8 @@ def test_governance_escalation_projection_is_bounded(
     assert semantics["receipt_type"] == "VerifierSemanticsReceipt"
     assert semantics["may_authorize_remediation"] is False
     assert semantics["may_execute_remediation"] is False
+    assert semantics["observability_status"] == "BOUNDED"
+    assert semantics["observation_frontier_sha256"] == "f" * 64
     assert semantics["action_authority"] is False
     assert escalation["receipt_type"] == "GovernanceEscalationReceipt"
     assert escalation["routing_status"] == "ROUTED_FOR_AUTHORIZATION"
