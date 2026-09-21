@@ -5,7 +5,7 @@ import json
 import uuid
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime
-from typing import Iterable
+from typing import Any, Iterable
 
 from .contracts import MandalaStatus
 from .ledger import MandalaReceiptLedger
@@ -203,7 +203,7 @@ class EscalationRequest:
             requested_effects=effects,
         )
 
-    def to_dict(self) -> dict[str, object]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "request_id": self.request_id,
             "disposition": self.disposition,
