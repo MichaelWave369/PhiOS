@@ -145,9 +145,9 @@ class EscalationRequest:
                 raise GovernanceEscalationError(
                     "REMEDIATE requires requested_permissions"
                 )
-            if not effects or effects == ("none",):
+            if not effects or "none" in effects or "unknown" in effects:
                 raise GovernanceEscalationError(
-                    "REMEDIATE requires consequential requested_effects"
+                    "REMEDIATE requires classified consequential requested_effects"
                 )
         else:
             if (
