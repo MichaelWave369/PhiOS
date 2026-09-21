@@ -231,3 +231,31 @@ def test_spine_exposes_input_and_output_key_boundary(tmp_path: Path) -> None:
     assert receipt.authenticated is True
     assert spine.core.authority.grants == ()
     assert receipt.action_authority is False
+
+
+def test_inbound_header_helper_supports_api_gateway_style_input() -> None:
+    boundary = ApiKeyBoundary()
+    boundary.register_inbound(
+        InboundApiKeySpec.from_secret(
+            key_id="gateway-input",
+            audience="phios.http",
+            secret="gateway-secret",
+            scopes=("request.submit",),
+        )
+    )
+
+    accepted = boundary.authenticate_inbound_headers(
+        key_id="gateway-input",
+        headers={"X-API-Key": "gateway-secret"},
+        audience="phios.http",
+    )
+    missing = boundary.authenticate_inbound_headers(
+        key_id="gateway-input",
+        headers={},
+        audience="phios.http",
+    )
+
+    assert accepted.authenticated is True
+    assert accepted.scopes == ("request.submit",)
+    assert missing.authenticated is False
+    assert missing.reason == "inbound_key_header_missing"
