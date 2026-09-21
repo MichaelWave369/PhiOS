@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from phios.mandala import GovernanceEscalationError, MandalaStatus
+from phios.mandala import EscalationRequest, GovernanceEscalationError, MandalaStatus
 from phios.reality import RealityClaim, RealityClaimKind
 from phios.spine.runtime import PhiOSSpine
 
@@ -310,3 +310,24 @@ def test_non_remediation_escalation_cannot_smuggle_action_candidate(
             candidate_capability_id="commons.text_artifact",
             candidate_payload={"name": "nope", "text": "nope"},
         )
+
+
+def test_remediation_request_rejects_unknown_or_none_effects() -> None:
+    for effect in ("unknown", "none"):
+        with pytest.raises(
+            GovernanceEscalationError,
+            match="classified consequential",
+        ):
+            EscalationRequest.create(
+                disposition="REMEDIATE",
+                reason="invalid effect contract",
+                target_ref="governed_action_binding.review",
+                trigger_claim_ids=("claim-1",),
+                candidate_capability_id="candidate.fix",
+                candidate_capability_version="1.0.0",
+                candidate_capability_risk="high",
+                candidate_capability_contract_sha256="a" * 64,
+                candidate_payload_sha256="b" * 64,
+                requested_permissions=("candidate.fix",),
+                requested_effects=(effect,),
+            )
