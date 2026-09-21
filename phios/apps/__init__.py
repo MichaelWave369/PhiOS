@@ -203,6 +203,12 @@ from .package_install import (
     snapshot_installed_tree,
 )
 from .registry import APP_REGISTRY_SCHEMA_VERSION, AppRegistry
+from .release_install_proposal import (
+    RELEASE_INSTALL_PROPOSAL_SCHEMA_VERSION,
+    ReleaseInstallProposalRecord,
+    propose_release_install,
+    validate_release_install_proposal,
+)
 from .retained_cleanup import (
     RETAINED_CLEANUP_JOURNAL_SCHEMA_VERSION,
     RETAINED_CLEANUP_PLAN_SCHEMA_VERSION,
@@ -330,6 +336,7 @@ __all__ = [
     "RETAINED_CLEANUP_PLAN_SCHEMA_VERSION",
     "RETAINED_CLEANUP_RECEIPT_SCHEMA_VERSION",
     "RETAINED_CLEANUP_REVIEW_SCHEMA_VERSION",
+    "RELEASE_INSTALL_PROPOSAL_SCHEMA_VERSION",
     "RUNTIME_SANDBOX_POLICY_SCHEMA_VERSION",
     "STATIC_WEB_ADAPTER_PLAN_SCHEMA_VERSION",
     "STATIC_WEB_ADAPTER_REVIEW_SCHEMA_VERSION",
@@ -455,6 +462,7 @@ __all__ = [
     "RuntimeLaunchRequest",
     "RuntimeLaunchResult",
     "RuntimeSandboxPolicy",
+    "ReleaseInstallProposalRecord",
     "SandboxBackendIdentity",
     "SandboxControlEvidence",
     "SandboxedBuildExecutionResult",
@@ -512,6 +520,8 @@ __all__ = [
     "review_build_package",
     "review_dependency_plan",
     "review_installed_runtime",
+    "propose_release_install",
+    "validate_release_install_proposal",
     "review_intake_for_acquisition",
     "review_npm_offline_build_plan",
     "review_retained_cleanup",
