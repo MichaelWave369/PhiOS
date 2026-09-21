@@ -62,7 +62,7 @@ def allowed_transitions() -> tuple[tuple[TrustZone, TrustZone], ...]:
     """Return legal actor transitions in deterministic topology order."""
 
     zones = actor_zones()
-    return tuple(zip(zones, zones[1:], strict=True))
+    return tuple(zip(zones, zones[1:]))
 
 
 def require_actor_zone(zone: TrustZone) -> TrustZone:
