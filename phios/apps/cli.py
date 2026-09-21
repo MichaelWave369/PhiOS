@@ -75,6 +75,7 @@ from .retained_cleanup import (
 )
 from .registry import AppRegistry
 from .release_advancement import advance_release_candidate
+from .release_build_review import review_release_build_plan
 from .release_compatibility import ReleaseChangeEvidenceService
 from .release_review import (
     MarkerChangeAcknowledgement,
@@ -302,6 +303,20 @@ def _parser() -> argparse.ArgumentParser:
     )
     review_plan_parser.add_argument("build_plan_json", type=Path)
 
+    release_review_parser = subparsers.add_parser(
+        "review-release-build-plan",
+        help=(
+            "Bind one exact v0.47 advancement record to one exact release BuildPlan "
+            "without granting build execution authority."
+        ),
+    )
+    release_review_parser.add_argument("build_plan_json", type=Path)
+    release_review_parser.add_argument("release_candidate_advancement_json", type=Path)
+    release_review_parser.add_argument(
+        "--approve-release-candidate-advancement-sha",
+        required=True,
+    )
+
     execute_parser = subparsers.add_parser(
         "execute-build",
         help="Execute one explicitly approved build plan in an isolated working copy.",
@@ -310,6 +325,8 @@ def _parser() -> argparse.ArgumentParser:
     execute_parser.add_argument("acquisition_receipt_json", type=Path)
     execute_parser.add_argument("--approve-plan-sha", required=True)
     execute_parser.add_argument("--approve-source-sha", required=True)
+    execute_parser.add_argument("--release-build-review-json", type=Path, default=None)
+    execute_parser.add_argument("--approve-release-build-review-sha", default=None)
     execute_parser.add_argument(
         "--allow-build-permission",
         action="append",
@@ -332,6 +349,8 @@ def _parser() -> argparse.ArgumentParser:
     sandbox_parser.add_argument("acquisition_receipt_json", type=Path)
     sandbox_parser.add_argument("--approve-plan-sha", required=True)
     sandbox_parser.add_argument("--approve-source-sha", required=True)
+    sandbox_parser.add_argument("--release-build-review-json", type=Path, default=None)
+    sandbox_parser.add_argument("--approve-release-build-review-sha", default=None)
     sandbox_parser.add_argument(
         "--allow-build-permission",
         action="append",
@@ -1308,16 +1327,44 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(json.dumps(build_review.to_dict(), sort_keys=True, indent=2))
         return 0
 
+    if args.command == "review-release-build-plan":
+        try:
+            plan_payload = _load_json_file(args.build_plan_json)
+            advancement_payload = _load_json_file(
+                args.release_candidate_advancement_json
+            )
+            release_build_review = review_release_build_plan(
+                plan_payload,
+                advancement_payload,
+                approved_release_candidate_advancement_sha256=(
+                    args.approve_release_candidate_advancement_sha
+                ),
+            )
+        except (OSError, ValueError) as exc:
+            print(json.dumps({"status": "blocked", "error": str(exc)}, sort_keys=True))
+            return 2
+        print(json.dumps(release_build_review.to_dict(), sort_keys=True, indent=2))
+        return 0
+
     if args.command == "execute-build":
         try:
             plan_payload = _load_json_file(args.build_plan_json)
             receipt_payload = _load_json_file(args.acquisition_receipt_json)
+            release_build_review_payload = (
+                _load_json_file(args.release_build_review_json)
+                if args.release_build_review_json is not None
+                else None
+            )
             execution_request = BuildExecutionRequest.from_payloads(
                 plan_payload,
                 receipt_payload,
                 approved_plan_sha256=args.approve_plan_sha,
                 approved_source_snapshot_sha256=args.approve_source_sha,
                 approved_permissions=tuple(args.build_permissions),
+                release_build_review_value=release_build_review_payload,
+                approved_release_build_review_sha256=(
+                    args.approve_release_build_review_sha
+                ),
             )
             execution = BuildExecutionService(
                 step_timeout_seconds=args.step_timeout_seconds,
@@ -1336,12 +1383,21 @@ def main(argv: Sequence[str] | None = None) -> int:
         try:
             plan_payload = _load_json_file(args.build_plan_json)
             receipt_payload = _load_json_file(args.acquisition_receipt_json)
+            release_build_review_payload = (
+                _load_json_file(args.release_build_review_json)
+                if args.release_build_review_json is not None
+                else None
+            )
             sandbox_request = BuildExecutionRequest.from_payloads(
                 plan_payload,
                 receipt_payload,
                 approved_plan_sha256=args.approve_plan_sha,
                 approved_source_snapshot_sha256=args.approve_source_sha,
                 approved_permissions=tuple(args.build_permissions),
+                release_build_review_value=release_build_review_payload,
+                approved_release_build_review_sha256=(
+                    args.approve_release_build_review_sha
+                ),
             )
             sandbox_policy = BuildSandboxPolicy(
                 network_mode=args.sandbox_network,
