@@ -79,9 +79,7 @@ class FieldAwarePathAssessmentReceipt:
     blocked_transition_index: int | None
     total_cost: float | None
     action_authority: bool
-    dynamic_state_receipt_sha256: str | None = None
-    dynamic_state_status: str | None = None
-    receipt_sha256: str = ""
+    receipt_sha256: str
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -96,8 +94,6 @@ class FieldAwarePathAssessmentReceipt:
             "blocked_transition_index": self.blocked_transition_index,
             "total_cost": self.total_cost,
             "action_authority": self.action_authority,
-            "dynamic_state_receipt_sha256": self.dynamic_state_receipt_sha256,
-            "dynamic_state_status": self.dynamic_state_status,
             "receipt_sha256": self.receipt_sha256,
         }
 
@@ -117,9 +113,7 @@ class FieldAwareRouteReceipt:
     total_cost: float | None
     optimality_scope: str
     action_authority: bool
-    dynamic_state_receipt_sha256: str | None = None
-    dynamic_state_status: str | None = None
-    receipt_sha256: str = ""
+    receipt_sha256: str
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -134,8 +128,6 @@ class FieldAwareRouteReceipt:
             "total_cost": self.total_cost,
             "optimality_scope": self.optimality_scope,
             "action_authority": self.action_authority,
-            "dynamic_state_receipt_sha256": self.dynamic_state_receipt_sha256,
-            "dynamic_state_status": self.dynamic_state_status,
             "receipt_sha256": self.receipt_sha256,
         }
 
@@ -227,11 +219,7 @@ class FieldAwareRouter:
         base_cost: float = 1.0,
         max_states: int = 10_000,
     ) -> FieldAwareRouteReceipt:
-        (
-            resolved_state,
-            dynamic_state_receipt_sha256,
-            dynamic_state_status,
-        ) = self._resolve_field_state(field_state)
+        resolved_state = self._resolve_field_state(field_state)
         reasoner, snapshots = self._reasoner_for_state(resolved_state)
         try:
             path = reasoner.least_cost_path(
@@ -248,8 +236,6 @@ class FieldAwareRouter:
             field_state=resolved_state,
             snapshots=snapshots,
             path=path,
-            dynamic_state_receipt_sha256=dynamic_state_receipt_sha256,
-            dynamic_state_status=dynamic_state_status,
         )
 
     def assess_path(
@@ -261,11 +247,7 @@ class FieldAwareRouter:
     ) -> FieldAwarePathAssessmentReceipt:
         """Re-score one explicit path under one exact validated field snapshot."""
 
-        (
-            resolved_state,
-            dynamic_state_receipt_sha256,
-            dynamic_state_status,
-        ) = self._resolve_field_state(field_state)
+        resolved_state = self._resolve_field_state(field_state)
         reasoner, snapshots = self._reasoner_for_state(resolved_state)
         states = tuple(path_states)
         if not states:
@@ -314,8 +296,6 @@ class FieldAwareRouter:
             "blocked_transition_index": blocked_index,
             "total_cost": total,
             "action_authority": False,
-            "dynamic_state_receipt_sha256": dynamic_state_receipt_sha256,
-            "dynamic_state_status": dynamic_state_status,
         }
         return FieldAwarePathAssessmentReceipt(
             schema="phios.field_aware_path_assessment.v0.5",
@@ -329,15 +309,13 @@ class FieldAwareRouter:
             blocked_transition_index=blocked_index,
             total_cost=total,
             action_authority=False,
-            dynamic_state_receipt_sha256=dynamic_state_receipt_sha256,
-            dynamic_state_status=dynamic_state_status,
             receipt_sha256=_payload_digest(payload),
         )
 
     def _resolve_field_state(
         self,
         field_state: DynamicFieldState | DynamicStateEvaluation,
-    ) -> tuple[DynamicFieldState, str | None, str | None]:
+    ) -> DynamicFieldState:
         if isinstance(field_state, DynamicStateEvaluation):
             receipt = field_state.receipt
             state = field_state.require_consumable_state()
@@ -353,13 +331,13 @@ class FieldAwareRouter:
                 raise FieldAwareRoutingContractError(
                     "dynamic state receipt is bound to another temporal policy"
                 )
-            return state, receipt.receipt_sha256, receipt.status
+            return state
 
         if self._require_dynamic_state_receipt:
             raise FieldAwareRoutingContractError(
                 "hardened dynamic routing requires a DynamicStateEvaluation"
             )
-        return field_state, None, None
+        return field_state
 
     def _reasoner_for_state(
         self,
@@ -417,8 +395,6 @@ class FieldAwareRouter:
         field_state: DynamicFieldState,
         snapshots: tuple[DynamicBindingSnapshot, ...],
         path: FieldPathReceipt,
-        dynamic_state_receipt_sha256: str | None,
-        dynamic_state_status: str | None,
     ) -> FieldAwareRouteReceipt:
         payload: dict[str, object] = {
             "schema": "phios.field_aware_route_receipt.v0.4",
@@ -434,8 +410,6 @@ class FieldAwareRouter:
                 "least_declared_cost_over_observed_graph_at_exact_field_snapshot"
             ),
             "action_authority": False,
-            "dynamic_state_receipt_sha256": dynamic_state_receipt_sha256,
-            "dynamic_state_status": dynamic_state_status,
         }
         return FieldAwareRouteReceipt(
             schema="phios.field_aware_route_receipt.v0.4",
@@ -451,8 +425,6 @@ class FieldAwareRouter:
                 "least_declared_cost_over_observed_graph_at_exact_field_snapshot"
             ),
             action_authority=False,
-            dynamic_state_receipt_sha256=dynamic_state_receipt_sha256,
-            dynamic_state_status=dynamic_state_status,
             receipt_sha256=_payload_digest(payload),
         )
 
