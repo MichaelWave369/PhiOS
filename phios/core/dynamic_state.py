@@ -156,6 +156,7 @@ class DynamicStateReceipt:
 
 @dataclass(frozen=True, slots=True)
 class DynamicStateEvaluation:
+    source_state: DynamicFieldState
     receipt: DynamicStateReceipt
     effective_state: DynamicFieldState | None
 
@@ -163,6 +164,19 @@ class DynamicStateEvaluation:
         if self.receipt.schema != DYNAMIC_STATE_RECEIPT_SCHEMA_VERSION:
             raise DynamicStateContractError(
                 "unsupported dynamic state receipt schema"
+            )
+        if (
+            self.receipt.source_field_state_sha256
+            != self.source_state.state_sha256
+            or self.receipt.source_field_revision
+            != self.source_state.revision
+        ):
+            raise DynamicStateContractError(
+                "dynamic state receipt does not bind the source state"
+            )
+        if self.receipt.field_law_sha256 != self.source_state.law_sha256:
+            raise DynamicStateContractError(
+                "dynamic state receipt does not bind the source field law"
             )
         payload = self.receipt.to_dict()
         supplied_sha = payload.pop("receipt_sha256")
@@ -223,6 +237,10 @@ class DynamicStateController:
     def policy(self) -> DynamicStatePolicy:
         return self._policy
 
+    @property
+    def field_law_sha256(self) -> str:
+        return self._field.law.law_sha256
+
     def evaluate(
         self,
         state: DynamicFieldState,
@@ -266,6 +284,7 @@ class DynamicStateController:
                 terminated=True,
             )
             return DynamicStateEvaluation(
+                source_state=state,
                 receipt=receipt,
                 effective_state=None,
             )
@@ -357,6 +376,7 @@ class DynamicStateController:
             terminated=False,
         )
         return DynamicStateEvaluation(
+            source_state=state,
             receipt=receipt,
             effective_state=effective_state,
         )
@@ -385,6 +405,27 @@ class DynamicStateController:
                 "dynamic state receipt hash does not match receipt contents"
             )
 
+        self._field.validate_state(evaluation.source_state)
+        if (
+            receipt.source_field_state_sha256
+            != evaluation.source_state.state_sha256
+            or receipt.source_field_revision
+            != evaluation.source_state.revision
+        ):
+            raise DynamicStateContractError(
+                "dynamic state receipt does not bind the source state"
+            )
+
+        expected = self.evaluate(
+            evaluation.source_state,
+            activated_at_utc=receipt.activated_at_utc,
+            observed_at_utc=receipt.observed_at_utc,
+        )
+        if expected.receipt.to_dict() != receipt.to_dict():
+            raise DynamicStateContractError(
+                "dynamic state receipt does not match policy evaluation"
+            )
+
         if receipt.terminated:
             if receipt.state_consumable:
                 raise DynamicStateContractError(
@@ -398,6 +439,11 @@ class DynamicStateController:
 
         state = evaluation.require_consumable_state()
         self._field.validate_state(state)
+        expected_state = expected.require_consumable_state()
+        if expected_state.to_dict() != state.to_dict():
+            raise DynamicStateContractError(
+                "effective dynamic field state does not match policy evaluation"
+            )
 
     def _validate_policy(
         self,
