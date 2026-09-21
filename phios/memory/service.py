@@ -5,6 +5,7 @@ import time
 import uuid
 from dataclasses import replace
 from datetime import UTC, datetime
+from collections.abc import Mapping
 from typing import Protocol
 
 from phios.mandala import (
@@ -19,6 +20,7 @@ from phios.mandala import (
 )
 
 from .embeddings import EmbeddingProvider
+from .horizon import EvidenceHorizonEvaluation, MemoryEvidenceHorizon
 from .models import (
     EmbeddingIdentity,
     IndexSyncResult,
@@ -29,7 +31,12 @@ from .models import (
 )
 from .policy import MemoryAccessPolicy
 from .store import MemoryStore
-from .validation import require_nonempty, sha256_json, validate_text
+from .validation import (
+    require_nonempty,
+    require_utc_timestamp,
+    sha256_json,
+    validate_text,
+)
 
 
 class RetrievalIndex(Protocol):
@@ -101,11 +108,13 @@ class GovernedMemoryService:
         *,
         retrieval_index: RetrievalIndex | None = None,
         embedding_provider: EmbeddingProvider | None = None,
+        evidence_horizon: MemoryEvidenceHorizon | None = None,
     ) -> None:
         self.store = store
         self.policy = policy
         self.retrieval_index = retrieval_index or UnavailableRetrievalIndex()
         self.embedding_provider = embedding_provider
+        self.evidence_horizon = evidence_horizon
 
     def put(
         self,
@@ -171,6 +180,8 @@ class GovernedMemoryService:
         principal_id: str,
         task_id: str,
         authority: AuthorityContext,
+        reactivation_record_id: str | None = None,
+        evaluated_at_utc: str | None = None,
     ) -> MemoryResult:
         decision = self.policy.resolve(
             principal_id=principal_id,
@@ -180,12 +191,60 @@ class GovernedMemoryService:
         )
         if decision is None:
             return MemoryResult(status="blocked", error_code="MEMORY_READ_DENIED")
-        record = self.store.get(record_id)
+        try:
+            evaluated_at, evaluated_dt = self._evaluation_time(evaluated_at_utc)
+        except ValueError:
+            return MemoryResult(
+                status="invalid",
+                error_code="INVALID_MEMORY_EVALUATION_TIME",
+            )
+        record = self.store.get(record_id, now=evaluated_dt)
         if record is None:
             return MemoryResult(status="unavailable", error_code="MEMORY_NOT_AVAILABLE")
         if not self.policy.permits(decision, record):
             return MemoryResult(status="blocked", error_code="MEMORY_READ_DENIED")
-        evaluated_at = datetime.now(UTC).isoformat()
+
+        horizon_evaluation: EvidenceHorizonEvaluation | None = None
+        if self.evidence_horizon is not None:
+            reactivation_record: MemoryRecord | None = None
+            if reactivation_record_id is not None:
+                reactivation_record = self.store.get(
+                    reactivation_record_id,
+                    now=evaluated_dt,
+                )
+                if reactivation_record is None:
+                    return MemoryResult(
+                        status="blocked",
+                        error_code="MEMORY_REACTIVATION_EVIDENCE_UNAVAILABLE",
+                    )
+                if not self.policy.permits(decision, reactivation_record):
+                    return MemoryResult(
+                        status="blocked",
+                        error_code="MEMORY_REACTIVATION_EVIDENCE_DENIED",
+                    )
+            horizon_evaluation = self.evidence_horizon.evaluate(
+                record,
+                evaluated_at_utc=evaluated_at,
+                reactivation_record=reactivation_record,
+            )
+            if not horizon_evaluation.context_admissible:
+                horizon = horizon_evaluation.horizon_receipt
+                error_code = {
+                    "REACTIVATION_REQUIRED": "MEMORY_REACTIVATION_REQUIRED",
+                    "REACTIVATION_HELD": "MEMORY_REACTIVATION_HELD",
+                    "OUTSIDE_HORIZON": "MEMORY_OUTSIDE_EVIDENCE_HORIZON",
+                }.get(horizon.status, "MEMORY_EVIDENCE_HORIZON_BLOCKED")
+                return MemoryResult(
+                    status="blocked",
+                    evidence_horizon_receipts=(horizon,),
+                    reactivation_window_receipts=(
+                        (horizon_evaluation.reactivation_receipt,)
+                        if horizon_evaluation.reactivation_receipt is not None
+                        else ()
+                    ),
+                    error_code=error_code,
+                )
+
         admissibility = self._read_admissibility_receipt(
             operation_id=(
                 f"get:{task_id}:{principal_id}:{record.record_id}:"
@@ -198,11 +257,25 @@ class GovernedMemoryService:
             policy_sha256=decision.policy_sha256,
             authority=authority,
             evaluated_at=evaluated_at,
+            horizon_evaluation=horizon_evaluation,
         )
         return MemoryResult(
             status="ok",
             record=record,
             read_admissibility_receipts=(admissibility,),
+            evidence_horizon_receipts=(
+                (horizon_evaluation.horizon_receipt,)
+                if horizon_evaluation is not None
+                else ()
+            ),
+            reactivation_window_receipts=(
+                (horizon_evaluation.reactivation_receipt,)
+                if (
+                    horizon_evaluation is not None
+                    and horizon_evaluation.reactivation_receipt is not None
+                )
+                else ()
+            ),
         )
 
     def semantic_search(
@@ -216,6 +289,8 @@ class GovernedMemoryService:
         limit: int = 10,
         packet_id: str = "",
         embedding_timeout: float = 10.0,
+        reactivation_record_ids: Mapping[str, str] | None = None,
+        evaluated_at_utc: str | None = None,
     ) -> MemoryResult:
         """Search only policy-eligible canonical versions, then revalidate every hit."""
 
@@ -234,11 +309,59 @@ class GovernedMemoryService:
             return MemoryResult(status="invalid", error_code="INVALID_MEMORY_QUERY")
         if isinstance(limit, bool) or not isinstance(limit, int) or not (1 <= limit <= 50):
             return MemoryResult(status="invalid", error_code="INVALID_MEMORY_LIMIT")
+        try:
+            evaluated_at, evaluated_dt = self._evaluation_time(evaluated_at_utc)
+        except ValueError:
+            return MemoryResult(
+                status="invalid",
+                error_code="INVALID_MEMORY_EVALUATION_TIME",
+            )
 
         eligible = self.store.list_eligible_versions(
             allowed_scopes=decision.allowed_scopes,
             allowed_classifications=decision.allowed_classifications,
+            now=evaluated_dt,
         )
+        horizon_by_version: dict[
+            tuple[str, int, str],
+            EvidenceHorizonEvaluation,
+        ] = {}
+        if self.evidence_horizon is not None and eligible:
+            reactivation_map = dict(reactivation_record_ids or {})
+            filtered: list[tuple[str, int, str]] = []
+            for record_id, revision, record_sha256 in eligible:
+                candidate_record = self.store.get_current_version(
+                    record_id,
+                    revision,
+                    record_sha256,
+                    now=evaluated_dt,
+                )
+                if candidate_record is None:
+                    continue
+                reactivation_record: MemoryRecord | None = None
+                reactivation_id = reactivation_map.get(record_id)
+                if reactivation_id is not None:
+                    reactivation_record = self.store.get(
+                        reactivation_id,
+                        now=evaluated_dt,
+                    )
+                    if (
+                        reactivation_record is None
+                        or not self.policy.permits(decision, reactivation_record)
+                    ):
+                        reactivation_record = None
+                evaluation = self.evidence_horizon.evaluate(
+                    candidate_record,
+                    evaluated_at_utc=evaluated_at,
+                    reactivation_record=reactivation_record,
+                )
+                horizon_by_version[
+                    (record_id, revision, record_sha256)
+                ] = evaluation
+                if evaluation.context_admissible:
+                    filtered.append((record_id, revision, record_sha256))
+            eligible = tuple(filtered)
+
         request_sha256 = sha256_json(
             {
                 "operation": "retrieve",
@@ -247,6 +370,15 @@ class GovernedMemoryService:
                 "task_id": task_id,
                 "limit": limit,
                 "policy_sha256": decision.policy_sha256,
+                "evidence_horizon_policy_sha256": (
+                    self.evidence_horizon.policy.policy_sha256
+                    if self.evidence_horizon is not None
+                    else None
+                ),
+                "reactivation_record_ids": dict(
+                    sorted((reactivation_record_ids or {}).items())
+                ),
+                "evaluated_at_utc": evaluated_at,
             }
         )
         if not eligible:
@@ -305,17 +437,30 @@ class GovernedMemoryService:
         hits: list[MemoryHit] = []
         records: list[MemoryRecord] = []
         admissibility_receipts: list[ReadAdmissibilityReceipt] = []
-        evaluated_at = datetime.now(UTC).isoformat()
+        horizon_receipts = []
+        reactivation_receipts = []
         for candidate in candidates:
             record = self.store.get_current_version(
                 candidate.record_id,
                 candidate.revision,
                 candidate.record_sha256,
+                now=evaluated_dt,
             )
             if record is None:
                 continue
             # Recheck policy after native ranking/canonical hydration.
             if not self.policy.permits(decision, record):
+                continue
+            horizon_evaluation = horizon_by_version.get(
+                (record.record_id, record.revision, record.record_sha256)
+            )
+            if (
+                self.evidence_horizon is not None
+                and (
+                    horizon_evaluation is None
+                    or not horizon_evaluation.context_admissible
+                )
+            ):
                 continue
             records.append(record)
             hits.append(
@@ -336,8 +481,15 @@ class GovernedMemoryService:
                     policy_sha256=decision.policy_sha256,
                     authority=authority,
                     evaluated_at=evaluated_at,
+                    horizon_evaluation=horizon_evaluation,
                 )
             )
+            if horizon_evaluation is not None:
+                horizon_receipts.append(horizon_evaluation.horizon_receipt)
+                if horizon_evaluation.reactivation_receipt is not None:
+                    reactivation_receipts.append(
+                        horizon_evaluation.reactivation_receipt
+                    )
 
         receipt = self._operation_receipt(
             operation_id=operation_id,
@@ -362,6 +514,8 @@ class GovernedMemoryService:
             status="ok",
             hits=tuple(hits),
             read_admissibility_receipts=tuple(admissibility_receipts),
+            evidence_horizon_receipts=tuple(horizon_receipts),
+            reactivation_window_receipts=tuple(reactivation_receipts),
             receipt_id=receipt.receipt_id,
         )
 
@@ -670,6 +824,20 @@ class GovernedMemoryService:
         return None
 
     @staticmethod
+    def _evaluation_time(
+        evaluated_at_utc: str | None,
+    ) -> tuple[str, datetime]:
+        if evaluated_at_utc is None:
+            instant = datetime.now(UTC)
+            return instant.isoformat(), instant
+        normalized = require_utc_timestamp(
+            evaluated_at_utc,
+            "evaluated_at_utc",
+        )
+        instant = datetime.fromisoformat(normalized).astimezone(UTC)
+        return instant.isoformat(), instant
+
+    @staticmethod
     def _read_admissibility_receipt(
         *,
         operation_id: str,
@@ -680,6 +848,7 @@ class GovernedMemoryService:
         policy_sha256: str,
         authority: AuthorityContext,
         evaluated_at: str,
+        horizon_evaluation: EvidenceHorizonEvaluation | None = None,
     ) -> ReadAdmissibilityReceipt:
         body = ReadAdmissibilityReceipt(
             receipt_id=str(
@@ -710,6 +879,24 @@ class GovernedMemoryService:
                 record.transformation_lineage_sha256s
             ),
             taint_labels=record.taint_labels,
+            evidence_horizon_receipt_sha256=(
+                horizon_evaluation.horizon_receipt.receipt_sha256
+                if horizon_evaluation is not None
+                else None
+            ),
+            evidence_horizon_status=(
+                horizon_evaluation.horizon_receipt.status
+                if horizon_evaluation is not None
+                else None
+            ),
+            reactivation_window_receipt_sha256=(
+                horizon_evaluation.reactivation_receipt.receipt_sha256
+                if (
+                    horizon_evaluation is not None
+                    and horizon_evaluation.reactivation_receipt is not None
+                )
+                else None
+            ),
         )
         return replace(body, receipt_sha256=sha256_json(body.to_dict()))
 
