@@ -25,6 +25,7 @@ PhiOS changes quickly, so use this source-of-truth order when documents disagree
 
 - [ENTER THE FIELD → PhiOS research hardening](ENTER_THE_FIELD_PHIOS_HARDENING.md) — evidence-to-architecture traceability, priority stack, and candidate Crucibles. Research mappings remain non-authoritative until independently tested and promoted.
 - [Effect Boundary v0.1](PHIOS_EFFECT_BOUNDARY_V0.1.md) — explicit capability/executor environmental-effect contracts, zero-authority effect receipts, and fail-closed read-label laundering defense.
+- [Observation Frontier v0.1](PHIOS_OBSERVATION_FRONTIER_V0.1.md) — per-claim observation coverage, bounded negative-state support, and zero-authority observability lineage.
 - [Root README](../README.md) — concise project front door and current capabilities.
 - [AGENTS.md](../AGENTS.md) — repository operating constraints for computational collaborators.
 - [CONTRIBUTING.md](../CONTRIBUTING.md) — contribution workflow.
