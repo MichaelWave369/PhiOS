@@ -403,3 +403,34 @@ def test_truncated_semantic_http_observation_is_partial() -> None:
     entry = frontier.entries[0]
     assert entry.status == "PARTIAL"
     assert "http_response_observed_but_semantic_body_truncated" in entry.limitations
+
+
+
+def test_source_early_match_does_not_launder_unread_cited_evidence(
+    tmp_path: Path,
+) -> None:
+    spine = PhiOSSpine(
+        state_root=tmp_path,
+        allowed_permissions=("reality.verify",),
+        task_id="frontier-source-early-match",
+    )
+    first_ref = spine.soma.evidence.put_text("needle here").evidence_ref
+    second_ref = spine.soma.evidence.put_text("other text").evidence_ref
+    claim = RealityClaim(
+        claim_id="source-early",
+        kind=RealityClaimKind.SOURCE_CONTAINS_TEXT,
+        statement="The cited evidence contains needle.",
+        evidence_refs=(first_ref, second_ref),
+        expected_text="needle",
+    )
+
+    result = spine.verify_reality(claims=(claim,))
+
+    assert result.claim_results[0]["verdict"] == RealityVerdict.SUPPORTED.value
+    coverage = result.claim_results[0]["observation_coverage"]
+    assert coverage["status"] == "PARTIAL"
+    assert coverage["evidence_refs"] == [first_ref]
+    assert (
+        "only_subset_of_cited_evidence_was_readable_or_observed"
+        in coverage["limitations"]
+    )
