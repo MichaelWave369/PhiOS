@@ -141,6 +141,25 @@ class RealityReceipt(ReceiptEnvelope):
 
 
 @dataclass(frozen=True, kw_only=True)
+class EffectBoundaryReceipt(ReceiptEnvelope):
+    capability_id: str
+    capability_version: str
+    capability_risk: str
+    capability_effects: tuple[str, ...] = field(default_factory=tuple)
+    executor_effects: tuple[str, ...] = field(default_factory=tuple)
+    active_effects: tuple[str, ...] = field(default_factory=tuple)
+    effect_contract_match: bool = False
+    classification_complete: bool = False
+    semantic_read_label_conflict: bool = False
+    effect_policy_sha256: str = ""
+    reason: str = ""
+    action_authority: bool = False
+    execution_authority: bool = False
+    receipt_sha256: str = ""
+    receipt_type: str = field(init=False, default="EffectBoundaryReceipt")
+
+
+@dataclass(frozen=True, kw_only=True)
 class ActionReceipt(ReceiptEnvelope):
     approved_grant: tuple[str, ...] = field(default_factory=tuple)
     side_effect: dict[str, Any] = field(default_factory=dict)
