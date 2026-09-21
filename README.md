@@ -22,7 +22,7 @@ It currently has three major surfaces:
 |---|---|---:|
 | **PhiOS Shell / MCP** | operator commands, local workflows, integrations, machine-readable capability surfaces | active |
 | **PhiOS Spine** | authority-aware observation, verification, evidence, and receipts | **v0.24** |
-| **PhiOS App Platform** | governed app lifecycle, release discovery, structural evidence, and exact human review | **v0.46** |
+| **PhiOS App Platform** | governed app lifecycle with release review and candidate advancement gating | **v0.47** |
 | **PhiReflex** | provider-neutral System-One shadow, calibrated live influence, authenticated authority, trust lifecycle, and root attestation | **v0.10** |
 
 The common pattern is:
@@ -121,9 +121,9 @@ Current Spine docs:
 - [Spine v0.24 numeric-transition contract](docs/PHIOS_SPINE_V0.24_NUMERIC_TRANSITION_CONTRACT.md)
 - [Complete Spine version trail](docs/README.md#spine-version-trail)
 
-### App Platform v0.46
+### App Platform v0.47
 
-The App Platform now covers a governed lifecycle from public source through cleanup recovery, release discovery, explicit candidate selection, structural change evidence, and digest-bound human acknowledgement:
+The App Platform now covers a governed lifecycle from public source through cleanup recovery, release discovery, exact human review, and enforced candidate advancement into build planning:
 
 ```text
 public repository
@@ -169,6 +169,10 @@ exact-commit intake re-entry
 active-vs-candidate structural change evidence
     ↓
 exact human acknowledgement record
+    ↓
+candidate advancement gate
+    ↓
+gated release-candidate build planning
 ```
 
 Important boundaries remain explicit:
@@ -218,14 +222,20 @@ human acknowledgement
 
 human acknowledgement
 ≠ permission grant / build / install / update authority
+
+candidate advancement
+≠ build execution authority
+
+release build planned
+≠ release build approved / executed
 ```
 
 Current App Platform docs:
 
-- [App Platform v0.46 overview](README_APP_PLATFORM_V0.46.md)
+- [App Platform v0.47 overview](README_APP_PLATFORM_V0.47.md)
+- [v0.47 candidate advancement gate](docs/PHIOS_APP_PLATFORM_V0.47_CANDIDATE_ADVANCEMENT_GATE.md)
 - [v0.46 human release change review contract](docs/PHIOS_APP_PLATFORM_V0.46_HUMAN_CHANGE_REVIEW.md)
 - [v0.45 release change evidence contract](docs/PHIOS_APP_PLATFORM_V0.45_RELEASE_CHANGE_EVIDENCE.md)
-- [v0.44 governed release discovery contract](docs/PHIOS_APP_PLATFORM_V0.44_GOVERNED_RELEASE_DISCOVERY.md)
 - [Complete App Platform version trail](docs/README.md#app-platform-version-trail)
 
 ---
