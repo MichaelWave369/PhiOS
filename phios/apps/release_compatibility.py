@@ -11,6 +11,7 @@ from typing import Any, Protocol, cast
 from .desktop_update import _contained, _load_bundle, _read_json, _root, _verify_current_bundle
 from .intake import GitHubJsonClient, GitHubRepositoryRef, JsonHttpClient
 from .manifest import AppManifest
+from .package_install import BuildPackagePlan
 from .release_discovery import unwrap_release_candidate_intake
 
 RELEASE_CHANGE_EVIDENCE_SCHEMA_VERSION = "phios.release_change_evidence.v0.1"
@@ -251,16 +252,28 @@ def _active_baseline(
     manifest = AppManifest.from_dict(
         _read_json(install_path / ".phios" / "manifest.json", "active app manifest")
     )
+    package_plan = BuildPackagePlan.from_dict(
+        _read_json(
+            install_path / ".phios" / "package-plan.json",
+            "active build package plan",
+        )
+    )
     if manifest.sha256() != bundle.install_receipt.manifest_sha256:
         raise ValueError("active app manifest changed since install receipt")
+    if package_plan.sha256() != bundle.install_receipt.package_plan_sha256:
+        raise ValueError("active build package plan changed since install receipt")
+    if package_plan.manifest_sha256 != manifest.sha256():
+        raise ValueError("active build package plan does not bind installed manifest")
     if manifest.app_id != bundle.plan.app_id or manifest.version != bundle.plan.app_version:
         raise ValueError("active app manifest identity does not match desktop bundle")
+    if package_plan.app_id != manifest.app_id or package_plan.app_version != manifest.version:
+        raise ValueError("active build package plan identity does not match manifest")
     if (
         GitHubRepositoryRef.parse(manifest.source.repository_url).repository_url.lower()
-        != GitHubRepositoryRef.parse(bundle.install_receipt.repository_url).repository_url.lower()
+        != GitHubRepositoryRef.parse(package_plan.repository_url).repository_url.lower()
     ):
-        raise ValueError("active manifest repository does not match install receipt")
-    commit_sha = _sha(bundle.install_receipt.commit_sha, "active install commit_sha")
+        raise ValueError("active manifest repository does not match build package plan")
+    commit_sha = _sha(package_plan.commit_sha, "active package commit_sha")
     return ActiveReleaseBaseline(
         app_id=manifest.app_id,
         version=manifest.version,
