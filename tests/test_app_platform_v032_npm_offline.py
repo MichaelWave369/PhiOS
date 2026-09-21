@@ -14,7 +14,7 @@ from typing import Any
 import pytest
 
 from phios.apps.build_execution import ProcessResult, StreamCapture, ToolIdentity
-from phios.apps.build_plan import plan_build_from_payloads
+from phios.apps.build_plan import BuildPlan, plan_build_from_payloads
 from phios.apps.dependency_broker import DependencyReceipt, StagedDependencyArtifact
 from phios.apps.manifest import AppManifest
 from phios.apps.npm_offline import (
@@ -27,6 +27,8 @@ from phios.apps.npm_offline import (
     derive_npm_offline_build_plan,
     review_npm_offline_build_plan,
 )
+from phios.apps.release_advancement import ReleaseCandidateAdvancementRecord
+from phios.apps.release_build_review import review_release_build_plan
 from phios.apps.sandbox import (
     BuildSandboxPolicy,
     BubblewrapSandboxRunner,
@@ -651,3 +653,114 @@ def test_real_npm_cache_can_feed_lockfile_offline_install(tmp_path: Path) -> Non
     )
     assert install.returncode == 0, install.stderr.decode("utf-8", errors="replace")
     assert (consumer / "node_modules" / "phios-offline-fixture" / "index.js").is_file()
+
+
+
+def test_release_offline_execution_preserves_v048_review_lineage(
+    tmp_path: Path,
+) -> None:
+    acquisition, plan, _, cache = _prepare_cache(tmp_path)
+    advancement = ReleaseCandidateAdvancementRecord(
+        release_candidate_intake_sha256="4" * 64,
+        release_change_evidence_sha256="5" * 64,
+        release_change_acceptance_sha256="6" * 64,
+        app_id=plan.app_id,
+        repository_url=plan.repository_url,
+        active_version="1.0.0",
+        candidate_version="2.0.0",
+        active_commit_sha="9" * 40,
+        candidate_commit_sha=plan.commit_sha,
+        candidate_manifest_sha256=plan.manifest_sha256,
+    )
+    release_plan = BuildPlan(
+        app_id=plan.app_id,
+        repository_url=plan.repository_url,
+        commit_sha=plan.commit_sha,
+        manifest_sha256=plan.manifest_sha256,
+        acquisition_tree_sha256=plan.acquisition_tree_sha256,
+        source_snapshot_sha256=plan.source_snapshot_sha256,
+        source_file_count=plan.source_file_count,
+        source_total_bytes=plan.source_total_bytes,
+        runtime=plan.runtime,
+        strategy=plan.strategy,
+        package_manager=plan.package_manager,
+        working_directory=plan.working_directory,
+        required_tools=plan.required_tools,
+        requested_build_permissions=plan.requested_build_permissions,
+        steps=plan.steps,
+        expected_outputs=plan.expected_outputs,
+        observed_files=plan.observed_files,
+        status=plan.status,
+        notes=plan.notes
+        + (f"release_candidate_advancement_sha256={advancement.sha256()}",),
+    )
+    release_cache = NpmCacheReceipt(
+        receipt_id=cache.receipt_id,
+        timestamp_utc=cache.timestamp_utc,
+        dependency_receipt_sha256=cache.dependency_receipt_sha256,
+        app_id=cache.app_id,
+        repository_url=cache.repository_url,
+        commit_sha=cache.commit_sha,
+        build_plan_sha256=release_plan.sha256(),
+        source_snapshot_sha256=cache.source_snapshot_sha256,
+        lockfile_sha256=cache.lockfile_sha256,
+        npm_tool=cache.npm_tool,
+        cache_path=cache.cache_path,
+        cache_tree_sha256=cache.cache_tree_sha256,
+        cache_file_count=cache.cache_file_count,
+        cache_total_bytes=cache.cache_total_bytes,
+        dependency_artifact_count=cache.dependency_artifact_count,
+        population_network_control=cache.population_network_control,
+        os_network_namespace_enforced=cache.os_network_namespace_enforced,
+        status=cache.status,
+    )
+    offline = derive_npm_offline_build_plan(
+        release_plan.to_dict(),
+        release_cache.to_dict(),
+    )
+    derived = offline.derived_build_plan
+    review = review_release_build_plan(
+        derived.to_dict(),
+        advancement.to_dict(),
+        approved_release_candidate_advancement_sha256=advancement.sha256(),
+    )
+
+    with pytest.raises(ValueError, match="requires v0.48 review"):
+        NpmOfflineBuildRequest.from_payloads(
+            offline.to_dict(),
+            acquisition,
+            release_cache.to_dict(),
+            approved_offline_plan_sha256=offline.sha256(),
+        )
+
+    request = NpmOfflineBuildRequest.from_payloads(
+        offline.to_dict(),
+        acquisition,
+        release_cache.to_dict(),
+        approved_offline_plan_sha256=offline.sha256(),
+        release_build_review_value=review.to_dict(),
+        approved_release_build_review_sha256=review.sha256(),
+    )
+    created: list[FakeOfflineSandboxRunner] = []
+
+    def factory(
+        policy: BuildSandboxPolicy,
+        working_cache: Path,
+    ) -> FakeOfflineSandboxRunner:
+        runner = FakeOfflineSandboxRunner(policy, working_cache)
+        created.append(runner)
+        return runner
+
+    result = NpmOfflineBuildService(runner_factory=factory).execute(
+        request,
+        execution_root=tmp_path / "release-executions",
+    )
+
+    assert request.release_build_review_sha256 == review.sha256()
+    assert result.sandboxed_build.execution.release_build_review_sha256 == review.sha256()
+    assert result.sandboxed_build.execution.to_dict()[
+        "release_build_review_sha256"
+    ] == review.sha256()
+    assert result.offline_receipt.build_execution_receipt_sha256 == (
+        result.sandboxed_build.execution.sha256()
+    )
