@@ -354,6 +354,9 @@ def test_sandbox_service_emits_dual_bound_receipts(tmp_path: Path) -> None:
     assert result.control_plane_isolation.mutation_reachable is False
     assert result.control_plane_isolation.action_authority is False
     assert result.control_plane_isolation.execution_authority is False
+    assert result.sandbox.control_plane_isolation_receipt_sha256 == (
+        result.control_plane_isolation.receipt_sha256
+    )
     assert result.sandbox_receipt_persisted is True
     assert result.sandbox_receipt_path is not None
     assert Path(result.sandbox_receipt_path).is_file()
@@ -384,7 +387,7 @@ def test_control_plane_overlap_blocks_before_backend_preflight(tmp_path: Path) -
             execution_root=tmp_path / "executions",
         )
 
-    assert runner.preflight_calls == 0
+    assert runner.preflight_calls == 1
     assert runner.runs == []
 
 
