@@ -247,3 +247,112 @@ def test_independence_and_disagreement_projection_are_bounded(
     assert projected[1]["promotion_status"] == "not_promoted"
     assert "stance_counts" not in projected[1]
     assert "dependency_groups" not in projected[1]
+
+
+def test_governance_escalation_projection_is_bounded(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "ledger" / "mandala-receipts.jsonl"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    rows = [
+        {
+            "receipt_id": "verifier-semantics-1",
+            "packet_id": "packet-1",
+            "task_id": "task-1",
+            "status": "ACCEPTED",
+            "produced_by": "phios.verifier_semantics",
+            "timestamp_utc": "2026-09-21T20:00:00+00:00",
+            "contract_version": "phios.mandala.v0.1",
+            "parent_receipt_id": "reality-1",
+            "receipt_type": "VerifierSemanticsReceipt",
+            "source_reality_receipt_id": "reality-1",
+            "semantics_schema_version": "phios.verifier_semantics.v0.1",
+            "source_reality_receipt_sha256": "a" * 64,
+            "verifier_id": "reality.verifier",
+            "verification_method": "bounded-evidence-v0.14",
+            "source_status": "DISPUTED",
+            "verdict_summary": {"CONTRADICTED": 1},
+            "detects_evidence_state": True,
+            "may_emit_escalation_request": True,
+            "may_authorize_remediation": False,
+            "may_execute_remediation": False,
+            "may_promote": False,
+            "operational_authority": False,
+            "action_authority": False,
+            "execution_authority": False,
+            "receipt_sha256": "b" * 64,
+        },
+        {
+            "receipt_id": "escalation-1",
+            "packet_id": "packet-1",
+            "task_id": "task-1",
+            "status": "ACCEPTED",
+            "produced_by": "phios.governance_escalation",
+            "timestamp_utc": "2026-09-21T20:00:01+00:00",
+            "contract_version": "phios.mandala.v0.1",
+            "parent_receipt_id": "verifier-semantics-1",
+            "receipt_type": "GovernanceEscalationReceipt",
+            "source_reality_receipt_id": "reality-1",
+            "escalation_schema_version": "phios.governance_escalation.v0.1",
+            "source_reality_receipt_sha256": "a" * 64,
+            "verifier_semantics_receipt_sha256": "b" * 64,
+            "request_id": "request-1",
+            "disposition": "REMEDIATE",
+            "routing_status": "ROUTED_FOR_AUTHORIZATION",
+            "reason": "private detailed remediation reason",
+            "target_ref": "governed_action_binding.review",
+            "trigger_claim_ids": ["claim-secret-1"],
+            "trigger_verdicts": [
+                {"claim_id": "claim-secret-1", "verdict": "CONTRADICTED"}
+            ],
+            "candidate_capability_id": "commons.text_artifact",
+            "candidate_capability_version": "0.1.0",
+            "candidate_capability_risk": "low",
+            "candidate_capability_contract_sha256": "c" * 64,
+            "candidate_payload_sha256": "d" * 64,
+            "requested_permissions": ["artifact.write"],
+            "requested_effects": ["filesystem.change"],
+            "downstream_authority_required": True,
+            "remediation_authorized": False,
+            "remediation_executed": False,
+            "promotion_status": "not_promoted",
+            "operational_authority": False,
+            "action_authority": False,
+            "execution_authority": False,
+            "receipt_sha256": "e" * 64,
+        },
+    ]
+    path.write_text(
+        "\n".join(json.dumps(row, sort_keys=True) for row in rows) + "\n",
+        encoding="utf-8",
+    )
+
+    snapshot = LedgerSnapshotExporter(state_root=tmp_path).export(
+        authority=_authority()
+    )
+    projected = [
+        json.loads(line)
+        for line in (Path(snapshot.snapshot_path) / "mandala.jsonl")
+        .read_text(encoding="utf-8")
+        .splitlines()
+    ]
+
+    semantics = projected[0]
+    escalation = projected[1]
+    assert semantics["receipt_type"] == "VerifierSemanticsReceipt"
+    assert semantics["may_authorize_remediation"] is False
+    assert semantics["may_execute_remediation"] is False
+    assert semantics["action_authority"] is False
+    assert escalation["receipt_type"] == "GovernanceEscalationReceipt"
+    assert escalation["routing_status"] == "ROUTED_FOR_AUTHORIZATION"
+    assert escalation["trigger_claim_count"] == 1
+    assert escalation["requested_permission_count"] == 1
+    assert escalation["requested_effect_count"] == 1
+    assert escalation["remediation_authorized"] is False
+    assert escalation["remediation_executed"] is False
+    assert escalation["action_authority"] is False
+    assert "reason" not in escalation
+    assert "trigger_claim_ids" not in escalation
+    assert "trigger_verdicts" not in escalation
+    assert "requested_permissions" not in escalation
+    assert "requested_effects" not in escalation
