@@ -362,7 +362,7 @@ def _hardened_router(
             ),
         ),
         require_dynamic_state_receipt=True,
-        expected_dynamic_state_policy_sha256=controller.policy.policy_sha256,
+        dynamic_state_controller=controller,
     )
 
 
@@ -483,7 +483,7 @@ def test_hardened_router_rejects_wrong_temporal_policy() -> None:
         observed_at_utc="2026-09-21T20:00:01+00:00",
     )
 
-    with pytest.raises(FieldAwareRoutingContractError, match="another temporal policy"):
+    with pytest.raises(FieldAwareRoutingContractError, match="another policy"):
         router.route(
             result,
             [{"id": "A"}],
