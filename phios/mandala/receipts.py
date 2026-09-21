@@ -289,6 +289,9 @@ class ReadAdmissibilityReceipt(ReceiptEnvelope):
     exactness_class: str | None = None
     transformation_lineage_sha256s: tuple[str, ...] = field(default_factory=tuple)
     taint_labels: tuple[str, ...] = field(default_factory=tuple)
+    evidence_horizon_receipt_sha256: str | None = None
+    evidence_horizon_status: str | None = None
+    reactivation_window_receipt_sha256: str | None = None
     operational_authority: bool = False
     action_authority: bool = False
     execution_authority: bool = False
