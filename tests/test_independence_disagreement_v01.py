@@ -114,6 +114,10 @@ def test_three_explicitly_independent_paths_can_earn_three_groups() -> None:
     assert independence.independence_status == "INDEPENDENT"
     assert independence.independent_pair_count == 3
     assert independence.demonstrated_independent_group_count == 3
+    assert all(
+        pair["shared_context"] is True
+        for pair in independence.pairwise_relations
+    )
     assert independence.agreement_without_independence is False
     assert disagreement.independence_qualified_agreement is True
     assert disagreement.independent_stance_group_counts["SUPPORTS"] == 3
