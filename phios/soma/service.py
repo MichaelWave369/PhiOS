@@ -1025,9 +1025,11 @@ class SomaPerceptionService:
                 recovery_steps=tuple(recovery_steps),
             )
 
-        derived = []
+        derived: list[NativeEvidence] = []
         chain: list[dict[str, Any]] = []
+        lineages: list[TransformationLineageReceipt] = []
         parent_ref = evidence_ref
+        parent_sha256 = hashlib.sha256(native_bytes).hexdigest()
 
         if frames.cropped is not None:
             crop_evidence = self.evidence.put_bytes(
@@ -1035,16 +1037,40 @@ class SomaPerceptionService:
                 media_type=frames.cropped.media_type,
                 suffix=frames.cropped.suffix,
             )
+            crop_lineage = self.transformations.build(
+                transform_id="soma.screen.tight_crop",
+                transform_version="v0.1",
+                source_refs=(parent_ref,),
+                source_sha256s=(parent_sha256,),
+                output_ref=crop_evidence.evidence_ref,
+                output_sha256=crop_evidence.sha256,
+                parameters={
+                    "crop": crop.to_dict() if crop is not None else None,
+                    "backend": provider.name,
+                },
+                requested_exactness=ExactnessClass.LOSSY_DERIVED,
+                parent_receipts=tuple(lineages[-1:]),
+                added_taints=("cropped_context",),
+                information_loss_possible=True,
+                semantic_inference=False,
+                limitations=(
+                    "pixels_outside_crop_are_not_present_in_output",
+                    "native_source_preserved",
+                ),
+            )
             derived.append(crop_evidence)
+            lineages.append(crop_lineage)
             chain.append(
                 {
                     "step": "tight_crop",
                     "input_evidence_ref": parent_ref,
                     "output_evidence_ref": crop_evidence.evidence_ref,
                     "crop": crop.to_dict() if crop is not None else None,
+                    "transformation_lineage_sha256": crop_lineage.receipt_sha256,
                 }
             )
             parent_ref = crop_evidence.evidence_ref
+            parent_sha256 = crop_evidence.sha256
 
         if frames.enlarged is not None:
             enlarge_evidence = self.evidence.put_bytes(
@@ -1052,19 +1078,46 @@ class SomaPerceptionService:
                 media_type=frames.enlarged.media_type,
                 suffix=frames.enlarged.suffix,
             )
+            enlarge_lineage = self.transformations.build(
+                transform_id="soma.screen.native_enlarge",
+                transform_version="v0.1",
+                source_refs=(parent_ref,),
+                source_sha256s=(parent_sha256,),
+                output_ref=enlarge_evidence.evidence_ref,
+                output_sha256=enlarge_evidence.sha256,
+                parameters={
+                    "scale": scale,
+                    "method": "nearest_neighbor_pixel_replication",
+                    "backend": provider.name,
+                },
+                requested_exactness=ExactnessClass.LOSSY_DERIVED,
+                parent_receipts=tuple(lineages[-1:]),
+                added_taints=("resampled_pixels",),
+                information_loss_possible=True,
+                semantic_inference=False,
+                limitations=(
+                    "resampling_does_not_create_new_native_detail",
+                    "reversibility_not_asserted",
+                    "native_source_preserved",
+                ),
+            )
             derived.append(enlarge_evidence)
+            lineages.append(enlarge_lineage)
             chain.append(
                 {
                     "step": f"native_enlarge_x{scale}",
                     "input_evidence_ref": parent_ref,
                     "output_evidence_ref": enlarge_evidence.evidence_ref,
                     "method": "nearest_neighbor_pixel_replication",
+                    "transformation_lineage_sha256": enlarge_lineage.receipt_sha256,
                 }
             )
             parent_ref = enlarge_evidence.evidence_ref
+            parent_sha256 = enlarge_evidence.sha256
 
         final = frames.final
         final_evidence = derived[-1]
+        final_lineage = lineages[-1]
         receipt = PerceptionReceipt(
             **receipt_meta(
                 packet,
@@ -1092,6 +1145,11 @@ class SomaPerceptionService:
             observation_evidence_ref=final_evidence.evidence_ref,
             derivation_chain=tuple(chain),
             recovery_backend=provider.name,
+            transformation_lineage_sha256s=tuple(
+                item.receipt_sha256 for item in lineages
+            ),
+            exactness_class=final_lineage.exactness_class.value,
+            taint_labels=final_lineage.effective_taints,
         )
         self.ledger.append(receipt)
         return ScreenRecoveryResult(
@@ -1102,6 +1160,7 @@ class SomaPerceptionService:
             observation_evidence_ref=final_evidence.evidence_ref,
             observation_sha256=final_evidence.sha256,
             recovery_steps=tuple(recovery_steps),
+            transformation_lineage=tuple(lineages),
         )
 
 
