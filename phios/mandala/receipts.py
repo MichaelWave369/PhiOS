@@ -211,11 +211,11 @@ class DisagreementDecompositionReceipt(ReceiptEnvelope):
 @dataclass(frozen=True, kw_only=True)
 class VerifierSemanticsReceipt(ReceiptEnvelope):
     source_reality_receipt_id: str
-    semantics_schema_version: str = "phios.verifier_semantics.v0.1"
     source_reality_receipt_sha256: str
     verifier_id: str
     verification_method: str
     source_status: str
+    semantics_schema_version: str = "phios.verifier_semantics.v0.1"
     verdict_summary: dict[str, int] = field(default_factory=dict)
     detects_evidence_state: bool = True
     may_emit_escalation_request: bool = True
@@ -232,7 +232,6 @@ class VerifierSemanticsReceipt(ReceiptEnvelope):
 @dataclass(frozen=True, kw_only=True)
 class GovernanceEscalationReceipt(ReceiptEnvelope):
     source_reality_receipt_id: str
-    escalation_schema_version: str = "phios.governance_escalation.v0.1"
     source_reality_receipt_sha256: str
     verifier_semantics_receipt_sha256: str
     request_id: str
@@ -240,6 +239,7 @@ class GovernanceEscalationReceipt(ReceiptEnvelope):
     routing_status: str
     reason: str
     target_ref: str
+    escalation_schema_version: str = "phios.governance_escalation.v0.1"
     trigger_claim_ids: tuple[str, ...] = field(default_factory=tuple)
     trigger_verdicts: tuple[dict[str, str], ...] = field(default_factory=tuple)
     candidate_capability_id: str | None = None
