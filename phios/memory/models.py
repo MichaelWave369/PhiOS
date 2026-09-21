@@ -2,7 +2,10 @@ from __future__ import annotations
 
 import hashlib
 from dataclasses import dataclass, field
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
+
+if TYPE_CHECKING:
+    from .horizon import EvidenceHorizonReceipt, ReactivationWindowReceipt
 
 from phios.mandala import ExactnessClass, OriginKind, ReadAdmissibilityReceipt
 
@@ -252,6 +255,12 @@ class MemoryResult:
     record: MemoryRecord | None = None
     hits: tuple[MemoryHit, ...] = field(default_factory=tuple)
     read_admissibility_receipts: tuple[ReadAdmissibilityReceipt, ...] = field(
+        default_factory=tuple
+    )
+    evidence_horizon_receipts: tuple["EvidenceHorizonReceipt", ...] = field(
+        default_factory=tuple
+    )
+    reactivation_window_receipts: tuple["ReactivationWindowReceipt", ...] = field(
         default_factory=tuple
     )
     receipt_id: str | None = None
