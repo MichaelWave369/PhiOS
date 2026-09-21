@@ -255,6 +255,7 @@ def test_capability_contract_drift_is_held(tmp_path: Path) -> None:
         name="Custom",
         description="bound version",
         permissions=("custom.write",),
+        effects=("filesystem.change",),
         risk="low",
         version="1.0.0",
     )
@@ -296,6 +297,7 @@ def test_failed_executor_consumes_binding_to_prevent_blind_retry(
         name="Failure",
         description="always fails",
         permissions=("custom.execute",),
+        effects=("external_state.change",),
         risk="medium",
         version="1.0.0",
     )
@@ -309,7 +311,11 @@ def test_failed_executor_consumes_binding_to_prevent_blind_retry(
     def fail_handler(data: dict[str, object]) -> ArtifactResult:
         raise RuntimeError("simulated executor failure")
 
-    spine.executors.register(capability.id, fail_handler)
+    spine.executors.register(
+        capability.id,
+        fail_handler,
+        effects=("external_state.change",),
+    )
     handoff = GovernedExecutionHandoff()
 
     failed = handoff.execute(
