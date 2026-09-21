@@ -75,6 +75,10 @@ from .retained_cleanup import (
 )
 from .registry import AppRegistry
 from .release_compatibility import ReleaseChangeEvidenceService
+from .release_review import (
+    MarkerChangeAcknowledgement,
+    accept_release_change_evidence,
+)
 from .release_discovery import (
     ReleaseDiscoveryService,
     inspect_selected_release,
@@ -196,6 +200,45 @@ def _parser() -> argparse.ArgumentParser:
         type=Path,
         default=Path.home() / ".local" / "share" / "applications",
     )
+
+    accept_release_parser = subparsers.add_parser(
+        "accept-release-changes",
+        help=(
+            "Record human acknowledgement of the exact observed v0.45 release "
+            "changes without granting compatibility or mutation authority."
+        ),
+    )
+    accept_release_parser.add_argument("release_change_evidence_json", type=Path)
+    accept_release_parser.add_argument(
+        "--approve-release-change-evidence-sha",
+        required=True,
+    )
+    accept_release_parser.add_argument(
+        "--ack-manifest-change",
+        action="append",
+        default=[],
+        dest="ack_manifest_changes",
+    )
+    accept_release_parser.add_argument(
+        "--ack-permission-added",
+        action="append",
+        default=[],
+        dest="ack_permissions_added",
+    )
+    accept_release_parser.add_argument(
+        "--ack-permission-removed",
+        action="append",
+        default=[],
+        dest="ack_permissions_removed",
+    )
+    accept_release_parser.add_argument(
+        "--ack-marker-change",
+        action="append",
+        default=[],
+        dest="ack_marker_changes",
+        help="Acknowledge one observed marker change using PATH=CHANGE.",
+    )
+    accept_release_parser.add_argument("--review-note", default=None)
 
     inspect_parser = subparsers.add_parser(
         "inspect-github",
@@ -1114,6 +1157,30 @@ def main(argv: Sequence[str] | None = None) -> int:
             print(json.dumps({"status": "blocked", "error": str(exc)}, sort_keys=True))
             return 2
         print(json.dumps(change_evidence.to_dict(), sort_keys=True, indent=2))
+        return 0
+
+    if args.command == "accept-release-changes":
+        try:
+            evidence_payload = _load_json_file(args.release_change_evidence_json)
+            marker_acknowledgements = tuple(
+                MarkerChangeAcknowledgement.from_text(item)
+                for item in args.ack_marker_changes
+            )
+            acceptance = accept_release_change_evidence(
+                evidence_payload,
+                approved_release_change_evidence_sha256=(
+                    args.approve_release_change_evidence_sha
+                ),
+                acknowledged_manifest_changes=tuple(args.ack_manifest_changes),
+                acknowledged_permissions_added=tuple(args.ack_permissions_added),
+                acknowledged_permissions_removed=tuple(args.ack_permissions_removed),
+                acknowledged_source_marker_changes=marker_acknowledgements,
+                review_note=args.review_note,
+            )
+        except (OSError, ValueError) as exc:
+            print(json.dumps({"status": "blocked", "error": str(exc)}, sort_keys=True))
+            return 2
+        print(json.dumps(acceptance.to_dict(), sort_keys=True, indent=2))
         return 0
 
     if args.command == "inspect-github":
