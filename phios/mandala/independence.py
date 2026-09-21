@@ -207,8 +207,11 @@ class DeliberationEvidenceAssessor:
 
         assertion_map: dict[tuple[str, str], IndependenceAssertion] = {}
         for raw in assertions:
-            assertion = raw.normalized()
-            key = (assertion.left_path_id, assertion.right_path_id)
+            normalized_assertion = raw.normalized()
+            key = (
+                normalized_assertion.left_path_id,
+                normalized_assertion.right_path_id,
+            )
             if key[0] not in known_ids or key[1] not in known_ids:
                 raise IndependenceContractError(
                     "independence assertion references unknown path"
@@ -217,7 +220,7 @@ class DeliberationEvidenceAssessor:
                 raise IndependenceContractError(
                     "duplicate independence assertion for path pair"
                 )
-            assertion_map[key] = assertion
+            assertion_map[key] = normalized_assertion
 
         path_map = {path.path_id: path for path in normalized_paths}
         pairwise: list[dict[str, object]] = []
