@@ -536,8 +536,6 @@ def _route_receipt_digest(receipt: FieldAwareRouteReceipt) -> str:
         "total_cost": receipt.total_cost,
         "optimality_scope": receipt.optimality_scope,
         "action_authority": receipt.action_authority,
-        "dynamic_state_receipt_sha256": receipt.dynamic_state_receipt_sha256,
-        "dynamic_state_status": receipt.dynamic_state_status,
     }
     return _payload_digest(payload)
 
