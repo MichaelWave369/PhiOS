@@ -1029,7 +1029,7 @@ an effective field state merely by retaining its old hash.
 
 ```text
 require_dynamic_state_receipt = true
-expected_dynamic_state_policy_sha256 = ...
+dynamic_state_controller = <frozen policy controller>
 ```
 
 In hardened mode:
@@ -1038,7 +1038,7 @@ In hardened mode:
 - a `DynamicStateEvaluation` must be supplied;
 - the lifecycle receipt must be internally valid and consumable;
 - the receipt must bind the same immutable field law;
-- the policy hash must equal the router's frozen expected policy;
+- the router's frozen DynamicStateController recomputes the exact policy evaluation;
 - a terminated state fails before route computation.
 
 The existing route receipt schema is intentionally unchanged. It binds the exact
@@ -1072,7 +1072,7 @@ It does not:
 - allow a lifecycle transition to grant permissions;
 - automatically apply a default decay policy to every legacy router.
 
-The hardened router path must be explicitly configured with the expected policy hash.
+The hardened router path must be explicitly configured with the intended DynamicStateController and its immutable policy.
 
 ## Finding traceability
 
