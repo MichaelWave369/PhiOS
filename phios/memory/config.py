@@ -20,6 +20,10 @@ _ALLOWED_KEYS = {
     "embedding_model",
     "embedding_dimensions",
     "embedding_model_digest",
+    "evidence_horizon_enabled",
+    "active_context_window_seconds",
+    "reactivation_window_seconds",
+    "fresh_evidence_window_seconds",
 }
 
 
@@ -35,6 +39,10 @@ class MemoryRuntimeConfig:
     embedding_model: str = ""
     embedding_dimensions: int = 0
     embedding_model_digest: str | None = None
+    evidence_horizon_enabled: bool = False
+    active_context_window_seconds: float = 86_400.0
+    reactivation_window_seconds: float = 2_592_000.0
+    fresh_evidence_window_seconds: float = 21_600.0
     config_version: str = CONFIG_VERSION
 
     @classmethod
@@ -57,8 +65,16 @@ class MemoryRuntimeConfig:
             raise ValueError("unsupported memory config version")
         enabled = raw.get("enabled", False)
         semantic_enabled = raw.get("semantic_enabled", False)
-        if not isinstance(enabled, bool) or not isinstance(semantic_enabled, bool):
-            raise ValueError("enabled and semantic_enabled must be booleans")
+        horizon_enabled = raw.get("evidence_horizon_enabled", False)
+        if (
+            not isinstance(enabled, bool)
+            or not isinstance(semantic_enabled, bool)
+            or not isinstance(horizon_enabled, bool)
+        ):
+            raise ValueError(
+                "enabled, semantic_enabled, and evidence_horizon_enabled "
+                "must be booleans"
+            )
         principal_id = require_nonempty(str(raw.get("principal_id", "operator")), "principal_id")
         scopes = _string_tuple(raw.get("scopes", ["private"]), "scopes")
         classifications = _string_tuple(
@@ -83,6 +99,29 @@ class MemoryRuntimeConfig:
                 raise ValueError("embedding_dimensions must be between 1 and 4096")
         elif dimensions_raw < 0:
             raise ValueError("embedding_dimensions must be >= 0")
+        active_window = _positive_number(
+            raw.get("active_context_window_seconds", 86_400.0),
+            "active_context_window_seconds",
+        )
+        reactivation_window = _positive_number(
+            raw.get("reactivation_window_seconds", 2_592_000.0),
+            "reactivation_window_seconds",
+        )
+        fresh_window = _positive_number(
+            raw.get("fresh_evidence_window_seconds", 21_600.0),
+            "fresh_evidence_window_seconds",
+        )
+        if reactivation_window <= active_window:
+            raise ValueError(
+                "reactivation_window_seconds must exceed "
+                "active_context_window_seconds"
+            )
+        if fresh_window > active_window:
+            raise ValueError(
+                "fresh_evidence_window_seconds cannot exceed "
+                "active_context_window_seconds"
+            )
+
         digest_raw = raw.get("embedding_model_digest")
         digest = None
         if digest_raw is not None:
@@ -103,6 +142,10 @@ class MemoryRuntimeConfig:
             embedding_model=model,
             embedding_dimensions=dimensions_raw,
             embedding_model_digest=digest,
+            evidence_horizon_enabled=horizon_enabled,
+            active_context_window_seconds=active_window,
+            reactivation_window_seconds=reactivation_window,
+            fresh_evidence_window_seconds=fresh_window,
             config_version=CONFIG_VERSION,
         )
 
@@ -131,6 +174,10 @@ class MemoryRuntimeConfig:
             "embedding_model": self.embedding_model,
             "embedding_dimensions": self.embedding_dimensions,
             "embedding_model_digest": self.embedding_model_digest,
+            "evidence_horizon_enabled": self.evidence_horizon_enabled,
+            "active_context_window_seconds": self.active_context_window_seconds,
+            "reactivation_window_seconds": self.reactivation_window_seconds,
+            "fresh_evidence_window_seconds": self.fresh_evidence_window_seconds,
         }
 
 
@@ -158,3 +205,12 @@ def write_disabled_template(path: Path, *, overwrite: bool = False) -> None:
         target.chmod(0o600)
     except OSError:
         pass
+
+
+def _positive_number(value: object, field: str) -> float:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ValueError(f"{field} must be numeric")
+    number = float(value)
+    if number <= 0.0 or number != number or number in (float("inf"), float("-inf")):
+        raise ValueError(f"{field} must be finite and > 0")
+    return number
