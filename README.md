@@ -22,7 +22,7 @@ It currently has three major surfaces:
 |---|---|---:|
 | **PhiOS Shell / MCP** | operator commands, local workflows, integrations, machine-readable capability surfaces | active |
 | **PhiOS Spine** | authority-aware observation, verification, evidence, and receipts | **v0.24** |
-| **PhiOS App Platform** | governed app lifecycle with release review, execution lineage, and package provenance | **v0.49** |
+| **PhiOS App Platform** | governed app lifecycle with release review, execution lineage, and release-install proposal gating | **v0.50** |
 | **PhiReflex** | provider-neutral System-One shadow, calibrated live influence, authenticated authority, trust lifecycle, and root attestation | **v0.10** |
 
 The common pattern is:
@@ -121,9 +121,9 @@ Current Spine docs:
 - [Spine v0.24 numeric-transition contract](docs/PHIOS_SPINE_V0.24_NUMERIC_TRANSITION_CONTRACT.md)
 - [Complete Spine version trail](docs/README.md#spine-version-trail)
 
-### App Platform v0.49
+### App Platform v0.50
 
-The App Platform now covers a governed lifecycle from public source through cleanup recovery, release discovery, exact human review, candidate advancement, gated planning, release-build review, and lineage-preserving execution/package evidence:
+The App Platform now covers a governed lifecycle from public source through cleanup recovery, release discovery, exact human review, candidate advancement, gated planning, lineage-preserving execution/package evidence, and an explicit release-install proposal gate:
 
 ```text
 public repository
@@ -183,6 +183,12 @@ lineage-bound execution receipt
 offline receipt preserves execution binding
     ↓
 lineage-bound package plan / review
+    ↓
+release install proposal
+    ↓
+exact proposal + package-plan approval
+    ↓
+side-by-side candidate install receipt
 ```
 
 Important boundaries remain explicit:
@@ -250,11 +256,18 @@ successful release build
 
 lineage-bound package plan
 ≠ install / update authority
+
+release install proposal
+≠ install / update authority
+
+side-by-side candidate installed
+≠ launch / update authority
 ```
 
 Current App Platform docs:
 
-- [App Platform v0.49 overview](README_APP_PLATFORM_V0.49.md)
+- [App Platform v0.50 overview](README_APP_PLATFORM_V0.50.md)
+- [v0.50 release install proposal gate](docs/PHIOS_APP_PLATFORM_V0.50_RELEASE_INSTALL_PROPOSAL_GATE.md)
 - [v0.49 release execution lineage](docs/PHIOS_APP_PLATFORM_V0.49_RELEASE_EXECUTION_LINEAGE.md)
 - [v0.48 release build review binding](docs/PHIOS_APP_PLATFORM_V0.48_RELEASE_BUILD_REVIEW_BINDING.md)
 - [v0.47 candidate advancement gate](docs/PHIOS_APP_PLATFORM_V0.47_CANDIDATE_ADVANCEMENT_GATE.md)
