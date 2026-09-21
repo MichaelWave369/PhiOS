@@ -22,6 +22,13 @@ from .build_execution import (
     ProcessResult,
     SubprocessBuildRunner,
 )
+from .control_plane_isolation import (
+    ControlPlaneIsolationReceipt,
+    ControlPlaneSurfaceMap,
+    SandboxReachabilitySnapshot,
+    default_phios_control_plane_surfaces,
+    evaluate_control_plane_isolation,
+)
 
 BUILD_SANDBOX_POLICY_SCHEMA_VERSION = "phios.build_sandbox_policy.v0.1"
 BUILD_SANDBOX_RECEIPT_SCHEMA_VERSION = "phios.build_sandbox_receipt.v0.1"
@@ -63,6 +70,7 @@ _RESERVED_SANDBOX_ENV = {
     "PHIOS_BUILD_EXECUTION",
     "PHIOS_BUILD_SANDBOX",
     "PHIOS_EXECUTION_SOURCE",
+    "PHIOS_REFLEX_HOME",
 }
 
 
@@ -268,15 +276,21 @@ class BuildSandboxReceipt:
 class SandboxedBuildExecutionResult:
     execution: BuildExecutionReceipt
     sandbox: BuildSandboxReceipt
+    control_plane_isolation: ControlPlaneIsolationReceipt
     sandbox_receipt_path: str | None
     sandbox_receipt_persisted: bool
+    control_plane_receipt_path: str | None
+    control_plane_receipt_persisted: bool
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "execution": self.execution.to_dict(),
             "sandbox": self.sandbox.to_dict(),
+            "control_plane_isolation": self.control_plane_isolation.to_dict(),
             "sandbox_receipt_path": self.sandbox_receipt_path,
             "sandbox_receipt_persisted": self.sandbox_receipt_persisted,
+            "control_plane_receipt_path": self.control_plane_receipt_path,
+            "control_plane_receipt_persisted": self.control_plane_receipt_persisted,
         }
 
 
@@ -288,6 +302,13 @@ class SandboxBuildRunner(BuildProcessRunner, Protocol):
     def preflight(self) -> SandboxBackendIdentity: ...
 
     def control_evidence(self) -> SandboxControlEvidence: ...
+
+    def control_plane_isolation_receipt(
+        self,
+        *,
+        source_root: Path,
+        evaluated_at: str,
+    ) -> ControlPlaneIsolationReceipt: ...
 
 
 class BubblewrapSandboxRunner(SubprocessBuildRunner):
@@ -302,6 +323,7 @@ class BubblewrapSandboxRunner(SubprocessBuildRunner):
         extra_read_only_binds: tuple[tuple[Path, str], ...] = (),
         extra_read_write_binds: tuple[tuple[Path, str], ...] = (),
         extra_environment: dict[str, str] | None = None,
+        control_plane_surfaces: ControlPlaneSurfaceMap | None = None,
     ) -> None:
         self.policy = policy
         self.bwrap_path = bwrap_path
@@ -318,6 +340,9 @@ class BubblewrapSandboxRunner(SubprocessBuildRunner):
         if len(targets) != len(set(targets)):
             raise ValueError("Sandbox auxiliary mount targets must be unique")
         self.extra_environment = self._validate_extra_environment(extra_environment or {})
+        self.control_plane_surfaces = (
+            control_plane_surfaces or default_phios_control_plane_surfaces()
+        )
         self.network_sandbox_enforced = policy.network_mode == "deny"
         self._backend_identity: SandboxBackendIdentity | None = None
         self._resolved_tool_dirs: set[str] = set()
@@ -639,6 +664,35 @@ class BubblewrapSandboxRunner(SubprocessBuildRunner):
             parent_death_enforced=True,
         )
 
+    def control_plane_isolation_receipt(
+        self,
+        *,
+        source_root: Path,
+        evaluated_at: str,
+    ) -> ControlPlaneIsolationReceipt:
+        controls = self.control_evidence()
+        snapshot = SandboxReachabilitySnapshot.build(
+            source_root=source_root,
+            read_only_host_paths=tuple(
+                host_path for host_path, _target in self.extra_read_only_binds
+            ),
+            read_write_host_paths=tuple(
+                host_path for host_path, _target in self.extra_read_write_binds
+            ),
+            environment_keys=tuple(self.extra_environment),
+            network_mode=self.policy.network_mode,
+            mount_namespace_enforced=controls.mount_namespace_enforced,
+            user_namespace_enforced=controls.user_namespace_enforced,
+            pid_namespace_enforced=controls.pid_namespace_enforced,
+            ipc_namespace_enforced=controls.ipc_namespace_enforced,
+            network_namespace_enforced=controls.network_namespace_enforced,
+        )
+        return evaluate_control_plane_isolation(
+            surface_map=self.control_plane_surfaces,
+            snapshot=snapshot,
+            evaluated_at=evaluated_at,
+        )
+
     def _execute(
         self,
         *,
@@ -686,6 +740,26 @@ class BubblewrapSandboxRunner(SubprocessBuildRunner):
         return str(resolved_path), result
 
 
+def _persist_control_plane_receipt(
+    path: Path,
+    receipt: ControlPlaneIsolationReceipt,
+) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_name(f".{path.name}.{uuid.uuid4().hex}.tmp")
+    payload = json.dumps(
+        receipt.to_dict(),
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+    )
+    try:
+        temporary.write_text(payload + "\n", encoding="utf-8")
+        temporary.replace(path)
+    finally:
+        if temporary.exists():
+            temporary.unlink()
+
+
 def _persist_sandbox_receipt(path: Path, receipt: BuildSandboxReceipt) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_name(f".{path.name}.{uuid.uuid4().hex}.tmp")
@@ -728,6 +802,16 @@ class SandboxedBuildExecutionService:
                     "Host network inheritance requires build.network.dependencies approval"
                 )
 
+        control_plane = self.runner.control_plane_isolation_receipt(
+            source_root=request.acquisition.workspace_path,
+            evaluated_at=datetime.now(UTC).isoformat(),
+        )
+        if control_plane.status != "ISOLATED":
+            raise ValueError(
+                "Build sandbox control-plane isolation failed closed: "
+                f"{control_plane.reason}"
+            )
+
         backend_identity = self.runner.preflight()
         execution = BuildExecutionService(
             runner=self.runner,
@@ -763,17 +847,30 @@ class SandboxedBuildExecutionService:
         root = execution_root.expanduser().resolve()
         receipts = (receipt_root or (root / ".phios-receipts")).expanduser().resolve()
         sandbox_path = receipts / f"sandbox-{execution.execution_id}.json"
+        control_plane_path = receipts / (
+            f"control-plane-isolation-{execution.execution_id}.json"
+        )
         persisted = True
         path_text: str | None = str(sandbox_path)
+        control_plane_persisted = True
+        control_plane_path_text: str | None = str(control_plane_path)
         try:
             _persist_sandbox_receipt(sandbox_path, sandbox_receipt)
         except OSError:
             persisted = False
             path_text = None
+        try:
+            _persist_control_plane_receipt(control_plane_path, control_plane)
+        except OSError:
+            control_plane_persisted = False
+            control_plane_path_text = None
 
         return SandboxedBuildExecutionResult(
             execution=execution,
             sandbox=sandbox_receipt,
+            control_plane_isolation=control_plane,
             sandbox_receipt_path=path_text,
             sandbox_receipt_persisted=persisted,
+            control_plane_receipt_path=control_plane_path_text,
+            control_plane_receipt_persisted=control_plane_persisted,
         )
