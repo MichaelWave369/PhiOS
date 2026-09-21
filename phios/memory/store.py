@@ -448,6 +448,16 @@ class MemoryStore:
             expires_at=str(payload["expires_at"]) if payload.get("expires_at") else None,
             epistemic_kind=str(payload["epistemic_kind"]),  # type: ignore[arg-type]
             derived_from=tuple(str(v) for v in payload["derived_from"]),
+            exactness_class=(
+                str(payload["exactness_class"])
+                if payload.get("exactness_class") is not None
+                else None
+            ),
+            transformation_lineage_sha256s=tuple(
+                str(v)
+                for v in payload.get("transformation_lineage_sha256s", [])
+            ),
+            taint_labels=tuple(str(v) for v in payload.get("taint_labels", [])),
             contradicts=tuple(str(v) for v in payload["contradicts"]),
             text=str(payload["text"]),
             content_sha256=str(payload["content_sha256"]),
