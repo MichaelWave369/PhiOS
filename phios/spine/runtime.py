@@ -12,12 +12,16 @@ from typing import Any
 from phios.mandala import (
     AbortReceipt,
     ActionReceipt,
+    DeliberationEvidenceAssessor,
+    DeliberationEvidenceResult,
     EffectBoundaryReceipt,
+    EvidencePathDeclaration,
     Gate,
     GateReceipt,
     MandalaPacket,
     MandalaReceiptLedger,
     MandalaStatus,
+    IndependenceAssertion,
     OriginKind,
     OriginRef,
     PhiCoreState,
@@ -102,6 +106,9 @@ class PhiOSSpine:
             ledger=self.mandala_ledger,
             task_id=self.core.task_id,
             authority=self.core.authority,
+        )
+        self.deliberation_evidence = DeliberationEvidenceAssessor(
+            self.mandala_ledger
         )
         self._register_builtins()
 
@@ -229,6 +236,50 @@ class PhiOSSpine:
             interface_provider=interface_provider,
             tcp_listener_provider=tcp_listener_provider,
             local_http_provider=local_http_provider,
+        )
+
+    def assess_deliberation_evidence(
+        self,
+        *,
+        claim_id: str,
+        paths: tuple[EvidencePathDeclaration, ...],
+        assertions: tuple[IndependenceAssertion, ...] = (),
+    ) -> DeliberationEvidenceResult:
+        evidence_refs = tuple(
+            sorted(
+                {
+                    ref
+                    for path in paths
+                    for ref in path.evidence_refs
+                }
+            )
+        )
+        packet = MandalaPacket.create(
+            task_id=self.core.task_id,
+            gate=Gate.DELIBERATION,
+            origin=OriginRef(
+                kind=OriginKind.SUBSYSTEM,
+                identifier="phivessel.deliberation",
+            ),
+            payload={
+                "claim_id": claim_id,
+                "path_ids": [path.path_id for path in paths],
+            },
+            authority=self.core.authority,
+            evidence_refs=evidence_refs,
+            claims=(
+                {
+                    "kind": "evidence_independence_assessment",
+                    "claim_id": claim_id,
+                },
+            ),
+            allowed_destinations=(Gate.MEMORY,),
+        )
+        return self.deliberation_evidence.assess(
+            packet=packet,
+            claim_id=claim_id,
+            paths=paths,
+            assertions=assertions,
         )
 
     def enhance_screen_evidence(
