@@ -12,6 +12,7 @@ from phios.mandala import (
 
 from .config import MemoryRuntimeConfig
 from .embeddings import OllamaEmbeddingProvider
+from .horizon import EvidenceHorizonPolicy, MemoryEvidenceHorizon
 from .legacy import LegacyImportPlan
 from .models import IndexSyncResult, MemoryRecord, MemoryResult
 from .policy import MemoryAccessPolicy, MemoryPolicyRule
@@ -25,6 +26,8 @@ from .store import MemoryStore
 class MemoryOperatorStatus:
     enabled: bool
     semantic_enabled: bool
+    evidence_horizon_enabled: bool
+    evidence_horizon_policy_sha256: str | None
     state_root: str
     canonical_db: str
     mandala_ledger: str
@@ -37,6 +40,8 @@ class MemoryOperatorStatus:
         return {
             "enabled": self.enabled,
             "semantic_enabled": self.semantic_enabled,
+            "evidence_horizon_enabled": self.evidence_horizon_enabled,
+            "evidence_horizon_policy_sha256": self.evidence_horizon_policy_sha256,
             "state_root": self.state_root,
             "canonical_db": self.canonical_db,
             "mandala_ledger": self.mandala_ledger,
@@ -83,12 +88,34 @@ class MemoryOperatorRuntime:
             revision="operator-v0.3",
         )
         self.publisher = MemoryReceiptPublisher(self.store, self.ledger)
-        self.service = GovernedMemoryService(self.store, self.policy)
+        self.evidence_horizon: MemoryEvidenceHorizon | None = None
+        if config.evidence_horizon_enabled:
+            self.evidence_horizon = MemoryEvidenceHorizon(
+                EvidenceHorizonPolicy(
+                    policy_id="operator-memory-horizon",
+                    active_window_seconds=config.active_context_window_seconds,
+                    reactivation_window_seconds=config.reactivation_window_seconds,
+                    fresh_evidence_window_seconds=(
+                        config.fresh_evidence_window_seconds
+                    ),
+                )
+            )
+        self.service = GovernedMemoryService(
+            self.store,
+            self.policy,
+            evidence_horizon=self.evidence_horizon,
+        )
 
     def status(self) -> MemoryOperatorStatus:
         return MemoryOperatorStatus(
             enabled=self.config.enabled,
             semantic_enabled=self.config.semantic_enabled,
+            evidence_horizon_enabled=self.config.evidence_horizon_enabled,
+            evidence_horizon_policy_sha256=(
+                self.evidence_horizon.policy.policy_sha256
+                if self.evidence_horizon is not None
+                else None
+            ),
             state_root=str(self.state_root),
             canonical_db=str(self.store.path),
             mandala_ledger=str(self.ledger.path),
@@ -129,13 +156,20 @@ class MemoryOperatorRuntime:
                 )
         return result
 
-    def get(self, record_id: str, *, task_id: str) -> MemoryResult:
+    def get(
+        self,
+        record_id: str,
+        *,
+        task_id: str,
+        reactivation_record_id: str | None = None,
+    ) -> MemoryResult:
         self.require_enabled()
         return self.service.get(
             record_id,
             principal_id=self.config.principal_id,
             task_id=task_id,
             authority=self.authority,
+            reactivation_record_id=reactivation_record_id,
         )
 
     def delete(self, record_id: str, *, operation_id: str, task_id: str) -> MemoryResult:
@@ -164,6 +198,7 @@ class MemoryOperatorRuntime:
         operation_id: str,
         task_id: str,
         limit: int,
+        reactivation_record_ids: dict[str, str] | None = None,
     ) -> MemoryResult:
         self.require_enabled()
         service = self._semantic_service()
@@ -174,6 +209,7 @@ class MemoryOperatorRuntime:
             authority=self.authority,
             operation_id=operation_id,
             limit=limit,
+            reactivation_record_ids=reactivation_record_ids,
         )
         try:
             self.publisher.publish_pending()
@@ -268,4 +304,5 @@ class MemoryOperatorRuntime:
             self.policy,
             retrieval_index=index,
             embedding_provider=provider,
+            evidence_horizon=self.evidence_horizon,
         )
