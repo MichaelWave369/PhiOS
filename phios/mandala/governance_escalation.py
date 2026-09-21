@@ -395,6 +395,13 @@ class GovernanceEscalationService:
             verifier_id=source_receipt.produced_by,
             verification_method=source_receipt.verification_method or "",
             source_status=source_receipt.status.value,
+            observation_frontier_sha256=(
+                source_receipt.observation_frontier_sha256
+            ),
+            observability_receipt_sha256=(
+                source_receipt.observability_receipt_sha256
+            ),
+            observability_status=source_receipt.observability_status,
             verdict_summary=dict(sorted(source_receipt.verdict_summary.items())),
         )
         return _with_receipt_sha(receipt)
