@@ -70,6 +70,23 @@ def _receipt_from_payload(payload: dict[str, Any]) -> MemoryOperationReceipt:
             if payload.get("error_code") is not None
             else None
         ),
+        transformation_lineage=tuple(
+            dict(item)
+            for item in payload.get("transformation_lineage", [])
+            if isinstance(item, dict)
+        ),
+        transformation_lineage_sha256s=tuple(
+            str(item)
+            for item in payload.get("transformation_lineage_sha256s", [])
+        ),
+        exactness_classes=tuple(
+            str(item)
+            for item in payload.get("exactness_classes", [])
+        ),
+        taint_labels=tuple(
+            str(item)
+            for item in payload.get("taint_labels", [])
+        ),
         promotion_status=str(payload.get("promotion_status", "not_promoted")),
         action_authority=bool(payload.get("action_authority", False)),
         execution_authority=bool(payload.get("execution_authority", False)),
