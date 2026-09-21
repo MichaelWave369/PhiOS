@@ -22,6 +22,7 @@ from .ledger import MandalaReceiptLedger
 from .receipts import (
     AbortReceipt,
     ActionReceipt,
+    EffectBoundaryReceipt,
     GateReceipt,
     MemoryOperationReceipt,
     MemoryPromotionReceipt,
@@ -37,6 +38,7 @@ __all__ = [
     "MANDALA_CONTRACT_VERSION",
     "AbortReceipt",
     "ActionReceipt",
+    "EffectBoundaryReceipt",
     "AuthoritativeAuthorityEvent",
     "AuthorityContext",
     "AuthorityEventKind",
