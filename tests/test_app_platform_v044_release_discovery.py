@@ -404,3 +404,23 @@ def test_release_candidate_envelope_rejects_app_identity_change() -> None:
             approved_release_candidate_selection_sha256=selection.sha256(),
             provider=FakeExactCommitProvider(snapshot),  # type: ignore[arg-type]
         )
+
+
+def test_v027_rejects_tampered_release_candidate_intake_envelope() -> None:
+    commit = "9" * 40
+    discovery = _discovery(_release(0, tag="v2.0.0", commit=commit))
+    selection = select_release_candidate(
+        discovery.to_dict(),
+        tag_name="v2.0.0",
+        approved_release_discovery_sha256=discovery.sha256(),
+    )
+    envelope = inspect_selected_release(
+        selection.to_dict(),
+        approved_release_candidate_selection_sha256=selection.sha256(),
+        provider=FakeExactCommitProvider(_snapshot(commit_sha=commit)),  # type: ignore[arg-type]
+    ).to_dict()
+
+    envelope["intake"]["evidence"]["head_sha"] = "a" * 40
+
+    with pytest.raises(ValueError, match="digest does not match"):
+        review_intake_for_acquisition(envelope)
