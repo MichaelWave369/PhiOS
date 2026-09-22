@@ -1,0 +1,9 @@
+import {describe,expect,it} from "vitest";
+import {FIXTURE_DEVICE_OBSERVATION,createDeviceObservationProvider,isDeviceTransportEnvelope} from "./deviceObservation";
+function live(){return {...FIXTURE_DEVICE_OBSERVATION,source:"linux-sysfs-bounded" as const,capturedAt:new Date().toISOString(),availability:"available" as const,reason:null,cpuTopology:{logicalCpuCount:8,physicalPackageCount:1,physicalCoreCount:4},network:[{name:"eth0",type:1,operState:"up",vendorId:"0x1234",deviceId:"0xabcd"}],pci:[{slot:"0000:00:01.0",vendorId:"0x1234",deviceId:"0xabcd",classId:"0x020000"}]}}
+function envelope(age=1){return {transportSchemaVersion:"phios.device-transport.v1",transport:"loopback-http",transportIdentity:"phishell-local-observer",localOnly:true,readOnly:true,executionAuthority:false,effectPerformed:false,servedAt:new Date().toISOString(),snapshotAgeMs:age,observation:live()}}
+describe("device observation transport",()=>{
+  it("accepts fresh bounded hardware metadata",async()=>{const p=createDeviceObservationProvider({fetcher:async()=>new Response(JSON.stringify(envelope()),{status:200})});const o=await p.observe();expect(o.source).toBe("linux-sysfs-bounded");expect(o.cpuTopology.logicalCpuCount).toBe(8);expect(o.executionAuthority).toBe(false)});
+  it("rejects network MAC data and USB serials",async()=>{const unsafe=JSON.parse(JSON.stringify(envelope())) as {observation:{network:Array<Record<string,unknown>>;usb:Array<Record<string,unknown>>}};unsafe.observation.network[0].mac="00:11:22:33:44:55";const p=createDeviceObservationProvider({fetcher:async()=>new Response(JSON.stringify(unsafe),{status:200})});expect((await p.observe()).source).toBe("fixture")});
+  it("rejects stale or authority-bearing envelopes",()=>{expect(isDeviceTransportEnvelope(envelope(60000))).toBe(false);expect(isDeviceTransportEnvelope({...envelope(),executionAuthority:true})).toBe(false)});
+});
