@@ -131,6 +131,8 @@ For each component the change receipt records:
 fromAvailability
 toAvailability
 availabilityChanged
+fromDigest
+toDigest
 digestChanged
 ```
 
@@ -212,8 +214,10 @@ It recomputes:
 
 - coherence transition;
 - component availability-change flags;
+- component digest-change flags from the recorded digest transition;
+- elapsed time from the two composed timestamps;
 - changed component count;
-- summary deltas;
+- canonical summary-delta order and values;
 - changed summary count;
 - change digest.
 
