@@ -4,6 +4,8 @@ import { dirname, extname, resolve, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { collectLinuxHostObservation } from "./linuxProbe.mjs";
 import { assertValidHostObservation } from "./observationContract.mjs";
+import { collectSystemdServiceObservation } from "./serviceObserver.mjs";
+import { assertValidServiceObservation } from "./serviceObservationContract.mjs";
 
 const LOOPBACK_HOST = "127.0.0.1";
 const DEFAULT_PORT = 3969;
@@ -132,6 +134,31 @@ export function createLocalObservationServer({
           servedAt,
           snapshotAgeMs,
           snapshot,
+        });
+        return;
+      }
+
+      if (url.pathname === "/api/v1/service-observation") {
+        const observation = assertValidServiceObservation(
+          await collectSystemdServiceObservation(),
+        );
+        const servedAt = new Date().toISOString();
+        const snapshotAgeMs = Math.max(
+          0,
+          Date.parse(servedAt) - Date.parse(observation.capturedAt),
+        );
+
+        jsonResponse(response, 200, {
+          transportSchemaVersion: "phios.service-transport.v1",
+          transport: "loopback-http",
+          transportIdentity: "phishell-local-observer",
+          localOnly: true,
+          readOnly: true,
+          executionAuthority: false,
+          effectPerformed: false,
+          servedAt,
+          snapshotAgeMs,
+          observation,
         });
         return;
       }
