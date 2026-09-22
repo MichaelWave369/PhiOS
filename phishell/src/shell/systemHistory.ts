@@ -155,7 +155,8 @@ export async function appendSystemStateHistory(
   const changes = [...history.changes];
 
   if (previous) {
-    changes.push(await deriveSystemChangeReceipt(previous, next, changes.length + 1));
+    const nextSequence = (history.changes.at(-1)?.sequence ?? 0) + 1;
+    changes.push(await deriveSystemChangeReceipt(previous, next, nextSequence));
   }
 
   return {
