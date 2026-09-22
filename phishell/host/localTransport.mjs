@@ -12,6 +12,8 @@ import { collectPackageObservation } from "./packageObserver.mjs";
 import { assertValidPackageObservation } from "./packageObservationContract.mjs";
 import { collectDeviceObservation } from "./deviceObserver.mjs";
 import { assertValidDeviceObservation } from "./deviceObservationContract.mjs";
+import { composeSystemStateReceipt } from "./systemStateComposer.mjs";
+import { assertValidSystemStateReceipt } from "./systemStateContract.mjs";
 
 const LOOPBACK_HOST = "127.0.0.1";
 const DEFAULT_PORT = 3969;
@@ -236,6 +238,29 @@ export function createLocalObservationServer({
           servedAt,
           snapshotAgeMs,
           observation,
+        });
+        return;
+      }
+
+      if (url.pathname === "/api/v1/system-state") {
+        const receipt = assertValidSystemStateReceipt(await composeSystemStateReceipt());
+        const servedAt = new Date().toISOString();
+        const snapshotAgeMs = Math.max(
+          0,
+          Date.parse(servedAt) - Date.parse(receipt.composedAt),
+        );
+
+        jsonResponse(response, 200, {
+          transportSchemaVersion: "phios.system-state-transport.v1",
+          transport: "loopback-http",
+          transportIdentity: "phishell-local-observer",
+          localOnly: true,
+          readOnly: true,
+          executionAuthority: false,
+          effectPerformed: false,
+          servedAt,
+          snapshotAgeMs,
+          receipt,
         });
         return;
       }
