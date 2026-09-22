@@ -94,7 +94,9 @@ describe("unified system state provider", () => {
   });
 
   it("rejects a receipt whose body no longer matches its digest", async () => {
-    const payload = await envelope();
+    const payload = JSON.parse(JSON.stringify(await envelope())) as {
+      receipt: { summary: { installedPackageCount: number } };
+    };
     payload.receipt.summary.installedPackageCount = 999;
 
     const provider = createSystemStateProvider({
@@ -105,7 +107,9 @@ describe("unified system state provider", () => {
   });
 
   it("rejects authority-bearing unified state", async () => {
-    const payload = await envelope();
+    const payload = JSON.parse(JSON.stringify(await envelope())) as {
+      receipt: { executionAuthority: boolean };
+    };
     payload.receipt.executionAuthority = true;
 
     const provider = createSystemStateProvider({
