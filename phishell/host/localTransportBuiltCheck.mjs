@@ -90,6 +90,23 @@ try {
   assert.ok(deviceEnvelope.observation.pci.length <= 16);
   assert.ok(deviceEnvelope.observation.usb.length <= 16);
 
+  const systemState = await fetch(`${base}/api/v1/system-state`);
+  assert.equal(systemState.status, 200);
+  assert.equal(systemState.headers.get("access-control-allow-origin"), null);
+
+  const systemEnvelope = await systemState.json();
+  assert.equal(systemEnvelope.transportSchemaVersion, "phios.system-state-transport.v1");
+  assert.equal(systemEnvelope.transportIdentity, "phishell-local-observer");
+  assert.equal(systemEnvelope.localOnly, true);
+  assert.equal(systemEnvelope.readOnly, true);
+  assert.equal(systemEnvelope.executionAuthority, false);
+  assert.equal(systemEnvelope.effectPerformed, false);
+  assert.equal(systemEnvelope.receipt.schemaVersion, "phios.system-state.v1");
+  assert.equal(systemEnvelope.receipt.componentCount, 5);
+  assert.equal(systemEnvelope.receipt.executionAuthority, false);
+  assert.equal(systemEnvelope.receipt.effectPerformed, false);
+  assert.match(systemEnvelope.receipt.receiptDigest, /^sha256:[0-9a-f]{64}$/);
+
   const mutation = await fetch(`${base}/api/v1/host-observation`, { method: "POST" });
   assert.equal(mutation.status, 405);
 
@@ -112,6 +129,11 @@ try {
     method: "POST",
   });
   assert.equal(deviceMutation.status, 405);
+
+  const stateMutation = await fetch(`${base}/api/v1/system-state`, {
+    method: "POST",
+  });
+  assert.equal(stateMutation.status, 405);
 } finally {
   await transport.close();
 }

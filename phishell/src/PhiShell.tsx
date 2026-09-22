@@ -4,6 +4,7 @@ import { ServiceObservationPanel } from "./components/ServiceObservationPanel";
 import { ProcessObservationPanel } from "./components/ProcessObservationPanel";
 import { PackageObservationPanel } from "./components/PackageObservationPanel";
 import { DeviceObservationPanel } from "./components/DeviceObservationPanel";
+import { SystemStatePanel } from "./components/SystemStatePanel";
 import {
   INITIAL_SHELL_STATE,
   type AuthorityRequest,
@@ -87,7 +88,7 @@ const windowTemplates: Record<string, WindowModel> = {
   "system-window": {
     id: "system-window",
     title: "System Inspector",
-    subtitle: "Live host, service, process, package, and hardware observation over loopback-only read transports.",
+    subtitle: "One unified provenance receipt over host, service, process, package, and hardware observations.",
     kind: "system",
     x: 22,
     y: 10,
@@ -262,18 +263,18 @@ function Home() {
       </section>
 
       <section className="panel notices">
-        <div className="panel-title">V0.8 BOUNDED HARDWARE INVENTORY</div>
+        <div className="panel-title">V0.9 UNIFIED SYSTEM STATE</div>
         <div className="notice">
-          <b>Bounded sysfs hardware inventory is live</b>
-          <small>PhiShell reads fixed read-only sysfs metadata for CPU topology, block, network, PCI, USB, DRM, and power classes.</small>
+          <b>Unified five-plane system receipt is live</b>
+          <small>PhiShell composes the five existing observation planes into one timestamped, hash-identified machine-state receipt.</small>
         </div>
         <div className="notice">
-          <b>Device control remains absent</b>
-          <small>No mounts, driver bind/unbind, raw device writes, udev control, MAC/serial collection, or power mutation is exposed.</small>
+          <b>Composition adds no authority</b>
+          <small>The receipt adds no new probe, mutation method, privilege, raw data field, or effect path.</small>
         </div>
         <div className="notice">
-          <b>Hardware awareness is not device authority</b>
-          <small>Device observations remain read-only with execution_authority=false and effect_performed=false.</small>
+          <b>Coherence is explicit</b>
+          <small>Unavailable planes or excessive capture skew produce DEGRADED instead of invented coherence.</small>
         </div>
       </section>
 
@@ -375,6 +376,7 @@ function WindowBody({ item }: { item: WindowModel }) {
   if (item.id === "system-window") {
     return (
       <>
+        <SystemStatePanel />
         <HostObservationPanel />
         <ServiceObservationPanel />
         <ProcessObservationPanel />
@@ -409,7 +411,7 @@ function WindowBody({ item }: { item: WindowModel }) {
         <article>
           <small>BOUNDARY</small>
           <b>Effect broker absent</b>
-          <p>No privileged Linux effect adapter is attached in v0.8.</p>
+          <p>No privileged Linux effect adapter is attached in v0.9.</p>
         </article>
       </div>
     );
@@ -579,8 +581,8 @@ function PhiVessel() {
       </div>
       <div className="vessel-body">
         <small className="mode-label">{mode.toUpperCase()} MODE · ADVISORY</small>
-        <h2>Linux hardware awareness online.</h2>
-        <p>PhiShell now receives validated host, service, process, package, and bounded hardware observations through read-only local transports.</p>
+        <h2>Unified machine state online.</h2>
+        <p>PhiShell now composes those validated observation planes into one digest-checked system-state receipt.</p>
         <p className="muted">
           The intelligence layer may propose an action. Proposal is still not authority.
         </p>
@@ -754,7 +756,7 @@ function AuthorityDialog({
         {request.decision === "pending" ? (
           <>
             <div className="authority-warning">
-              Approval below records operator intent only. PhiShell v0.8 has no privileged effect
+              Approval below records operator intent only. PhiShell v0.9 has no privileged effect
               broker and cannot execute this Linux operation.
             </div>
             <div className="authority-actions">
@@ -840,7 +842,7 @@ export function PhiShell() {
       <main className="field">
         <div className="field-title">
           <span>{title}</span>
-          <small>PhiShell v0.8 · bounded hardware inventory · execution authority false</small>
+          <small>PhiShell v0.9 · unified system state receipt · execution authority false</small>
         </div>
         <Center view={state.view} />
         <DesktopLayer windows={state.windows} dispatch={dispatch} />
