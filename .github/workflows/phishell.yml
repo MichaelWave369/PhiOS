@@ -1,0 +1,36 @@
+name: PhiShell
+
+on:
+  pull_request:
+    paths:
+      - "phishell/**"
+      - "docs/PHISHELL_*.md"
+      - ".github/workflows/phishell.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "phishell/**"
+      - "docs/PHISHELL_*.md"
+      - ".github/workflows/phishell.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: phishell
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          package-manager-cache: false
+      - name: Install PhiShell dependencies
+        run: npm install --no-audit --no-fund
+      - name: Type-check and build PhiShell
+        run: npm run build
