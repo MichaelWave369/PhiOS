@@ -30,7 +30,8 @@ jobs:
           fetch-depth: 0
       - uses: actions/setup-node@v7
         with:
-          node-version: "22"\n          package-manager-cache: false
+          node-version: "22"
+          package-manager-cache: false
       - name: Install site dependencies
         run: npm install --no-audit --no-fund
       - name: Build site
@@ -53,7 +54,8 @@ jobs:
           fetch-depth: 0
       - uses: actions/setup-node@v7
         with:
-          node-version: "22"\n          package-manager-cache: false
+          node-version: "22"
+          package-manager-cache: false
       - uses: actions/configure-pages@v5
       - name: Install site dependencies
         working-directory: site
