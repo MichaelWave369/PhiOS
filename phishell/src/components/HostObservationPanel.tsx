@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   hostObservationProvider,
   type HostObservationSnapshot,
@@ -10,34 +10,49 @@ function gibibytes(bytes: number) {
 
 export function HostObservationPanel() {
   const [snapshot, setSnapshot] = useState<HostObservationSnapshot | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
-    let active = true;
-    hostObservationProvider.observe().then((value) => {
-      if (active) setSnapshot(value);
-    });
-    return () => {
-      active = false;
-    };
+  const refresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      setSnapshot(await hostObservationProvider.observe());
+    } finally {
+      setRefreshing(false);
+    }
   }, []);
 
+  useEffect(() => {
+    void refresh();
+  }, [refresh]);
+
   if (!snapshot) {
-    return <div className="observation-loading">Reading observation provider…</div>;
+    return <div className="observation-loading">Reading local observation transport…</div>;
   }
+
+  const live = snapshot.source === "linux-readonly-node-probe";
 
   return (
     <div className="host-observation">
       <div className="observation-source">
         <span>OBSERVATION SOURCE</span>
         <b>{snapshot.source.toUpperCase()}</b>
-        <em>{snapshot.source === "fixture" ? "NATIVE BRIDGE UNBOUND" : "LIVE READ-ONLY"}</em>
+        <em>{live ? "LIVE LOOPBACK" : "FIXTURE FALLBACK"}</em>
       </div>
 
-      {snapshot.source === "fixture" && (
+      <div className="observation-actions">
+        <span>
+          captured {new Date(snapshot.capturedAt).toLocaleTimeString()} · execution authority false
+        </span>
+        <button onClick={() => void refresh()} disabled={refreshing}>
+          {refreshing ? "Reading…" : "Refresh"}
+        </button>
+      </div>
+
+      {!live && (
         <div className="observation-fixture-warning">
-          PhiShell is rendering the v0.3 contract fixture. The separate Linux probe is real and
-          exercised in CI, but its local transport into this browser shell is intentionally not
-          bound yet.
+          The live local transport was not available from this shell origin, so PhiShell fell back
+          to the deterministic contract fixture. On Linux, <code>npm run local</code> builds and
+          serves PhiShell with the read-only observation endpoint on the same loopback origin.
         </div>
       )}
 
@@ -101,7 +116,7 @@ export function HostObservationPanel() {
       <div className="observation-section">
         <div className="observation-section-title">POWER DISCOVERY</div>
         {snapshot.power.length === 0 ? (
-          <div className="observation-empty">No power-supply fixture entries.</div>
+          <div className="observation-empty">No power-supply observations were exposed.</div>
         ) : (
           snapshot.power.map((power) => (
             <div className="observation-row" key={power.name}>
@@ -114,6 +129,7 @@ export function HostObservationPanel() {
       </div>
 
       <div className="observation-receipt">
+        <span>transport = {live ? "loopback-http" : "fixture"}</span>
         <span>read_only = true</span>
         <span>execution_authority = false</span>
         <span>effect_performed = false</span>
