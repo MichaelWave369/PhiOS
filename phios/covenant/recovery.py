@@ -318,6 +318,89 @@ class FunctionalEquivalenceReceipt:
         result["receipt_sha256"] = self.sha256()
         return result
 
+    @classmethod
+    def from_dict(cls, value: Any) -> "FunctionalEquivalenceReceipt":
+        data = expect_mapping(value, "functional equivalence receipt")
+        expect_exact_keys(
+            data,
+            {
+                "schema_version",
+                "status",
+                "invariant_set_sha256",
+                "previous_identity_seal_sha256",
+                "candidate_identity_seal_sha256",
+                "matched_fields",
+                "mismatched_fields",
+                "topology_evidence_used",
+                "trusted_identity",
+                "action_authority",
+                "execution_authority",
+                "receipt_sha256",
+            },
+            "functional equivalence receipt",
+        )
+        try:
+            status = FunctionalEquivalenceStatus(
+                require_text(data["status"], "status", maximum=16)
+            )
+        except ValueError as exc:
+            raise ValueError(
+                f"Unsupported functional equivalence status: {data['status']}"
+            ) from exc
+        receipt = cls(
+            schema_version=require_text(
+                data["schema_version"],
+                "schema_version",
+                maximum=64,
+            ),
+            status=status,
+            invariant_set_sha256=require_sha256(
+                data["invariant_set_sha256"],
+                "invariant_set_sha256",
+            ),
+            previous_identity_seal_sha256=require_sha256(
+                data["previous_identity_seal_sha256"],
+                "previous_identity_seal_sha256",
+            ),
+            candidate_identity_seal_sha256=require_sha256(
+                data["candidate_identity_seal_sha256"],
+                "candidate_identity_seal_sha256",
+            ),
+            matched_fields=require_string_tuple(
+                data["matched_fields"],
+                "matched_fields",
+                maximum_items=len(IdentityInvariantField),
+                maximum_text=64,
+            ),
+            mismatched_fields=require_string_tuple(
+                data["mismatched_fields"],
+                "mismatched_fields",
+                maximum_items=len(IdentityInvariantField),
+                maximum_text=64,
+            ),
+            topology_evidence_used=require_bool(
+                data["topology_evidence_used"],
+                "topology_evidence_used",
+            ),
+            trusted_identity=require_bool(
+                data["trusted_identity"],
+                "trusted_identity",
+            ),
+            action_authority=require_bool(
+                data["action_authority"],
+                "action_authority",
+            ),
+            execution_authority=require_bool(
+                data["execution_authority"],
+                "execution_authority",
+            ),
+        )
+        if data["receipt_sha256"] != receipt.sha256():
+            raise ValueError(
+                "functional equivalence receipt digest does not match canonical receipt"
+            )
+        return receipt
+
 
 def evaluate_functional_equivalence(
     previous: IdentitySeal,
@@ -435,6 +518,97 @@ class EpochBoundIdentity:
         result = self.body_dict()
         result["epoch_identity_sha256"] = self.sha256()
         return result
+
+    @classmethod
+    def from_dict(cls, value: Any) -> "EpochBoundIdentity":
+        data = expect_mapping(value, "epoch-bound identity")
+        expect_exact_keys(
+            data,
+            {
+                "schema_version",
+                "subject_id",
+                "subject_kind",
+                "epoch",
+                "identity_seal_sha256",
+                "invariant_set_sha256",
+                "topology_sha256",
+                "recovery_state_sha256",
+                "previous_epoch_identity_sha256",
+                "recovery_checkpoint_sha256",
+                "trusted_identity",
+                "action_authority",
+                "execution_authority",
+                "epoch_identity_sha256",
+            },
+            "epoch-bound identity",
+        )
+        try:
+            subject_kind = IdentitySubjectKind(
+                require_text(
+                    data["subject_kind"],
+                    "subject_kind",
+                    maximum=32,
+                )
+            )
+        except ValueError as exc:
+            raise ValueError(
+                f"Unsupported identity subject kind: {data['subject_kind']}"
+            ) from exc
+        identity = cls(
+            schema_version=require_text(
+                data["schema_version"],
+                "schema_version",
+                maximum=64,
+            ),
+            subject_id=require_text(
+                data["subject_id"],
+                "subject_id",
+                maximum=128,
+            ),
+            subject_kind=subject_kind,
+            epoch=_require_epoch(data["epoch"], "epoch"),
+            identity_seal_sha256=require_sha256(
+                data["identity_seal_sha256"],
+                "identity_seal_sha256",
+            ),
+            invariant_set_sha256=require_sha256(
+                data["invariant_set_sha256"],
+                "invariant_set_sha256",
+            ),
+            topology_sha256=require_sha256(
+                data["topology_sha256"],
+                "topology_sha256",
+            ),
+            recovery_state_sha256=require_sha256(
+                data["recovery_state_sha256"],
+                "recovery_state_sha256",
+            ),
+            previous_epoch_identity_sha256=require_optional_sha256(
+                data["previous_epoch_identity_sha256"],
+                "previous_epoch_identity_sha256",
+            ),
+            recovery_checkpoint_sha256=require_optional_sha256(
+                data["recovery_checkpoint_sha256"],
+                "recovery_checkpoint_sha256",
+            ),
+            trusted_identity=require_bool(
+                data["trusted_identity"],
+                "trusted_identity",
+            ),
+            action_authority=require_bool(
+                data["action_authority"],
+                "action_authority",
+            ),
+            execution_authority=require_bool(
+                data["execution_authority"],
+                "execution_authority",
+            ),
+        )
+        if data["epoch_identity_sha256"] != identity.sha256():
+            raise ValueError(
+                "epoch-bound identity digest does not match canonical identity"
+            )
+        return identity
 
 
 @dataclass(frozen=True, slots=True)
@@ -576,6 +750,137 @@ class RecoveryPathReceipt:
         result = self.body_dict()
         result["receipt_sha256"] = self.sha256()
         return result
+
+    @classmethod
+    def from_dict(cls, value: Any) -> "RecoveryPathReceipt":
+        data = expect_mapping(value, "recovery path receipt")
+        expect_exact_keys(
+            data,
+            {
+                "schema_version",
+                "status",
+                "previous_epoch_identity_sha256",
+                "recovered_epoch_identity_sha256",
+                "functional_equivalence_receipt_sha256",
+                "recovery_checkpoint_sha256",
+                "previous_epoch",
+                "recovered_epoch",
+                "previous_topology_sha256",
+                "recovered_topology_sha256",
+                "previous_state_sha256",
+                "recovered_state_sha256",
+                "topology_changed",
+                "epoch_advanced",
+                "identity_equivalent",
+                "state_recovered_exactly",
+                "reason",
+                "authority_inherited",
+                "authority_revalidation_required",
+                "trusted_identity",
+                "action_authority",
+                "execution_authority",
+                "receipt_sha256",
+            },
+            "recovery path receipt",
+        )
+        try:
+            status = RecoveryStatus(
+                require_text(data["status"], "status", maximum=16)
+            )
+        except ValueError as exc:
+            raise ValueError(
+                f"Unsupported recovery status: {data['status']}"
+            ) from exc
+        receipt = cls(
+            schema_version=require_text(
+                data["schema_version"],
+                "schema_version",
+                maximum=64,
+            ),
+            status=status,
+            previous_epoch_identity_sha256=require_sha256(
+                data["previous_epoch_identity_sha256"],
+                "previous_epoch_identity_sha256",
+            ),
+            recovered_epoch_identity_sha256=require_sha256(
+                data["recovered_epoch_identity_sha256"],
+                "recovered_epoch_identity_sha256",
+            ),
+            functional_equivalence_receipt_sha256=require_sha256(
+                data["functional_equivalence_receipt_sha256"],
+                "functional_equivalence_receipt_sha256",
+            ),
+            recovery_checkpoint_sha256=require_sha256(
+                data["recovery_checkpoint_sha256"],
+                "recovery_checkpoint_sha256",
+            ),
+            previous_epoch=_require_epoch(
+                data["previous_epoch"],
+                "previous_epoch",
+            ),
+            recovered_epoch=_require_epoch(
+                data["recovered_epoch"],
+                "recovered_epoch",
+            ),
+            previous_topology_sha256=require_sha256(
+                data["previous_topology_sha256"],
+                "previous_topology_sha256",
+            ),
+            recovered_topology_sha256=require_sha256(
+                data["recovered_topology_sha256"],
+                "recovered_topology_sha256",
+            ),
+            previous_state_sha256=require_sha256(
+                data["previous_state_sha256"],
+                "previous_state_sha256",
+            ),
+            recovered_state_sha256=require_sha256(
+                data["recovered_state_sha256"],
+                "recovered_state_sha256",
+            ),
+            topology_changed=require_bool(
+                data["topology_changed"],
+                "topology_changed",
+            ),
+            epoch_advanced=require_bool(
+                data["epoch_advanced"],
+                "epoch_advanced",
+            ),
+            identity_equivalent=require_bool(
+                data["identity_equivalent"],
+                "identity_equivalent",
+            ),
+            state_recovered_exactly=require_bool(
+                data["state_recovered_exactly"],
+                "state_recovered_exactly",
+            ),
+            reason=require_text(data["reason"], "reason", maximum=512),
+            authority_inherited=require_bool(
+                data["authority_inherited"],
+                "authority_inherited",
+            ),
+            authority_revalidation_required=require_bool(
+                data["authority_revalidation_required"],
+                "authority_revalidation_required",
+            ),
+            trusted_identity=require_bool(
+                data["trusted_identity"],
+                "trusted_identity",
+            ),
+            action_authority=require_bool(
+                data["action_authority"],
+                "action_authority",
+            ),
+            execution_authority=require_bool(
+                data["execution_authority"],
+                "execution_authority",
+            ),
+        )
+        if data["receipt_sha256"] != receipt.sha256():
+            raise ValueError(
+                "recovery path receipt digest does not match canonical receipt"
+            )
+        return receipt
 
 
 class RecoveryEvaluator:
