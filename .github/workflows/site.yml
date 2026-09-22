@@ -9,10 +9,6 @@ on:
   push:
     branches:
       - main
-    paths:
-      - "site/**"
-      - "docs/VERSION_HISTORY.md"
-      - ".github/workflows/site.yml"
   workflow_dispatch:
 
 permissions:
@@ -35,8 +31,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-          cache: npm
-          cache-dependency-path: site/package.json
       - name: Install site dependencies
         run: npm install --no-audit --no-fund
       - name: Build site
@@ -60,8 +54,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-          cache: npm
-          cache-dependency-path: site/package.json
       - uses: actions/configure-pages@v5
       - name: Install site dependencies
         working-directory: site
