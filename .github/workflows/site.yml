@@ -25,12 +25,12 @@ jobs:
       run:
         working-directory: site
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
-          node-version: "22"
+          node-version: "22"\n          package-manager-cache: false
       - name: Install site dependencies
         run: npm install --no-audit --no-fund
       - name: Build site
@@ -48,12 +48,12 @@ jobs:
       pages: write
       id-token: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
-          node-version: "22"
+          node-version: "22"\n          package-manager-cache: false
       - uses: actions/configure-pages@v5
       - name: Install site dependencies
         working-directory: site
@@ -61,9 +61,9 @@ jobs:
       - name: Build Pages artifact
         working-directory: site
         run: npm run build
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: site/dist
       - name: Deploy GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
