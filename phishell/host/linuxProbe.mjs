@@ -117,7 +117,7 @@ export async function collectLinuxHostObservation() {
       systemdPresent: await systemdPresent(),
       serviceStatusBound: false,
       reason:
-        "PhiShell v0.3 does not bind service-control or service-status transports to the browser shell.",
+        "PhiShell v0.4 does not bind service-control or service-status mutation paths to the observation transport.",
     },
   };
 }
