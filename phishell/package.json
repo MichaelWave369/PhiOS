@@ -1,13 +1,14 @@
 {
   "name": "phishell",
   "private": true,
-  "version": "0.2.0",
+  "version": "0.3.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
-    "test": "vitest run"
+    "test": "vitest run && node --test host/*.test.mjs",
+    "probe:linux": "node host/linuxProbe.mjs"
   },
   "dependencies": {
     "react": "19.1.1",
@@ -20,4 +21,4 @@
     "vite": "7.1.5",
     "vitest": "3.2.4"
   }
-}
+}\n
