@@ -315,3 +315,41 @@ def test_invariant_set_round_trip_is_strict() -> None:
     payload["topology_sha256"] = "a" * 64
     with pytest.raises(ValueError, match="unknown=topology_sha256"):
         IdentityInvariantSet.from_dict(payload)
+
+
+def test_equivalence_epoch_and_recovery_round_trip_strict() -> None:
+    invariants = IdentityInvariantSet.strict_cr01()
+    seal = _seal()
+    previous = _epoch0(seal, invariants)
+    recovered = _recovered(previous, seal, invariants)
+    equivalence, receipt = RecoveryEvaluator(invariants).assess(
+        previous_identity=previous,
+        recovered_identity=recovered,
+        previous_seal=seal,
+        recovered_seal=seal,
+        recovery_checkpoint_sha256="d" * 64,
+    )
+
+    assert type(equivalence).from_dict(equivalence.to_dict()) == equivalence
+    assert EpochBoundIdentity.from_dict(previous.to_dict()) == previous
+    assert EpochBoundIdentity.from_dict(recovered.to_dict()) == recovered
+    assert type(receipt).from_dict(receipt.to_dict()) == receipt
+
+
+def test_recovery_receipt_digest_tampering_fails_closed() -> None:
+    invariants = IdentityInvariantSet.strict_cr01()
+    seal = _seal()
+    previous = _epoch0(seal, invariants)
+    recovered = _recovered(previous, seal, invariants)
+    _, receipt = RecoveryEvaluator(invariants).assess(
+        previous_identity=previous,
+        recovered_identity=recovered,
+        previous_seal=seal,
+        recovered_seal=seal,
+        recovery_checkpoint_sha256="d" * 64,
+    )
+    payload = receipt.to_dict()
+    payload["recovered_state_sha256"] = "e" * 64
+
+    with pytest.raises(ValueError):
+        type(receipt).from_dict(payload)
