@@ -1,4 +1,4 @@
-import dbus from "@jellybrick/dbus-next";
+import * as dbus from "@jellybrick/dbus-next";
 import { access } from "node:fs/promises";
 import { constants as fsConstants } from "node:fs";
 import { pathToFileURL } from "node:url";
