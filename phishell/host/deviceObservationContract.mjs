@@ -1,7 +1,8 @@
 const TOP_KEYS=["availability","block","capturedAt","cpuTopology","drm","effectPerformed","executionAuthority","limits","network","pci","power","readOnly","reason","schemaVersion","source","usb"];
 function rec(v){return typeof v==="object"&&v!==null&&!Array.isArray(v)}
 function keys(v,e){return rec(v)&&Object.keys(v).sort().join("\0")=== [...e].sort().join("\0")}
-function str(v,m){return typeof v==="string"&&v.length>0&&v.length<=m}\nfunction nullable(v,m){return v===null||str(v,m)}
+function str(v,m){return typeof v==="string"&&v.length>0&&v.length<=m}
+function nullable(v,m){return v===null||str(v,m)}
 function nni(v){return Number.isInteger(v)&&v>=0}
 export function validateDeviceObservation(o){
   const e=[];
