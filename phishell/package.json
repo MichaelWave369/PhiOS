@@ -1,14 +1,16 @@
 {
   "name": "phishell",
   "private": true,
-  "version": "0.3.0",
+  "version": "0.4.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "test": "vitest run src && node --test host/*.test.mjs",
-    "probe:linux": "node host/linuxProbe.mjs"
+    "probe:linux": "node host/linuxProbe.mjs",
+    "local": "npm run build && node host/localTransport.mjs",
+    "transport:check": "node host/localTransportBuiltCheck.mjs"
   },
   "dependencies": {
     "react": "19.1.1",
