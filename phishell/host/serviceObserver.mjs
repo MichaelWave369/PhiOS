@@ -123,6 +123,7 @@ function projectAllowlist(loaded) {
 
 export async function collectSystemdServiceObservation({
   busFactory = () => dbus.systemBus(),
+  runtimePresent = systemdRuntimePresent,
 } = {}) {
   const capturedAt = new Date().toISOString();
 
@@ -141,7 +142,7 @@ export async function collectSystemdServiceObservation({
     };
   }
 
-  if (!(await systemdRuntimePresent())) {
+  if (!(await runtimePresent())) {
     return {
       schemaVersion: "phios.service-observation.v1",
       source: "systemd-dbus-list-units",
