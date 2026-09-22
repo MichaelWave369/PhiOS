@@ -469,7 +469,7 @@ class RecoveryPathReceipt:
             raise ValueError("unsupported recovery path receipt schema")
         if not isinstance(self.status, RecoveryStatus):
             raise ValueError("status must be a supported RecoveryStatus")
-        for label, value in (
+        for label, digest_value in (
             (
                 "previous_epoch_identity_sha256",
                 self.previous_epoch_identity_sha256,
@@ -488,11 +488,11 @@ class RecoveryPathReceipt:
             ("previous_state_sha256", self.previous_state_sha256),
             ("recovered_state_sha256", self.recovered_state_sha256),
         ):
-            require_sha256(value, label)
+            require_sha256(digest_value, label)
         _require_epoch(self.previous_epoch, "previous_epoch")
         _require_epoch(self.recovered_epoch, "recovered_epoch")
         require_text(self.reason, "reason", maximum=512)
-        for label, value in (
+        for label, bool_value in (
             ("topology_changed", self.topology_changed),
             ("epoch_advanced", self.epoch_advanced),
             ("identity_equivalent", self.identity_equivalent),
@@ -506,7 +506,7 @@ class RecoveryPathReceipt:
             ("action_authority", self.action_authority),
             ("execution_authority", self.execution_authority),
         ):
-            require_bool(value, label)
+            require_bool(bool_value, label)
         if self.topology_changed != (
             self.previous_topology_sha256 != self.recovered_topology_sha256
         ):
