@@ -235,6 +235,7 @@ class FunctionalEquivalenceReceipt:
     invariant_set_sha256: str
     previous_identity_seal_sha256: str
     candidate_identity_seal_sha256: str
+    required_fields: tuple[str, ...]
     matched_fields: tuple[str, ...]
     mismatched_fields: tuple[str, ...]
     topology_evidence_used: bool = False
@@ -262,6 +263,7 @@ class FunctionalEquivalenceReceipt:
             "candidate_identity_seal_sha256",
         )
         for label, values in (
+            ("required_fields", self.required_fields),
             ("matched_fields", self.matched_fields),
             ("mismatched_fields", self.mismatched_fields),
         ):
@@ -274,6 +276,12 @@ class FunctionalEquivalenceReceipt:
         if set(self.matched_fields) & set(self.mismatched_fields):
             raise ValueError(
                 "matched_fields and mismatched_fields must not overlap"
+            )
+        if set(self.matched_fields) | set(self.mismatched_fields) != set(
+            self.required_fields
+        ):
+            raise ValueError(
+                "matched_fields and mismatched_fields must cover required_fields exactly"
             )
         if self.status is FunctionalEquivalenceStatus.EQUIVALENT:
             if self.mismatched_fields:
@@ -302,6 +310,7 @@ class FunctionalEquivalenceReceipt:
             "invariant_set_sha256": self.invariant_set_sha256,
             "previous_identity_seal_sha256": self.previous_identity_seal_sha256,
             "candidate_identity_seal_sha256": self.candidate_identity_seal_sha256,
+            "required_fields": list(self.required_fields),
             "matched_fields": list(self.matched_fields),
             "mismatched_fields": list(self.mismatched_fields),
             "topology_evidence_used": self.topology_evidence_used,
@@ -329,6 +338,7 @@ class FunctionalEquivalenceReceipt:
                 "invariant_set_sha256",
                 "previous_identity_seal_sha256",
                 "candidate_identity_seal_sha256",
+                "required_fields",
                 "matched_fields",
                 "mismatched_fields",
                 "topology_evidence_used",
@@ -365,6 +375,12 @@ class FunctionalEquivalenceReceipt:
             candidate_identity_seal_sha256=require_sha256(
                 data["candidate_identity_seal_sha256"],
                 "candidate_identity_seal_sha256",
+            ),
+            required_fields=require_string_tuple(
+                data["required_fields"],
+                "required_fields",
+                maximum_items=len(IdentityInvariantField),
+                maximum_text=64,
             ),
             matched_fields=require_string_tuple(
                 data["matched_fields"],
@@ -424,6 +440,9 @@ def evaluate_functional_equivalence(
         invariant_set_sha256=invariant_set.sha256(),
         previous_identity_seal_sha256=previous.sha256(),
         candidate_identity_seal_sha256=candidate.sha256(),
+        required_fields=tuple(
+            sorted(field.value for field in invariant_set.required_fields)
+        ),
         matched_fields=tuple(sorted(matched)),
         mismatched_fields=tuple(sorted(mismatched)),
         topology_evidence_used=False,
