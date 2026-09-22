@@ -83,6 +83,7 @@ describe("system observation history",()=>{
     expect(history.receipts).toHaveLength(SYSTEM_HISTORY_LIMIT);
     expect(history.changes).toHaveLength(SYSTEM_HISTORY_LIMIT-1);
     expect(history.receipts[0].composedAt).toBe(state(5).composedAt);
+    expect(history.changes.at(-1)?.sequence).toBe(19);
   });
 
   it("does not persist history outside supplied session state",()=>{
