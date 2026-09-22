@@ -353,3 +353,23 @@ def test_recovery_receipt_digest_tampering_fails_closed() -> None:
 
     with pytest.raises(ValueError):
         type(receipt).from_dict(payload)
+
+
+def test_equivalence_receipt_requires_complete_invariant_partition() -> None:
+    invariants = IdentityInvariantSet.strict_cr01()
+    seal = _seal()
+    receipt = evaluate_functional_equivalence(seal, seal, invariants)
+
+    assert set(receipt.required_fields) == {
+        field.value for field in invariants.required_fields
+    }
+
+    with pytest.raises(ValueError, match="cover required_fields exactly"):
+        replace(
+            receipt,
+            matched_fields=tuple(
+                item
+                for item in receipt.matched_fields
+                if item != "source_sha256"
+            ),
+        )
