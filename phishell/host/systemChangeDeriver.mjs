@@ -48,6 +48,8 @@ export function deriveSystemChangeReceipt(previousRaw, currentRaw, { sequence = 
       fromAvailability: fromComponent.availability,
       toAvailability: toComponent.availability,
       availabilityChanged: fromComponent.availability !== toComponent.availability,
+      fromDigest: fromComponent.digest,
+      toDigest: toComponent.digest,
       digestChanged: fromComponent.digest !== toComponent.digest,
     };
   });
