@@ -373,6 +373,45 @@ CR-01 does not:
 
 ---
 
+## Research-hardening extension: identity continuity and recovery
+
+The v0.10 research-hardening line composes over CR-01 without changing CR-01 authority
+semantics.
+
+It adds:
+
+```text
+IdentityInvariantSet
+FunctionalEquivalenceReceipt
+EpochBoundIdentity
+RecoveryPathReceipt
+RecoveryEvaluator
+```
+
+The extension separates:
+
+```text
+topology continuity
+from
+identity continuity
+from
+authority continuity
+```
+
+Topology never counts as identity evidence.
+
+A successful recovery requires an exact next epoch, valid hash ancestry, exact checkpoint
+binding, invariant equivalence, and exact recovery-state digest continuity.
+
+Even then:
+
+```text
+authority_inherited = false
+authority_revalidation_required = true
+```
+
+See [Identity Continuity and Recovery v0.1](PHIOS_IDENTITY_RECOVERY_V0.1.md).
+
 ## Next increment
 
 CR-02 should add the BoundaryTransition evaluator and:
