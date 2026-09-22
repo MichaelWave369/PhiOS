@@ -1,7 +1,7 @@
 {
   "name": "phishell",
   "private": true,
-  "version": "0.6.0",
+  "version": "0.7.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -12,7 +12,8 @@
     "local": "npm run build && node host/localTransport.mjs",
     "transport:check": "node host/localTransportBuiltCheck.mjs",
     "probe:services": "node host/serviceObserver.mjs",
-    "probe:processes": "node host/processObserver.mjs"
+    "probe:processes": "node host/processObserver.mjs",
+    "probe:packages": "node host/packageObserver.mjs"
   },
   "dependencies": {
     "react": "19.1.1",

@@ -58,6 +58,21 @@ try {
   assert.equal(processEnvelope.observation.scope, "current-user");
   assert.ok(processEnvelope.observation.processes.length <= 32);
 
+  const packageObservation = await fetch(`${base}/api/v1/package-observation`);
+  assert.equal(packageObservation.status, 200);
+  assert.equal(packageObservation.headers.get("access-control-allow-origin"), null);
+
+  const packageEnvelope = await packageObservation.json();
+  assert.equal(packageEnvelope.transportSchemaVersion, "phios.package-transport.v1");
+  assert.equal(packageEnvelope.transportIdentity, "phishell-local-observer");
+  assert.equal(packageEnvelope.localOnly, true);
+  assert.equal(packageEnvelope.readOnly, true);
+  assert.equal(packageEnvelope.executionAuthority, false);
+  assert.equal(packageEnvelope.effectPerformed, false);
+  assert.equal(packageEnvelope.observation.source, "dpkg-status-file");
+  assert.equal(packageEnvelope.observation.adapter, "debian-dpkg-status");
+  assert.ok(packageEnvelope.observation.packages.length <= 64);
+
   const mutation = await fetch(`${base}/api/v1/host-observation`, { method: "POST" });
   assert.equal(mutation.status, 405);
 
@@ -70,6 +85,11 @@ try {
     method: "POST",
   });
   assert.equal(processMutation.status, 405);
+
+  const packageMutation = await fetch(`${base}/api/v1/package-observation`, {
+    method: "POST",
+  });
+  assert.equal(packageMutation.status, 405);
 } finally {
   await transport.close();
 }

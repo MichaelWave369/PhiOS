@@ -2,6 +2,7 @@ import { useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { HostObservationPanel } from "./components/HostObservationPanel";
 import { ServiceObservationPanel } from "./components/ServiceObservationPanel";
 import { ProcessObservationPanel } from "./components/ProcessObservationPanel";
+import { PackageObservationPanel } from "./components/PackageObservationPanel";
 import {
   INITIAL_SHELL_STATE,
   type AuthorityRequest,
@@ -85,7 +86,7 @@ const windowTemplates: Record<string, WindowModel> = {
   "system-window": {
     id: "system-window",
     title: "System Inspector",
-    subtitle: "Live host, service, and current-user process observation over loopback-only read transports.",
+    subtitle: "Live host, service, process, and package observation over loopback-only read transports.",
     kind: "system",
     x: 22,
     y: 10,
@@ -260,18 +261,18 @@ function Home() {
       </section>
 
       <section className="panel notices">
-        <div className="panel-title">V0.6 BOUNDED PROCESS OBSERVATION</div>
+        <div className="panel-title">V0.7 READ-ONLY PACKAGE INVENTORY</div>
         <div className="notice">
-          <b>Current-user process census is live</b>
-          <small>PhiShell reads procfs for the current UID only and exposes at most 32 bounded process rows.</small>
+          <b>Installed package inventory is live</b>
+          <small>PhiShell reads Debian-family package metadata files directly and exposes at most 64 bounded package rows.</small>
         </div>
         <div className="notice">
-          <b>Sensitive process metadata stays absent</b>
-          <small>No command lines, environment blocks, cwd, executable paths, cross-user details, or process signals are exposed.</small>
+          <b>Package management remains absent</b>
+          <small>No apt, dpkg command execution, install, remove, upgrade, repository change, or package-manager RPC is exposed.</small>
         </div>
         <div className="notice">
-          <b>Observation is not process authority</b>
-          <small>Process observations remain read-only with execution_authority=false and effect_performed=false.</small>
+          <b>Inventory is not package authority</b>
+          <small>Package observations remain read-only with execution_authority=false and effect_performed=false.</small>
         </div>
       </section>
 
@@ -376,6 +377,7 @@ function WindowBody({ item }: { item: WindowModel }) {
         <HostObservationPanel />
         <ServiceObservationPanel />
         <ProcessObservationPanel />
+        <PackageObservationPanel />
         <div className="observation-section observation-capabilities">
           <div className="observation-section-title">CAPABILITY BOUNDARY</div>
           <div className="capability-list">
@@ -405,7 +407,7 @@ function WindowBody({ item }: { item: WindowModel }) {
         <article>
           <small>BOUNDARY</small>
           <b>Effect broker absent</b>
-          <p>No privileged Linux effect adapter is attached in v0.6.</p>
+          <p>No privileged Linux effect adapter is attached in v0.7.</p>
         </article>
       </div>
     );
@@ -575,8 +577,8 @@ function PhiVessel() {
       </div>
       <div className="vessel-body">
         <small className="mode-label">{mode.toUpperCase()} MODE · ADVISORY</small>
-        <h2>Linux process awareness online.</h2>
-        <p>PhiShell now receives validated host, service, and current-user process observations through read-only local transports.</p>
+        <h2>Linux package awareness online.</h2>
+        <p>PhiShell now receives validated host, service, process, and installed-package observations through read-only local transports.</p>
         <p className="muted">
           The intelligence layer may propose an action. Proposal is still not authority.
         </p>
@@ -750,7 +752,7 @@ function AuthorityDialog({
         {request.decision === "pending" ? (
           <>
             <div className="authority-warning">
-              Approval below records operator intent only. PhiShell v0.6 has no privileged effect
+              Approval below records operator intent only. PhiShell v0.7 has no privileged effect
               broker and cannot execute this Linux operation.
             </div>
             <div className="authority-actions">
@@ -836,7 +838,7 @@ export function PhiShell() {
       <main className="field">
         <div className="field-title">
           <span>{title}</span>
-          <small>PhiShell v0.6 · bounded process observation · execution authority false</small>
+          <small>PhiShell v0.7 · read-only package inventory · execution authority false</small>
         </div>
         <Center view={state.view} />
         <DesktopLayer windows={state.windows} dispatch={dispatch} />

@@ -40,6 +40,8 @@ jobs:
         run: npm run probe:services -- --require-systemd
       - name: Exercise bounded current-user process probe
         run: npm run probe:processes -- --require-linux
+      - name: Exercise read-only package inventory
+        run: npm run probe:packages -- --require-debian
       - name: Type-check and build PhiShell
         run: npm run build
       - name: Verify same-origin local transport
