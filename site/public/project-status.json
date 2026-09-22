@@ -1,0 +1,16 @@
+{
+  "repository": "MichaelWave369/PhiOS",
+  "commit": "e3fd86a0d4584a94c3ffe8d7b8ffa91ac623749f",
+  "commitShort": "e3fd86a0d",
+  "commitDate": "2026-09-22T00:41:23Z",
+  "latestMergedPr": 191,
+  "siteBuild": "development",
+  "versionLines": {
+    "spine": "v0.24",
+    "appPlatform": "v0.50",
+    "phiReflex": "v0.10",
+    "hardening": "v0.10"
+  },
+  "source": "development fallback; replaced by scripts/generate-status.mjs during build",
+  "authority": "none"
+}
