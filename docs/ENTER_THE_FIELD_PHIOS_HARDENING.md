@@ -33,8 +33,8 @@ increment independently reviewable and replaceable.
 | P1 | Multi-agent corroboration reflects evidence-path independence | `IndependenceReceipt`, `DisagreementDecompositionReceipt` | **v0.6 merged via PR #186** |
 | P1 | Detection can reach bounded remediation without minting authority | `VerifierSemanticsReceipt`, `GovernanceEscalationReceipt` | **v0.7 merged via PR #187** |
 | P2 | Corrective/advisory state can decay and terminate deterministically | `DynamicStatePolicy`, `DynamicStateReceipt` | **v0.8 merged via PR #188** |
-| P2 | Memory phase and evidence horizon are explicit | `EvidenceHorizonReceipt`, `ReactivationWindowReceipt`, `ReconsolidationGate` | **v0.9 candidate implemented on this branch** |
-| P2 | Identity and recovery are invariant-based rather than topology-based | identity/recovery equivalence receipts | planned; not promoted |
+| P2 | Memory phase and evidence horizon are explicit | `EvidenceHorizonReceipt`, `ReactivationWindowReceipt`, `ReconsolidationGate` | **v0.9 merged via PR #189** |
+| P2 | Identity and recovery are invariant-based rather than topology-based | `IdentityInvariantSet`, `FunctionalEquivalenceReceipt`, `EpochBoundIdentity`, `RecoveryPathReceipt` | **v0.10 candidate implemented on this branch** |
 
 ## Research-hardening v0.1
 
@@ -1076,8 +1076,9 @@ The hardened router path must be explicitly configured with the intended Dynamic
 
 ## Research-hardening v0.9
 
-This branch implements the next P2 seam: explicit evidence horizons for governed memory,
-plus a parallel governed input/output API-key boundary requested for PhiOS integration.
+v0.9 implemented explicit evidence horizons for governed memory, plus a parallel
+governed input/output API-key boundary requested for PhiOS integration, merged through
+PR #189.
 
 The memory rule is:
 
@@ -1222,6 +1223,200 @@ memory is true or that old memory is false.
 The API-key layer proves bounded possession/secret-use handling. It does not turn an API
 key into PhiOS authority, and it does not persist plaintext secrets.
 
+## Research-hardening v0.10
+
+This branch closes the planned P2 identity/recovery line with invariant-bound identity
+continuity across recovery epochs.
+
+The governing distinctions are:
+
+```text
+SAME TOPOLOGY
+!=
+SAME IDENTITY
+```
+
+and:
+
+```text
+RECOVERED IDENTITY
+!=
+RECOVERED AUTHORITY
+```
+
+### IdentityInvariantSet
+
+`phios.identity_invariant_set.v0.1` declares the exact `IdentitySeal` fields that
+must remain invariant for one equivalence claim.
+
+The strict CR-01 policy covers:
+
+- subject ID;
+- subject kind;
+- implementation SHA-256;
+- manifest SHA-256;
+- source SHA-256;
+- issuer ID;
+- issuer key ID.
+
+Every invariant set must include subject ID and subject kind.
+
+Topology is structurally excluded from identity evidence:
+
+```text
+topology_is_identity_evidence = false
+```
+
+This means moving an otherwise identical actor between processes, hosts, containers,
+mount layouts, or runtime topology can preserve identity, while remaining on exactly the
+same topology cannot hide a changed implementation or provenance seal.
+
+### FunctionalEquivalenceReceipt
+
+`phios.functional_equivalence_receipt.v0.1` compares two exact CR-01
+`IdentitySeal` records under one invariant set.
+
+It records:
+
+- previous and candidate identity-seal SHA-256 values;
+- invariant-set SHA-256;
+- exact matched invariant fields;
+- exact mismatched invariant fields;
+- `EQUIVALENT` or `CHANGED`;
+- `topology_evidence_used = false`;
+- `trusted_identity = false`;
+- zero action/execution authority.
+
+A topology match cannot contribute equivalence credit.
+
+An equivalence receipt describes identity continuity under the declared invariant set. It
+does not establish trust.
+
+### EpochBoundIdentity
+
+`phios.epoch_bound_identity.v0.1` binds one subject to one recovery epoch.
+
+It binds:
+
+- exact subject ID/kind;
+- exact CR-01 IdentitySeal SHA-256;
+- exact invariant-set SHA-256;
+- epoch number;
+- topology SHA-256;
+- recovery-state SHA-256;
+- previous epoch identity SHA-256 for recovered epochs;
+- recovery-checkpoint SHA-256 for recovered epochs;
+- zero trust/action/execution authority.
+
+Epoch zero cannot claim recovery ancestry.
+
+Any recovered epoch must carry both the previous epoch hash and the checkpoint hash.
+
+This creates an append-only identity lineage rather than allowing a restarted process to
+declare itself the same actor because its label happened to match.
+
+### RecoveryEvaluator
+
+The evaluator recomputes the complete recovery decision from the supplied exact
+contracts.
+
+A recovery is `RECOVERED` only when all of these are true:
+
+```text
+previous seal binding valid
+recovered seal binding valid
+invariant-set binding valid
+subject bindings valid
+previous-epoch hash link valid
+checkpoint binding valid
+recovered epoch == previous epoch + 1
+identity invariants equivalent
+recovery-state SHA-256 unchanged
+```
+
+Otherwise the result is `BLOCKED` with the first failed bounded condition recorded.
+
+Topology is allowed to change and is recorded independently as:
+
+```text
+topology_changed = true | false
+```
+
+It never participates in the identity-equivalence calculation.
+
+### RecoveryPathReceipt
+
+`phios.recovery_path_receipt.v0.1` binds:
+
+- previous/recovered epoch identity hashes;
+- the exact functional-equivalence receipt hash;
+- checkpoint SHA-256;
+- previous/recovered epoch values;
+- previous/recovered topology hashes;
+- previous/recovered state hashes;
+- seal/invariant/subject/epoch/checkpoint binding booleans;
+- identity equivalence;
+- exact state recovery;
+- deterministic status/reason.
+
+Even a successful recovery fixes:
+
+```text
+authority_inherited = false
+authority_revalidation_required = true
+trusted_identity = false
+action_authority = false
+execution_authority = false
+```
+
+Identity continuity therefore cannot become an authority-restoration shortcut.
+
+Any downstream authority required by the recovered runtime must pass the existing
+authority plane again.
+
+### Exact state boundary
+
+v0.10 intentionally accepts only exact recovery-state continuity:
+
+```text
+previous recovery_state_sha256
+==
+recovered recovery_state_sha256
+```
+
+A transformed, migrated, partially restored, or semantically equivalent state does not
+qualify under this first contract.
+
+That is deliberately conservative. Future state-migration work can add a separately
+receipted transformation/equivalence contract rather than weakening exact recovery.
+
+### Strict reconstruction
+
+The invariant set, functional-equivalence receipt, epoch identity, and recovery receipt
+all support strict canonical reconstruction.
+
+Unknown fields fail closed and canonical digest mismatches reject.
+
+That prevents a recovery artifact from acquiring undeclared authority-like metadata
+during serialization/replay.
+
+### v0.10 bounded claim
+
+v0.10 proves a narrow continuity property:
+
+> under one explicit invariant set, one exactly linked next epoch may preserve actor
+> identity across topology change when exact recovery-state continuity is demonstrated.
+
+It does not prove:
+
+- checkpoint authenticity or freshness beyond the supplied digest binding;
+- trusted identity;
+- authority continuity;
+- semantic equivalence of changed state;
+- functional correctness after recovery;
+- availability of the old substrate;
+- that matching subject names alone establish identity.
+
 ## Finding traceability
 
 The table records architecture candidates motivated by F01–F26. A mapping is not a
@@ -1266,8 +1461,9 @@ drives v0.7 governance escalation and verifier semantics, with F26 reinforcing t
 composed workflows must preserve the authority boundary from detection through
 remediation request. F18 directly drives v0.8 dynamic-state attenuation and termination. F08/F14 directly
 drive v0.9 reactivation-window and evidence-horizon handling, while F12 reinforces the
-separation between historical availability and present-tense admissibility.
-F26 also reinforces provenance through composition. F01 continues to require that containment claims not
+separation between historical availability and present-tense admissibility. F02/F03/F07
+directly drive v0.10 invariant-bound identity, epoch continuity, and recovery-path
+evidence. F26 also reinforces provenance through composition. F01 continues to require that containment claims not
 exceed demonstrated coverage. All remaining rows stay candidates until their own bounded
 increments and Crucibles exist.
 
@@ -1456,6 +1652,26 @@ The focused memory-horizon/API-key test set must prove at minimum:
 14. credential-header overwrite is rejected instead of silently replacing another
     authentication context.
 
+## v0.10 Crucibles
+
+The focused identity/recovery test set must prove at minimum:
+
+1. the strict CR-01 invariant set covers every current IdentitySeal identity/provenance
+   field;
+2. topology is structurally excluded from identity evidence;
+3. a topology change may preserve identity when all declared invariants match;
+4. the same topology cannot launder an implementation-digest change;
+5. an issuer/key change is an identity change under the strict policy;
+6. changed recovery-state SHA-256 blocks exact recovery;
+7. skipped recovery epochs block;
+8. a broken previous-epoch hash link blocks;
+9. a checkpoint-binding mismatch blocks;
+10. epoch zero cannot claim prior recovery ancestry;
+11. recovery success never inherits authority and always requires downstream authority
+    revalidation;
+12. identity/recovery contracts round-trip through strict canonical reconstruction;
+13. unknown fields and digest tampering fail closed.
+
 ## Explicit non-goals
 
 The current research-hardening track does **not**:
@@ -1485,6 +1701,11 @@ The current research-hardening track does **not**:
 - treat a reactivation window as a grant to refresh stale memory;
 - persist plaintext API keys in PhiOS receipts, canonical memory, or repository config;
 - treat API-key possession as an action/execution authority grant;
+- infer identity from topology, process location, hostname, container placement, or
+  matching display name;
+- let recovery success restore or inherit prior action/execution authority;
+- call changed or migrated recovery state exact without a separate transformation or
+  equivalence contract;
 - let decay or termination grant action/execution authority or mutate the governing
   field law;
 - treat a supplied activation timestamp as authenticated wall-clock evidence;
