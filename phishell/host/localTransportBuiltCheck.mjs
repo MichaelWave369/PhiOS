@@ -29,8 +29,27 @@ try {
   assert.equal(envelope.effectPerformed, false);
   assert.equal(envelope.snapshot.source, "linux-readonly-node-probe");
 
+  const serviceObservation = await fetch(`${base}/api/v1/service-observation`);
+  assert.equal(serviceObservation.status, 200);
+  assert.equal(serviceObservation.headers.get("access-control-allow-origin"), null);
+
+  const serviceEnvelope = await serviceObservation.json();
+  assert.equal(serviceEnvelope.transportSchemaVersion, "phios.service-transport.v1");
+  assert.equal(serviceEnvelope.transportIdentity, "phishell-local-observer");
+  assert.equal(serviceEnvelope.localOnly, true);
+  assert.equal(serviceEnvelope.readOnly, true);
+  assert.equal(serviceEnvelope.executionAuthority, false);
+  assert.equal(serviceEnvelope.effectPerformed, false);
+  assert.equal(serviceEnvelope.observation.source, "systemd-dbus-list-units");
+  assert.equal(serviceEnvelope.observation.allowlistOnly, true);
+
   const mutation = await fetch(`${base}/api/v1/host-observation`, { method: "POST" });
   assert.equal(mutation.status, 405);
+
+  const serviceMutation = await fetch(`${base}/api/v1/service-observation`, {
+    method: "POST",
+  });
+  assert.equal(serviceMutation.status, 405);
 } finally {
   await transport.close();
 }
