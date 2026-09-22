@@ -83,7 +83,7 @@ const windowTemplates: Record<string, WindowModel> = {
   "system-window": {
     id: "system-window",
     title: "System Inspector",
-    subtitle: "Read-only Linux observation contract with an explicit unbound browser bridge.",
+    subtitle: "Live same-origin Linux observation over a loopback-only read transport.",
     kind: "system",
     x: 22,
     y: 10,
@@ -258,14 +258,14 @@ function Home() {
       </section>
 
       <section className="panel notices">
-        <div className="panel-title">V0.3 LINUX OBSERVATION</div>
+        <div className="panel-title">V0.4 LOCAL OBSERVATION TRANSPORT</div>
         <div className="notice">
-          <b>Native read-only probe exists</b>
-          <small>Linux host/session/resource/network/power observations are collected without process execution.</small>
+          <b>Loopback transport is bound</b>
+          <small>The built shell and live host-observation endpoint share one 127.0.0.1 origin.</small>
         </div>
         <div className="notice">
-          <b>Browser bridge is explicit</b>
-          <small>The System Inspector renders a labeled fixture until a native local transport is reviewed.</small>
+          <b>Live data must validate</b>
+          <small>Freshness, transport identity, source identity, and authority invariants are checked before display.</small>
         </div>
         <div className="notice">
           <b>Observation is not authority</b>
@@ -274,7 +274,7 @@ function Home() {
       </section>
 
       <section className="panel resources">
-        <div className="panel-title">SYSTEM RESOURCES</div>
+        <div className="panel-title">RESOURCE VISUAL PREVIEW · DEMO VALUES</div>
         {[
           ["CPU", 18],
           ["GPU", 32],
@@ -401,7 +401,7 @@ function WindowBody({ item }: { item: WindowModel }) {
         <article>
           <small>BOUNDARY</small>
           <b>Effect broker absent</b>
-          <p>No privileged Linux effect adapter is attached in v0.3.</p>
+          <p>No privileged Linux effect adapter is attached in v0.4.</p>
         </article>
       </div>
     );
@@ -571,8 +571,8 @@ function PhiVessel() {
       </div>
       <div className="vessel-body">
         <small className="mode-label">{mode.toUpperCase()} MODE · ADVISORY</small>
-        <h2>Linux observation online.</h2>
-        <p>PhiShell now has a real read-only Linux host probe plus an explicit browser observation contract.</p>
+        <h2>Local Linux bridge online.</h2>
+        <p>PhiShell can now receive validated live host observations through its same-origin loopback transport.</p>
         <p className="muted">
           The intelligence layer may propose an action. Proposal is still not authority.
         </p>
@@ -746,7 +746,7 @@ function AuthorityDialog({
         {request.decision === "pending" ? (
           <>
             <div className="authority-warning">
-              Approval below records operator intent only. PhiShell v0.3 has no privileged effect
+              Approval below records operator intent only. PhiShell v0.4 has no privileged effect
               broker and cannot execute this Linux operation.
             </div>
             <div className="authority-actions">
@@ -832,7 +832,7 @@ export function PhiShell() {
       <main className="field">
         <div className="field-title">
           <span>{title}</span>
-          <small>PhiShell v0.3 · read-only Linux observation · execution authority false</small>
+          <small>PhiShell v0.4 · loopback observation transport · execution authority false</small>
         </div>
         <Center view={state.view} />
         <DesktopLayer windows={state.windows} dispatch={dispatch} />

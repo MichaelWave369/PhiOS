@@ -38,3 +38,5 @@ jobs:
         run: npm run probe:linux -- --check
       - name: Type-check and build PhiShell
         run: npm run build
+      - name: Verify same-origin local transport
+        run: npm run transport:check

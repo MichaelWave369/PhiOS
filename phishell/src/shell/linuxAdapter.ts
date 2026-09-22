@@ -63,7 +63,7 @@ export function createZeroPrivilegeLinuxAdapter(): LinuxServiceAdapter {
         executionAuthority: false,
         effectPerformed: false,
         reason:
-          "PhiShell v0.3 records the requested intent but the effect adapter still cannot perform Linux effects.",
+          "PhiShell v0.4 records the requested intent but the effect adapter still cannot perform Linux effects.",
       };
     },
   };
