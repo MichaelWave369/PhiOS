@@ -1,0 +1,126 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "phios.host-observation.v1",
+  "title": "PhiOS Host Observation",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "source",
+    "capturedAt",
+    "readOnly",
+    "executionAuthority",
+    "effectPerformed",
+    "host",
+    "session",
+    "cpu",
+    "memory",
+    "storage",
+    "network",
+    "power",
+    "init"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "phios.host-observation.v1" },
+    "source": { "enum": ["fixture", "linux-readonly-node-probe"] },
+    "capturedAt": { "type": "string", "format": "date-time" },
+    "readOnly": { "const": true },
+    "executionAuthority": { "const": false },
+    "effectPerformed": { "const": false },
+    "host": {
+      "type": "object",
+      "required": ["hostname", "platform", "release", "arch"],
+      "properties": {
+        "hostname": { "type": "string" },
+        "platform": { "type": "string" },
+        "release": { "type": "string" },
+        "arch": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "session": {
+      "type": "object",
+      "required": ["username", "uid", "shell", "sessionType"],
+      "properties": {
+        "username": { "type": "string" },
+        "uid": { "type": ["integer", "null"] },
+        "shell": { "type": ["string", "null"] },
+        "sessionType": { "type": ["string", "null"] }
+      },
+      "additionalProperties": false
+    },
+    "cpu": {
+      "type": "object",
+      "required": ["logicalCores", "model", "loadAverage"],
+      "properties": {
+        "logicalCores": { "type": "integer", "minimum": 1 },
+        "model": { "type": "string" },
+        "loadAverage": {
+          "type": "array",
+          "prefixItems": [{ "type": "number" }, { "type": "number" }, { "type": "number" }],
+          "minItems": 3,
+          "maxItems": 3
+        }
+      },
+      "additionalProperties": false
+    },
+    "memory": {
+      "type": "object",
+      "required": ["totalBytes", "freeBytes", "usedPercent"],
+      "properties": {
+        "totalBytes": { "type": "number", "minimum": 0 },
+        "freeBytes": { "type": "number", "minimum": 0 },
+        "usedPercent": { "type": "number", "minimum": 0, "maximum": 100 }
+      },
+      "additionalProperties": false
+    },
+    "storage": {
+      "type": "object",
+      "required": ["mount", "totalBytes", "freeBytes", "usedPercent"],
+      "properties": {
+        "mount": { "const": "/" },
+        "totalBytes": { "type": "number", "minimum": 0 },
+        "freeBytes": { "type": "number", "minimum": 0 },
+        "usedPercent": { "type": "number", "minimum": 0, "maximum": 100 }
+      },
+      "additionalProperties": false
+    },
+    "network": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "families", "internal"],
+        "properties": {
+          "name": { "type": "string" },
+          "families": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+          "internal": { "type": "boolean" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "power": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "type", "status", "capacityPercent"],
+        "properties": {
+          "name": { "type": "string" },
+          "type": { "type": ["string", "null"] },
+          "status": { "type": ["string", "null"] },
+          "capacityPercent": { "type": ["number", "null"], "minimum": 0, "maximum": 100 }
+        },
+        "additionalProperties": false
+      }
+    },
+    "init": {
+      "type": "object",
+      "required": ["systemdPresent", "serviceStatusBound", "reason"],
+      "properties": {
+        "systemdPresent": { "type": "boolean" },
+        "serviceStatusBound": { "const": false },
+        "reason": { "type": "string" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
