@@ -62,12 +62,11 @@ describe("service observation transport", () => {
   });
 
   it("falls back when a service identity escapes the allowlist", async () => {
-    const unsafe = envelope();
-    unsafe.observation.services[0] = {
-      ...unsafe.observation.services[0],
-      id: "arbitrary-service",
-      unit: "arbitrary.service",
+    const unsafe = JSON.parse(JSON.stringify(envelope())) as {
+      observation: { services: Array<Record<string, unknown>> };
     };
+    unsafe.observation.services[0].id = "arbitrary-service";
+    unsafe.observation.services[0].unit = "arbitrary.service";
 
     const provider = createServiceObservationProvider({
       fetcher: async () => new Response(JSON.stringify(unsafe), { status: 200 }),
