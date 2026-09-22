@@ -103,7 +103,7 @@ The complete contract links are in [VERSION_HISTORY.md](VERSION_HISTORY.md).
 
 - [Governed Memory](governed-memory.md)
 - [Memory Evidence Horizon v0.1](PHIOS_MEMORY_EVIDENCE_HORIZON_V0.1.md)
-- [Memory/Ledger implementation proposal](PHIOS_MEMORY_LEDGER_IMPLEMENTATION_PROPOSAL_2026-09-20.md), when present in this checkout
+- [Ledger analytics](ledger-analytics.md)
 - Ledger reports remain derived/read-only analytics rather than an authority plane.
 
 ### Covenant Runtime
