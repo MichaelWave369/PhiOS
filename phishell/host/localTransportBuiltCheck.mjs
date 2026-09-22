@@ -73,6 +73,23 @@ try {
   assert.equal(packageEnvelope.observation.adapter, "debian-dpkg-status");
   assert.ok(packageEnvelope.observation.packages.length <= 64);
 
+  const deviceObservation = await fetch(`${base}/api/v1/device-observation`);
+  assert.equal(deviceObservation.status, 200);
+  assert.equal(deviceObservation.headers.get("access-control-allow-origin"), null);
+
+  const deviceEnvelope = await deviceObservation.json();
+  assert.equal(deviceEnvelope.transportSchemaVersion, "phios.device-transport.v1");
+  assert.equal(deviceEnvelope.transportIdentity, "phishell-local-observer");
+  assert.equal(deviceEnvelope.localOnly, true);
+  assert.equal(deviceEnvelope.readOnly, true);
+  assert.equal(deviceEnvelope.executionAuthority, false);
+  assert.equal(deviceEnvelope.effectPerformed, false);
+  assert.equal(deviceEnvelope.observation.source, "linux-sysfs-bounded");
+  assert.ok(deviceEnvelope.observation.block.length <= 16);
+  assert.ok(deviceEnvelope.observation.network.length <= 16);
+  assert.ok(deviceEnvelope.observation.pci.length <= 16);
+  assert.ok(deviceEnvelope.observation.usb.length <= 16);
+
   const mutation = await fetch(`${base}/api/v1/host-observation`, { method: "POST" });
   assert.equal(mutation.status, 405);
 
@@ -90,6 +107,11 @@ try {
     method: "POST",
   });
   assert.equal(packageMutation.status, 405);
+
+  const deviceMutation = await fetch(`${base}/api/v1/device-observation`, {
+    method: "POST",
+  });
+  assert.equal(deviceMutation.status, 405);
 } finally {
   await transport.close();
 }
