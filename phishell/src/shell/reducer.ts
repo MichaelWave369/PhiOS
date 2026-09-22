@@ -106,6 +106,9 @@ export function shellReducer(state: ShellState, event: ShellEvent): ShellState {
         },
       };
 
+    case "CLEAR_AUTHORITY":
+      return { ...state, authorityRequest: null };
+
     default:
       return state;
   }
