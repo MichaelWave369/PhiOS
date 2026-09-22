@@ -35,7 +35,13 @@ const capabilities: readonly LinuxCapability[] = [
   { id: "network.configure", label: "Network configuration", consequence: "mutating", available: false },
   { id: "package.manage", label: "Package management", consequence: "mutating", available: false },
   { id: "service.control", label: "Service control", consequence: "mutating", available: false },
-  { id: "system.inspect", label: "Host identity observation", consequence: "read", available: true },\n  { id: "session.inspect", label: "Session identity observation", consequence: "read", available: true },\n  { id: "resource.inspect", label: "CPU, memory, and storage observation", consequence: "read", available: true },\n  { id: "network.inspect", label: "Network interface observation", consequence: "read", available: true },\n  { id: "power.inspect", label: "Power-supply observation", consequence: "read", available: true },\n  { id: "init.inspect", label: "Init-system observation", consequence: "read", available: true },\n  { id: "service.inspect", label: "Specific service status", consequence: "read", available: false },
+  { id: "system.inspect", label: "Host identity observation", consequence: "read", available: true },
+  { id: "session.inspect", label: "Session identity observation", consequence: "read", available: true },
+  { id: "resource.inspect", label: "CPU, memory, and storage observation", consequence: "read", available: true },
+  { id: "network.inspect", label: "Network interface observation", consequence: "read", available: true },
+  { id: "power.inspect", label: "Power-supply observation", consequence: "read", available: true },
+  { id: "init.inspect", label: "Init-system observation", consequence: "read", available: true },
+  { id: "service.inspect", label: "Specific service status", consequence: "read", available: false },
 ];
 
 export function createZeroPrivilegeLinuxAdapter(): LinuxServiceAdapter {
