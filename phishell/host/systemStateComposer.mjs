@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { pathToFileURL } from "node:url";
 import { collectLinuxHostObservation } from "./linuxProbe.mjs";
 import { assertValidHostObservation } from "./observationContract.mjs";
 import { collectSystemdServiceObservation } from "./serviceObserver.mjs";
@@ -136,3 +137,25 @@ export function recomputeSystemStateReceiptDigest(receipt) {
 }
 
 export { COMPONENT_IDS, MAX_COHERENT_SKEW_MS };
+
+
+async function main() {
+  const receipt = await composeSystemStateReceipt();
+  if (process.argv.includes("--require-coherent") && receipt.coherence !== "coherent") {
+    throw new Error(`system-state receipt degraded: ${receipt.availableComponentCount}/${receipt.componentCount} components available, skew=${receipt.captureSkewMs}ms`);
+  }
+  if (process.argv.includes("--check") || process.argv.includes("--require-coherent")) return;
+  process.stdout.write(
+    `${JSON.stringify(receipt, null, process.argv.includes("--json") ? 2 : 0)}\n`,
+  );
+}
+
+const invokedDirectly =
+  process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
+
+if (invokedDirectly) {
+  main().catch((error) => {
+    process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
+    process.exitCode = 1;
+  });
+}
