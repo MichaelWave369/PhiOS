@@ -1,7 +1,7 @@
 {
   "name": "phishell",
   "private": true,
-  "version": "0.8.0",
+  "version": "0.9.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -14,7 +14,8 @@
     "probe:services": "node host/serviceObserver.mjs",
     "probe:processes": "node host/processObserver.mjs",
     "probe:packages": "node host/packageObserver.mjs",
-    "probe:devices": "node host/deviceObserver.mjs"
+    "probe:devices": "node host/deviceObserver.mjs",
+    "probe:state": "node host/systemStateComposer.mjs"
   },
   "dependencies": {
     "react": "19.1.1",
