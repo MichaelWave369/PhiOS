@@ -104,3 +104,17 @@ linear-gradient(135deg,rgba(13,32,42,.92),rgba(5,13,17,.96));box-shadow:inset 0 
 .service-row>span{color:var(--muted);font-size:7px;text-transform:uppercase;text-align:center}
 .service-row>em{font-style:normal;font-size:7px;letter-spacing:.06em;text-align:right}
 .service-active{color:var(--green)}.service-failed{color:var(--red)}.service-inactive{color:var(--amber)}.service-not-loaded{color:var(--muted)}
+
+
+/* PhiShell v0.6 bounded process observation */
+.process-observation{display:grid;gap:9px;margin-top:14px;padding-top:12px;border-top:1px solid rgba(39,223,255,.2)}
+.process-summary{display:flex;flex-wrap:wrap;gap:6px}
+.process-summary span{padding:5px 7px;border:1px solid rgba(39,223,255,.18);border-radius:5px;background:rgba(39,223,255,.025);color:var(--muted);font:7px ui-monospace,monospace;text-transform:uppercase}
+.process-table{display:grid;gap:3px;max-height:270px;overflow:auto;border:1px solid rgba(23,67,84,.34);border-radius:7px;padding:4px}
+.process-row{display:grid;grid-template-columns:60px 1.4fr 100px 80px 60px;gap:8px;align-items:center;padding:7px 8px;border-bottom:1px solid rgba(23,67,84,.26)}
+.process-row:last-child{border-bottom:0}
+.process-row code{color:var(--cyan);font:7px ui-monospace,monospace}
+.process-row b{font-size:8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.process-row span{color:var(--muted);font-size:7px;text-align:right}
+.process-header{position:sticky;top:0;background:#08171e;z-index:1}
+.process-header span{color:var(--gold);font-size:7px;letter-spacing:.09em;text-align:left}

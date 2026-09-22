@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "phios.process-observation.v1",
+  "title": "PhiOS Current-User Process Observation",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "source",
+    "capturedAt",
+    "availability",
+    "reason",
+    "scope",
+    "processLimit",
+    "readOnly",
+    "executionAuthority",
+    "effectPerformed",
+    "currentUid",
+    "currentUserProcessCount",
+    "stateCounts",
+    "processes"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "phios.process-observation.v1" },
+    "source": { "const": "procfs-current-user" },
+    "capturedAt": { "type": "string", "format": "date-time" },
+    "availability": { "enum": ["available", "unavailable"] },
+    "reason": {
+      "type": ["string", "null"],
+      "enum": [null, "non-linux-host", "current-uid-unavailable", "procfs-unavailable"]
+    },
+    "scope": { "const": "current-user" },
+    "processLimit": { "const": 32 },
+    "readOnly": { "const": true },
+    "executionAuthority": { "const": false },
+    "effectPerformed": { "const": false },
+    "currentUid": { "type": ["integer", "null"], "minimum": 0 },
+    "currentUserProcessCount": { "type": "integer", "minimum": 0 },
+    "stateCounts": {
+      "type": "object",
+      "required": ["running", "sleeping", "diskSleep", "stopped", "zombie", "idle", "other"],
+      "properties": {
+        "running": { "type": "integer", "minimum": 0 },
+        "sleeping": { "type": "integer", "minimum": 0 },
+        "diskSleep": { "type": "integer", "minimum": 0 },
+        "stopped": { "type": "integer", "minimum": 0 },
+        "zombie": { "type": "integer", "minimum": 0 },
+        "idle": { "type": "integer", "minimum": 0 },
+        "other": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": false
+    },
+    "processes": {
+      "type": "array",
+      "maxItems": 32,
+      "items": {
+        "type": "object",
+        "required": ["pid", "ppid", "comm", "state", "rssBytes", "threads"],
+        "properties": {
+          "pid": { "type": "integer", "minimum": 1 },
+          "ppid": { "type": "integer", "minimum": 0 },
+          "comm": { "type": "string", "minLength": 1, "maxLength": 128 },
+          "state": { "type": "string", "pattern": "^[RSDTtZXIP?]$" },
+          "rssBytes": { "type": "number", "minimum": 0 },
+          "threads": { "type": "integer", "minimum": 1 }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}
