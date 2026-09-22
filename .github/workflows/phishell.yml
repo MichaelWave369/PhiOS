@@ -38,6 +38,8 @@ jobs:
         run: npm run probe:linux -- --check
       - name: Exercise allowlisted systemd service probe
         run: npm run probe:services -- --require-systemd
+      - name: Exercise bounded current-user process probe
+        run: npm run probe:processes -- --require-linux
       - name: Type-check and build PhiShell
         run: npm run build
       - name: Verify same-origin local transport
