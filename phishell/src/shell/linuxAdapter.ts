@@ -35,7 +35,13 @@ const capabilities: readonly LinuxCapability[] = [
   { id: "network.configure", label: "Network configuration", consequence: "mutating", available: false },
   { id: "package.manage", label: "Package management", consequence: "mutating", available: false },
   { id: "service.control", label: "Service control", consequence: "mutating", available: false },
-  { id: "system.inspect", label: "System inspection", consequence: "read", available: true },
+  { id: "system.inspect", label: "Host identity observation", consequence: "read", available: true },
+  { id: "session.inspect", label: "Session identity observation", consequence: "read", available: true },
+  { id: "resource.inspect", label: "CPU, memory, and storage observation", consequence: "read", available: true },
+  { id: "network.inspect", label: "Network interface observation", consequence: "read", available: true },
+  { id: "power.inspect", label: "Power-supply observation", consequence: "read", available: true },
+  { id: "init.inspect", label: "Init-system observation", consequence: "read", available: true },
+  { id: "service.inspect", label: "Specific service status", consequence: "read", available: false },
 ];
 
 export function createZeroPrivilegeLinuxAdapter(): LinuxServiceAdapter {
@@ -57,7 +63,7 @@ export function createZeroPrivilegeLinuxAdapter(): LinuxServiceAdapter {
         executionAuthority: false,
         effectPerformed: false,
         reason:
-          "PhiShell v0.2 records the requested intent but this adapter cannot perform Linux effects.",
+          "PhiShell v0.3 records the requested intent but the effect adapter still cannot perform Linux effects.",
       };
     },
   };

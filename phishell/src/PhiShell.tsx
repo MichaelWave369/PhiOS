@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useReducer, useRef, useState } from "react";
+import { HostObservationPanel } from "./components/HostObservationPanel";
 import {
   INITIAL_SHELL_STATE,
   type AuthorityRequest,
@@ -82,12 +83,12 @@ const windowTemplates: Record<string, WindowModel> = {
   "system-window": {
     id: "system-window",
     title: "System Inspector",
-    subtitle: "Read-capable Linux adapter surface with no mutation authority.",
+    subtitle: "Read-only Linux observation contract with an explicit unbound browser bridge.",
     kind: "system",
-    x: 28,
-    y: 18,
-    width: 50,
-    height: 50,
+    x: 22,
+    y: 10,
+    width: 68,
+    height: 72,
     z: 1,
     state: "open",
   },
@@ -121,7 +122,7 @@ const commands: CommandItem[] = [
   {
     id: "window-system",
     label: "Open System Inspector",
-    detail: "Inspect the zero-privilege Linux service boundary.",
+    detail: "Inspect host observation data, provenance, and Linux capability boundaries.",
     action: { type: "open-window", windowId: "system-window" },
   },
   {
@@ -257,18 +258,18 @@ function Home() {
       </section>
 
       <section className="panel notices">
-        <div className="panel-title">V0.2 DESKTOP CONTRACT</div>
+        <div className="panel-title">V0.3 LINUX OBSERVATION</div>
         <div className="notice">
-          <b>Window state is typed</b>
-          <small>Focus, move, minimize, maximize, restore, and close flow through events.</small>
+          <b>Native read-only probe exists</b>
+          <small>Linux host/session/resource/network/power observations are collected without process execution.</small>
         </div>
         <div className="notice">
-          <b>Commands are intents</b>
-          <small>The universal overlay can navigate and request, but cannot execute Linux effects.</small>
+          <b>Browser bridge is explicit</b>
+          <small>The System Inspector renders a labeled fixture until a native local transport is reviewed.</small>
         </div>
         <div className="notice">
-          <b>Authority remains separate</b>
-          <small>Even approved prototype intent retains execution_authority=false.</small>
+          <b>Observation is not authority</b>
+          <small>Every snapshot carries execution_authority=false and effect_performed=false.</small>
         </div>
       </section>
 
@@ -369,17 +370,23 @@ function WindowBody({ item }: { item: WindowModel }) {
 
   if (item.id === "system-window") {
     return (
-      <div className="capability-list">
-        {linuxServiceAdapter.listCapabilities().map((capability) => (
-          <div key={capability.id}>
-            <span>{capability.label}</span>
-            <small>{capability.consequence}</small>
-            <b className={capability.available ? "cap-read" : "cap-blocked"}>
-              {capability.available ? "DESCRIBED" : "BLOCKED"}
-            </b>
+      <>
+        <HostObservationPanel />
+        <div className="observation-section observation-capabilities">
+          <div className="observation-section-title">CAPABILITY BOUNDARY</div>
+          <div className="capability-list">
+            {linuxServiceAdapter.listCapabilities().map((capability) => (
+              <div key={capability.id}>
+                <span>{capability.label}</span>
+                <small>{capability.consequence}</small>
+                <b className={capability.available ? "cap-read" : "cap-blocked"}>
+                  {capability.available ? "OBSERVABLE" : "BLOCKED"}
+                </b>
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
+        </div>
+      </>
     );
   }
 
@@ -394,7 +401,7 @@ function WindowBody({ item }: { item: WindowModel }) {
         <article>
           <small>BOUNDARY</small>
           <b>Effect broker absent</b>
-          <p>No privileged Linux adapter is attached in v0.2.</p>
+          <p>No privileged Linux effect adapter is attached in v0.3.</p>
         </article>
       </div>
     );
@@ -564,8 +571,8 @@ function PhiVessel() {
       </div>
       <div className="vessel-body">
         <small className="mode-label">{mode.toUpperCase()} MODE · ADVISORY</small>
-        <h2>Desktop contracts online.</h2>
-        <p>PhiShell can now model windows and authority requests without acquiring Linux privilege.</p>
+        <h2>Linux observation online.</h2>
+        <p>PhiShell now has a real read-only Linux host probe plus an explicit browser observation contract.</p>
         <p className="muted">
           The intelligence layer may propose an action. Proposal is still not authority.
         </p>
@@ -739,7 +746,7 @@ function AuthorityDialog({
         {request.decision === "pending" ? (
           <>
             <div className="authority-warning">
-              Approval below records operator intent only. PhiShell v0.2 has no privileged effect
+              Approval below records operator intent only. PhiShell v0.3 has no privileged effect
               broker and cannot execute this Linux operation.
             </div>
             <div className="authority-actions">
@@ -825,7 +832,7 @@ export function PhiShell() {
       <main className="field">
         <div className="field-title">
           <span>{title}</span>
-          <small>PhiShell v0.2 · typed desktop · zero-privilege Linux boundary</small>
+          <small>PhiShell v0.3 · read-only Linux observation · execution authority false</small>
         </div>
         <Center view={state.view} />
         <DesktopLayer windows={state.windows} dispatch={dispatch} />
