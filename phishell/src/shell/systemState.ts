@@ -179,7 +179,15 @@ function isSystemStateReceipt(value: unknown): value is SystemStateReceipt {
     const metric = value.summary[key];
     if (!isFiniteNumber(metric) || metric < 0) return false;
   }
-  if (value.summary.activeServiceCount > value.summary.observedServiceCount) return false;
+  const activeServiceCount = value.summary.activeServiceCount;
+  const observedServiceCount = value.summary.observedServiceCount;
+  if (
+    !isFiniteNumber(activeServiceCount) ||
+    !isFiniteNumber(observedServiceCount) ||
+    activeServiceCount > observedServiceCount
+  ) {
+    return false;
+  }
 
   const times = value.components.map((component) => Date.parse(component.capturedAt));
   const expectedStart = new Date(Math.min(...times)).toISOString();
