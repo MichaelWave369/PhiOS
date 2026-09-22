@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "phios.service-observation.v1",
+  "title": "PhiOS Allowlisted Service Observation",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "source",
+    "capturedAt",
+    "availability",
+    "reason",
+    "allowlistOnly",
+    "readOnly",
+    "executionAuthority",
+    "effectPerformed",
+    "services"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "phios.service-observation.v1" },
+    "source": { "const": "systemd-dbus-list-units" },
+    "capturedAt": { "type": "string", "format": "date-time" },
+    "availability": { "enum": ["available", "unavailable"] },
+    "reason": {
+      "type": ["string", "null"],
+      "enum": [null, "non-linux-host", "systemd-runtime-not-present", "system-bus-unavailable"]
+    },
+    "allowlistOnly": { "const": true },
+    "readOnly": { "const": true },
+    "executionAuthority": { "const": false },
+    "effectPerformed": { "const": false },
+    "services": {
+      "type": "array",
+      "minItems": 9,
+      "maxItems": 9,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "label",
+          "unit",
+          "found",
+          "description",
+          "loadState",
+          "activeState",
+          "subState"
+        ],
+        "properties": {
+          "id": { "type": "string", "maxLength": 64 },
+          "label": { "type": "string", "maxLength": 128 },
+          "unit": { "type": "string", "pattern": "^[A-Za-z0-9@_.-]+\\.service$" },
+          "found": { "type": "boolean" },
+          "description": { "type": ["string", "null"], "maxLength": 256 },
+          "loadState": { "type": ["string", "null"], "maxLength": 64 },
+          "activeState": { "type": ["string", "null"], "maxLength": 64 },
+          "subState": { "type": ["string", "null"], "maxLength": 64 }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

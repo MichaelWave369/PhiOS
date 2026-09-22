@@ -36,6 +36,8 @@ jobs:
         run: npm test
       - name: Exercise read-only Linux host probe
         run: npm run probe:linux -- --check
+      - name: Exercise allowlisted systemd service probe
+        run: npm run probe:services -- --require-systemd
       - name: Type-check and build PhiShell
         run: npm run build
       - name: Verify same-origin local transport

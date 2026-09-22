@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { HostObservationPanel } from "./components/HostObservationPanel";
+import { ServiceObservationPanel } from "./components/ServiceObservationPanel";
 import {
   INITIAL_SHELL_STATE,
   type AuthorityRequest,
@@ -83,7 +84,7 @@ const windowTemplates: Record<string, WindowModel> = {
   "system-window": {
     id: "system-window",
     title: "System Inspector",
-    subtitle: "Live same-origin Linux observation over a loopback-only read transport.",
+    subtitle: "Live host and allowlisted service observation over loopback-only read transports.",
     kind: "system",
     x: 22,
     y: 10,
@@ -258,18 +259,18 @@ function Home() {
       </section>
 
       <section className="panel notices">
-        <div className="panel-title">V0.4 LOCAL OBSERVATION TRANSPORT</div>
+        <div className="panel-title">V0.5 BOUNDED SERVICE OBSERVATION</div>
         <div className="notice">
-          <b>Loopback transport is bound</b>
-          <small>The built shell and live host-observation endpoint share one 127.0.0.1 origin.</small>
+          <b>Allowlisted service status is live</b>
+          <small>PhiShell reads systemd service state through D-Bus ListUnits and projects only the fixed service allowlist.</small>
         </div>
         <div className="notice">
-          <b>Live data must validate</b>
-          <small>Freshness, transport identity, source identity, and authority invariants are checked before display.</small>
+          <b>Service control remains absent</b>
+          <small>No start, stop, restart, enable, disable, kill, or arbitrary unit query is exposed.</small>
         </div>
         <div className="notice">
-          <b>Observation is not authority</b>
-          <small>Every snapshot carries execution_authority=false and effect_performed=false.</small>
+          <b>Status is not control</b>
+          <small>Service observations remain read-only with execution_authority=false and effect_performed=false.</small>
         </div>
       </section>
 
@@ -372,6 +373,7 @@ function WindowBody({ item }: { item: WindowModel }) {
     return (
       <>
         <HostObservationPanel />
+        <ServiceObservationPanel />
         <div className="observation-section observation-capabilities">
           <div className="observation-section-title">CAPABILITY BOUNDARY</div>
           <div className="capability-list">
@@ -401,7 +403,7 @@ function WindowBody({ item }: { item: WindowModel }) {
         <article>
           <small>BOUNDARY</small>
           <b>Effect broker absent</b>
-          <p>No privileged Linux effect adapter is attached in v0.4.</p>
+          <p>No privileged Linux effect adapter is attached in v0.5.</p>
         </article>
       </div>
     );
@@ -571,8 +573,8 @@ function PhiVessel() {
       </div>
       <div className="vessel-body">
         <small className="mode-label">{mode.toUpperCase()} MODE · ADVISORY</small>
-        <h2>Local Linux bridge online.</h2>
-        <p>PhiShell can now receive validated live host observations through its same-origin loopback transport.</p>
+        <h2>Linux service awareness online.</h2>
+        <p>PhiShell now receives validated host observations plus bounded systemd service status through read-only local transports.</p>
         <p className="muted">
           The intelligence layer may propose an action. Proposal is still not authority.
         </p>
@@ -746,7 +748,7 @@ function AuthorityDialog({
         {request.decision === "pending" ? (
           <>
             <div className="authority-warning">
-              Approval below records operator intent only. PhiShell v0.4 has no privileged effect
+              Approval below records operator intent only. PhiShell v0.5 has no privileged effect
               broker and cannot execute this Linux operation.
             </div>
             <div className="authority-actions">
@@ -832,7 +834,7 @@ export function PhiShell() {
       <main className="field">
         <div className="field-title">
           <span>{title}</span>
-          <small>PhiShell v0.4 · loopback observation transport · execution authority false</small>
+          <small>PhiShell v0.5 · bounded service observation · execution authority false</small>
         </div>
         <Center view={state.view} />
         <DesktopLayer windows={state.windows} dispatch={dispatch} />

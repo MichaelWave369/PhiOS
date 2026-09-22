@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "phios.service-transport.v1",
+  "title": "PhiOS Local Service Observation Transport",
+  "type": "object",
+  "required": [
+    "transportSchemaVersion",
+    "transport",
+    "transportIdentity",
+    "localOnly",
+    "readOnly",
+    "executionAuthority",
+    "effectPerformed",
+    "servedAt",
+    "snapshotAgeMs",
+    "observation"
+  ],
+  "properties": {
+    "transportSchemaVersion": { "const": "phios.service-transport.v1" },
+    "transport": { "const": "loopback-http" },
+    "transportIdentity": { "const": "phishell-local-observer" },
+    "localOnly": { "const": true },
+    "readOnly": { "const": true },
+    "executionAuthority": { "const": false },
+    "effectPerformed": { "const": false },
+    "servedAt": { "type": "string", "format": "date-time" },
+    "snapshotAgeMs": { "type": "number", "minimum": 0, "maximum": 5000 },
+    "observation": { "$ref": "phios.service-observation.v1" }
+  },
+  "additionalProperties": false
+}
