@@ -32,5 +32,7 @@ jobs:
           package-manager-cache: false
       - name: Install PhiShell dependencies
         run: npm install --no-audit --no-fund
+      - name: Test PhiShell contracts
+        run: npm test
       - name: Type-check and build PhiShell
         run: npm run build
