@@ -88,7 +88,7 @@ const windowTemplates: Record<string, WindowModel> = {
   "system-window": {
     id: "system-window",
     title: "System Inspector",
-    subtitle: "One unified provenance receipt over host, service, process, package, and hardware observations.",
+    subtitle: "Unified state plus bounded session-local change receipts over validated observations.",
     kind: "system",
     x: 22,
     y: 10,
@@ -263,18 +263,18 @@ function Home() {
       </section>
 
       <section className="panel notices">
-        <div className="panel-title">V0.9 UNIFIED SYSTEM STATE</div>
+        <div className="panel-title">V0.10 OBSERVATION HISTORY</div>
         <div className="notice">
-          <b>Unified five-plane system receipt is live</b>
-          <small>PhiShell composes the five existing observation planes into one timestamped, hash-identified machine-state receipt.</small>
+          <b>Bounded change receipts are live</b>
+          <small>PhiShell keeps up to 16 validated system-state receipts in session memory and derives descriptive change receipts between adjacent captures.</small>
         </div>
         <div className="notice">
-          <b>Composition adds no authority</b>
-          <small>The receipt adds no new probe, mutation method, privilege, raw data field, or effect path.</small>
+          <b>History adds no authority</b>
+          <small>History is non-persistent, adds no Linux probe or effect path, and assigns neither cause nor severity.</small>
         </div>
         <div className="notice">
-          <b>Coherence is explicit</b>
-          <small>Unavailable planes or excessive capture skew produce DEGRADED instead of invented coherence.</small>
+          <b>Change is descriptive</b>
+          <small>A change receipt states what moved between two trusted receipts without claiming why it moved or how important it is.</small>
         </div>
       </section>
 
@@ -581,8 +581,8 @@ function PhiVessel() {
       </div>
       <div className="vessel-body">
         <small className="mode-label">{mode.toUpperCase()} MODE · ADVISORY</small>
-        <h2>Unified machine state online.</h2>
-        <p>PhiShell now composes those validated observation planes into one digest-checked system-state receipt.</p>
+        <h2>Observation history online.</h2>
+        <p>PhiShell now retains bounded session-local receipts and derives digest-checked descriptive change records.</p>
         <p className="muted">
           The intelligence layer may propose an action. Proposal is still not authority.
         </p>
@@ -756,7 +756,7 @@ function AuthorityDialog({
         {request.decision === "pending" ? (
           <>
             <div className="authority-warning">
-              Approval below records operator intent only. PhiShell v0.9 has no privileged effect
+              Approval below records operator intent only. PhiShell v0.10 has no privileged effect
               broker and cannot execute this Linux operation.
             </div>
             <div className="authority-actions">
@@ -842,7 +842,7 @@ export function PhiShell() {
       <main className="field">
         <div className="field-title">
           <span>{title}</span>
-          <small>PhiShell v0.9 · unified system state receipt · execution authority false</small>
+          <small>PhiShell v0.10 · observation history + change receipts · execution authority false</small>
         </div>
         <Center view={state.view} />
         <DesktopLayer windows={state.windows} dispatch={dispatch} />
