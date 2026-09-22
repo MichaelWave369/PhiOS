@@ -11,7 +11,7 @@ const TOP_KEYS = [
   "causeAssigned","severityAssigned","readOnly","executionAuthority","effectPerformed","changeDigest"
 ];
 const COMPONENT_KEYS = [
-  "id","fromAvailability","toAvailability","availabilityChanged","digestChanged"
+  "id","fromAvailability","toAvailability","availabilityChanged","fromDigest","toDigest","digestChanged"
 ];
 const SUMMARY_CHANGE_KEYS = ["metric","from","to","delta"];
 const COMPONENT_IDS = ["host","services","processes","packages","devices"];
@@ -41,16 +41,28 @@ export function validateSystemChangeReceipt(r){
   if(!Array.isArray(r.componentChanges)||r.componentChanges.length!==COMPONENT_IDS.length) errors.push("componentChanges");
   else {
     r.componentChanges.forEach((c,i)=>{
-      if(!exact(c,COMPONENT_KEYS)||c.id!==COMPONENT_IDS[i]||!["available","unavailable"].includes(c.fromAvailability)||!["available","unavailable"].includes(c.toAvailability)||typeof c.availabilityChanged!=="boolean"||typeof c.digestChanged!=="boolean") errors.push("component row "+COMPONENT_IDS[i]);
-      else if(c.availabilityChanged!==(c.fromAvailability!==c.toAvailability)) errors.push("component availability derivation "+c.id);
+      if(!exact(c,COMPONENT_KEYS)||c.id!==COMPONENT_IDS[i]||!["available","unavailable"].includes(c.fromAvailability)||!["available","unavailable"].includes(c.toAvailability)||typeof c.availabilityChanged!=="boolean"||!sha(c.fromDigest)||!sha(c.toDigest)||typeof c.digestChanged!=="boolean") errors.push("component row "+COMPONENT_IDS[i]);
+      else {
+        if(c.availabilityChanged!==(c.fromAvailability!==c.toAvailability)) errors.push("component availability derivation "+c.id);
+        if(c.digestChanged!==(c.fromDigest!==c.toDigest)) errors.push("component digest derivation "+c.id);
+      }
     });
     const changed=r.componentChanges.filter(c=>c.availabilityChanged||c.digestChanged).length;
     if(r.changedComponentCount!==changed) errors.push("changedComponentCount");
   }
   if(!nni(r.changedSummaryMetricCount)||!Array.isArray(r.summaryChanges)||r.summaryChanges.length!==r.changedSummaryMetricCount||r.summaryChanges.length>SUMMARY_METRICS.length) errors.push("summaryChanges");
-  else for(const c of r.summaryChanges){
-    if(!exact(c,SUMMARY_CHANGE_KEYS)||!SUMMARY_METRICS.includes(c.metric)||!num(c.from)||!num(c.to)||!num(c.delta)||c.delta!==c.to-c.from){errors.push("summary change row");break}
+  else {
+    const seen=new Set();
+    let previousIndex=-1;
+    for(const c of r.summaryChanges){
+      const metricIndex=SUMMARY_METRICS.indexOf(c.metric);
+      if(!exact(c,SUMMARY_CHANGE_KEYS)||metricIndex<0||seen.has(c.metric)||metricIndex<=previousIndex||!num(c.from)||!num(c.to)||!num(c.delta)||c.delta!==c.to-c.from){errors.push("summary change row");break}
+      seen.add(c.metric); previousIndex=metricIndex;
+    }
   }
+  const expectedElapsed=Math.max(0,Date.parse(r.toComposedAt)-Date.parse(r.fromComposedAt));
+  if(num(r.elapsedMs)&&r.elapsedMs!==expectedElapsed) errors.push("elapsed derivation");
+  if(!nni(r.changedComponentCount)||r.changedComponentCount>5) errors.push("changedComponentCount range");
   if(r.causeAssigned!==false||r.severityAssigned!==false) errors.push("interpretation assignment");
   if(r.readOnly!==true||r.executionAuthority!==false||r.effectPerformed!==false) errors.push("authority");
   if(sha(r.changeDigest)&&r.changeDigest!==recomputeSystemChangeDigest(r)) errors.push("change digest mismatch");
