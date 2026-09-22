@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "phios.system-state.v1",
+  "title": "PhiOS Unified System State Receipt",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "source",
+    "composedAt",
+    "captureWindowStart",
+    "captureWindowEnd",
+    "captureSkewMs",
+    "maxCoherentSkewMs",
+    "coherence",
+    "componentCount",
+    "availableComponentCount",
+    "readOnly",
+    "executionAuthority",
+    "effectPerformed",
+    "components",
+    "summary",
+    "composeDurationMs",
+    "receiptDigest"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "phios.system-state.v1" },
+    "source": { "const": "phios-system-state-composer" },
+    "composedAt": { "type": "string", "format": "date-time" },
+    "captureWindowStart": { "type": "string", "format": "date-time" },
+    "captureWindowEnd": { "type": "string", "format": "date-time" },
+    "captureSkewMs": { "type": "number", "minimum": 0 },
+    "maxCoherentSkewMs": { "const": 5000 },
+    "coherence": { "enum": ["coherent", "degraded"] },
+    "componentCount": { "const": 5 },
+    "availableComponentCount": { "type": "integer", "minimum": 0, "maximum": 5 },
+    "readOnly": { "const": true },
+    "executionAuthority": { "const": false },
+    "effectPerformed": { "const": false },
+    "components": {
+      "type": "array",
+      "minItems": 5,
+      "maxItems": 5
+    },
+    "summary": { "type": "object" },
+    "composeDurationMs": { "type": "number", "minimum": 0 },
+    "receiptDigest": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    }
+  },
+  "additionalProperties": false
+}
