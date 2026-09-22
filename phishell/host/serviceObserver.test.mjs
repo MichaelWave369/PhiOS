@@ -63,7 +63,10 @@ test(
       ],
     ];
     const bus = fakeBus(rows);
-    const observation = await collectSystemdServiceObservation({ busFactory: () => bus });
+    const observation = await collectSystemdServiceObservation({
+      busFactory: () => bus,
+      runtimePresent: async () => true,
+    });
 
     assert.equal(observation.readOnly, true);
     assert.equal(observation.executionAuthority, false);
