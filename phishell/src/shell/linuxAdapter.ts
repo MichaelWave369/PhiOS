@@ -46,6 +46,7 @@ const capabilities: readonly LinuxCapability[] = [
   { id: "process.inspect", label: "Current-user process census", consequence: "read", available: true },
   { id: "package.inspect", label: "Installed package inventory", consequence: "read", available: true },
   { id: "device.inspect", label: "Bounded sysfs hardware inventory", consequence: "read", available: true },
+  { id: "history.inspect", label: "Session observation history", consequence: "read", available: true },
 ];
 
 export function createZeroPrivilegeLinuxAdapter(): LinuxServiceAdapter {
@@ -67,7 +68,7 @@ export function createZeroPrivilegeLinuxAdapter(): LinuxServiceAdapter {
         executionAuthority: false,
         effectPerformed: false,
         reason:
-          "PhiShell v0.9 records the requested intent but the effect adapter still cannot perform Linux effects.",
+          "PhiShell v0.10 records the requested intent but the effect adapter still cannot perform Linux effects.",
       };
     },
   };
