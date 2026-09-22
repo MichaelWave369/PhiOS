@@ -67,7 +67,8 @@ export type ShellEvent =
   | { type: "CLOSE_COMMAND" }
   | { type: "SET_COMMAND_QUERY"; query: string }
   | { type: "REQUEST_AUTHORITY"; request: AuthorityRequest }
-  | { type: "RESOLVE_AUTHORITY"; decision: Exclude<AuthorityDecision, "pending"> }\n  | { type: "CLEAR_AUTHORITY" };
+  | { type: "RESOLVE_AUTHORITY"; decision: Exclude<AuthorityDecision, "pending"> }
+  | { type: "CLEAR_AUTHORITY" };
 
 export const INITIAL_WINDOWS: ShellWindow[] = [
   {
