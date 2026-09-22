@@ -127,7 +127,7 @@ const architecture: ArchitectureNode[] = [
     line: "append-only evidence",
     summary: "Typed receipts remain auditable while analytics stay read-only and non-authoritative.",
     principle: "History remains evidence.",
-    docs: "docs/PHIOS_LEDGER_REPORTS_V0.1.md",
+    docs: "docs/ledger-analytics.md",
     modes: ["system", "authority", "evidence"],
     authority: "none",
   },
