@@ -627,6 +627,11 @@ class RecoveryPathReceipt:
     previous_state_sha256: str
     recovered_state_sha256: str
     topology_changed: bool
+    seal_bindings_valid: bool
+    invariant_set_bound: bool
+    subject_bindings_valid: bool
+    epoch_chain_linked: bool
+    checkpoint_bound: bool
     epoch_advanced: bool
     identity_equivalent: bool
     state_recovered_exactly: bool
@@ -668,6 +673,11 @@ class RecoveryPathReceipt:
         require_text(self.reason, "reason", maximum=512)
         for label, bool_value in (
             ("topology_changed", self.topology_changed),
+            ("seal_bindings_valid", self.seal_bindings_valid),
+            ("invariant_set_bound", self.invariant_set_bound),
+            ("subject_bindings_valid", self.subject_bindings_valid),
+            ("epoch_chain_linked", self.epoch_chain_linked),
+            ("checkpoint_bound", self.checkpoint_bound),
             ("epoch_advanced", self.epoch_advanced),
             ("identity_equivalent", self.identity_equivalent),
             ("state_recovered_exactly", self.state_recovered_exactly),
@@ -694,7 +704,12 @@ class RecoveryPathReceipt:
                 "state_recovered_exactly does not match recovery-state digests"
             )
         success = (
-            self.epoch_advanced
+            self.seal_bindings_valid
+            and self.invariant_set_bound
+            and self.subject_bindings_valid
+            and self.epoch_chain_linked
+            and self.checkpoint_bound
+            and self.epoch_advanced
             and self.identity_equivalent
             and self.state_recovered_exactly
         )
@@ -732,6 +747,11 @@ class RecoveryPathReceipt:
             "previous_state_sha256": self.previous_state_sha256,
             "recovered_state_sha256": self.recovered_state_sha256,
             "topology_changed": self.topology_changed,
+            "seal_bindings_valid": self.seal_bindings_valid,
+            "invariant_set_bound": self.invariant_set_bound,
+            "subject_bindings_valid": self.subject_bindings_valid,
+            "epoch_chain_linked": self.epoch_chain_linked,
+            "checkpoint_bound": self.checkpoint_bound,
             "epoch_advanced": self.epoch_advanced,
             "identity_equivalent": self.identity_equivalent,
             "state_recovered_exactly": self.state_recovered_exactly,
@@ -770,6 +790,11 @@ class RecoveryPathReceipt:
                 "previous_state_sha256",
                 "recovered_state_sha256",
                 "topology_changed",
+                "seal_bindings_valid",
+                "invariant_set_bound",
+                "subject_bindings_valid",
+                "epoch_chain_linked",
+                "checkpoint_bound",
                 "epoch_advanced",
                 "identity_equivalent",
                 "state_recovered_exactly",
@@ -841,6 +866,26 @@ class RecoveryPathReceipt:
             topology_changed=require_bool(
                 data["topology_changed"],
                 "topology_changed",
+            ),
+            seal_bindings_valid=require_bool(
+                data["seal_bindings_valid"],
+                "seal_bindings_valid",
+            ),
+            invariant_set_bound=require_bool(
+                data["invariant_set_bound"],
+                "invariant_set_bound",
+            ),
+            subject_bindings_valid=require_bool(
+                data["subject_bindings_valid"],
+                "subject_bindings_valid",
+            ),
+            epoch_chain_linked=require_bool(
+                data["epoch_chain_linked"],
+                "epoch_chain_linked",
+            ),
+            checkpoint_bound=require_bool(
+                data["checkpoint_bound"],
+                "checkpoint_bound",
             ),
             epoch_advanced=require_bool(
                 data["epoch_advanced"],
@@ -919,33 +964,39 @@ class RecoveryEvaluator:
             previous_identity.topology_sha256
             != recovered_identity.topology_sha256
         )
+        seal_bindings_valid = (
+            previous_identity.identity_seal_sha256 == previous_seal.sha256()
+            and recovered_identity.identity_seal_sha256 == recovered_seal.sha256()
+        )
+        invariant_set_bound = (
+            previous_identity.invariant_set_sha256 == self.invariant_set.sha256()
+            and recovered_identity.invariant_set_sha256
+            == self.invariant_set.sha256()
+        )
+        subject_bindings_valid = (
+            previous_identity.subject_id == previous_seal.subject_id
+            and recovered_identity.subject_id == recovered_seal.subject_id
+            and previous_identity.subject_kind == previous_seal.subject_kind
+            and recovered_identity.subject_kind == recovered_seal.subject_kind
+        )
+        epoch_chain_linked = (
+            recovered_identity.previous_epoch_identity_sha256
+            == previous_identity.sha256()
+        )
+        checkpoint_bound = (
+            recovered_identity.recovery_checkpoint_sha256 == checkpoint
+        )
 
         reason = "recovery_requirements_satisfied"
-        if previous_identity.identity_seal_sha256 != previous_seal.sha256():
-            reason = "previous_epoch_identity_seal_mismatch"
-        elif recovered_identity.identity_seal_sha256 != recovered_seal.sha256():
-            reason = "recovered_epoch_identity_seal_mismatch"
-        elif (
-            previous_identity.invariant_set_sha256
-            != self.invariant_set.sha256()
-            or recovered_identity.invariant_set_sha256
-            != self.invariant_set.sha256()
-        ):
+        if not seal_bindings_valid:
+            reason = "identity_seal_binding_mismatch"
+        elif not invariant_set_bound:
             reason = "identity_invariant_set_mismatch"
-        elif previous_identity.subject_id != previous_seal.subject_id:
-            reason = "previous_subject_identity_mismatch"
-        elif recovered_identity.subject_id != recovered_seal.subject_id:
-            reason = "recovered_subject_identity_mismatch"
-        elif previous_identity.subject_kind is not previous_seal.subject_kind:
-            reason = "previous_subject_kind_mismatch"
-        elif recovered_identity.subject_kind is not recovered_seal.subject_kind:
-            reason = "recovered_subject_kind_mismatch"
-        elif (
-            recovered_identity.previous_epoch_identity_sha256
-            != previous_identity.sha256()
-        ):
+        elif not subject_bindings_valid:
+            reason = "subject_identity_binding_mismatch"
+        elif not epoch_chain_linked:
             reason = "recovery_epoch_chain_mismatch"
-        elif recovered_identity.recovery_checkpoint_sha256 != checkpoint:
+        elif not checkpoint_bound:
             reason = "recovery_checkpoint_mismatch"
         elif not epoch_advanced:
             reason = "recovery_epoch_not_exactly_next"
@@ -972,6 +1023,11 @@ class RecoveryEvaluator:
             previous_state_sha256=previous_identity.recovery_state_sha256,
             recovered_state_sha256=recovered_identity.recovery_state_sha256,
             topology_changed=topology_changed,
+            seal_bindings_valid=seal_bindings_valid,
+            invariant_set_bound=invariant_set_bound,
+            subject_bindings_valid=subject_bindings_valid,
+            epoch_chain_linked=epoch_chain_linked,
+            checkpoint_bound=checkpoint_bound,
             epoch_advanced=epoch_advanced,
             identity_equivalent=identity_equivalent,
             state_recovered_exactly=state_exact,
