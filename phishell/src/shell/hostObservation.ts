@@ -145,6 +145,10 @@ function isFiniteNumber(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value);
 }
 
+function isInteger(value: unknown): value is number {
+  return typeof value === "number" && Number.isInteger(value);
+}
+
 function isNullableString(value: unknown): value is string | null {
   return value === null || typeof value === "string";
 }
@@ -176,11 +180,11 @@ function isHostObservationSnapshot(value: unknown): value is HostObservationSnap
     typeof host.arch === "string" &&
     isRecord(session) &&
     typeof session.username === "string" &&
-    (session.uid === null || Number.isInteger(session.uid)) &&
+    (session.uid === null || isInteger(session.uid)) &&
     isNullableString(session.shell) &&
     isNullableString(session.sessionType) &&
     isRecord(cpu) &&
-    Number.isInteger(cpu.logicalCores) &&
+    isInteger(cpu.logicalCores) &&
     typeof cpu.model === "string" &&
     Array.isArray(cpu.loadAverage) &&
     cpu.loadAverage.length === 3 &&
