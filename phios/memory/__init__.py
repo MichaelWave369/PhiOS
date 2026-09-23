@@ -39,6 +39,10 @@ from .system_history import (
     SystemHistoryProjection,
     SystemHistoryProjectionService,
 )
+from .system_history_comparison import (
+    SystemHistoryComparison,
+    SystemHistoryComparisonService,
+)
 
 __all__ = [
     "EVIDENCE_HORIZON_POLICY_SCHEMA_VERSION",
@@ -74,6 +78,8 @@ __all__ = [
     "OllamaEmbeddingProvider",
     "RetrievalIndex",
     "SqliteVecIndex",
+    "SystemHistoryComparison",
+    "SystemHistoryComparisonService",
     "SystemHistoryPersistenceBridge",
     "SystemHistoryProjection",
     "SystemHistoryProjectionService",
