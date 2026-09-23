@@ -57,6 +57,8 @@ export interface HostObservationSnapshot {
   schemaVersion: "phios.host-observation.v1";
   source: ObservationSource;
   capturedAt: string;
+  availability: "available" | "unavailable";
+  reason: string | null;
   readOnly: true;
   executionAuthority: false;
   effectPerformed: false;
@@ -94,6 +96,8 @@ export const FIXTURE_HOST_OBSERVATION: HostObservationSnapshot = {
   schemaVersion: "phios.host-observation.v1",
   source: "fixture",
   capturedAt: "2026-09-21T00:00:00.000Z",
+  availability: "available",
+  reason: null,
   readOnly: true,
   executionAuthority: false,
   effectPerformed: false,
@@ -170,6 +174,12 @@ function isHostObservationSnapshot(value: unknown): value is HostObservationSnap
     value.source === "linux-readonly-node-probe" &&
     typeof value.capturedAt === "string" &&
     !Number.isNaN(Date.parse(value.capturedAt)) &&
+    (value.availability === "available" || value.availability === "unavailable") &&
+    ((value.availability === "available" && value.reason === null) ||
+      (value.availability === "unavailable" &&
+        typeof value.reason === "string" &&
+        value.reason.length > 0 &&
+        value.reason.length <= 256)) &&
     value.readOnly === true &&
     value.executionAuthority === false &&
     value.effectPerformed === false &&

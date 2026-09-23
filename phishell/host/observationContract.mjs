@@ -1,4 +1,5 @@
 const TOP_LEVEL_KEYS = [
+  "availability",
   "capturedAt",
   "cpu",
   "effectPerformed",
@@ -9,6 +10,7 @@ const TOP_LEVEL_KEYS = [
   "network",
   "power",
   "readOnly",
+  "reason",
   "schemaVersion",
   "session",
   "source",
@@ -59,6 +61,17 @@ export function validateHostObservation(snapshot) {
   if (snapshot.readOnly !== true) errors.push("readOnly must be true");
   if (snapshot.executionAuthority !== false) errors.push("executionAuthority must be false");
   if (snapshot.effectPerformed !== false) errors.push("effectPerformed must be false");
+  if (!["available", "unavailable"].includes(snapshot.availability)) {
+    errors.push("availability must be available or unavailable");
+  }
+  if (
+    !(
+      (snapshot.availability === "available" && snapshot.reason === null) ||
+      (snapshot.availability === "unavailable" && boundedString(snapshot.reason, 256))
+    )
+  ) {
+    errors.push("reason must match host availability");
+  }
 
   if (
     !boundedString(snapshot.capturedAt, 64) ||

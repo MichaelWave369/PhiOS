@@ -89,7 +89,7 @@ export async function composeSystemStateReceipt({
   const devices = assertValidDeviceObservation(devicesRaw);
 
   const components = [
-    componentReceipt("host", host),
+    componentReceipt("host", host, availabilityOf(host)),
     componentReceipt("services", services, availabilityOf(services)),
     componentReceipt("processes", processes, availabilityOf(processes)),
     componentReceipt("packages", packages, availabilityOf(packages)),

@@ -51,19 +51,33 @@ async function systemdPresent() {
   }
 }
 
-function observeNetwork() {
-  const interfaces = os.networkInterfaces();
-  return Object.entries(interfaces).map(([name, records]) => {
-    const values = records ?? [];
+function observeNetwork(networkInterfaces) {
+  try {
+    const interfaces = networkInterfaces();
     return {
-      name,
-      families: [...new Set(values.map((record) => record.family))].sort(),
-      internal: values.length > 0 && values.every((record) => record.internal),
+      availability: "available",
+      reason: null,
+      interfaces: Object.entries(interfaces).map(([name, records]) => {
+        const values = records ?? [];
+        return {
+          name,
+          families: [...new Set(values.map((record) => record.family))].sort(),
+          internal: values.length > 0 && values.every((record) => record.internal),
+        };
+      }),
     };
-  });
+  } catch {
+    return {
+      availability: "unavailable",
+      reason: "network-enumeration-unavailable",
+      interfaces: [],
+    };
+  }
 }
 
-export async function collectLinuxHostObservation() {
+export async function collectLinuxHostObservation({
+  networkInterfaces = os.networkInterfaces,
+} = {}) {
   if (process.platform !== "linux") {
     throw new Error("linux-readonly-node-probe requires a Linux host");
   }
@@ -75,11 +89,14 @@ export async function collectLinuxHostObservation() {
   const storageTotal = root.blocks * root.bsize;
   const storageFree = root.bavail * root.bsize;
   const user = os.userInfo();
+  const networkObservation = observeNetwork(networkInterfaces);
 
   return {
     schemaVersion: "phios.host-observation.v1",
     source: "linux-readonly-node-probe",
     capturedAt: new Date().toISOString(),
+    availability: networkObservation.availability,
+    reason: networkObservation.reason,
     readOnly: true,
     executionAuthority: false,
     effectPerformed: false,
@@ -111,7 +128,7 @@ export async function collectLinuxHostObservation() {
       freeBytes: storageFree,
       usedPercent: percentUsed(storageTotal, storageFree),
     },
-    network: observeNetwork(),
+    network: networkObservation.interfaces,
     power: await observePowerSupplies(),
     init: {
       systemdPresent: await systemdPresent(),
