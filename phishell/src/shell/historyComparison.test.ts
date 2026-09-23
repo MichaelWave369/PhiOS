@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import { createHistoryComparisonProvider } from "./historyComparison";
 
@@ -14,7 +13,7 @@ function canonicalize(value: unknown): unknown {
   );
 }
 
-function envelope() {
+async function envelope() {
   const comparison = {
     schemaVersion: "phios.system-history-comparison.v0.13",
     source: "governed-memory-system-history-comparator",
@@ -60,8 +59,11 @@ function envelope() {
   };
   const body = { ...comparison };
   delete body.comparisonDigest;
+  const encoded = new TextEncoder().encode(JSON.stringify(canonicalize(body)));
+  const digest = await globalThis.crypto.subtle.digest("SHA-256", encoded);
   comparison.comparisonDigest =
-    "sha256:" + createHash("sha256").update(JSON.stringify(canonicalize(body))).digest("hex");
+    "sha256:" +
+    Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
   return {
     transportSchemaVersion: "phios.system-history-comparison-transport.v0.13",
     transport: "loopback-http",
@@ -79,7 +81,7 @@ function envelope() {
 
 describe("history comparison provider", () => {
   it("accepts a bounded non-persistent canonical comparison", async () => {
-    const payload = envelope();
+    const payload = await envelope();
     const provider = createHistoryComparisonProvider({
       fetcher: async (url, init) => {
         expect(String(url)).toContain("/api/v1/persistent-history-compare?");
@@ -94,7 +96,7 @@ describe("history comparison provider", () => {
   });
 
   it("rejects an authority-bearing comparison", async () => {
-    const payload = envelope();
+    const payload = await envelope();
     payload.comparison.actionAuthority = true;
     const provider = createHistoryComparisonProvider({
       fetcher: async () => new Response(JSON.stringify(payload), { status: 200 }),
@@ -103,7 +105,7 @@ describe("history comparison provider", () => {
   });
 
   it("rejects comparison digest tampering", async () => {
-    const payload = envelope();
+    const payload = await envelope();
     payload.comparison.summaryChanges[0].delta = 999;
     const provider = createHistoryComparisonProvider({
       fetcher: async () => new Response(JSON.stringify(payload), { status: 200 }),
