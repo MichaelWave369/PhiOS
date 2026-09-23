@@ -48,11 +48,21 @@ def _body_digest(value: dict[str, object], field: str) -> str:
     return "sha256:" + hashlib.sha256(encoded).hexdigest()
 
 
+COMPONENT_CONTRACTS = {
+    "host": ("phios.host-observation.v1", "linux-readonly-node-probe"),
+    "services": ("phios.service-observation.v1", "systemd-dbus-list-units"),
+    "processes": ("phios.process-observation.v1", "procfs-current-user"),
+    "packages": ("phios.package-observation.v1", "dpkg-status-file"),
+    "devices": ("phios.device-observation.v1", "linux-sysfs-bounded"),
+}
+
+
 def _component(component_id: str, digest_char: str, *, available: bool = True) -> dict[str, object]:
+    schema_version, source = COMPONENT_CONTRACTS[component_id]
     return {
         "id": component_id,
-        "schemaVersion": f"example.{component_id}.v1",
-        "source": f"example-{component_id}",
+        "schemaVersion": schema_version,
+        "source": source,
         "capturedAt": "2026-09-23T04:00:00+00:00",
         "availability": "available" if available else "unavailable",
         "digest": "sha256:" + digest_char * 64,
