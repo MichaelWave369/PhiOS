@@ -14,7 +14,7 @@ from .system_history_comparison import SystemHistoryComparisonService
 
 LOOPBACK_HOST = "127.0.0.1"
 DEFAULT_HISTORY_PORT = 3970
-TRANSPORT_SCHEMA = "phios.system-history-transport.v0.12"
+TRANSPORT_SCHEMA = "phios.system-history-transport.v0.13"
 TRANSPORT_IDENTITY = "phios-governed-history-reader"
 COMPARISON_TRANSPORT_SCHEMA = "phios.system-history-comparison-transport.v0.13"
 
