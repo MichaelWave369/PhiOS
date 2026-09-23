@@ -121,6 +121,8 @@ class SystemHistoryPersistenceBridge:
         task_id: str = "phishell-system-history",
     ) -> PersistedSystemHistory:
         self.runtime.require_enabled()
+        if not self.runtime.authority.allows("history.persist"):
+            raise PermissionError("persistent system history requires explicit history.persist authority")
         if not self.runtime.authority.allows("memory.write"):
             raise PermissionError("persistent system history requires explicit memory.write authority")
 
