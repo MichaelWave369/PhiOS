@@ -220,8 +220,8 @@ class SystemHistoryPersistenceBridge:
         text = _canonical_text(change)
         content_sha256 = _content_sha256(text)
         source_refs = (
-            f"phishell.system-state:{previous_digest}",
-            f"phishell.system-state:{current_digest}",
+            _state_record_id(previous_digest),
+            _state_record_id(current_digest),
         )
 
         lineage = TransformationLineageBuilder().build(
