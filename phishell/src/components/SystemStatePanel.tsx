@@ -173,7 +173,7 @@ export function SystemStatePanel() {
 
       <div className="observation-receipt">
         <span>history_scope = session-memory</span>
-        <span>persistent = false</span>
+        <span>session_persistent = false</span><span>canonical_persist = operator memory.write only</span>
         <span>history_limit = {SYSTEM_HISTORY_LIMIT}</span>
         <span>cause_assigned = false</span>
         <span>severity_assigned = false</span>

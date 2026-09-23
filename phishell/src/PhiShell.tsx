@@ -88,7 +88,7 @@ const windowTemplates: Record<string, WindowModel> = {
   "system-window": {
     id: "system-window",
     title: "System Inspector",
-    subtitle: "Unified state plus bounded session-local change receipts over validated observations.",
+    subtitle: "Session change receipts plus an operator-governed path into canonical persistent memory.",
     kind: "system",
     x: 22,
     y: 10,
@@ -263,18 +263,18 @@ function Home() {
       </section>
 
       <section className="panel notices">
-        <div className="panel-title">V0.10 OBSERVATION HISTORY</div>
+        <div className="panel-title">V0.11 GOVERNED PERSISTENT HISTORY</div>
         <div className="notice">
-          <b>Bounded change receipts are live</b>
-          <small>PhiShell keeps up to 16 validated system-state receipts in session memory and derives descriptive change receipts between adjacent captures.</small>
+          <b>Canonical history bridge is available to the operator</b>
+          <small>PhiShell still keeps bounded session history; persistence is a separate governed-memory effect requiring explicit memory.write authority.</small>
         </div>
         <div className="notice">
-          <b>History adds no authority</b>
-          <small>History is non-persistent, adds no Linux probe or effect path, and assigns neither cause nor severity.</small>
+          <b>Browser persistence remains blocked</b>
+          <small>The browser cannot persist history. The operator bridge writes only through governed canonical memory, policy, receipt outbox, and Mandala publication.</small>
         </div>
         <div className="notice">
-          <b>Change is descriptive</b>
-          <small>A change receipt states what moved between two trusted receipts without claiming why it moved or how important it is.</small>
+          <b>Persistence preserves provenance</b>
+          <small>State receipts remain source evidence; change receipts persist as derived records with explicit reversible transformation lineage.</small>
         </div>
       </section>
 
@@ -581,8 +581,8 @@ function PhiVessel() {
       </div>
       <div className="vessel-body">
         <small className="mode-label">{mode.toUpperCase()} MODE · ADVISORY</small>
-        <h2>Observation history online.</h2>
-        <p>PhiShell now retains bounded session-local receipts and derives digest-checked descriptive change records.</p>
+        <h2>Governed persistent history bridge online.</h2>
+        <p>PhiShell keeps local session history while canonical persistence remains an explicit operator-authorized memory effect.</p>
         <p className="muted">
           The intelligence layer may propose an action. Proposal is still not authority.
         </p>
@@ -756,7 +756,7 @@ function AuthorityDialog({
         {request.decision === "pending" ? (
           <>
             <div className="authority-warning">
-              Approval below records operator intent only. PhiShell v0.10 has no privileged effect
+              Approval below records operator intent only. PhiShell v0.11 has no privileged effect
               broker and cannot execute this Linux operation.
             </div>
             <div className="authority-actions">
@@ -842,7 +842,7 @@ export function PhiShell() {
       <main className="field">
         <div className="field-title">
           <span>{title}</span>
-          <small>PhiShell v0.10 · observation history + change receipts · execution authority false</small>
+          <small>PhiShell v0.11 · governed persistent history · execution authority false</small>
         </div>
         <Center view={state.view} />
         <DesktopLayer windows={state.windows} dispatch={dispatch} />
