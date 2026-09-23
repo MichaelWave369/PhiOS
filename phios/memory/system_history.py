@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any, Mapping
 
+from phios.evidence_ref import EvidenceRef
 from phios.mandala import ExactnessClass, TransformationLineageBuilder
 from phios.memory.models import MemoryRecord, MemoryResult
 from phios.memory.operator import MemoryOperatorRuntime
@@ -309,7 +310,7 @@ class SystemHistoryPersistenceBridge:
         return record, result
 
 
-SYSTEM_HISTORY_PROJECTION_SCHEMA = "phios.system-history-projection.v0.12"
+SYSTEM_HISTORY_PROJECTION_SCHEMA = "phios.system-history-projection.v0.13"
 SYSTEM_HISTORY_SOURCE_IDS = ("phishell.system-state", "phishell.system-change")
 SYSTEM_HISTORY_PROJECTION_LIMIT = 16
 
@@ -365,6 +366,25 @@ def _canonical_memory_record_integrity(record: MemoryRecord) -> bool:
     body = record.to_dict()
     record_sha256 = str(body.pop("record_sha256"))
     return sha256_json(body) == record_sha256
+
+
+def _evidence_ref_for_history_record(
+    record: MemoryRecord,
+    *,
+    source_version: str,
+) -> EvidenceRef:
+    """Derive one stable zero-authority EvidenceRef from a canonical memory record."""
+
+    return EvidenceRef.build(
+        source_id=record.record_id,
+        source_kind=record.source_kind,
+        source_version=source_version,
+        content_sha256=record.content_sha256,
+        created_at=record.created_at,
+        observed_at=record.created_at,
+        transformation_lineage_sha256s=record.transformation_lineage_sha256s,
+        exactness_class=record.exactness_class,
+    )
 
 
 class SystemHistoryProjectionService:
@@ -431,6 +451,7 @@ class SystemHistoryProjectionService:
                 continue
 
             kind: str
+            source_version: str
             if record.source_id == "phishell.system-state":
                 receipt_digest = _validate_state_receipt(payload, verify_digest=False)
                 if (
@@ -441,6 +462,7 @@ class SystemHistoryProjectionService:
                     omitted += 1
                     continue
                 kind = "state"
+                source_version = SYSTEM_STATE_SCHEMA
             elif record.source_id == "phishell.system-change":
                 change_digest = _validate_change_receipt(payload, verify_digest=False)
                 previous_digest = _sha256_hex(
@@ -467,6 +489,7 @@ class SystemHistoryProjectionService:
                     omitted += 1
                     continue
                 kind = "change"
+                source_version = SYSTEM_CHANGE_SCHEMA
             else:
                 omitted += 1
                 continue
@@ -485,6 +508,10 @@ class SystemHistoryProjectionService:
                 omitted += 1
                 continue
 
+            evidence_ref = _evidence_ref_for_history_record(
+                record,
+                source_version=source_version,
+            )
             read_receipt_hashes.append(read_receipt.receipt_sha256)
             records.append(
                 {
@@ -503,6 +530,7 @@ class SystemHistoryProjectionService:
                     "transformationLineageSha256s": list(
                         record.transformation_lineage_sha256s
                     ),
+                    "evidenceRef": evidence_ref.to_dict(),
                     "readAdmissibilityReceiptSha256": read_receipt.receipt_sha256,
                     "payload": payload,
                 }
