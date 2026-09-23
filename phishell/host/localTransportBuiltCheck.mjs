@@ -8,6 +8,7 @@ if (process.platform !== "linux") {
 const transport = createLocalObservationServer({
   port: 0,
   historyProjectionFetcher: async () => null,
+  historyComparisonFetcher: async () => null,
 });
 const address = await transport.listen();
 const base = `http://127.0.0.1:${address.port}`;
@@ -119,6 +120,27 @@ try {
   assert.equal(persistentHistoryUnavailable.executionAuthority, false);
   assert.equal(persistentHistoryUnavailable.effectPerformed, false);
 
+  const comparisonFrom = "phishell.system-state." + "a".repeat(64);
+  const comparisonTo = "phishell.system-state." + "b".repeat(64);
+  const persistentComparison = await fetch(
+    `${base}/api/v1/persistent-history-compare?from=${comparisonFrom}&to=${comparisonTo}`,
+  );
+  assert.equal(persistentComparison.status, 503);
+  assert.equal(persistentComparison.headers.get("access-control-allow-origin"), null);
+  const comparisonUnavailable = await persistentComparison.json();
+  assert.equal(
+    comparisonUnavailable.error,
+    "persistent_history_comparison_unavailable",
+  );
+  assert.equal(comparisonUnavailable.readOnly, true);
+  assert.equal(comparisonUnavailable.executionAuthority, false);
+  assert.equal(comparisonUnavailable.effectPerformed, false);
+
+  const invalidComparison = await fetch(
+    `${base}/api/v1/persistent-history-compare?from=not-a-state&to=${comparisonTo}`,
+  );
+  assert.equal(invalidComparison.status, 400);
+
   const mutation = await fetch(`${base}/api/v1/host-observation`, { method: "POST" });
   assert.equal(mutation.status, 405);
 
@@ -151,6 +173,12 @@ try {
     method: "POST",
   });
   assert.equal(historyMutation.status, 405);
+
+  const comparisonMutation = await fetch(
+    `${base}/api/v1/persistent-history-compare?from=${comparisonFrom}&to=${comparisonTo}`,
+    { method: "POST" },
+  );
+  assert.equal(comparisonMutation.status, 405);
 } finally {
   await transport.close();
 }
