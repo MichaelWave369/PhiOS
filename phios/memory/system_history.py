@@ -68,6 +68,18 @@ def _content_sha256(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
+def _receipt_body_sha256(value: Mapping[str, Any], digest_field: str) -> str:
+    body = dict(value)
+    body.pop(digest_field, None)
+    encoded = json.dumps(
+        body,
+        separators=(",", ":"),
+        ensure_ascii=False,
+        allow_nan=False,
+    ).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
 def _state_record_id(receipt_digest: str) -> str:
     return f"phishell.system-state.{receipt_digest}"
 
@@ -85,7 +97,10 @@ def _validate_state_receipt(raw: Mapping[str, Any]) -> str:
     _require_false(raw.get("effectPerformed"), "system-state effectPerformed")
     if raw.get("readOnly") is not True:
         raise ValueError("system-state readOnly must be true")
-    return _sha256_hex(raw.get("receiptDigest"), "system-state receiptDigest")
+    digest = _sha256_hex(raw.get("receiptDigest"), "system-state receiptDigest")
+    if _receipt_body_sha256(raw, "receiptDigest") != digest:
+        raise ValueError("system-state receiptDigest does not match receipt body")
+    return digest
 
 
 def _validate_change_receipt(raw: Mapping[str, Any]) -> str:
@@ -101,7 +116,10 @@ def _validate_change_receipt(raw: Mapping[str, Any]) -> str:
     _require_false(raw.get("effectPerformed"), "system-change effectPerformed")
     if raw.get("readOnly") is not True:
         raise ValueError("system-change readOnly must be true")
-    return _sha256_hex(raw.get("changeDigest"), "system-change changeDigest")
+    digest = _sha256_hex(raw.get("changeDigest"), "system-change changeDigest")
+    if _receipt_body_sha256(raw, "changeDigest") != digest:
+        raise ValueError("system-change changeDigest does not match receipt body")
+    return digest
 
 
 class SystemHistoryPersistenceBridge:
