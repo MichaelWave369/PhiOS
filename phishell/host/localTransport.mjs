@@ -15,6 +15,7 @@ import { assertValidDeviceObservation } from "./deviceObservationContract.mjs";
 import { composeSystemStateReceipt } from "./systemStateComposer.mjs";
 import { assertValidSystemStateReceipt } from "./systemStateContract.mjs";
 import { fetchPersistentHistoryProjection } from "./persistentHistoryProxy.mjs";
+import { fetchHistoryComparison } from "./historyComparisonProxy.mjs";
 
 const LOOPBACK_HOST = "127.0.0.1";
 const DEFAULT_PORT = 3969;
@@ -94,6 +95,7 @@ export function createLocalObservationServer({
   distDir = DEFAULT_DIST_DIR,
   serveShell = true,
   historyProjectionFetcher = fetchPersistentHistoryProjection,
+  historyComparisonFetcher = fetchHistoryComparison,
 } = {}) {
   if (!Number.isInteger(port) || port < 0 || port > 65535) {
     throw new Error("local observation port must be an integer between 0 and 65535");
@@ -264,6 +266,51 @@ export function createLocalObservationServer({
           snapshotAgeMs,
           receipt,
         });
+        return;
+      }
+
+      if (url.pathname === "/api/v1/persistent-history-compare") {
+        const keys = [...url.searchParams.keys()];
+        const fromRecordId = url.searchParams.get("from");
+        const toRecordId = url.searchParams.get("to");
+        const stateIdPattern = /^phishell\.system-state\.[0-9a-f]{64}$/;
+        if (
+          keys.length !== 2 ||
+          new Set(keys).size !== 2 ||
+          !url.searchParams.has("from") ||
+          !url.searchParams.has("to") ||
+          !fromRecordId ||
+          !toRecordId ||
+          !stateIdPattern.test(fromRecordId) ||
+          !stateIdPattern.test(toRecordId) ||
+          fromRecordId === toRecordId
+        ) {
+          jsonResponse(response, 400, {
+            error: "invalid_persistent_history_comparison_request",
+            readOnly: true,
+            executionAuthority: false,
+            effectPerformed: false,
+          });
+          return;
+        }
+
+        const comparisonEnvelope = await historyComparisonFetcher({
+          fromRecordId,
+          toRecordId,
+        });
+        if (!comparisonEnvelope) {
+          jsonResponse(response, 503, {
+            error: "persistent_history_comparison_unavailable",
+            localOnly: true,
+            readOnly: true,
+            operationalAuthority: false,
+            actionAuthority: false,
+            executionAuthority: false,
+            effectPerformed: false,
+          });
+          return;
+        }
+        jsonResponse(response, 200, comparisonEnvelope);
         return;
       }
 

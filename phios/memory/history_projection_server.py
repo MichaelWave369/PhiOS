@@ -10,11 +10,13 @@ from .system_history import (
     SYSTEM_HISTORY_PROJECTION_LIMIT,
     SystemHistoryProjectionService,
 )
+from .system_history_comparison import SystemHistoryComparisonService
 
 LOOPBACK_HOST = "127.0.0.1"
 DEFAULT_HISTORY_PORT = 3970
 TRANSPORT_SCHEMA = "phios.system-history-transport.v0.12"
 TRANSPORT_IDENTITY = "phios-governed-history-reader"
+COMPARISON_TRANSPORT_SCHEMA = "phios.system-history-comparison-transport.v0.13"
 
 
 def _json_bytes(value: object) -> bytes:
@@ -42,6 +44,22 @@ def _envelope(projection: dict[str, object]) -> dict[str, object]:
     }
 
 
+def _comparison_envelope(comparison: dict[str, object]) -> dict[str, object]:
+    return {
+        "transportSchemaVersion": COMPARISON_TRANSPORT_SCHEMA,
+        "transport": "loopback-http",
+        "transportIdentity": TRANSPORT_IDENTITY,
+        "localOnly": True,
+        "readOnly": True,
+        "operationalAuthority": False,
+        "actionAuthority": False,
+        "executionAuthority": False,
+        "effectPerformed": False,
+        "servedAt": datetime.now(UTC).isoformat(),
+        "comparison": comparison,
+    }
+
+
 def create_history_projection_server(
     runtime: MemoryOperatorRuntime,
     *,
@@ -56,9 +74,10 @@ def create_history_projection_server(
         raise ValueError("history projection port must be 0 or between 1024 and 65535")
 
     projection_service = SystemHistoryProjectionService(runtime)
+    comparison_service = SystemHistoryComparisonService(runtime)
 
     class Handler(BaseHTTPRequestHandler):
-        server_version = "PhiOSHistoryProjection/0.12"
+        server_version = "PhiOSHistoryProjection/0.13"
         sys_version = ""
 
         def log_message(self, format: str, *args: object) -> None:
@@ -102,6 +121,35 @@ def create_history_projection_server(
                         "effectPerformed": False,
                     },
                 )
+                return
+
+            if url.path == "/api/v1/system-history-compare":
+                query = parse_qs(url.query, keep_blank_values=True)
+                if (
+                    set(query) != {"from", "to"}
+                    or any(len(values) != 1 for values in query.values())
+                ):
+                    self._write_json(
+                        400,
+                        {"error": "comparison requires one from and one to record id"},
+                    )
+                    return
+                try:
+                    comparison = comparison_service.compare(
+                        from_record_id=query["from"][0],
+                        to_record_id=query["to"][0],
+                    ).to_dict()
+                except ValueError as exc:
+                    self._write_json(400, {"error": str(exc)})
+                    return
+                except PermissionError as exc:
+                    self._write_json(403, {"error": str(exc)})
+                    return
+                except LookupError as exc:
+                    self._write_json(404, {"error": str(exc)})
+                    return
+
+                self._write_json(200, _comparison_envelope(comparison))
                 return
 
             if url.path != "/api/v1/system-history":

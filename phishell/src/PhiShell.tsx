@@ -88,7 +88,7 @@ const windowTemplates: Record<string, WindowModel> = {
   "system-window": {
     id: "system-window",
     title: "System Inspector",
-    subtitle: "Session history plus read-only governed projection of canonical persistent machine history.",
+    subtitle: "Session history, canonical recall, and temporary governed comparison of two persistent machine states.",
     kind: "system",
     x: 22,
     y: 10,
@@ -263,18 +263,18 @@ function Home() {
       </section>
 
       <section className="panel notices">
-        <div className="panel-title">V0.12 PERSISTENT HISTORY PROJECTION</div>
+        <div className="panel-title">V0.13 CANONICAL HISTORY COMPARISON</div>
         <div className="notice">
-          <b>Canonical history can now be read back into PhiShell</b>
-          <small>PhiShell keeps live session history separate from bounded canonical history projected through governed memory.</small>
+          <b>Two canonical machine states can now be compared without mutating history</b>
+          <small>The operator can select two read-admissible canonical state receipts and derive a temporary bounded comparison.</small>
         </div>
         <div className="notice">
-          <b>Read and write remain separate</b>
-          <small>Canonical reads require history.read + memory.read through the loopback memory sidecar; persistence still requires history.persist + memory.write.</small>
+          <b>Comparison gets its own authority boundary</b>
+          <small>Comparison requires history.compare in addition to history.read + memory.read; persistence still requires history.persist + memory.write.</small>
         </div>
         <div className="notice">
-          <b>Read admissibility is visible</b>
-          <small>Every projected canonical record is current, policy-bounded, and accompanied by a fresh read-admissibility receipt hash.</small>
+          <b>Comparison does not become narrative</b>
+          <small>Comparison explicitly claims neither consecutiveness, cause, severity, persistence, nor execution authority.</small>
         </div>
       </section>
 
@@ -411,7 +411,7 @@ function WindowBody({ item }: { item: WindowModel }) {
         <article>
           <small>BOUNDARY</small>
           <b>Effect broker absent</b>
-          <p>No privileged Linux effect adapter is attached in v0.12.</p>
+          <p>No privileged Linux effect adapter is attached in v0.13.</p>
         </article>
       </div>
     );
@@ -581,8 +581,8 @@ function PhiVessel() {
       </div>
       <div className="vessel-body">
         <small className="mode-label">{mode.toUpperCase()} MODE · ADVISORY</small>
-        <h2>Canonical history projection online.</h2>
-        <p>PhiShell can now display bounded governed-memory history without gaining persistence or Linux execution authority.</p>
+        <h2>Canonical history comparison online.</h2>
+        <p>PhiShell can compare two governed canonical state receipts without turning the comparison into persistence, cause, or authority.</p>
         <p className="muted">
           The intelligence layer may propose an action. Proposal is still not authority.
         </p>
@@ -756,7 +756,7 @@ function AuthorityDialog({
         {request.decision === "pending" ? (
           <>
             <div className="authority-warning">
-              Approval below records operator intent only. PhiShell v0.12 has no privileged effect
+              Approval below records operator intent only. PhiShell v0.13 has no privileged effect
               broker and cannot execute this Linux operation.
             </div>
             <div className="authority-actions">
@@ -842,7 +842,7 @@ export function PhiShell() {
       <main className="field">
         <div className="field-title">
           <span>{title}</span>
-          <small>PhiShell v0.12 · persistent history projection · execution authority false</small>
+          <small>PhiShell v0.13 · canonical history comparison · execution authority false</small>
         </div>
         <Center view={state.view} />
         <DesktopLayer windows={state.windows} dispatch={dispatch} />
