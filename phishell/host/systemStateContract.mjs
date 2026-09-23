@@ -150,9 +150,6 @@ export function validateSystemStateReceipt(receipt) {
       if (!["available", "unavailable"].includes(component.availability)) {
         errors.push(`component availability ${expectedId}`);
       }
-      if (expectedId === "host" && component.availability !== "available") {
-        errors.push("host availability");
-      }
       if (!sha256(component.digest)) errors.push(`component digest ${expectedId}`);
       if (
         component.readOnly !== true ||
