@@ -8,6 +8,7 @@ import {
   recomputeSystemStateReceiptDigest,
 } from "./systemStateComposer.mjs";
 import { collectLinuxHostObservation } from "./linuxProbe.mjs";
+import { assertValidSystemStateReceipt } from "./systemStateContract.mjs";
 
 test(
   "system state composer produces one bounded read-only receipt over all observation planes",
@@ -116,5 +117,6 @@ test(
     assert.ok(receipt.summary.memoryTotalBytes > 0);
     assert.ok(receipt.summary.rootStorageTotalBytes > 0);
     assert.equal(receipt.receiptDigest, recomputeSystemStateReceiptDigest(receipt));
+    assert.equal(assertValidSystemStateReceipt(receipt), receipt);
   },
 );
