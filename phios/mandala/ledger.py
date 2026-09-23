@@ -18,10 +18,14 @@ class MandalaReceiptLedger:
             handle.write(json.dumps(receipt.to_dict(), sort_keys=True) + "\n")
 
     def recent(self, limit: int = 10) -> list[dict[str, object]]:
-        if not self.path.exists():
+        if isinstance(limit, bool) or not isinstance(limit, int):
+            raise TypeError("recent limit must be an integer")
+        if limit < 0:
+            raise ValueError("recent limit must be non-negative")
+        if limit == 0 or not self.path.exists():
             return []
         lines = self.path.read_text(encoding="utf-8").splitlines()
-        return [json.loads(line) for line in lines[-max(limit, 0):]]
+        return [json.loads(line) for line in lines[-limit:]]
 
     def has_receipt(self, receipt_id: str) -> bool:
         """Return whether an exact receipt ID already exists in the append-only ledger."""
