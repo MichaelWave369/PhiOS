@@ -3,6 +3,10 @@ import {
   persistentHistoryProvider,
   type PersistentHistoryProjection,
 } from "../shell/persistentHistory";
+import {
+  historyComparisonProvider,
+  type HistoryComparisonReceipt,
+} from "../shell/historyComparison";
 
 function shortHash(value: string) {
   return value.slice(0, 12);
@@ -13,15 +17,29 @@ function localTime(value: string) {
   return Number.isNaN(parsed.getTime()) ? value : parsed.toLocaleString();
 }
 
+function shortRecord(value: string) {
+  return value.slice(-12);
+}
+
+function signed(value: number) {
+  if (value > 0) return `+${value}`;
+  return String(value);
+}
+
 export function PersistentHistoryPanel() {
   const [projection, setProjection] = useState<PersistentHistoryProjection | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [fromRecordId, setFromRecordId] = useState("");
+  const [toRecordId, setToRecordId] = useState("");
+  const [comparison, setComparison] = useState<HistoryComparisonReceipt | null>(null);
+  const [compareBusy, setCompareBusy] = useState(false);
 
   const refresh = useCallback(async () => {
     setBusy(true);
     try {
       setProjection(await persistentHistoryProvider.read());
+      setComparison(null);
       setLoaded(true);
     } finally {
       setBusy(false);
@@ -31,6 +49,26 @@ export function PersistentHistoryPanel() {
   useEffect(() => {
     void refresh();
   }, [refresh]);
+
+  const compare = useCallback(async () => {
+    if (!fromRecordId || !toRecordId || fromRecordId === toRecordId) return;
+    setCompareBusy(true);
+    try {
+      setComparison(await historyComparisonProvider.compare(fromRecordId, toRecordId));
+    } finally {
+      setCompareBusy(false);
+    }
+  }, [fromRecordId, toRecordId]);
+
+  const selectFrom = (recordId: string) => {
+    setFromRecordId(recordId);
+    setComparison(null);
+  };
+
+  const selectTo = (recordId: string) => {
+    setToRecordId(recordId);
+    setComparison(null);
+  };
 
   if (!loaded) {
     return (
@@ -83,6 +121,61 @@ export function PersistentHistoryPanel() {
         <span>authority = false</span>
       </div>
 
+      <div className="history-compare-panel">
+        <div className="history-compare-head">
+          <div>
+            <small>CANONICAL STATE COMPARISON · TEMPORARY DERIVATION</small>
+            <b>COMPARISON != CAUSE != AUTHORITY</b>
+          </div>
+          <button
+            onClick={() => void compare()}
+            disabled={
+              compareBusy ||
+              !fromRecordId ||
+              !toRecordId ||
+              fromRecordId === toRecordId
+            }
+          >
+            {compareBusy ? "Comparing…" : "Compare selected"}
+          </button>
+        </div>
+        <div className="history-compare-selection">
+          <span>A {fromRecordId ? shortRecord(fromRecordId) : "not selected"}</span>
+          <span>B {toRecordId ? shortRecord(toRecordId) : "not selected"}</span>
+          <span>persistent = false</span>
+        </div>
+
+        {comparison && (
+          <div className="history-comparison-result">
+            <div className="history-comparison-result-head">
+              <b>{comparison.chronologicalOrder.toUpperCase()}</b>
+              <code>{shortHash(comparison.comparisonDigest.replace("sha256:", ""))}</code>
+              <span>{signed(comparison.timeDeltaMs)} ms</span>
+            </div>
+            <div className="history-comparison-facts">
+              <span>components changed {comparison.changedComponentCount}</span>
+              <span>metrics changed {comparison.changedSummaryMetricCount}</span>
+              <span>
+                coherence {comparison.coherence.from} → {comparison.coherence.to}
+              </span>
+              <span>consecutive claimed = false</span>
+            </div>
+            {comparison.summaryChanges.length > 0 && (
+              <div className="history-comparison-metrics">
+                {comparison.summaryChanges.map((change) => (
+                  <span key={change.metric}>
+                    {change.metric} {signed(change.delta)}
+                  </span>
+                ))}
+              </div>
+            )}
+            <div className="history-comparison-boundary">
+              cause = unassigned · severity = unassigned · persistent = false · authority = false
+            </div>
+          </div>
+        )}
+      </div>
+
       {projection.records.length === 0 ? (
         <div className="system-history-empty">
           Governed memory is readable, but no current canonical PhiShell history records are
@@ -110,6 +203,22 @@ export function PersistentHistoryPanel() {
                   <span>lineage {shortHash(record.transformationLineageSha256s[0])}</span>
                 )}
               </div>
+              {record.kind === "state" && (
+                <div className="history-compare-row-actions">
+                  <button
+                    className={fromRecordId === record.recordId ? "selected" : ""}
+                    onClick={() => selectFrom(record.recordId)}
+                  >
+                    Set A
+                  </button>
+                  <button
+                    className={toRecordId === record.recordId ? "selected" : ""}
+                    onClick={() => selectTo(record.recordId)}
+                  >
+                    Set B
+                  </button>
+                </div>
+              )}
             </article>
           ))}
         </div>
@@ -120,6 +229,8 @@ export function PersistentHistoryPanel() {
         <span>read_only = true</span>
         <span>history_read = operator grant</span>
         <span>memory_read = operator grant</span>
+        <span>history_compare = separate operator grant</span>
+        <span>comparison_persistent = false</span>
         <span>cause_assigned = false</span>
         <span>severity_assigned = false</span>
         <span>execution_authority = false</span>
