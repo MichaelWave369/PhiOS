@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any, Mapping
@@ -58,11 +59,9 @@ def _timestamp(value: object, field: str) -> str:
     return raw
 
 
-def _number(value: object, field: str) -> float | int:
-    if isinstance(value, bool) or not isinstance(value, (int, float)):
-        raise ValueError(f"{field} must be numeric")
-    if value != value or value in (float("inf"), float("-inf")):
-        raise ValueError(f"{field} must be finite")
+def _number(value: object, field: str) -> int:
+    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+        raise ValueError(f"{field} must be a non-negative integer")
     return value
 
 
@@ -119,7 +118,7 @@ def _comparable_state_payload(
         )
 
     summary = _mapping(payload.get("summary"), "system-state summary")
-    summary_values: dict[str, float | int] = {}
+    summary_values: dict[str, int] = {}
     for metric in SUMMARY_METRICS:
         summary_values[metric] = _number(summary.get(metric), f"summary {metric}")
 
@@ -209,8 +208,6 @@ class SystemHistoryComparisonService:
                 raise LookupError(f"{label} canonical system-state read is not admissible")
 
         try:
-            import json
-
             from_payload_raw = json.loads(from_result.record.text)
             to_payload_raw = json.loads(to_result.record.text)
         except json.JSONDecodeError as exc:
