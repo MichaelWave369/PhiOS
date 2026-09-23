@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { PersistentHistoryPanel } from "./PersistentHistoryPanel";
 import {
   systemStateProvider,
   type SystemStateReceipt,
@@ -171,9 +172,11 @@ export function SystemStatePanel() {
         )}
       </div>
 
+      <PersistentHistoryPanel />
+
       <div className="observation-receipt">
         <span>history_scope = session-memory</span>
-        <span>session_persistent = false</span><span>canonical_persist = operator memory.write only</span>
+        <span>session_persistent = false</span><span>canonical_persist = history.persist + memory.write</span>
         <span>history_limit = {SYSTEM_HISTORY_LIMIT}</span>
         <span>cause_assigned = false</span>
         <span>severity_assigned = false</span>
