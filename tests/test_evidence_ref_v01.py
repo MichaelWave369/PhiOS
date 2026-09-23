@@ -51,6 +51,20 @@ def test_evidence_ref_is_deterministic_content_addressed_and_zero_authority() ->
     assert rebuilt.to_dict() == payload
 
 
+def test_content_identity_and_provenance_identity_remain_distinct() -> None:
+    first = build_ref()
+    second = EvidenceRef.build(
+        source_id="different-observer",
+        source_kind="system-state",
+        source_version="phios.system-state.v1",
+        content_sha256=CONTENT,
+        observed_at="2026-09-23T23:00:00+00:00",
+    )
+
+    assert first.evidence_ref == second.evidence_ref
+    assert first.reference_sha256 != second.reference_sha256
+
+
 def test_evidence_ref_round_trips_exactly() -> None:
     ref = build_ref()
 
