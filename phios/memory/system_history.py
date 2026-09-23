@@ -9,7 +9,7 @@ from typing import Any, Mapping
 from phios.mandala import ExactnessClass, TransformationLineageBuilder
 from phios.memory.models import MemoryRecord, MemoryResult
 from phios.memory.operator import MemoryOperatorRuntime
-from phios.memory.validation import strict_canonical_json
+from phios.memory.validation import sha256_json, strict_canonical_json
 
 SYSTEM_STATE_SCHEMA = "phios.system-state.v1"
 SYSTEM_CHANGE_SCHEMA = "phios.system-change.v1"
@@ -88,7 +88,11 @@ def _change_record_id(change_digest: str) -> str:
     return f"phishell.system-change.{change_digest}"
 
 
-def _validate_state_receipt(raw: Mapping[str, Any]) -> str:
+def _validate_state_receipt(
+    raw: Mapping[str, Any],
+    *,
+    verify_digest: bool = True,
+) -> str:
     if raw.get("schemaVersion") != SYSTEM_STATE_SCHEMA:
         raise ValueError("unsupported system-state schema")
     if raw.get("source") != SYSTEM_STATE_SOURCE:
@@ -98,12 +102,16 @@ def _validate_state_receipt(raw: Mapping[str, Any]) -> str:
     if raw.get("readOnly") is not True:
         raise ValueError("system-state readOnly must be true")
     digest = _sha256_hex(raw.get("receiptDigest"), "system-state receiptDigest")
-    if _receipt_body_sha256(raw, "receiptDigest") != digest:
+    if verify_digest and _receipt_body_sha256(raw, "receiptDigest") != digest:
         raise ValueError("system-state receiptDigest does not match receipt body")
     return digest
 
 
-def _validate_change_receipt(raw: Mapping[str, Any]) -> str:
+def _validate_change_receipt(
+    raw: Mapping[str, Any],
+    *,
+    verify_digest: bool = True,
+) -> str:
     if raw.get("schemaVersion") != SYSTEM_CHANGE_SCHEMA:
         raise ValueError("unsupported system-change schema")
     if raw.get("source") != SYSTEM_CHANGE_SOURCE:
@@ -117,7 +125,7 @@ def _validate_change_receipt(raw: Mapping[str, Any]) -> str:
     if raw.get("readOnly") is not True:
         raise ValueError("system-change readOnly must be true")
     digest = _sha256_hex(raw.get("changeDigest"), "system-change changeDigest")
-    if _receipt_body_sha256(raw, "changeDigest") != digest:
+    if verify_digest and _receipt_body_sha256(raw, "changeDigest") != digest:
         raise ValueError("system-change changeDigest does not match receipt body")
     return digest
 
@@ -351,6 +359,14 @@ class SystemHistoryProjection:
         }
 
 
+def _canonical_memory_record_integrity(record: MemoryRecord) -> bool:
+    if hashlib.sha256(record.text.encode("utf-8")).hexdigest() != record.content_sha256:
+        return False
+    body = record.to_dict()
+    record_sha256 = str(body.pop("record_sha256"))
+    return sha256_json(body) == record_sha256
+
+
 class SystemHistoryProjectionService:
     """Project canonical PhiShell history through governed memory reads only."""
 
@@ -402,6 +418,9 @@ class SystemHistoryProjectionService:
                 continue
 
             record = result.record
+            if not _canonical_memory_record_integrity(record):
+                omitted += 1
+                continue
             try:
                 payload = json.loads(record.text)
             except json.JSONDecodeError:
@@ -413,17 +432,38 @@ class SystemHistoryProjectionService:
 
             kind: str
             if record.source_id == "phishell.system-state":
-                _validate_state_receipt(payload)
-                if record.epistemic_kind != "source":
+                receipt_digest = _validate_state_receipt(payload, verify_digest=False)
+                if (
+                    record.epistemic_kind != "source"
+                    or record.record_id != _state_record_id(receipt_digest)
+                    or f"sha256:{receipt_digest}" not in record.provenance_refs
+                ):
                     omitted += 1
                     continue
                 kind = "state"
             elif record.source_id == "phishell.system-change":
-                _validate_change_receipt(payload)
-                if record.epistemic_kind != "derived":
-                    omitted += 1
-                    continue
-                if record.exactness_class != "REVERSIBLE":
+                change_digest = _validate_change_receipt(payload, verify_digest=False)
+                previous_digest = _sha256_hex(
+                    payload.get("fromReceiptDigest"),
+                    "fromReceiptDigest",
+                )
+                current_digest = _sha256_hex(
+                    payload.get("toReceiptDigest"),
+                    "toReceiptDigest",
+                )
+                expected_sources = (
+                    _state_record_id(previous_digest),
+                    _state_record_id(current_digest),
+                )
+                if (
+                    record.epistemic_kind != "derived"
+                    or record.exactness_class != "REVERSIBLE"
+                    or record.record_id != _change_record_id(change_digest)
+                    or record.derived_from != expected_sources
+                    or f"sha256:{change_digest}" not in record.provenance_refs
+                    or f"sha256:{previous_digest}" not in record.provenance_refs
+                    or f"sha256:{current_digest}" not in record.provenance_refs
+                ):
                     omitted += 1
                     continue
                 kind = "change"
