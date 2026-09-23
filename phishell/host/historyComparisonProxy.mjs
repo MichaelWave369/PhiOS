@@ -110,7 +110,7 @@ function finiteNumber(value) {
 function stateRecordId(value) {
   return (
     typeof value === "string" &&
-    /^phishell\\.system-state\\.[0-9a-f]{64}$/.test(value)
+    /^phishell\.system-state\.[0-9a-f]{64}$/.test(value)
   );
 }
 
