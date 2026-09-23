@@ -39,6 +39,7 @@ const RECORD_KEYS = [
   "exactnessClass",
   "derivedFrom",
   "transformationLineageSha256s",
+  "evidenceRef",
   "readAdmissibilityReceiptSha256",
   "payload",
 ];
@@ -92,6 +93,56 @@ function validPayload(kind, payload) {
   );
 }
 
+const EVIDENCE_REF_KEYS = [
+  "schema_version",
+  "evidence_ref",
+  "source_id",
+  "source_kind",
+  "source_version",
+  "content_sha256",
+  "created_at",
+  "observed_at",
+  "transformation_lineage_sha256s",
+  "admissibility_receipt_sha256",
+  "exactness_class",
+  "operational_authority",
+  "action_authority",
+  "execution_authority",
+  "evidence_ref_sha256",
+];
+
+function validEvidenceRef(value, historyRecord) {
+  if (!record(value) || !exactKeys(value, EVIDENCE_REF_KEYS)) return false;
+  if (value.schema_version !== "phios.evidence_ref.v0.1") return false;
+  if (value.evidence_ref !== `evidence:sha256:${historyRecord.contentSha256}`) return false;
+  if (value.source_id !== historyRecord.recordId) return false;
+  if (value.source_kind !== "subsystem") return false;
+  if (value.source_version !== historyRecord.payload.schemaVersion) return false;
+  if (value.content_sha256 !== historyRecord.contentSha256) return false;
+  if (value.created_at !== historyRecord.createdAt) return false;
+  if (value.observed_at !== historyRecord.createdAt) return false;
+  if (!Array.isArray(value.transformation_lineage_sha256s)) return false;
+  if (
+    value.transformation_lineage_sha256s.length !==
+      historyRecord.transformationLineageSha256s.length ||
+    value.transformation_lineage_sha256s.some(
+      (item, index) => item !== historyRecord.transformationLineageSha256s[index],
+    )
+  ) {
+    return false;
+  }
+  if (value.admissibility_receipt_sha256 !== null) return false;
+  if (value.exactness_class !== historyRecord.exactnessClass) return false;
+  if (
+    value.operational_authority !== false ||
+    value.action_authority !== false ||
+    value.execution_authority !== false
+  ) {
+    return false;
+  }
+  return sha(value.evidence_ref_sha256);
+}
+
 function validHistoryRecord(value) {
   if (!exactKeys(value, RECORD_KEYS)) return false;
   if (!["state", "change"].includes(value.kind)) return false;
@@ -111,6 +162,7 @@ function validHistoryRecord(value) {
   }
   if (!sha(value.readAdmissibilityReceiptSha256)) return false;
   if (!validPayload(value.kind, value.payload)) return false;
+  if (!validEvidenceRef(value.evidenceRef, value)) return false;
 
   if (value.kind === "state") {
     return (
@@ -137,7 +189,7 @@ function validHistoryRecord(value) {
 export function validatePersistentHistoryEnvelope(value) {
   if (!record(value)) return false;
   if (
-    value.transportSchemaVersion !== "phios.system-history-transport.v0.12" ||
+    value.transportSchemaVersion !== "phios.system-history-transport.v0.13" ||
     value.transport !== "loopback-http" ||
     value.transportIdentity !== "phios-governed-history-reader" ||
     value.localOnly !== true ||
@@ -155,7 +207,7 @@ export function validatePersistentHistoryEnvelope(value) {
   const projection = value.projection;
   if (!exactKeys(projection, PROJECTION_KEYS)) return false;
   if (
-    projection.schemaVersion !== "phios.system-history-projection.v0.12" ||
+    projection.schemaVersion !== "phios.system-history-projection.v0.13" ||
     projection.source !== "governed-memory-system-history" ||
     !timestamp(projection.generatedAt) ||
     !["ok", "degraded"].includes(projection.status) ||
