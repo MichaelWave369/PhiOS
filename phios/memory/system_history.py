@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import hashlib
+import json
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from typing import Any, Mapping
 
 from phios.mandala import ExactnessClass, TransformationLineageBuilder
@@ -279,3 +281,180 @@ class SystemHistoryPersistenceBridge:
         if result.status != "ok":
             raise RuntimeError(result.error_code or "failed to persist system-change receipt")
         return record, result
+
+
+SYSTEM_HISTORY_PROJECTION_SCHEMA = "phios.system-history-projection.v0.12"
+SYSTEM_HISTORY_SOURCE_IDS = ("phishell.system-state", "phishell.system-change")
+SYSTEM_HISTORY_PROJECTION_LIMIT = 16
+
+
+@dataclass(frozen=True, kw_only=True)
+class SystemHistoryProjection:
+    generated_at: str
+    status: str
+    limit: int
+    records: tuple[dict[str, object], ...]
+    omitted_record_count: int
+    read_admissibility_receipt_sha256s: tuple[str, ...]
+    schema_version: str = SYSTEM_HISTORY_PROJECTION_SCHEMA
+    source: str = "governed-memory-system-history"
+    history_scope: str = "canonical-memory"
+    persistent: bool = True
+    read_only: bool = True
+    cause_assigned: bool = False
+    severity_assigned: bool = False
+    operational_authority: bool = False
+    action_authority: bool = False
+    execution_authority: bool = False
+    effect_performed: bool = False
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "schemaVersion": self.schema_version,
+            "source": self.source,
+            "generatedAt": self.generated_at,
+            "status": self.status,
+            "historyScope": self.history_scope,
+            "persistent": self.persistent,
+            "limit": self.limit,
+            "count": len(self.records),
+            "omittedRecordCount": self.omitted_record_count,
+            "records": [dict(record) for record in self.records],
+            "readAdmissibilityReceiptSha256s": list(
+                self.read_admissibility_receipt_sha256s
+            ),
+            "readOnly": self.read_only,
+            "causeAssigned": self.cause_assigned,
+            "severityAssigned": self.severity_assigned,
+            "operationalAuthority": self.operational_authority,
+            "actionAuthority": self.action_authority,
+            "executionAuthority": self.execution_authority,
+            "effectPerformed": self.effect_performed,
+        }
+
+
+class SystemHistoryProjectionService:
+    """Project canonical PhiShell history through governed memory reads only."""
+
+    def __init__(self, runtime: MemoryOperatorRuntime) -> None:
+        self.runtime = runtime
+
+    def project(
+        self,
+        *,
+        limit: int = SYSTEM_HISTORY_PROJECTION_LIMIT,
+        task_id: str = "phishell-system-history-read",
+    ) -> SystemHistoryProjection:
+        self.runtime.require_enabled()
+        if isinstance(limit, bool) or not isinstance(limit, int) or not (1 <= limit <= 16):
+            raise ValueError("persistent history limit must be an integer between 1 and 16")
+        if not self.runtime.authority.allows("history.read"):
+            raise PermissionError(
+                "persistent system history requires explicit history.read authority"
+            )
+        if not self.runtime.authority.allows("memory.read"):
+            raise PermissionError(
+                "persistent system history requires explicit memory.read authority"
+            )
+
+        decision = self.runtime.policy.resolve(
+            principal_id=self.runtime.config.principal_id,
+            task_id=task_id,
+            operation="memory.read",
+            authority=self.runtime.authority,
+        )
+        if decision is None:
+            raise PermissionError("persistent system history is outside memory.read policy")
+
+        record_ids = self.runtime.store.list_current_record_ids(
+            source_ids=SYSTEM_HISTORY_SOURCE_IDS,
+            allowed_scopes=decision.allowed_scopes,
+            allowed_classifications=decision.allowed_classifications,
+            limit=limit,
+        )
+
+        records: list[dict[str, object]] = []
+        read_receipt_hashes: list[str] = []
+        omitted = 0
+
+        for index, record_id in enumerate(record_ids):
+            result = self.runtime.get(record_id, task_id=f"{task_id}:{index + 1}")
+            if result.status != "ok" or result.record is None:
+                omitted += 1
+                continue
+
+            record = result.record
+            try:
+                payload = json.loads(record.text)
+            except json.JSONDecodeError:
+                omitted += 1
+                continue
+            if not isinstance(payload, dict):
+                omitted += 1
+                continue
+
+            kind: str
+            if record.source_id == "phishell.system-state":
+                _validate_state_receipt(payload)
+                if record.epistemic_kind != "source":
+                    omitted += 1
+                    continue
+                kind = "state"
+            elif record.source_id == "phishell.system-change":
+                _validate_change_receipt(payload)
+                if record.epistemic_kind != "derived":
+                    omitted += 1
+                    continue
+                if record.exactness_class != "REVERSIBLE":
+                    omitted += 1
+                    continue
+                kind = "change"
+            else:
+                omitted += 1
+                continue
+
+            if not result.read_admissibility_receipts:
+                omitted += 1
+                continue
+            read_receipt = result.read_admissibility_receipts[0]
+            if (
+                read_receipt.readable_as_context is not True
+                or read_receipt.currentness != "current"
+                or read_receipt.operational_authority is not False
+                or read_receipt.action_authority is not False
+                or read_receipt.execution_authority is not False
+            ):
+                omitted += 1
+                continue
+
+            read_receipt_hashes.append(read_receipt.receipt_sha256)
+            records.append(
+                {
+                    "kind": kind,
+                    "recordId": record.record_id,
+                    "revision": record.revision,
+                    "recordSha256": record.record_sha256,
+                    "contentSha256": record.content_sha256,
+                    "createdAt": record.created_at,
+                    "scopeId": record.scope_id,
+                    "classification": record.classification,
+                    "retentionPolicyId": record.retention_policy_id,
+                    "epistemicKind": record.epistemic_kind,
+                    "exactnessClass": record.exactness_class,
+                    "derivedFrom": list(record.derived_from),
+                    "transformationLineageSha256s": list(
+                        record.transformation_lineage_sha256s
+                    ),
+                    "readAdmissibilityReceiptSha256": read_receipt.receipt_sha256,
+                    "payload": payload,
+                }
+            )
+
+        return SystemHistoryProjection(
+            generated_at=datetime.now(UTC).isoformat(),
+            status="degraded" if omitted else "ok",
+            limit=limit,
+            records=tuple(records),
+            omitted_record_count=omitted,
+            read_admissibility_receipt_sha256s=tuple(read_receipt_hashes),
+        )
