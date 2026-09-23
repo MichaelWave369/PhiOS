@@ -107,7 +107,12 @@ def run_phi_list_agents() -> dict[str, object]:
 def run_phi_agent_status(*, run_id: str) -> dict[str, object]:
     status = get_agent_run_status(run_id)
     if status.get("ok") is False:
-        return with_tool_schema({"ok": False, "run_id": run_id, "error_code": "RUN_NOT_FOUND"})
+        error_code = (
+            "INVALID_RUN_ID"
+            if status.get("error") == "invalid_run_id"
+            else "RUN_NOT_FOUND"
+        )
+        return with_tool_schema({"ok": False, "run_id": run_id, "error_code": error_code})
     return with_tool_schema({"ok": True, "run": status})
 
 
@@ -119,5 +124,10 @@ def run_phi_kill_agent(*, run_id: str) -> dict[str, object]:
         )
     result = cancel_agent_run(run_id)
     if not result.get("ok"):
-        return with_tool_schema({"ok": False, "run_id": run_id, "error_code": "RUN_NOT_FOUND"})
+        error_code = (
+            "INVALID_RUN_ID"
+            if result.get("error") == "invalid_run_id"
+            else "RUN_NOT_FOUND"
+        )
+        return with_tool_schema({"ok": False, "run_id": run_id, "error_code": error_code})
     return with_tool_schema({"ok": True, "result": result})
