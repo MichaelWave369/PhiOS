@@ -129,7 +129,7 @@ async function comparisonDigest(value: Record<string, unknown>) {
   );
 }
 
-async function validComparison(value: unknown): Promise<value is HistoryComparisonReceipt> {
+function comparisonShape(value: unknown): value is HistoryComparisonReceipt {
   if (!isRecord(value)) return false;
   if (
     value.schemaVersion !== "phios.system-history-comparison.v0.13" ||
@@ -232,24 +232,49 @@ async function validComparison(value: unknown): Promise<value is HistoryComparis
     priorIndex = metricIndex;
   }
 
-  return value.comparisonDigest === (await comparisonDigest(value));
+  return true;
 }
 
-async function validEnvelope(value: unknown): Promise<value is HistoryComparisonEnvelope> {
-  if (!isRecord(value)) return false;
-  return (
-    value.transportSchemaVersion === "phios.system-history-comparison-transport.v0.13" &&
-    value.transport === "loopback-http" &&
-    value.transportIdentity === "phios-governed-history-reader" &&
-    value.localOnly === true &&
-    value.readOnly === true &&
-    value.operationalAuthority === false &&
-    value.actionAuthority === false &&
-    value.executionAuthority === false &&
-    value.effectPerformed === false &&
-    timestamp(value.servedAt) &&
-    (await validComparison(value.comparison))
-  );
+async function validatedComparison(
+  value: unknown,
+): Promise<HistoryComparisonReceipt | null> {
+  if (!comparisonShape(value)) return null;
+  return value.comparisonDigest === (await comparisonDigest(value)) ? value : null;
+}
+
+async function validatedEnvelope(
+  value: unknown,
+): Promise<HistoryComparisonEnvelope | null> {
+  if (!isRecord(value)) return null;
+  if (
+    value.transportSchemaVersion !== "phios.system-history-comparison-transport.v0.13" ||
+    value.transport !== "loopback-http" ||
+    value.transportIdentity !== "phios-governed-history-reader" ||
+    value.localOnly !== true ||
+    value.readOnly !== true ||
+    value.operationalAuthority !== false ||
+    value.actionAuthority !== false ||
+    value.executionAuthority !== false ||
+    value.effectPerformed !== false ||
+    !timestamp(value.servedAt)
+  ) {
+    return null;
+  }
+  const comparison = await validatedComparison(value.comparison);
+  if (!comparison) return null;
+  return {
+    transportSchemaVersion: "phios.system-history-comparison-transport.v0.13",
+    transport: "loopback-http",
+    transportIdentity: "phios-governed-history-reader",
+    localOnly: true,
+    readOnly: true,
+    operationalAuthority: false,
+    actionAuthority: false,
+    executionAuthority: false,
+    effectPerformed: false,
+    servedAt: value.servedAt,
+    comparison,
+  };
 }
 
 export function createHistoryComparisonProvider({
@@ -290,7 +315,8 @@ export function createHistoryComparisonProvider({
         );
         if (!response.ok) return null;
         const payload: unknown = await response.json();
-        return (await validEnvelope(payload)) ? payload.comparison : null;
+        const envelope = await validatedEnvelope(payload);
+        return envelope?.comparison ?? null;
       } catch {
         return null;
       } finally {
