@@ -7,6 +7,7 @@ import {
   composeSystemStateReceipt,
   recomputeSystemStateReceiptDigest,
 } from "./systemStateComposer.mjs";
+import { collectLinuxHostObservation } from "./linuxProbe.mjs";
 
 test(
   "system state composer produces one bounded read-only receipt over all observation planes",
@@ -90,5 +91,30 @@ test(
       receipt.components.find((component) => component.id === "packages")?.availability,
       "unavailable",
     );
+  },
+);
+
+
+test(
+  "system state preserves partial host observation and degrades coherence",
+  { skip: process.platform !== "linux" },
+  async () => {
+    const receipt = await composeSystemStateReceipt({
+      collectHost: () =>
+        collectLinuxHostObservation({
+          networkInterfaces: () => {
+            throw new Error("network interfaces denied");
+          },
+        }),
+    });
+
+    const host = receipt.components.find((component) => component.id === "host");
+    assert.equal(host?.availability, "unavailable");
+    assert.equal(receipt.coherence, "degraded");
+    assert.equal(receipt.availableComponentCount, 4);
+    assert.ok(receipt.summary.cpuLogicalCores >= 1);
+    assert.ok(receipt.summary.memoryTotalBytes > 0);
+    assert.ok(receipt.summary.rootStorageTotalBytes > 0);
+    assert.equal(receipt.receiptDigest, recomputeSystemStateReceiptDigest(receipt));
   },
 );
