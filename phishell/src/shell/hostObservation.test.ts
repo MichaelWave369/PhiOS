@@ -74,6 +74,31 @@ describe("host observation contract", () => {
     expect(snapshot.effectPerformed).toBe(false);
   });
 
+  it("accepts a degraded live host snapshot without replacing known facts with fixture data", async () => {
+    const partial = {
+      ...liveSnapshot(),
+      availability: "unavailable" as const,
+      reason: "network-enumeration-unavailable",
+      network: [],
+    };
+    const provider = createLocalTransportObservationProvider({
+      fetcher: async () =>
+        new Response(JSON.stringify(envelope(partial)), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+    });
+
+    const snapshot = await provider.observe();
+
+    expect(snapshot.source).toBe("linux-readonly-node-probe");
+    expect(snapshot.availability).toBe("unavailable");
+    expect(snapshot.reason).toBe("network-enumeration-unavailable");
+    expect(snapshot.network).toEqual([]);
+    expect(snapshot.host.release).toBe("live-test");
+    expect(snapshot.cpu.logicalCores).toBe(FIXTURE_HOST_OBSERVATION.cpu.logicalCores);
+  });
+
   it("falls back rather than trusting a stale transport snapshot", async () => {
     const provider = createLocalTransportObservationProvider({
       maxAgeMs: 5_000,
