@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "phios.system-history-comparison-transport.v0.13",
+  "title": "PhiOS Canonical History Comparison Transport",
+  "type": "object",
+  "required": [
+    "transportSchemaVersion",
+    "transport",
+    "transportIdentity",
+    "localOnly",
+    "readOnly",
+    "operationalAuthority",
+    "actionAuthority",
+    "executionAuthority",
+    "effectPerformed",
+    "servedAt",
+    "comparison"
+  ],
+  "properties": {
+    "transportSchemaVersion": { "const": "phios.system-history-comparison-transport.v0.13" },
+    "transport": { "const": "loopback-http" },
+    "transportIdentity": { "const": "phios-governed-history-reader" },
+    "localOnly": { "const": true },
+    "readOnly": { "const": true },
+    "operationalAuthority": { "const": false },
+    "actionAuthority": { "const": false },
+    "executionAuthority": { "const": false },
+    "effectPerformed": { "const": false },
+    "servedAt": { "type": "string", "format": "date-time" },
+    "comparison": { "$ref": "phios.system-history-comparison.v0.13" }
+  },
+  "additionalProperties": false
+}
