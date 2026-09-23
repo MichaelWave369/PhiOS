@@ -57,7 +57,7 @@ async function envelope() {
     effectPerformed: false,
     comparisonDigest: "",
   };
-  const body = { ...comparison };
+  const body: Record<string, unknown> = { ...comparison };
   delete body.comparisonDigest;
   const encoded = new TextEncoder().encode(JSON.stringify(canonicalize(body)));
   const digest = await globalThis.crypto.subtle.digest("SHA-256", encoded);
