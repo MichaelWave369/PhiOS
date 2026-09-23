@@ -62,7 +62,11 @@ def run_phi_dispatch_agents(
                 }
             )
 
-    plan = run_agentception_plan(task=task, context=context)
+    plan = run_agentception_plan(
+        task=task,
+        context=context,
+        allow_remote=not dry_run,
+    )
     if dry_run:
         return with_tool_schema(
             {
@@ -72,6 +76,11 @@ def run_phi_dispatch_agents(
                 "task": task,
                 "context": context,
                 "plan": plan,
+                "effects": {
+                    "remote_planner_attempted": False,
+                    "agent_dispatch_attempted": False,
+                    "state_persisted": False,
+                },
             }
         )
 
