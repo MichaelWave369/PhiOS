@@ -92,12 +92,13 @@ def test_snapshot_uses_typeddict():
 def test_version_single_source_of_truth():
     from phios import __version__
 
-    assert __version__ == "0.3.0"
+    assert type(__version__) is str
+    assert __version__ == "1.0.0"
     for path in Path("phios").rglob("*.py"):
         if path.name == "__init__.py":
             continue
         text = path.read_text(encoding="utf-8")
-        assert '"0.3.0"' not in text
+        assert '"1.0.0"' not in text
 
 
 def test_version_matches_pyproject():
@@ -105,7 +106,7 @@ def test_version_matches_pyproject():
 
     pyproject = Path("pyproject.toml").read_text(encoding="utf-8")
     assert 'version = {attr = "phios.__version__"}' in pyproject
-    assert __version__ == "0.3.0"
+    assert __version__ == "1.0.0"
 
 def test_ollama_check_cached_within_ttl(monkeypatch):
     from phios.core import brainc_client
