@@ -263,7 +263,7 @@ function Home() {
       </section>
 
       <section className="panel notices">
-        <div className="panel-title">V0.11 GOVERNED PERSISTENT HISTORY</div>
+        <div className="panel-title">V0.12 PERSISTENT HISTORY PROJECTION</div>
         <div className="notice">
           <b>Canonical history can now be read back into PhiShell</b>
           <small>PhiShell keeps live session history separate from bounded canonical history projected through governed memory.</small>
@@ -411,7 +411,7 @@ function WindowBody({ item }: { item: WindowModel }) {
         <article>
           <small>BOUNDARY</small>
           <b>Effect broker absent</b>
-          <p>No privileged Linux effect adapter is attached in v0.9.</p>
+          <p>No privileged Linux effect adapter is attached in v0.12.</p>
         </article>
       </div>
     );
