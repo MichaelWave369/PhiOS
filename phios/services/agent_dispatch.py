@@ -160,22 +160,55 @@ def build_dispatch_context(
     return context
 
 
-def run_agentception_plan(*, task: str, context: dict[str, Any]) -> dict[str, Any]:
+def _local_agentception_plan(
+    *,
+    task: str,
+    context: dict[str, Any],
+    source: str = "local-fallback",
+    reason: str | None = None,
+) -> dict[str, Any]:
+    plan: dict[str, Any] = {
+        "source": source,
+        "planner_available": False,
+        "remote_planner_attempted": False,
+        "plan_steps": [
+            {"step": "decompose task", "status": "pending"},
+            {"step": "assign specialist agents", "status": "pending"},
+            {"step": "collect review artifacts", "status": "pending"},
+        ],
+        "task": task,
+        "context_summary": {
+            "field_guided": "field_state" in context,
+            "arch": context.get("arch", "default"),
+        },
+    }
+    if reason is not None:
+        plan["reason"] = reason
+    return plan
+
+
+def run_agentception_plan(
+    *,
+    task: str,
+    context: dict[str, Any],
+    allow_remote: bool = True,
+) -> dict[str, Any]:
+    """Build a plan, optionally allowing the configured remote planner effect.
+
+    When allow_remote is false, no HTTP planner request is attempted even if
+    AgentCeption is enabled in the environment.
+    """
+
+    if not allow_remote:
+        return _local_agentception_plan(
+            task=task,
+            context=context,
+            source="local-dry-run",
+            reason="remote planner disabled by caller",
+        )
+
     if not _agentception_enabled():
-        return {
-            "source": "local-fallback",
-            "planner_available": False,
-            "plan_steps": [
-                {"step": "decompose task", "status": "pending"},
-                {"step": "assign specialist agents", "status": "pending"},
-                {"step": "collect review artifacts", "status": "pending"},
-            ],
-            "task": task,
-            "context_summary": {
-                "field_guided": "field_state" in context,
-                "arch": context.get("arch", "default"),
-            },
-        }
+        return _local_agentception_plan(task=task, context=context)
 
     ok, payload = _http_json(
         f"{_agentception_base_url()}/planner/plan",
@@ -183,24 +216,28 @@ def run_agentception_plan(*, task: str, context: dict[str, Any]) -> dict[str, An
         payload={"task": task, "context": context},
     )
     if not ok:
-        return {
-            "source": "local-fallback",
-            "planner_available": False,
-            "plan_steps": [{"step": "planner unavailable", "status": "blocked", "error": payload}],
-            "task": task,
-        }
+        plan = _local_agentception_plan(
+            task=task,
+            context=context,
+            reason="remote planner unavailable",
+        )
+        plan["plan_steps"] = [
+            {"step": "planner unavailable", "status": "blocked", "error": payload}
+        ]
+        plan["remote_planner_attempted"] = True
+        return plan
 
     plan_steps_obj = payload.get("plan_steps")
     plan_steps = plan_steps_obj if isinstance(plan_steps_obj, list) else []
     return {
         "source": "agentception",
         "planner_available": True,
+        "remote_planner_attempted": True,
         "task": task,
         "plan_id": payload.get("plan_id", ""),
         "plan_steps": plan_steps,
         "raw": payload,
     }
-
 
 def dispatch_agentception_run(
     *,
