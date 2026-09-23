@@ -230,6 +230,17 @@ from the JSON receipt body before canonical persistence.
 
 A hand-edited receipt with a stale digest is now rejected before it can enter canonical memory.
 
+After persistence, governed memory stores strict canonical JSON, which may reorder object keys relative to the original JavaScript receipt serialization. Read-back therefore does not incorrectly recompute the original receipt hash from reordered JSON. Instead it verifies:
+
+- canonical MemoryRecord content hash;
+- canonical MemoryRecord record hash;
+- receipt hash shape;
+- canonical record ID derived from the receipt hash;
+- matching provenance references;
+- matching state-to-change derived_from references.
+
+This preserves both original receipt identity and canonical storage integrity.
+
 This repair does not grant new capability.
 
 ## Python read sidecar
