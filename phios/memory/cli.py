@@ -12,6 +12,7 @@ from .config import MemoryRuntimeConfig, write_disabled_template
 from .legacy import plan_legacy_agent_memory_import
 from .models import MemoryRecord
 from .operator import MemoryOperatorRuntime
+from .system_history import SystemHistoryPersistenceBridge
 
 DEFAULT_CONFIG = Path.home() / ".phios" / "memory" / "config.json"
 DEFAULT_STATE_ROOT = Path.home() / ".phios" / "memory"
@@ -71,6 +72,14 @@ def build_parser() -> argparse.ArgumentParser:
     legacy.add_argument("--scope", required=True)
     legacy.add_argument("--classification", required=True)
     legacy.add_argument("--dry-run", action="store_true")
+
+    history = sub.add_parser(
+        "persist-system-history",
+        help="Persist one governed PhiShell state transition into canonical memory",
+    )
+    history.add_argument("--previous-state", required=True)
+    history.add_argument("--current-state", required=True)
+    history.add_argument("--change-receipt", required=True)
 
     return parser
 
@@ -167,6 +176,34 @@ def main() -> int:
             print(json.dumps(reindex_result.__dict__, indent=2))
             return 0 if reindex_result.status == "ok" else 2
 
+        if args.command == "persist-system-history":
+            previous_state = _load_json_object(Path(args.previous_state))
+            current_state = _load_json_object(Path(args.current_state))
+            change_receipt = _load_json_object(Path(args.change_receipt))
+            persisted = SystemHistoryPersistenceBridge(runtime).persist_transition(
+                previous_state=previous_state,
+                current_state=current_state,
+                change_receipt=change_receipt,
+                task_id=_task_id(),
+            )
+            print(
+                json.dumps(
+                    {
+                        "persistent": persisted.persistent,
+                        "canonical": persisted.canonical,
+                        "state_record_ids": list(persisted.state_record_ids),
+                        "change_record_id": persisted.change_record_id,
+                        "state_receipt_ids": list(persisted.state_receipt_ids),
+                        "change_receipt_id": persisted.change_receipt_id,
+                        "operational_authority": persisted.operational_authority,
+                        "action_authority": persisted.action_authority,
+                        "execution_authority": persisted.execution_authority,
+                    },
+                    indent=2,
+                )
+            )
+            return 0
+
         if args.command == "legacy-import":
             plan = plan_legacy_agent_memory_import(
                 Path(args.file),
@@ -208,6 +245,18 @@ def main() -> int:
 
     parser.error("unknown memory command")
     return 2
+
+
+def _load_json_object(path: Path) -> dict[str, object]:
+    try:
+        raw = json.loads(path.expanduser().read_text(encoding="utf-8"))
+    except FileNotFoundError as exc:
+        raise ValueError(f"history input does not exist: {path}") from exc
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"history input is invalid JSON: {path}: {exc.msg}") from exc
+    if not isinstance(raw, dict):
+        raise ValueError(f"history input must be a JSON object: {path}")
+    return raw
 
 
 def _result_dict(result: object) -> dict[str, object]:
