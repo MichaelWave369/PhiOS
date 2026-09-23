@@ -411,7 +411,7 @@ function WindowBody({ item }: { item: WindowModel }) {
         <article>
           <small>BOUNDARY</small>
           <b>Effect broker absent</b>
-          <p>No privileged Linux effect adapter is attached in v0.12.</p>
+          <p>No privileged Linux effect adapter is attached in v0.13.</p>
         </article>
       </div>
     );
