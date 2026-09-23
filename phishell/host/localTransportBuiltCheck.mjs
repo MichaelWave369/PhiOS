@@ -5,7 +5,10 @@ if (process.platform !== "linux") {
   process.exit(0);
 }
 
-const transport = createLocalObservationServer({ port: 0 });
+const transport = createLocalObservationServer({
+  port: 0,
+  historyProjectionFetcher: async () => null,
+});
 const address = await transport.listen();
 const base = `http://127.0.0.1:${address.port}`;
 
@@ -107,6 +110,15 @@ try {
   assert.equal(systemEnvelope.receipt.effectPerformed, false);
   assert.match(systemEnvelope.receipt.receiptDigest, /^sha256:[0-9a-f]{64}$/);
 
+  const persistentHistory = await fetch(`${base}/api/v1/persistent-history`);
+  assert.equal(persistentHistory.status, 503);
+  assert.equal(persistentHistory.headers.get("access-control-allow-origin"), null);
+  const persistentHistoryUnavailable = await persistentHistory.json();
+  assert.equal(persistentHistoryUnavailable.error, "persistent_history_unavailable");
+  assert.equal(persistentHistoryUnavailable.readOnly, true);
+  assert.equal(persistentHistoryUnavailable.executionAuthority, false);
+  assert.equal(persistentHistoryUnavailable.effectPerformed, false);
+
   const mutation = await fetch(`${base}/api/v1/host-observation`, { method: "POST" });
   assert.equal(mutation.status, 405);
 
@@ -134,6 +146,11 @@ try {
     method: "POST",
   });
   assert.equal(stateMutation.status, 405);
+
+  const historyMutation = await fetch(`${base}/api/v1/persistent-history`, {
+    method: "POST",
+  });
+  assert.equal(historyMutation.status, 405);
 } finally {
   await transport.close();
 }
