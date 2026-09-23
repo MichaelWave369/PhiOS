@@ -27,6 +27,53 @@ jobs:
         run: bash scripts/policy_no_telemetry_runtime.sh
 
 
+  installed-artifact:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Build wheel from repository metadata
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip wheel . --no-deps --wheel-dir dist-test
+          ls -lah dist-test
+      - name: Verify wheel contains required runtime packages
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from zipfile import ZipFile
+
+          wheels = sorted(Path("dist-test").glob("*.whl"))
+          assert len(wheels) == 1, f"expected one wheel, found {wheels}"
+
+          with ZipFile(wheels[0]) as wheel:
+              names = set(wheel.namelist())
+
+          required = {
+              "phios/network/__init__.py",
+              "phios/network/discovery.py",
+              "phios/network/exchange.py",
+              "phios/shell/phi_session.py",
+          }
+          missing = sorted(required - names)
+          assert not missing, f"wheel missing required runtime files: {missing}"
+          PY
+      - name: Smoke-test installed wheel outside source tree
+        run: |
+          python -m venv /tmp/phios-wheel-smoke
+          /tmp/phios-wheel-smoke/bin/python -m pip install --upgrade pip
+          /tmp/phios-wheel-smoke/bin/python -m pip install dist-test/*.whl
+          cd /tmp
+          /tmp/phios-wheel-smoke/bin/python - <<'PY'
+          import phios.network
+          import phios.shell.phi_session
+
+          print("installed PhiOS wheel imports succeeded")
+          PY
+
+
   memory-vector:
     runs-on: ubuntu-latest
     steps:
