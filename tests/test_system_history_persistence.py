@@ -229,3 +229,43 @@ def test_persistent_history_also_requires_memory_write_authority(tmp_path: Path)
             current_state=current,
             change_receipt=change,
         )
+
+
+def test_persistence_rejects_tampered_system_state_body(tmp_path: Path) -> None:
+    runtime = _runtime(tmp_path / "memory")
+    previous = _state("ignored", "2026-09-22T20:50:00+00:00")
+    current = _state("ignored", "2026-09-22T20:50:05+00:00")
+    change = _change(
+        "ignored",
+        previous=previous,
+        current=current,
+        recorded_at="2026-09-22T20:50:06+00:00",
+    )
+    current["readOnly"] = False
+
+    with pytest.raises(ValueError, match="readOnly"):
+        SystemHistoryPersistenceBridge(runtime).persist_transition(
+            previous_state=previous,
+            current_state=current,
+            change_receipt=change,
+        )
+
+
+def test_persistence_rejects_digest_mismatch_after_body_edit(tmp_path: Path) -> None:
+    runtime = _runtime(tmp_path / "memory")
+    previous = _state("ignored", "2026-09-22T21:00:00+00:00")
+    current = _state("ignored", "2026-09-22T21:00:05+00:00")
+    change = _change(
+        "ignored",
+        previous=previous,
+        current=current,
+        recorded_at="2026-09-22T21:00:06+00:00",
+    )
+    change["recordedAt"] = "2026-09-22T21:00:07+00:00"
+
+    with pytest.raises(ValueError, match="changeDigest does not match"):
+        SystemHistoryPersistenceBridge(runtime).persist_transition(
+            previous_state=previous,
+            current_state=current,
+            change_receipt=change,
+        )
