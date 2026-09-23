@@ -1,0 +1,138 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "phios.system-history-comparison.v0.13",
+  "title": "PhiOS Canonical System History Comparison",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "source",
+    "generatedAt",
+    "comparisonScope",
+    "persistent",
+    "fromRecordId",
+    "toRecordId",
+    "fromRecordSha256",
+    "toRecordSha256",
+    "fromReadAdmissibilityReceiptSha256",
+    "toReadAdmissibilityReceiptSha256",
+    "fromReceiptDigest",
+    "toReceiptDigest",
+    "fromComposedAt",
+    "toComposedAt",
+    "timeDeltaMs",
+    "chronologicalOrder",
+    "coherence",
+    "changedComponentCount",
+    "componentChanges",
+    "changedSummaryMetricCount",
+    "summaryChanges",
+    "consecutiveClaimed",
+    "causeAssigned",
+    "severityAssigned",
+    "readOnly",
+    "operationalAuthority",
+    "actionAuthority",
+    "executionAuthority",
+    "effectPerformed",
+    "comparisonDigest"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "phios.system-history-comparison.v0.13" },
+    "source": { "const": "governed-memory-system-history-comparator" },
+    "generatedAt": { "type": "string", "format": "date-time" },
+    "comparisonScope": { "const": "canonical-state-pair" },
+    "persistent": { "const": false },
+    "fromRecordId": { "type": "string", "pattern": "^phishell\\.system-state\\.[0-9a-f]{64}$" },
+    "toRecordId": { "type": "string", "pattern": "^phishell\\.system-state\\.[0-9a-f]{64}$" },
+    "fromRecordSha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "toRecordSha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "fromReadAdmissibilityReceiptSha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "toReadAdmissibilityReceiptSha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "fromReceiptDigest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "toReceiptDigest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "fromComposedAt": { "type": "string", "format": "date-time" },
+    "toComposedAt": { "type": "string", "format": "date-time" },
+    "timeDeltaMs": { "type": "integer" },
+    "chronologicalOrder": { "enum": ["forward", "reverse", "same-time"] },
+    "coherence": {
+      "type": "object",
+      "required": ["from", "to", "changed"],
+      "properties": {
+        "from": { "enum": ["coherent", "degraded"] },
+        "to": { "enum": ["coherent", "degraded"] },
+        "changed": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "changedComponentCount": { "type": "integer", "minimum": 0, "maximum": 5 },
+    "componentChanges": {
+      "type": "array",
+      "minItems": 5,
+      "maxItems": 5,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "fromAvailability",
+          "toAvailability",
+          "availabilityChanged",
+          "fromDigest",
+          "toDigest",
+          "digestChanged"
+        ],
+        "properties": {
+          "id": { "enum": ["host", "services", "processes", "packages", "devices"] },
+          "fromAvailability": { "enum": ["available", "unavailable"] },
+          "toAvailability": { "enum": ["available", "unavailable"] },
+          "availabilityChanged": { "type": "boolean" },
+          "fromDigest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+          "toDigest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+          "digestChanged": { "type": "boolean" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "changedSummaryMetricCount": { "type": "integer", "minimum": 0, "maximum": 13 },
+    "summaryChanges": {
+      "type": "array",
+      "maxItems": 13,
+      "items": {
+        "type": "object",
+        "required": ["metric", "from", "to", "delta"],
+        "properties": {
+          "metric": {
+            "enum": [
+              "cpuLogicalCores",
+              "memoryTotalBytes",
+              "rootStorageTotalBytes",
+              "observedServiceCount",
+              "activeServiceCount",
+              "currentUserProcessCount",
+              "installedPackageCount",
+              "blockDeviceCount",
+              "networkDeviceCount",
+              "pciDeviceCount",
+              "usbDeviceCount",
+              "drmDeviceCount",
+              "powerDeviceCount"
+            ]
+          },
+          "from": { "type": "number" },
+          "to": { "type": "number" },
+          "delta": { "type": "number" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "consecutiveClaimed": { "const": false },
+    "causeAssigned": { "const": false },
+    "severityAssigned": { "const": false },
+    "readOnly": { "const": true },
+    "operationalAuthority": { "const": false },
+    "actionAuthority": { "const": false },
+    "executionAuthority": { "const": false },
+    "effectPerformed": { "const": false },
+    "comparisonDigest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" }
+  },
+  "additionalProperties": false
+}
