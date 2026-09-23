@@ -53,7 +53,7 @@ def _change(
 def _runtime(
     root: Path,
     *,
-    permissions: tuple[str, ...] = ("memory.write", "memory.read"),
+    permissions: tuple[str, ...] = ("history.persist", "memory.write", "memory.read"),
 ) -> MemoryOperatorRuntime:
     config = MemoryRuntimeConfig(
         enabled=True,
@@ -155,8 +155,8 @@ def test_persistent_history_is_idempotent_for_same_receipt_hashes(tmp_path: Path
     assert len(runtime.ledger.path.read_text(encoding="utf-8").splitlines()) == 3
 
 
-def test_persistent_history_requires_explicit_memory_write_authority(tmp_path: Path) -> None:
-    runtime = _runtime(tmp_path / "memory", permissions=("memory.read",))
+def test_persistent_history_requires_explicit_history_persist_authority(tmp_path: Path) -> None:
+    runtime = _runtime(tmp_path / "memory", permissions=("memory.write", "memory.read"))
     previous = _state("1", "2026-09-22T20:20:00+00:00")
     current = _state("2", "2026-09-22T20:20:05+00:00")
     change = _change(
@@ -166,7 +166,7 @@ def test_persistent_history_requires_explicit_memory_write_authority(tmp_path: P
         recorded_at="2026-09-22T20:20:06+00:00",
     )
 
-    with pytest.raises(PermissionError, match="memory.write"):
+    with pytest.raises(PermissionError, match="history.persist"):
         SystemHistoryPersistenceBridge(runtime).persist_transition(
             previous_state=previous,
             current_state=current,
@@ -187,6 +187,25 @@ def test_change_receipt_must_reference_the_two_supplied_states(tmp_path: Path) -
     change["toReceiptDigest"] = _digest("7")
 
     with pytest.raises(ValueError, match="current system-state"):
+        SystemHistoryPersistenceBridge(runtime).persist_transition(
+            previous_state=previous,
+            current_state=current,
+            change_receipt=change,
+        )
+
+
+def test_persistent_history_also_requires_memory_write_authority(tmp_path: Path) -> None:
+    runtime = _runtime(tmp_path / "memory", permissions=("history.persist", "memory.read"))
+    previous = _state("8", "2026-09-22T20:40:00+00:00")
+    current = _state("9", "2026-09-22T20:40:05+00:00")
+    change = _change(
+        "a",
+        previous=previous,
+        current=current,
+        recorded_at="2026-09-22T20:40:06+00:00",
+    )
+
+    with pytest.raises(PermissionError, match="memory.write"):
         SystemHistoryPersistenceBridge(runtime).persist_transition(
             previous_state=previous,
             current_state=current,
