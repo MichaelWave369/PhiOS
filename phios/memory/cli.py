@@ -10,6 +10,7 @@ from phios.mandala import OriginKind
 
 from .config import MemoryRuntimeConfig, write_disabled_template
 from .legacy import plan_legacy_agent_memory_import
+from .history_projection_server import DEFAULT_HISTORY_PORT, serve_system_history
 from .models import MemoryRecord
 from .operator import MemoryOperatorRuntime
 from .system_history import SystemHistoryPersistenceBridge
@@ -80,6 +81,12 @@ def build_parser() -> argparse.ArgumentParser:
     history.add_argument("--previous-state", required=True)
     history.add_argument("--current-state", required=True)
     history.add_argument("--change-receipt", required=True)
+
+    history_read = sub.add_parser(
+        "serve-system-history",
+        help="Serve bounded governed persistent history over loopback-only HTTP",
+    )
+    history_read.add_argument("--port", type=int, default=DEFAULT_HISTORY_PORT)
 
     return parser
 
@@ -175,6 +182,10 @@ def main() -> int:
             reindex_result = runtime.reindex(full=args.full, limit=args.limit)
             print(json.dumps(reindex_result.__dict__, indent=2))
             return 0 if reindex_result.status == "ok" else 2
+
+        if args.command == "serve-system-history":
+            serve_system_history(runtime, port=args.port)
+            return 0
 
         if args.command == "persist-system-history":
             previous_state = _load_json_object(Path(args.previous_state))
