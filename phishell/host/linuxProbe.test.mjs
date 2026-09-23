@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { collectLinuxHostObservation } from "./linuxProbe.mjs";
+import { assertValidHostObservation } from "./observationContract.mjs";
 
 test(
   "Linux probe returns observation-only data with no execution authority",
@@ -60,5 +61,6 @@ test(
     assert.equal(snapshot.readOnly, true);
     assert.equal(snapshot.executionAuthority, false);
     assert.equal(snapshot.effectPerformed, false);
+    assert.equal(assertValidHostObservation(snapshot), snapshot);
   },
 );
