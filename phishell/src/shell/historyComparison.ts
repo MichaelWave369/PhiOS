@@ -145,8 +145,8 @@ function canonicalize(value: unknown): unknown {
   );
 }
 
-async function comparisonDigest(value: Record<string, unknown>) {
-  const body = { ...value };
+async function comparisonDigest(value: HistoryComparisonReceipt) {
+  const body: Record<string, unknown> = { ...value };
   delete body.comparisonDigest;
   const encoded = new TextEncoder().encode(JSON.stringify(canonicalize(body)));
   const digest = await globalThis.crypto.subtle.digest("SHA-256", encoded);
