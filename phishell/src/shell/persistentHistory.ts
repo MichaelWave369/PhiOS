@@ -233,15 +233,24 @@ function validEnvelope(value: unknown): value is PersistentHistoryEnvelope {
 
   if (projection.status === "ok" && projection.omittedRecordCount !== 0) return false;
   if (projection.status === "degraded" && projection.omittedRecordCount === 0) return false;
-  if (!projection.records.every(validPersistentRecord)) return false;
 
-  const readHashes = projection.records.map(
+  const projectionRecords = projection.records;
+  const projectionReadHashes = projection.readAdmissibilityReceiptSha256s;
+  if (
+    !Array.isArray(projectionRecords) ||
+    !projectionRecords.every(validPersistentRecord) ||
+    !Array.isArray(projectionReadHashes) ||
+    !projectionReadHashes.every(sha)
+  ) {
+    return false;
+  }
+
+  const readHashes = projectionRecords.map(
     (item) => item.readAdmissibilityReceiptSha256,
   );
   return (
-    readHashes.every(
-      (item, index) => item === projection.readAdmissibilityReceiptSha256s[index],
-    ) && new Set(readHashes).size === readHashes.length
+    readHashes.every((item, index) => item === projectionReadHashes[index]) &&
+    new Set(readHashes).size === readHashes.length
   );
 }
 
