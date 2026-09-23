@@ -118,12 +118,24 @@ class PhiExchangeServer:
         pid = str(proposal.get("proposal_id", ""))
         if not _valid_proposal_id(pid):
             return False
-        if _proposal_metadata(proposal) is None:
-            return False
         if pid in self._pending or pid in self._verified:
             return False
-        self._pending[pid] = dict(proposal)
-        self._pending[pid]["payload"] = proposal.get("payload")
+
+        normalized = dict(proposal)
+        payload = normalized.get("payload")
+        if _proposal_metadata(normalized) is None and payload is not None:
+            expected_hash = normalized.get("snapshot_hash")
+            if isinstance(expected_hash, str) and _SHA256_HEX.fullmatch(expected_hash):
+                data = _payload_bytes(payload)
+                normalized["snapshot_summary"] = {
+                    "name": "legacy-inline-payload",
+                    "size": len(data),
+                    "hash": expected_hash[:12],
+                }
+
+        if _proposal_metadata(normalized) is None:
+            return False
+        self._pending[pid] = normalized
         return True
 
     def get_pending_proposals(self) -> list[dict[str, Any]]:
