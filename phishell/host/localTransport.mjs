@@ -14,6 +14,7 @@ import { collectDeviceObservation } from "./deviceObserver.mjs";
 import { assertValidDeviceObservation } from "./deviceObservationContract.mjs";
 import { composeSystemStateReceipt } from "./systemStateComposer.mjs";
 import { assertValidSystemStateReceipt } from "./systemStateContract.mjs";
+import { fetchPersistentHistoryProjection } from "./persistentHistoryProxy.mjs";
 
 const LOOPBACK_HOST = "127.0.0.1";
 const DEFAULT_PORT = 3969;
@@ -92,6 +93,7 @@ export function createLocalObservationServer({
   port = DEFAULT_PORT,
   distDir = DEFAULT_DIST_DIR,
   serveShell = true,
+  historyProjectionFetcher = fetchPersistentHistoryProjection,
 } = {}) {
   if (!Number.isInteger(port) || port < 0 || port > 65535) {
     throw new Error("local observation port must be an integer between 0 and 65535");
@@ -262,6 +264,24 @@ export function createLocalObservationServer({
           snapshotAgeMs,
           receipt,
         });
+        return;
+      }
+
+      if (url.pathname === "/api/v1/persistent-history") {
+        const historyEnvelope = await historyProjectionFetcher();
+        if (!historyEnvelope) {
+          jsonResponse(response, 503, {
+            error: "persistent_history_unavailable",
+            localOnly: true,
+            readOnly: true,
+            operationalAuthority: false,
+            actionAuthority: false,
+            executionAuthority: false,
+            effectPerformed: false,
+          });
+          return;
+        }
+        jsonResponse(response, 200, historyEnvelope);
         return;
       }
 

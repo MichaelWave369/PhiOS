@@ -16,6 +16,7 @@ from .horizon import (
     ReconsolidationGate,
     ReconsolidationGateDecision,
 )
+from .history_projection_server import create_history_projection_server
 from .legacy import LegacyImportPlan, plan_legacy_agent_memory_import
 from .models import (
     EmbeddingIdentity,
@@ -32,7 +33,12 @@ from .publisher import MemoryReceiptPublisher
 from .service import GovernedMemoryService, RetrievalIndex, UnavailableRetrievalIndex
 from .sqlite_vec_index import SqliteVecIndex
 from .store import MemoryStore
-from .system_history import PersistedSystemHistory, SystemHistoryPersistenceBridge
+from .system_history import (
+    PersistedSystemHistory,
+    SystemHistoryPersistenceBridge,
+    SystemHistoryProjection,
+    SystemHistoryProjectionService,
+)
 
 __all__ = [
     "EVIDENCE_HORIZON_POLICY_SCHEMA_VERSION",
@@ -45,6 +51,7 @@ __all__ = [
     "EvidenceHorizonReceipt",
     "EmbeddingProvider",
     "GovernedMemoryService",
+    "create_history_projection_server",
     "IndexSyncResult",
     "LegacyImportPlan",
     "MemoryAccessDecision",
@@ -68,6 +75,8 @@ __all__ = [
     "RetrievalIndex",
     "SqliteVecIndex",
     "SystemHistoryPersistenceBridge",
+    "SystemHistoryProjection",
+    "SystemHistoryProjectionService",
     "UnavailableRetrievalIndex",
     "VectorCandidate",
     "plan_legacy_agent_memory_import",

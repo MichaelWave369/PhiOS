@@ -1,0 +1,103 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "phios.system-history-projection.v0.12",
+  "title": "PhiOS Governed Persistent System History Projection",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "source",
+    "generatedAt",
+    "status",
+    "historyScope",
+    "persistent",
+    "limit",
+    "count",
+    "omittedRecordCount",
+    "records",
+    "readAdmissibilityReceiptSha256s",
+    "readOnly",
+    "causeAssigned",
+    "severityAssigned",
+    "operationalAuthority",
+    "actionAuthority",
+    "executionAuthority",
+    "effectPerformed"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "phios.system-history-projection.v0.12" },
+    "source": { "const": "governed-memory-system-history" },
+    "generatedAt": { "type": "string", "format": "date-time" },
+    "status": { "enum": ["ok", "degraded"] },
+    "historyScope": { "const": "canonical-memory" },
+    "persistent": { "const": true },
+    "limit": { "type": "integer", "minimum": 1, "maximum": 16 },
+    "count": { "type": "integer", "minimum": 0, "maximum": 16 },
+    "omittedRecordCount": { "type": "integer", "minimum": 0 },
+    "records": {
+      "type": "array",
+      "maxItems": 16,
+      "items": {
+        "type": "object",
+        "required": [
+          "kind",
+          "recordId",
+          "revision",
+          "recordSha256",
+          "contentSha256",
+          "createdAt",
+          "scopeId",
+          "classification",
+          "retentionPolicyId",
+          "epistemicKind",
+          "exactnessClass",
+          "derivedFrom",
+          "transformationLineageSha256s",
+          "readAdmissibilityReceiptSha256",
+          "payload"
+        ],
+        "properties": {
+          "kind": { "enum": ["state", "change"] },
+          "recordId": { "type": "string", "maxLength": 160 },
+          "revision": { "type": "integer", "minimum": 1 },
+          "recordSha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+          "contentSha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "scopeId": { "type": "string", "minLength": 1 },
+          "classification": { "type": "string", "minLength": 1 },
+          "retentionPolicyId": { "type": "string", "minLength": 1 },
+          "epistemicKind": { "enum": ["source", "derived"] },
+          "exactnessClass": { "type": ["string", "null"] },
+          "derivedFrom": {
+            "type": "array",
+            "maxItems": 2,
+            "items": { "type": "string" }
+          },
+          "transformationLineageSha256s": {
+            "type": "array",
+            "maxItems": 1,
+            "items": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+          },
+          "readAdmissibilityReceiptSha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "payload": { "type": "object" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "readAdmissibilityReceiptSha256s": {
+      "type": "array",
+      "maxItems": 16,
+      "items": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+    },
+    "readOnly": { "const": true },
+    "causeAssigned": { "const": false },
+    "severityAssigned": { "const": false },
+    "operationalAuthority": { "const": false },
+    "actionAuthority": { "const": false },
+    "executionAuthority": { "const": false },
+    "effectPerformed": { "const": false }
+  },
+  "additionalProperties": false
+}

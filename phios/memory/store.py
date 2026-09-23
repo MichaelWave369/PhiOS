@@ -314,6 +314,50 @@ class MemoryStore:
             for row in rows
         )
 
+    def list_current_record_ids(
+        self,
+        *,
+        source_ids: tuple[str, ...],
+        allowed_scopes: tuple[str, ...],
+        allowed_classifications: tuple[str, ...],
+        limit: int = 16,
+        now: datetime | None = None,
+    ) -> tuple[str, ...]:
+        """Enumerate bounded current canonical IDs within explicit policy bounds."""
+
+        if not source_ids or not allowed_scopes or not allowed_classifications:
+            return ()
+        if isinstance(limit, bool) or not isinstance(limit, int) or not (1 <= limit <= 50):
+            raise ValueError("limit must be an integer between 1 and 50")
+        now = now or datetime.now(UTC)
+        source_marks = ",".join("?" for _ in source_ids)
+        scope_marks = ",".join("?" for _ in allowed_scopes)
+        class_marks = ",".join("?" for _ in allowed_classifications)
+        sql = f"""
+            SELECT r.record_id
+            FROM record_heads h
+            JOIN records r ON r.record_id=h.record_id AND r.revision=h.revision
+            LEFT JOIN tombstones t ON t.record_id=h.record_id
+            WHERE h.published=1
+              AND t.record_id IS NULL
+              AND r.source_id IN ({source_marks})
+              AND r.scope_id IN ({scope_marks})
+              AND r.classification IN ({class_marks})
+              AND (r.expires_at IS NULL OR r.expires_at > ?)
+            ORDER BY r.rowid DESC
+            LIMIT ?
+        """
+        params: tuple[object, ...] = (
+            *source_ids,
+            *allowed_scopes,
+            *allowed_classifications,
+            now.astimezone(UTC).isoformat(),
+            limit,
+        )
+        with self._connect() as conn:
+            rows = conn.execute(sql, params).fetchall()
+        return tuple(str(row["record_id"]) for row in rows)
+
     def enqueue_reindex(
         self,
         *,
