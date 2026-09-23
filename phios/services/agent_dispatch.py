@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -40,6 +41,13 @@ def _agents_root() -> Path:
     return Path.home() / ".phios" / "agents"
 
 
+_LOCAL_RUN_ID = re.compile(r"^run_[0-9a-f]{12}$")
+
+
+def _valid_run_id(run_id: str) -> bool:
+    return bool(_LOCAL_RUN_ID.fullmatch(run_id))
+
+
 def _runs_dir() -> Path:
     root = _agents_root() / "runs"
     root.mkdir(parents=True, exist_ok=True)
@@ -47,10 +55,14 @@ def _runs_dir() -> Path:
 
 
 def _run_path(run_id: str) -> Path:
+    if not _valid_run_id(run_id):
+        raise ValueError("invalid local agent run id")
     return _runs_dir() / f"{run_id}.json"
 
 
 def _events_path(run_id: str) -> Path:
+    if not _valid_run_id(run_id):
+        raise ValueError("invalid local agent run id")
     return _runs_dir() / f"{run_id}.events.json"
 
 
@@ -286,8 +298,11 @@ def dispatch_agentception_run(
 def list_agent_runs(*, active_only: bool = False) -> list[dict[str, Any]]:
     runs: list[dict[str, Any]] = []
     for path in sorted(_runs_dir().glob("run_*.json"), reverse=True):
+        run_id = path.name.removesuffix(".json")
+        if not _valid_run_id(run_id):
+            continue
         run = _read_json(path, {})
-        if not isinstance(run, dict):
+        if not isinstance(run, dict) or run.get("run_id") != run_id:
             continue
         if active_only and str(run.get("status", "")).lower() in {"completed", "cancelled", "failed"}:
             continue
@@ -297,16 +312,20 @@ def list_agent_runs(*, active_only: bool = False) -> list[dict[str, Any]]:
 
 
 def get_agent_run_status(run_id: str) -> dict[str, Any]:
+    if not _valid_run_id(run_id):
+        return {"ok": False, "run_id": run_id, "error": "invalid_run_id"}
     run = _read_json(_run_path(run_id), {})
-    if not isinstance(run, dict) or not run:
+    if not isinstance(run, dict) or not run or run.get("run_id") != run_id:
         return {"ok": False, "run_id": run_id, "error": "run_not_found"}
     run["events_count"] = len(stream_agent_run_events(run_id))
     return run
 
 
 def cancel_agent_run(run_id: str) -> dict[str, Any]:
+    if not _valid_run_id(run_id):
+        return {"ok": False, "run_id": run_id, "error": "invalid_run_id"}
     run = _read_json(_run_path(run_id), {})
-    if not isinstance(run, dict) or not run:
+    if not isinstance(run, dict) or not run or run.get("run_id") != run_id:
         return {"ok": False, "run_id": run_id, "error": "run_not_found"}
 
     if _agentception_enabled() and run.get("remote_run_id"):
@@ -326,6 +345,8 @@ def cancel_agent_run(run_id: str) -> dict[str, Any]:
 
 
 def stream_agent_run_events(run_id: str) -> list[dict[str, Any]]:
+    if not _valid_run_id(run_id):
+        return []
     events = _read_json(_events_path(run_id), [])
     if not isinstance(events, list):
         return []
@@ -349,8 +370,15 @@ def evaluate_agent_run_reflex(
 ) -> dict[str, Any]:
     """Evaluate a persisted v0.2 shadow receipt against explicit observations."""
 
+    if not _valid_run_id(run_id):
+        return {
+            "ok": False,
+            "run_id": run_id,
+            "error_code": "INVALID_RUN_ID",
+        }
+
     run = _read_json(_run_path(run_id), {})
-    if not isinstance(run, dict) or not run:
+    if not isinstance(run, dict) or not run or run.get("run_id") != run_id:
         return {
             "ok": False,
             "run_id": run_id,
@@ -446,7 +474,13 @@ def persist_dispatch_storyboard(
     plan: dict[str, Any],
     events: list[dict[str, Any]],
 ) -> dict[str, Any]:
-    run_id = str(run.get("run_id", "dispatch"))
+    run_id = str(run.get("run_id", ""))
+    if not _valid_run_id(run_id):
+        return {
+            "ok": False,
+            "run_id": run_id,
+            "error_code": "INVALID_RUN_ID",
+        }
     storyboard_name = f"dispatch_{run_id}"
     payload = {
         "field_state_at_dispatch": run.get("context", {}).get("field_state"),
