@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 
@@ -12,20 +13,31 @@ from phios.memory import (
 )
 
 
-def _digest(char: str) -> str:
-    return "sha256:" + char * 64
+def _body_digest(value: dict[str, object], field: str) -> str:
+    body = dict(value)
+    body.pop(field, None)
+    encoded = json.dumps(
+        body,
+        separators=(",", ":"),
+        ensure_ascii=False,
+        allow_nan=False,
+    ).encode("utf-8")
+    return "sha256:" + hashlib.sha256(encoded).hexdigest()
 
 
 def _state(char: str, composed_at: str) -> dict[str, object]:
-    return {
+    del char
+    value: dict[str, object] = {
         "schemaVersion": "phios.system-state.v1",
         "source": "phios-system-state-composer",
         "composedAt": composed_at,
         "readOnly": True,
         "executionAuthority": False,
         "effectPerformed": False,
-        "receiptDigest": _digest(char),
+        "receiptDigest": "",
     }
+    value["receiptDigest"] = _body_digest(value, "receiptDigest")
+    return value
 
 
 def _change(
@@ -35,7 +47,8 @@ def _change(
     current: dict[str, object],
     recorded_at: str,
 ) -> dict[str, object]:
-    return {
+    del char
+    value: dict[str, object] = {
         "schemaVersion": "phios.system-change.v1",
         "source": "phios-system-change-deriver",
         "recordedAt": recorded_at,
@@ -46,8 +59,10 @@ def _change(
         "readOnly": True,
         "executionAuthority": False,
         "effectPerformed": False,
-        "changeDigest": _digest(char),
+        "changeDigest": "",
     }
+    value["changeDigest"] = _body_digest(value, "changeDigest")
+    return value
 
 
 def _runtime(
@@ -94,10 +109,12 @@ def test_persistent_history_uses_canonical_memory_and_mandala_receipts(tmp_path:
     assert result.action_authority is False
     assert result.execution_authority is False
     assert result.state_record_ids == (
-        "phishell.system-state." + "a" * 64,
-        "phishell.system-state." + "b" * 64,
+        "phishell.system-state." + str(previous["receiptDigest"]).removeprefix("sha256:"),
+        "phishell.system-state." + str(current["receiptDigest"]).removeprefix("sha256:"),
     )
-    assert result.change_record_id == "phishell.system-change." + "c" * 64
+    assert result.change_record_id == (
+        "phishell.system-change." + str(change["changeDigest"]).removeprefix("sha256:")
+    )
 
     previous_record = runtime.get(result.state_record_ids[0], task_id="read-previous").record
     current_record = runtime.get(result.state_record_ids[1], task_id="read-current").record
@@ -184,7 +201,8 @@ def test_change_receipt_must_reference_the_two_supplied_states(tmp_path: Path) -
         current=current,
         recorded_at="2026-09-22T20:30:06+00:00",
     )
-    change["toReceiptDigest"] = _digest("7")
+    change["toReceiptDigest"] = "sha256:" + "7" * 64
+    change["changeDigest"] = _body_digest(change, "changeDigest")
 
     with pytest.raises(ValueError, match="current system-state"):
         SystemHistoryPersistenceBridge(runtime).persist_transition(
