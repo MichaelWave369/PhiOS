@@ -245,12 +245,18 @@ class SystemHistoryComparisonService:
         assert isinstance(from_components, list)
         assert isinstance(to_components, list)
         for index, component_id in enumerate(COMPONENT_IDS):
-            left = _mapping(from_components[index], f"from {component_id}")
-            right = _mapping(to_components[index], f"to {component_id}")
-            from_availability = _string(left.get("availability"), "from availability")
-            to_availability = _string(right.get("availability"), "to availability")
-            from_digest = _string(left.get("digest"), "from digest")
-            to_digest = _string(right.get("digest"), "to digest")
+            from_component = _mapping(from_components[index], f"from {component_id}")
+            to_component = _mapping(to_components[index], f"to {component_id}")
+            from_availability = _string(
+                from_component.get("availability"),
+                "from availability",
+            )
+            to_availability = _string(
+                to_component.get("availability"),
+                "to availability",
+            )
+            from_digest = _string(from_component.get("digest"), "from digest")
+            to_digest = _string(to_component.get("digest"), "to digest")
             component_changes.append(
                 {
                     "id": component_id,
@@ -267,15 +273,21 @@ class SystemHistoryComparisonService:
         to_summary = _mapping(to_state["summary"], "to summary")
         summary_changes: list[dict[str, object]] = []
         for metric in SUMMARY_METRICS:
-            left = _number(from_summary.get(metric), f"from summary {metric}")
-            right = _number(to_summary.get(metric), f"to summary {metric}")
-            if left != right:
+            from_value = _number(
+                from_summary.get(metric),
+                f"from summary {metric}",
+            )
+            to_value = _number(
+                to_summary.get(metric),
+                f"to summary {metric}",
+            )
+            if from_value != to_value:
                 summary_changes.append(
                     {
                         "metric": metric,
-                        "from": left,
-                        "to": right,
-                        "delta": right - left,
+                        "from": from_value,
+                        "to": to_value,
+                        "delta": to_value - from_value,
                     }
                 )
 
