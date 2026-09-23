@@ -84,8 +84,35 @@ const SUMMARY_METRICS = [
   "powerDeviceCount",
 ] as const;
 
+
+const COMPARISON_KEYS = [
+  "schemaVersion","source","generatedAt","comparisonScope","persistent",
+  "fromRecordId","toRecordId","fromRecordSha256","toRecordSha256",
+  "fromReadAdmissibilityReceiptSha256","toReadAdmissibilityReceiptSha256",
+  "fromReceiptDigest","toReceiptDigest","fromComposedAt","toComposedAt",
+  "timeDeltaMs","chronologicalOrder","coherence","changedComponentCount",
+  "componentChanges","changedSummaryMetricCount","summaryChanges",
+  "consecutiveClaimed","causeAssigned","severityAssigned","readOnly",
+  "operationalAuthority","actionAuthority","executionAuthority","effectPerformed",
+  "comparisonDigest",
+] as const;
+const COMPONENT_KEYS = [
+  "id","fromAvailability","toAvailability","availabilityChanged",
+  "fromDigest","toDigest","digestChanged",
+] as const;
+const SUMMARY_CHANGE_KEYS = ["metric","from","to","delta"] as const;
+const ENVELOPE_KEYS = [
+  "transportSchemaVersion","transport","transportIdentity","localOnly","readOnly",
+  "operationalAuthority","actionAuthority","executionAuthority","effectPerformed",
+  "servedAt","comparison",
+] as const;
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function exactKeys(value: Record<string, unknown>, expected: readonly string[]) {
+  return Object.keys(value).sort().join("\\0") === [...expected].sort().join("\\0");
 }
 
 function timestamp(value: unknown): value is string {
@@ -130,7 +157,7 @@ async function comparisonDigest(value: Record<string, unknown>) {
 }
 
 function comparisonShape(value: unknown): value is HistoryComparisonReceipt {
-  if (!isRecord(value)) return false;
+  if (!isRecord(value) || !exactKeys(value, COMPARISON_KEYS)) return false;
   if (
     value.schemaVersion !== "phios.system-history-comparison.v0.13" ||
     value.source !== "governed-memory-system-history-comparator" ||
@@ -170,7 +197,7 @@ function comparisonShape(value: unknown): value is HistoryComparisonReceipt {
     return false;
   }
 
-  if (!isRecord(value.coherence)) return false;
+  if (!isRecord(value.coherence) || !exactKeys(value.coherence, ["from", "to", "changed"])) return false;
   if (
     !["coherent", "degraded"].includes(String(value.coherence.from)) ||
     !["coherent", "degraded"].includes(String(value.coherence.to)) ||
@@ -187,6 +214,7 @@ function comparisonShape(value: unknown): value is HistoryComparisonReceipt {
     const row = value.componentChanges[index];
     if (
       !isRecord(row) ||
+      !exactKeys(row, COMPONENT_KEYS) ||
       row.id !== COMPONENT_IDS[index] ||
       !["available", "unavailable"].includes(String(row.fromAvailability)) ||
       !["available", "unavailable"].includes(String(row.toAvailability)) ||
@@ -216,7 +244,7 @@ function comparisonShape(value: unknown): value is HistoryComparisonReceipt {
   }
   let priorIndex = -1;
   for (const row of value.summaryChanges) {
-    if (!isRecord(row)) return false;
+    if (!isRecord(row) || !exactKeys(row, SUMMARY_CHANGE_KEYS)) return false;
     const metricIndex = SUMMARY_METRICS.indexOf(
       row.metric as (typeof SUMMARY_METRICS)[number],
     );
@@ -245,7 +273,7 @@ async function validatedComparison(
 async function validatedEnvelope(
   value: unknown,
 ): Promise<HistoryComparisonEnvelope | null> {
-  if (!isRecord(value)) return null;
+  if (!isRecord(value) || !exactKeys(value, ENVELOPE_KEYS)) return null;
   if (
     value.transportSchemaVersion !== "phios.system-history-comparison-transport.v0.13" ||
     value.transport !== "loopback-http" ||
