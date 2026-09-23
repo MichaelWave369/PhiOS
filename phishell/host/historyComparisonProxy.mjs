@@ -66,6 +66,19 @@ const COMPONENT_KEYS = [
 ];
 
 const SUMMARY_CHANGE_KEYS = ["metric", "from", "to", "delta"];
+const ENVELOPE_KEYS = [
+  "transportSchemaVersion",
+  "transport",
+  "transportIdentity",
+  "localOnly",
+  "readOnly",
+  "operationalAuthority",
+  "actionAuthority",
+  "executionAuthority",
+  "effectPerformed",
+  "servedAt",
+  "comparison",
+];
 
 function record(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -222,7 +235,7 @@ function validComparison(value) {
 }
 
 export function validateHistoryComparisonEnvelope(value) {
-  if (!record(value)) return false;
+  if (!exactKeys(value, ENVELOPE_KEYS)) return false;
   return (
     value.transportSchemaVersion === "phios.system-history-comparison-transport.v0.13" &&
     value.transport === "loopback-http" &&
