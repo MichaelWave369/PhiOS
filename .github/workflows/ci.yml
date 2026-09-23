@@ -17,6 +17,23 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install -e ".[dev]"
+      - name: Verify external Python build frontend
+        run: |
+          python - <<'PY'
+          from importlib.util import find_spec
+          from pathlib import Path
+
+          spec = find_spec("build")
+          assert spec is not None and spec.origin, "python-build frontend is unavailable"
+
+          origin = Path(spec.origin).resolve()
+          repo_build = (Path.cwd() / "build").resolve()
+          assert origin != repo_build / "__init__.py", (
+              f"repository build shim shadows python-build frontend: {origin}"
+          )
+          print(f"python-build frontend: {origin}")
+          PY
+          python -m build --version
       - name: Ruff
         run: ruff check phios/
       - name: Mypy
