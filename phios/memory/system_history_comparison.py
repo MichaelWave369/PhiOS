@@ -21,6 +21,13 @@ SYSTEM_HISTORY_COMPARISON_SCHEMA = "phios.system-history-comparison.v0.13"
 SYSTEM_HISTORY_COMPARISON_SOURCE = "governed-memory-system-history-comparator"
 
 COMPONENT_IDS = ("host", "services", "processes", "packages", "devices")
+COMPONENT_CONTRACTS = {
+    "host": ("phios.host-observation.v1", "linux-readonly-node-probe"),
+    "services": ("phios.service-observation.v1", "systemd-dbus-list-units"),
+    "processes": ("phios.process-observation.v1", "procfs-current-user"),
+    "packages": ("phios.package-observation.v1", "dpkg-status-file"),
+    "devices": ("phios.device-observation.v1", "linux-sysfs-bounded"),
+}
 SUMMARY_METRICS = (
     "cpuLogicalCores",
     "memoryTotalBytes",
@@ -101,6 +108,18 @@ def _comparable_state_payload(
         component_id = _string(component.get("id"), f"component {expected_id} id")
         if component_id != expected_id:
             raise ValueError("system-state component order is not canonical")
+        expected_schema, expected_source = COMPONENT_CONTRACTS[expected_id]
+        if component.get("schemaVersion") != expected_schema:
+            raise ValueError(f"component {expected_id} schema is not canonical")
+        if component.get("source") != expected_source:
+            raise ValueError(f"component {expected_id} source is not canonical")
+        _timestamp(component.get("capturedAt"), f"component {expected_id} capturedAt")
+        if component.get("readOnly") is not True:
+            raise ValueError(f"component {expected_id} readOnly must be true")
+        if component.get("executionAuthority") is not False:
+            raise ValueError(f"component {expected_id} executionAuthority must be false")
+        if component.get("effectPerformed") is not False:
+            raise ValueError(f"component {expected_id} effectPerformed must be false")
         availability = _string(
             component.get("availability"),
             f"component {expected_id} availability",
@@ -118,6 +137,8 @@ def _comparable_state_payload(
         )
 
     summary = _mapping(payload.get("summary"), "system-state summary")
+    if set(summary) != set(SUMMARY_METRICS):
+        raise ValueError("system-state summary fields are not canonical")
     summary_values: dict[str, int] = {}
     for metric in SUMMARY_METRICS:
         summary_values[metric] = _number(summary.get(metric), f"summary {metric}")
