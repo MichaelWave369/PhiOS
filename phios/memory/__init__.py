@@ -32,6 +32,7 @@ from .publisher import MemoryReceiptPublisher
 from .service import GovernedMemoryService, RetrievalIndex, UnavailableRetrievalIndex
 from .sqlite_vec_index import SqliteVecIndex
 from .store import MemoryStore
+from .system_history import PersistedSystemHistory, SystemHistoryPersistenceBridge
 
 __all__ = [
     "EVIDENCE_HORIZON_POLICY_SCHEMA_VERSION",
@@ -57,6 +58,7 @@ __all__ = [
     "MemoryResult",
     "MemoryRuntimeConfig",
     "MemoryStore",
+    "PersistedSystemHistory",
     "REACTIVATION_WINDOW_RECEIPT_SCHEMA_VERSION",
     "RECONSOLIDATION_GATE_SCHEMA_VERSION",
     "ReactivationWindowReceipt",
@@ -65,6 +67,7 @@ __all__ = [
     "OllamaEmbeddingProvider",
     "RetrievalIndex",
     "SqliteVecIndex",
+    "SystemHistoryPersistenceBridge",
     "UnavailableRetrievalIndex",
     "VectorCandidate",
     "plan_legacy_agent_memory_import",
