@@ -171,7 +171,10 @@ class GovernedExecutionHandoff:
                 plan=plan,
                 binding=binding,
                 lease=lease,
-                reason=f"action_lease_{evaluation.reason}",
+                reason=(
+                    "action_lease_"
+                    + evaluation.reason.removeprefix("lease_")
+                ),
                 evaluation_reason=evaluation.reason,
                 replay_blocked=(evaluation.reason == "lease_consumed"),
             )
