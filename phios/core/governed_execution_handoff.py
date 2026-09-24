@@ -204,7 +204,7 @@ class GovernedExecutionHandoff:
                 payload=payload,
                 spine=spine,
             )
-        except Exception:
+        except Exception:  # noqa: BLE001 - preserve lease claim state on handoff faults
             try:
                 attempted = spine.ledger.has_consumed_binding(
                     binding.binding_sha256
