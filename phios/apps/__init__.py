@@ -157,6 +157,12 @@ from .dependency_broker import (
     plan_npm_dependencies,
     review_dependency_plan,
 )
+from .enforcement_projection import (
+    SANDBOX_ENFORCEMENT_PROJECTION_SCHEMA_VERSION,
+    SandboxEnforcementProjection,
+    SandboxEnforcementProjectionError,
+    project_build_sandbox_enforcement,
+)
 from .intake import (
     APP_INTAKE_EVIDENCE_SCHEMA_VERSION,
     APP_INTAKE_PROPOSAL_SCHEMA_VERSION,
@@ -320,6 +326,7 @@ __all__ = [
     "CLEANUP_RECONCILIATION_RECEIPT_SCHEMA_VERSION",
     "CLEANUP_RECONCILIATION_REVIEW_SCHEMA_VERSION",
     "DEPENDENCY_PLAN_REVIEW_SCHEMA_VERSION",
+    "SANDBOX_ENFORCEMENT_PROJECTION_SCHEMA_VERSION",
     "DESKTOP_APP_PLAN_SCHEMA_VERSION",
     "DESKTOP_CATALOG_RECEIPT_SCHEMA_VERSION",
     "DESKTOP_CATALOG_REVIEW_SCHEMA_VERSION",
@@ -478,6 +485,8 @@ __all__ = [
     "RuntimeLaunchResult",
     "RuntimeSandboxPolicy",
     "ReleaseInstallProposalRecord",
+    "SandboxEnforcementProjection",
+    "SandboxEnforcementProjectionError",
     "SandboxReachabilitySnapshot",
     "SandboxBackendIdentity",
     "SandboxControlEvidence",
@@ -538,6 +547,7 @@ __all__ = [
     "review_build_package",
     "review_dependency_plan",
     "review_installed_runtime",
+    "project_build_sandbox_enforcement",
     "propose_release_install",
     "validate_release_install_proposal",
     "review_intake_for_acquisition",

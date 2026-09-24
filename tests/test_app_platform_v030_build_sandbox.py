@@ -2,11 +2,14 @@ from __future__ import annotations
 
 import hashlib
 import json
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
 import pytest
 
+from phios.effect_intent import EffectIntent
+from phios.apps.enforcement_projection import project_build_sandbox_enforcement
 from phios.apps.build_execution import (
     BuildExecutionRequest,
     ProcessResult,
@@ -369,6 +372,73 @@ def test_sandbox_service_emits_dual_bound_receipts(tmp_path: Path) -> None:
     persisted = json.loads(Path(result.sandbox_receipt_path).read_text(encoding="utf-8"))
     assert persisted["sandbox_receipt_sha256"] == result.sandbox.sha256()
 
+    intent = EffectIntent.build(
+        capability_id="apps.sandboxed-build",
+        capability_version="0.30",
+        payload_sha256=result.execution.plan_sha256,
+        declared_at=result.sandbox.timestamp_utc,
+        effects_declared=(
+            "control_plane.change",
+            "filesystem.change",
+            "network.request",
+        ),
+    )
+    projection = project_build_sandbox_enforcement(
+        intent=intent,
+        sandbox=result.sandbox,
+        control_plane=result.control_plane_isolation,
+    )
+
+    assert projection.profile.mapping_complete is True
+    assert projection.profile.effects_without_enforced_rule == ()
+    assert projection.profile.effects_with_enforced_rule == (
+        "control_plane.change",
+        "filesystem.change",
+        "network.request",
+    )
+    assert projection.sandbox_evidence_ref.content_sha256 == result.sandbox.sha256()
+    assert projection.control_plane_evidence_ref.content_sha256 == (
+        result.control_plane_isolation.receipt_sha256
+    )
+    assert projection.effect_performed is False
+    assert projection.operational_authority is False
+    assert projection.action_authority is False
+    assert projection.execution_authority is False
+
+    expanded_intent = EffectIntent.build(
+        capability_id="apps.sandboxed-build",
+        capability_version="0.30",
+        payload_sha256=result.execution.plan_sha256,
+        declared_at=result.sandbox.timestamp_utc,
+        effects_declared=(
+            "control_plane.change",
+            "filesystem.change",
+            "network.request",
+            "process.spawn",
+        ),
+    )
+    expanded = project_build_sandbox_enforcement(
+        intent=expanded_intent,
+        sandbox=result.sandbox,
+        control_plane=result.control_plane_isolation,
+    )
+    assert expanded.profile.mapping_complete is False
+    assert expanded.profile.unmapped_effects == ("process.spawn",)
+
+    mismatched = replace(
+        result.sandbox,
+        control_plane_isolation_receipt_sha256="f" * 64,
+    )
+    with pytest.raises(
+        ValueError,
+        match="does not bind the supplied control-plane receipt",
+    ):
+        project_build_sandbox_enforcement(
+            intent=intent,
+            sandbox=mismatched,
+            control_plane=result.control_plane_isolation,
+        )
+
 
 def test_control_plane_overlap_blocks_before_backend_preflight(tmp_path: Path) -> None:
     source = tmp_path / "control" / "source"
@@ -426,6 +496,28 @@ def test_host_network_receipt_does_not_claim_network_isolation(tmp_path: Path) -
     assert result.sandbox.controls.network_namespace_enforced is False
     assert result.sandbox.controls.host_network_inherited is True
     assert result.sandbox.containment_level == "linux_namespaces_host_network_rlimits"
+
+    intent = EffectIntent.build(
+        capability_id="apps.sandboxed-build",
+        capability_version="0.30",
+        payload_sha256=result.execution.plan_sha256,
+        declared_at=result.sandbox.timestamp_utc,
+        effects_declared=("network.request",),
+    )
+    projection = project_build_sandbox_enforcement(
+        intent=intent,
+        sandbox=result.sandbox,
+        control_plane=result.control_plane_isolation,
+    )
+
+    assert projection.profile.mapping_complete is True
+    assert projection.profile.effects_with_enforced_rule == ()
+    assert projection.profile.effects_without_enforced_rule == (
+        "network.request",
+    )
+    assert projection.profile.rules[0].status == "not_enforced"
+    assert projection.profile.rules[0].layer == "none"
+    assert projection.profile.rules[0].boundary == "none"
 
 
 def test_runner_policy_must_match_service_policy() -> None:
