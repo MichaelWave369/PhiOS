@@ -105,6 +105,10 @@ class GovernedExecutionHandoff:
         binding: PlanActionBinding,
         payload: Mapping[str, Any],
         spine: PhiOSSpine,
+        action_lease_sha256: str | None = None,
+        authority_epoch_sha256: str | None = None,
+        authorization_receipt_sha256: str | None = None,
+        lease_verification_sha256: str | None = None,
     ) -> ExecutionHandoffReceipt:
         self._validate_inputs(plan, binding)
 
@@ -208,7 +212,7 @@ class GovernedExecutionHandoff:
             )
 
         provenance = ExecutionProvenance(
-            schema_version="phios.execution_provenance.v0.8",
+            schema_version="phios.execution_provenance.v0.9",
             plan_id=plan.plan_id,
             plan_state_sha256=plan.state_sha256,
             plan_revision=plan.revision,
@@ -216,6 +220,10 @@ class GovernedExecutionHandoff:
             source_state_id=binding.source_state_id,
             target_state_id=binding.target_state_id,
             action_binding_sha256=binding.binding_sha256,
+            action_lease_sha256=action_lease_sha256,
+            authority_epoch_sha256=authority_epoch_sha256,
+            authorization_receipt_sha256=authorization_receipt_sha256,
+            lease_verification_sha256=lease_verification_sha256,
         )
         try:
             execution = spine.run(
