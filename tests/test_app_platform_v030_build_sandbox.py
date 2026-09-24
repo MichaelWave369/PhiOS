@@ -7,6 +7,8 @@ from typing import Any
 
 import pytest
 
+from phios.effect_intent import EffectIntent
+from phios.apps.enforcement_projection import project_build_sandbox_enforcement
 from phios.apps.build_execution import (
     BuildExecutionRequest,
     ProcessResult,
@@ -368,6 +370,39 @@ def test_sandbox_service_emits_dual_bound_receipts(tmp_path: Path) -> None:
 
     persisted = json.loads(Path(result.sandbox_receipt_path).read_text(encoding="utf-8"))
     assert persisted["sandbox_receipt_sha256"] == result.sandbox.sha256()
+
+    intent = EffectIntent.build(
+        capability_id="apps.sandboxed-build",
+        capability_version="0.30",
+        payload_sha256=result.execution.plan_sha256,
+        declared_at=result.sandbox.timestamp_utc,
+        effects_declared=(
+            "control_plane.change",
+            "filesystem.change",
+            "network.request",
+        ),
+    )
+    projection = project_build_sandbox_enforcement(
+        intent=intent,
+        sandbox=result.sandbox,
+        control_plane=result.control_plane_isolation,
+    )
+
+    assert projection.profile.mapping_complete is True
+    assert projection.profile.effects_without_enforced_rule == ()
+    assert projection.profile.effects_with_enforced_rule == (
+        "control_plane.change",
+        "filesystem.change",
+        "network.request",
+    )
+    assert projection.sandbox_evidence_ref.content_sha256 == result.sandbox.sha256()
+    assert projection.control_plane_evidence_ref.content_sha256 == (
+        result.control_plane_isolation.receipt_sha256
+    )
+    assert projection.effect_performed is False
+    assert projection.operational_authority is False
+    assert projection.action_authority is False
+    assert projection.execution_authority is False
 
 
 def test_control_plane_overlap_blocks_before_backend_preflight(tmp_path: Path) -> None:
