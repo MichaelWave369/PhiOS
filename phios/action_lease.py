@@ -18,6 +18,7 @@ from typing import Any, Mapping
 from phios.authority_epoch import AuthorityEpoch
 from phios.effect_intent import EffectIntent
 from phios.enforcement_profile import EnforcementProfile
+from phios.spine.effects import EffectBoundaryContractError, normalize_effects
 
 ACTION_LEASE_SCHEMA_VERSION = "phios.action_lease.v0.1"
 ACTION_LEASE_EVALUATION_SCHEMA_VERSION = "phios.action_lease_evaluation.v0.1"
@@ -171,14 +172,44 @@ class ActionLease:
             self.effects_declared,
             "effects_declared",
         )
+        try:
+            normalized_effects = normalize_effects(
+                self.effects_declared,
+                label="lease effects_declared",
+            )
+        except EffectBoundaryContractError as exc:
+            raise ActionLeaseContractError(str(exc)) from exc
+        if normalized_effects != self.effects_declared:
+            raise ActionLeaseContractError(
+                "effects_declared must be canonical PhiOS effects"
+            )
+        if "unknown" in self.effects_declared:
+            raise ActionLeaseContractError(
+                "ActionLease cannot authorize unknown effects"
+            )
+        if self.effects_declared == ("none",):
+            raise ActionLeaseContractError(
+                "ActionLease cannot authorize a none EffectIntent"
+            )
+
         _canonical_text_tuple(
             self.permissions_authorized,
             "permissions_authorized",
         )
+        if not self.permissions_authorized:
+            raise ActionLeaseContractError(
+                "permissions_authorized must not be empty"
+            )
         _canonical_text_tuple(
             self.accepted_unenforced_effects,
             "accepted_unenforced_effects",
         )
+        if not set(self.accepted_unenforced_effects).issubset(
+            set(self.effects_declared)
+        ):
+            raise ActionLeaseContractError(
+                "accepted_unenforced_effects must be a subset of effects_declared"
+            )
 
         issued = _parse_time(self.issued_at, "issued_at")
         valid_from = _parse_time(self.valid_from, "valid_from")
@@ -302,6 +333,10 @@ class ActionLease:
             "authorization_receipt_sha256",
         )
 
+        if intent.effects_declared == ("none",):
+            raise ActionLeaseContractError(
+                "ActionLease cannot authorize a none EffectIntent"
+            )
         if (
             enforcement.effect_intent_sha256
             != intent.effect_intent_sha256
