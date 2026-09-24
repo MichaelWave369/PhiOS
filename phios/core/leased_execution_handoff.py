@@ -373,7 +373,9 @@ class GovernedLeasedExecutionHandoff:
             return "lease_payload_scope_mismatch"
         if lease.effects_declared != binding.effects_declared:
             return "lease_effect_scope_mismatch"
-        if lease.permissions_authorized != binding.permissions_requested:
+        if lease.permissions_authorized != tuple(
+            sorted(binding.permissions_requested)
+        ):
             return "lease_permission_scope_mismatch"
         return None
 
