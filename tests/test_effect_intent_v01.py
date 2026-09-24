@@ -44,6 +44,7 @@ def test_effect_intent_is_deterministic_and_zero_authority() -> None:
         EVIDENCE_A,
         EVIDENCE_B,
     ]
+    assert payload["effect_performed"] is False
     assert payload["operational_authority"] is False
     assert payload["action_authority"] is False
     assert payload["execution_authority"] is False
@@ -134,6 +135,14 @@ def test_read_only_effects_do_not_become_active_effects() -> None:
     )
 
     assert intent.active_effects == ()
+
+
+def test_effect_intent_rejects_claimed_execution() -> None:
+    payload = build_intent().to_dict()
+    payload["effect_performed"] = True
+
+    with pytest.raises(EffectIntentContractError, match="effect was performed"):
+        EffectIntent.from_dict(payload)
 
 
 def test_effect_intent_rejects_authority_carrying_payload() -> None:
