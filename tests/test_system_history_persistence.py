@@ -116,6 +116,23 @@ def test_persistent_history_uses_canonical_memory_and_mandala_receipts(tmp_path:
         "phishell.system-change." + str(change["changeDigest"]).removeprefix("sha256:")
     )
 
+    previous_evidence, current_evidence = result.state_evidence_refs
+    change_evidence = result.change_evidence_ref
+
+    assert previous_evidence.source_id == "phishell.system-state"
+    assert current_evidence.source_id == "phishell.system-state"
+    assert previous_evidence.source_version == "phios.system-state.v1"
+    assert current_evidence.source_version == "phios.system-state.v1"
+    assert change_evidence.source_id == "phishell.system-change"
+    assert change_evidence.source_version == "phios.system-change.v1"
+
+    assert previous_evidence.operational_authority is False
+    assert previous_evidence.action_authority is False
+    assert previous_evidence.execution_authority is False
+    assert change_evidence.operational_authority is False
+    assert change_evidence.action_authority is False
+    assert change_evidence.execution_authority is False
+
     previous_record = runtime.get(result.state_record_ids[0], task_id="read-previous").record
     current_record = runtime.get(result.state_record_ids[1], task_id="read-current").record
     change_record = runtime.get(result.change_record_id, task_id="read-change").record
@@ -132,6 +149,17 @@ def test_persistent_history_uses_canonical_memory_and_mandala_receipts(tmp_path:
     assert change_record.scope_id == "system-history"
     assert change_record.classification == "system-observation"
     assert change_record.retention_policy_id == "retain-system-history"
+
+    assert previous_evidence.content_sha256 == previous_record.content_sha256
+    assert current_evidence.content_sha256 == current_record.content_sha256
+    assert change_evidence.content_sha256 == change_record.content_sha256
+    assert previous_evidence.evidence_ref == (
+        "evidence:sha256:" + previous_record.content_sha256
+    )
+    assert change_evidence.transformation_lineage_sha256s == (
+        change_record.transformation_lineage_sha256s
+    )
+    assert change_evidence.exactness_class == "REVERSIBLE"
 
     ledger_path = runtime.ledger.path
     lines = ledger_path.read_text(encoding="utf-8").splitlines()

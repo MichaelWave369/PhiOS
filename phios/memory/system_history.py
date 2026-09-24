@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any, Mapping
 
+from phios.evidence_ref import EvidenceRef
 from phios.mandala import ExactnessClass, TransformationLineageBuilder
 from phios.memory.models import MemoryRecord, MemoryResult
 from phios.memory.operator import MemoryOperatorRuntime
@@ -24,6 +25,8 @@ class PersistedSystemHistory:
     change_record_id: str
     state_receipt_ids: tuple[str | None, str | None]
     change_receipt_id: str | None
+    state_evidence_refs: tuple[EvidenceRef, EvidenceRef]
+    change_evidence_ref: EvidenceRef
     persistent: bool = True
     canonical: bool = True
     operational_authority: bool = False
@@ -86,6 +89,25 @@ def _state_record_id(receipt_digest: str) -> str:
 
 def _change_record_id(change_digest: str) -> str:
     return f"phishell.system-change.{change_digest}"
+
+
+def _evidence_ref_for_record(
+    record: MemoryRecord,
+    *,
+    source_version: str,
+) -> EvidenceRef:
+    """Project one persisted history record into the shared evidence identity law."""
+
+    return EvidenceRef.build(
+        source_id=record.source_id,
+        source_kind=record.source_kind,
+        source_version=source_version,
+        content_sha256=record.content_sha256,
+        created_at=record.created_at,
+        observed_at=record.created_at,
+        transformation_lineage_sha256s=record.transformation_lineage_sha256s,
+        exactness_class=record.exactness_class,
+    )
 
 
 def _validate_state_receipt(
@@ -185,11 +207,26 @@ class SystemHistoryPersistenceBridge:
             task_id=task_id,
         )
 
+        previous_evidence = _evidence_ref_for_record(
+            previous_record,
+            source_version=SYSTEM_STATE_SCHEMA,
+        )
+        current_evidence = _evidence_ref_for_record(
+            current_record,
+            source_version=SYSTEM_STATE_SCHEMA,
+        )
+        change_evidence = _evidence_ref_for_record(
+            change_record,
+            source_version=SYSTEM_CHANGE_SCHEMA,
+        )
+
         return PersistedSystemHistory(
             state_record_ids=(previous_record.record_id, current_record.record_id),
             change_record_id=change_record.record_id,
             state_receipt_ids=(previous_result.receipt_id, current_result.receipt_id),
             change_receipt_id=change_result.receipt_id,
+            state_evidence_refs=(previous_evidence, current_evidence),
+            change_evidence_ref=change_evidence,
         )
 
     def _record_policy_fields(self) -> tuple[str, str, str]:
