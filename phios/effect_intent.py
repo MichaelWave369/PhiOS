@@ -109,6 +109,7 @@ class EffectIntent:
     declared_at: str
     effects_declared: tuple[str, ...]
     evidence_ref_sha256s: tuple[str, ...] = ()
+    effect_performed: bool = False
     operational_authority: bool = False
     action_authority: bool = False
     execution_authority: bool = False
@@ -155,6 +156,10 @@ class EffectIntent:
         for digest in self.evidence_ref_sha256s:
             _require_sha256(digest, "evidence_ref_sha256")
 
+        if self.effect_performed is not False:
+            raise EffectIntentContractError(
+                "EffectIntent cannot claim that an effect was performed"
+            )
         if (
             self.operational_authority is not False
             or self.action_authority is not False
@@ -178,6 +183,7 @@ class EffectIntent:
             "effects_declared": list(self.effects_declared),
             "active_effects": list(self.active_effects),
             "evidence_ref_sha256s": list(self.evidence_ref_sha256s),
+            "effect_performed": self.effect_performed,
             "operational_authority": self.operational_authority,
             "action_authority": self.action_authority,
             "execution_authority": self.execution_authority,
@@ -231,6 +237,7 @@ class EffectIntent:
             "effects_declared",
             "active_effects",
             "evidence_ref_sha256s",
+            "effect_performed",
             "operational_authority",
             "action_authority",
             "execution_authority",
@@ -268,6 +275,7 @@ class EffectIntent:
         )
 
         for field in (
+            "effect_performed",
             "operational_authority",
             "action_authority",
             "execution_authority",
@@ -302,6 +310,7 @@ class EffectIntent:
             ),
             effects_declared=effects,
             evidence_ref_sha256s=evidence_refs,
+            effect_performed=data["effect_performed"],
             operational_authority=data["operational_authority"],
             action_authority=data["action_authority"],
             execution_authority=data["execution_authority"],
