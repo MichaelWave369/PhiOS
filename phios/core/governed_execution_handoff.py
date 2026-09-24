@@ -1,4 +1,4 @@
-"""Governed execution handoff for PhiOS core reasoning v0.8.
+"""Governed execution handoff for PhiOS core reasoning v0.9.
 
 This layer revalidates one exact adopted-plan action binding at execution time,
 blocks consumed binding replay, and delegates permission evaluation and side
@@ -559,7 +559,7 @@ class GovernedExecutionHandoff:
         execution: ExecutionReceipt | None,
     ) -> ExecutionHandoffReceipt:
         payload: dict[str, object] = {
-            "schema": "phios.execution_handoff_receipt.v0.8",
+            "schema": "phios.execution_handoff_receipt.v0.9",
             "status": status,
             "reason": reason,
             "plan_id": plan.plan_id,
@@ -594,7 +594,7 @@ class GovernedExecutionHandoff:
             "execution_authority": False,
         }
         return ExecutionHandoffReceipt(
-            schema="phios.execution_handoff_receipt.v0.8",
+            schema="phios.execution_handoff_receipt.v0.9",
             status=status,
             reason=reason,
             plan_id=plan.plan_id,
