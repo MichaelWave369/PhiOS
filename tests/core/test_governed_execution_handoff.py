@@ -124,7 +124,9 @@ def test_authorized_bound_action_executes_through_existing_spine(
     ledger_entry = spine.ledger.recent(1)[0]
     provenance = ledger_entry["governed_provenance"]
     assert isinstance(provenance, dict)
+    assert provenance["schema_version"] == "phios.execution_provenance.v0.8"
     assert provenance["action_binding_sha256"] == binding.binding_sha256
+    assert provenance["action_lease_sha256"] is None
 
 
 def test_permission_denial_does_not_consume_binding_and_retry_can_succeed(
