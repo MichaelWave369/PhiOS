@@ -200,6 +200,29 @@ def test_enforcement_profile_must_bind_exact_effect_intent() -> None:
         )
 
 
+def test_none_effect_intent_cannot_receive_action_lease() -> None:
+    intent = _intent(("none",))
+    enforcement = EnforcementProfile.build(intent=intent)
+
+    with pytest.raises(
+        ActionLeaseContractError,
+        match="cannot authorize a none EffectIntent",
+    ):
+        ActionLease.issue(
+            principal_id="operator:michael",
+            issuer_id="authority-broker:test",
+            authorization_receipt_sha256=AUTHORIZATION,
+            intent=intent,
+            enforcement=enforcement,
+            authority_epoch=_authority_epoch(),
+            permissions_authorized=("artifact.write",),
+            accepted_unenforced_effects=(),
+            issued_at="2026-09-24T02:03:00+00:00",
+            valid_from="2026-09-24T02:03:00+00:00",
+            valid_until="2026-09-24T02:05:00+00:00",
+        )
+
+
 def test_unmapped_effects_block_lease_issuance() -> None:
     intent = _intent(("filesystem.change", "process.spawn"))
     enforcement = EnforcementProfile.build(
@@ -272,6 +295,17 @@ def test_unenforced_effects_require_exact_explicit_acknowledgement() -> None:
     )
 
     assert lease.accepted_unenforced_effects == ("network.request",)
+
+
+def test_serialized_accepted_gap_must_be_within_declared_effects() -> None:
+    payload = _lease().to_dict()
+    payload["accepted_unenforced_effects"] = ["network.request"]
+
+    with pytest.raises(
+        ActionLeaseContractError,
+        match="subset of effects_declared",
+    ):
+        ActionLease.from_dict(payload)
 
 
 def test_permissions_cannot_exceed_authority_epoch_grants() -> None:
