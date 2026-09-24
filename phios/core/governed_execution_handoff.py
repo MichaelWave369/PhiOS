@@ -211,8 +211,21 @@ class GovernedExecutionHandoff:
                 replay_blocked=True,
             )
 
+        lease_provenance = any(
+            value is not None
+            for value in (
+                action_lease_sha256,
+                authority_epoch_sha256,
+                authorization_receipt_sha256,
+                lease_verification_sha256,
+            )
+        )
         provenance = ExecutionProvenance(
-            schema_version="phios.execution_provenance.v0.9",
+            schema_version=(
+                "phios.execution_provenance.v0.9"
+                if lease_provenance
+                else "phios.execution_provenance.v0.8"
+            ),
             plan_id=plan.plan_id,
             plan_state_sha256=plan.state_sha256,
             plan_revision=plan.revision,
