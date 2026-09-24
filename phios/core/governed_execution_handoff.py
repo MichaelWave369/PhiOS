@@ -9,9 +9,10 @@ from __future__ import annotations
 
 import hashlib
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any, Mapping
 
+from phios.action_lease import ActionLease, evaluate_action_lease
 from phios.core.governed_action_binding import (
     ActionBindingContractError,
     GovernedActionBinder,
@@ -57,6 +58,9 @@ class ExecutionHandoffReceipt:
     mandala_status: str | None
     artifact_path: str | None
     artifact_sha256: str | None
+    action_lease_sha256: str | None
+    lease_consumed: bool
+    lease_evaluation_reason: str | None
     action_authority: bool
     execution_authority: bool
     receipt_sha256: str
@@ -85,6 +89,9 @@ class ExecutionHandoffReceipt:
             "mandala_status": self.mandala_status,
             "artifact_path": self.artifact_path,
             "artifact_sha256": self.artifact_sha256,
+            "action_lease_sha256": self.action_lease_sha256,
+            "lease_consumed": self.lease_consumed,
+            "lease_evaluation_reason": self.lease_evaluation_reason,
             "action_authority": self.action_authority,
             "execution_authority": self.execution_authority,
             "receipt_sha256": self.receipt_sha256,
@@ -97,6 +104,156 @@ class GovernedExecutionHandoff:
     def __init__(self) -> None:
         self._plan_gate = GovernedPlanAdoptionGate()
         self._binder = GovernedActionBinder()
+
+    def execute_with_lease(
+        self,
+        *,
+        plan: PlanState,
+        binding: PlanActionBinding,
+        payload: Mapping[str, Any],
+        spine: PhiOSSpine,
+        lease: ActionLease,
+        checked_at: str,
+        current_authority_epoch_sha256: str,
+        trusted_issuer_ids: tuple[str, ...],
+        accepted_authorization_receipt_sha256s: tuple[str, ...],
+    ) -> ExecutionHandoffReceipt:
+        """Execute only after a bounded ActionLease passes runtime validation."""
+
+        self._validate_inputs(plan, binding)
+
+        if lease.issuer_id not in set(trusted_issuer_ids):
+            return self._held_with_lease(
+                plan=plan,
+                binding=binding,
+                lease=lease,
+                reason="action_lease_issuer_untrusted",
+                evaluation_reason="issuer_untrusted",
+            )
+        if lease.authorization_receipt_sha256 not in set(
+            accepted_authorization_receipt_sha256s
+        ):
+            return self._held_with_lease(
+                plan=plan,
+                binding=binding,
+                lease=lease,
+                reason="action_lease_authorization_receipt_unaccepted",
+                evaluation_reason="authorization_receipt_unaccepted",
+            )
+
+        scope_reason = self._lease_scope(binding, lease)
+        if scope_reason is not None:
+            return self._held_with_lease(
+                plan=plan,
+                binding=binding,
+                lease=lease,
+                reason=scope_reason,
+                evaluation_reason="scope_mismatch",
+            )
+
+        try:
+            consumed = spine.ledger.has_consumed_action_lease(
+                lease.action_lease_sha256
+            )
+        except (OSError, json.JSONDecodeError, ValueError) as exc:
+            raise ExecutionHandoffContractError(
+                "action lease consumption state could not be verified safely"
+            ) from exc
+
+        evaluation = evaluate_action_lease(
+            lease=lease,
+            checked_at=checked_at,
+            current_authority_epoch_sha256=current_authority_epoch_sha256,
+            uses_consumed=1 if consumed else 0,
+        )
+        if not evaluation.usable:
+            return self._held_with_lease(
+                plan=plan,
+                binding=binding,
+                lease=lease,
+                reason=f"action_lease_{evaluation.reason}",
+                evaluation_reason=evaluation.reason,
+                replay_blocked=(evaluation.reason == "lease_consumed"),
+            )
+
+        try:
+            lease_claimed = spine.ledger.claim_action_lease(
+                lease.action_lease_sha256
+            )
+        except (OSError, ValueError) as exc:
+            raise ExecutionHandoffContractError(
+                "action lease could not be claimed safely"
+            ) from exc
+        if not lease_claimed:
+            return self._held_with_lease(
+                plan=plan,
+                binding=binding,
+                lease=lease,
+                reason="action_lease_claim_unavailable",
+                evaluation_reason="claim_unavailable",
+                replay_blocked=True,
+            )
+
+        try:
+            receipt = self.execute(
+                plan=plan,
+                binding=binding,
+                payload=payload,
+                spine=spine,
+            )
+        except Exception:
+            try:
+                attempted = spine.ledger.has_consumed_binding(
+                    binding.binding_sha256
+                )
+                if attempted:
+                    spine.ledger.mark_action_lease_consumed(
+                        lease_sha256=lease.action_lease_sha256,
+                        binding_sha256=binding.binding_sha256,
+                        spine_receipt_id=None,
+                        outcome="attempted_outcome_unknown",
+                    )
+                else:
+                    spine.ledger.release_action_lease_claim(
+                        lease.action_lease_sha256
+                    )
+            except (OSError, json.JSONDecodeError, ValueError):
+                pass
+            raise
+
+        if receipt.binding_consumed:
+            try:
+                spine.ledger.mark_action_lease_consumed(
+                    lease_sha256=lease.action_lease_sha256,
+                    binding_sha256=binding.binding_sha256,
+                    spine_receipt_id=receipt.spine_receipt_id,
+                    outcome=receipt.status,
+                )
+            except (OSError, json.JSONDecodeError, ValueError) as exc:
+                raise ExecutionHandoffContractError(
+                    "action lease consumption could not be recorded safely"
+                ) from exc
+            return self._attach_lease(
+                receipt,
+                lease=lease,
+                lease_consumed=True,
+                evaluation_reason=evaluation.reason,
+            )
+
+        try:
+            spine.ledger.release_action_lease_claim(
+                lease.action_lease_sha256
+            )
+        except (OSError, ValueError) as exc:
+            raise ExecutionHandoffContractError(
+                "unused action lease claim could not be released safely"
+            ) from exc
+        return self._attach_lease(
+            receipt,
+            lease=lease,
+            lease_consumed=False,
+            evaluation_reason=evaluation.reason,
+        )
 
     def execute(
         self,
@@ -266,6 +423,70 @@ class GovernedExecutionHandoff:
         except (PlanAdoptionContractError, ActionBindingContractError) as exc:
             raise ExecutionHandoffContractError(str(exc)) from exc
 
+    def _lease_scope(
+        self,
+        binding: PlanActionBinding,
+        lease: ActionLease,
+    ) -> str | None:
+        if lease.capability_id != binding.capability_id:
+            return "action_lease_capability_scope_mismatch"
+        if lease.capability_version != binding.capability_version:
+            return "action_lease_capability_version_scope_mismatch"
+        if lease.payload_sha256 != binding.payload_sha256:
+            return "action_lease_payload_scope_mismatch"
+        if lease.effects_declared != binding.effects_declared:
+            return "action_lease_effect_scope_mismatch"
+        expected_permissions = tuple(
+            sorted(set(binding.permissions_requested))
+        )
+        if lease.permissions_authorized != expected_permissions:
+            return "action_lease_permission_scope_mismatch"
+        return None
+
+    def _held_with_lease(
+        self,
+        *,
+        plan: PlanState,
+        binding: PlanActionBinding,
+        lease: ActionLease,
+        reason: str,
+        evaluation_reason: str,
+        replay_blocked: bool = False,
+    ) -> ExecutionHandoffReceipt:
+        return self._attach_lease(
+            self._held(
+                plan=plan,
+                binding=binding,
+                reason=reason,
+                replay_blocked=replay_blocked,
+            ),
+            lease=lease,
+            lease_consumed=False,
+            evaluation_reason=evaluation_reason,
+        )
+
+    def _attach_lease(
+        self,
+        receipt: ExecutionHandoffReceipt,
+        *,
+        lease: ActionLease,
+        lease_consumed: bool,
+        evaluation_reason: str,
+    ) -> ExecutionHandoffReceipt:
+        updated = replace(
+            receipt,
+            action_lease_sha256=lease.action_lease_sha256,
+            lease_consumed=lease_consumed,
+            lease_evaluation_reason=evaluation_reason,
+            receipt_sha256="",
+        )
+        payload = updated.to_dict()
+        payload.pop("receipt_sha256")
+        return replace(
+            updated,
+            receipt_sha256=_payload_digest(payload),
+        )
+
     def _current_plan_scope(
         self,
         plan: PlanState,
@@ -366,6 +587,9 @@ class GovernedExecutionHandoff:
             "mandala_status": execution.mandala_status if execution else None,
             "artifact_path": execution.artifact_path if execution else None,
             "artifact_sha256": execution.artifact_sha256 if execution else None,
+            "action_lease_sha256": None,
+            "lease_consumed": False,
+            "lease_evaluation_reason": None,
             "action_authority": False,
             "execution_authority": False,
         }
@@ -398,6 +622,9 @@ class GovernedExecutionHandoff:
             mandala_status=execution.mandala_status if execution else None,
             artifact_path=execution.artifact_path if execution else None,
             artifact_sha256=execution.artifact_sha256 if execution else None,
+            action_lease_sha256=None,
+            lease_consumed=False,
+            lease_evaluation_reason=None,
             action_authority=False,
             execution_authority=False,
             receipt_sha256=_payload_digest(payload),
