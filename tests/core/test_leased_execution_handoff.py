@@ -231,6 +231,7 @@ def test_valid_lease_executes_once_and_persists_lease_provenance(
     entry = spine.ledger.recent(1)[0]
     provenance = entry["governed_provenance"]
     assert isinstance(provenance, dict)
+    assert provenance["schema_version"] == "phios.execution_provenance.v0.9"
     assert provenance["action_lease_sha256"] == lease.action_lease_sha256
     assert provenance["authority_epoch_sha256"] == (
         lease.authority_epoch_sha256
