@@ -3,10 +3,12 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
-
-from phios.execution_outcome import ExecutionReconciliationReceipt
+from typing import TYPE_CHECKING
 
 from .models import ExecutionReceipt
+
+if TYPE_CHECKING:
+    from phios.execution_outcome import ExecutionReconciliationReceipt
 
 
 class RealityLedger:
@@ -32,7 +34,7 @@ class RealityLedger:
 
     def append_reconciliation(
         self,
-        receipt: ExecutionReconciliationReceipt,
+        receipt: "ExecutionReconciliationReceipt",
     ) -> None:
         """Append one immutable reconciliation receipt beside execution history."""
 
