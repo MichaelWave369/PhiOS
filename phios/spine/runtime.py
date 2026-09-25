@@ -600,7 +600,7 @@ class PhiOSSpine:
             action_receipt = ActionReceipt(
                 **receipt_meta(
                     packet,
-                    status=MandalaStatus.ABORTED,
+                    status=MandalaStatus.UNKNOWN,
                     produced_by="phios.action_gate",
                     parent_receipt_id=gate_receipt.receipt_id,
                 ),
