@@ -4,6 +4,8 @@ import json
 import os
 from pathlib import Path
 
+from phios.execution_outcome import ExecutionReconciliationReceipt
+
 from .models import ExecutionReceipt
 
 
@@ -26,6 +28,33 @@ class RealityLedger:
         if limit == 0 or not self.path.exists():
             return []
         lines = self.path.read_text(encoding="utf-8").splitlines()
+        return [json.loads(line) for line in lines[-limit:]]
+
+    def append_reconciliation(
+        self,
+        receipt: ExecutionReconciliationReceipt,
+    ) -> None:
+        """Append one immutable reconciliation receipt beside execution history."""
+
+        path = self.path.parent / "execution-reconciliations.jsonl"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps(receipt.to_dict(), sort_keys=True) + "\n")
+
+    def recent_reconciliations(
+        self,
+        limit: int = 10,
+    ) -> list[dict[str, object]]:
+        """Return the newest append-only execution reconciliation receipts."""
+
+        if isinstance(limit, bool) or not isinstance(limit, int):
+            raise TypeError("recent reconciliation limit must be an integer")
+        if limit < 0:
+            raise ValueError("recent reconciliation limit must be non-negative")
+        path = self.path.parent / "execution-reconciliations.jsonl"
+        if limit == 0 or not path.exists():
+            return []
+        lines = path.read_text(encoding="utf-8").splitlines()
         return [json.loads(line) for line in lines[-limit:]]
 
     def claim_binding(self, binding_sha256: str) -> bool:
@@ -72,7 +101,7 @@ class RealityLedger:
                 continue
             if entry.get("permission_status") != "allowed":
                 continue
-            if entry.get("execution_status") in {"succeeded", "failed"}:
+            if entry.get("execution_status") in {"succeeded", "failed", "outcome_unknown"}:
                 return True
         return False
 
@@ -121,7 +150,7 @@ class RealityLedger:
                 continue
             if entry.get("permission_status") != "allowed":
                 continue
-            if entry.get("execution_status") in {"succeeded", "failed"}:
+            if entry.get("execution_status") in {"succeeded", "failed", "outcome_unknown"}:
                 return True
         return False
 
