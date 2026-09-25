@@ -9,6 +9,7 @@ const transport = createLocalObservationServer({
   port: 0,
   historyProjectionFetcher: async () => null,
   historyComparisonFetcher: async () => null,
+  curiosityProjectionFetcher: async () => null,
 });
 const address = await transport.listen();
 const base = `http://127.0.0.1:${address.port}`;
@@ -140,6 +141,27 @@ try {
     `${base}/api/v1/persistent-history-compare?from=not-a-state&to=${comparisonTo}`,
   );
   assert.equal(invalidComparison.status, 400);
+
+  const curiosityProjection = await fetch(`${base}/api/v1/curiosity`);
+  assert.equal(curiosityProjection.status, 503);
+  const curiosityUnavailable = await curiosityProjection.json();
+  assert.equal(curiosityUnavailable.error, "curiosity_projection_unavailable");
+  assert.equal(curiosityUnavailable.readOnly, true);
+  assert.equal(curiosityUnavailable.executionAuthority, false);
+  assert.equal(curiosityUnavailable.effectPerformed, false);
+
+  const curiosityWrite = await fetch(`${base}/api/v1/curiosity/artifacts`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: "{}",
+  });
+  assert.equal(curiosityWrite.status, 428);
+  const curiosityHeld = await curiosityWrite.json();
+  assert.equal(curiosityHeld.error, "action_lease_required");
+  assert.equal(curiosityHeld.writeAvailable, false);
+  assert.equal(curiosityHeld.actionAuthority, false);
+  assert.equal(curiosityHeld.executionAuthority, false);
+  assert.equal(curiosityHeld.effectPerformed, false);
 
   const mutation = await fetch(`${base}/api/v1/host-observation`, { method: "POST" });
   assert.equal(mutation.status, 405);
