@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -256,3 +257,39 @@ def test_policy_digest_is_deterministic_and_zero_authority() -> None:
     assert first.operational_authority is False
     assert first.action_authority is False
     assert first.execution_authority is False
+
+
+def test_tampered_reality_claim_results_cannot_be_reconciled(
+    tmp_path: Path,
+) -> None:
+    spine = PhiOSSpine(state_root=tmp_path)
+    capability = _capability()
+    policy = _policy(capability)
+    verification, evidence = _verify_text(
+        spine,
+        observed_text="interface Gi1/0/24 state=down",
+        expected_text="state=down",
+    )
+    tampered = replace(
+        verification,
+        claim_results=(
+            {
+                **verification.claim_results[0],
+                "verdict": "CONTRADICTED",
+            },
+        ),
+    )
+
+    with pytest.raises(
+        RealityReconciliationContractError,
+        match="claims_checked does not match claim_results",
+    ):
+        reconcile_execution_with_reality(
+            execution=_unknown_execution(),
+            capability=capability,
+            policy=policy,
+            verification=tampered,
+            evidence_refs=(evidence,),
+            reconciler_id="reconciler:switch-state",
+            reconciled_at="2026-09-25T03:02:00+00:00",
+        )
