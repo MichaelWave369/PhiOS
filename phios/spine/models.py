@@ -50,6 +50,10 @@ class ExecutionProvenance:
     source_state_id: str
     target_state_id: str
     action_binding_sha256: str
+    action_lease_sha256: str | None = None
+    authority_epoch_sha256: str | None = None
+    authorization_receipt_sha256: str | None = None
+    lease_verification_sha256: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)

@@ -105,8 +105,18 @@ class GovernedExecutionHandoff:
         binding: PlanActionBinding,
         payload: Mapping[str, Any],
         spine: PhiOSSpine,
+        action_lease_sha256: str | None = None,
+        authority_epoch_sha256: str | None = None,
+        authorization_receipt_sha256: str | None = None,
+        lease_verification_sha256: str | None = None,
     ) -> ExecutionHandoffReceipt:
         self._validate_inputs(plan, binding)
+        self._validate_lease_provenance(
+            action_lease_sha256=action_lease_sha256,
+            authority_epoch_sha256=authority_epoch_sha256,
+            authorization_receipt_sha256=authorization_receipt_sha256,
+            lease_verification_sha256=lease_verification_sha256,
+        )
 
         scope_reason = self._current_plan_scope(plan, binding)
         if scope_reason is not None:
@@ -207,8 +217,13 @@ class GovernedExecutionHandoff:
                 replay_blocked=True,
             )
 
+        lease_provenance = action_lease_sha256 is not None
         provenance = ExecutionProvenance(
-            schema_version="phios.execution_provenance.v0.8",
+            schema_version=(
+                "phios.execution_provenance.v0.9"
+                if lease_provenance
+                else "phios.execution_provenance.v0.8"
+            ),
             plan_id=plan.plan_id,
             plan_state_sha256=plan.state_sha256,
             plan_revision=plan.revision,
@@ -216,6 +231,10 @@ class GovernedExecutionHandoff:
             source_state_id=binding.source_state_id,
             target_state_id=binding.target_state_id,
             action_binding_sha256=binding.binding_sha256,
+            action_lease_sha256=action_lease_sha256,
+            authority_epoch_sha256=authority_epoch_sha256,
+            authorization_receipt_sha256=authorization_receipt_sha256,
+            lease_verification_sha256=lease_verification_sha256,
         )
         try:
             execution = spine.run(
@@ -254,6 +273,37 @@ class GovernedExecutionHandoff:
             replay_blocked=False,
             execution=execution,
         )
+
+    def _validate_lease_provenance(
+        self,
+        *,
+        action_lease_sha256: str | None,
+        authority_epoch_sha256: str | None,
+        authorization_receipt_sha256: str | None,
+        lease_verification_sha256: str | None,
+    ) -> None:
+        fields = {
+            "action_lease_sha256": action_lease_sha256,
+            "authority_epoch_sha256": authority_epoch_sha256,
+            "authorization_receipt_sha256": authorization_receipt_sha256,
+            "lease_verification_sha256": lease_verification_sha256,
+        }
+        supplied = [value for value in fields.values() if value is not None]
+        if supplied and len(supplied) != len(fields):
+            raise ExecutionHandoffContractError(
+                "lease provenance must provide all four SHA-256 digests"
+            )
+        for label, value in fields.items():
+            if value is None:
+                continue
+            if (
+                not isinstance(value, str)
+                or len(value) != 64
+                or any(char not in "0123456789abcdef" for char in value)
+            ):
+                raise ExecutionHandoffContractError(
+                    f"{label} must be a lowercase SHA-256 digest"
+                )
 
     def _validate_inputs(
         self,
