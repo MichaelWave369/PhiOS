@@ -110,8 +110,26 @@ class CuriosityPersistPayload:
         _require_text(self.created_by, "created_by", maximum=256)
 
         # CuriosityArtifact performs the canonical kind, timestamp, tag,
-        # provenance-hash, and authority validation.
-        self.to_artifact()
+        # provenance-hash, and authority validation. The persistence payload
+        # itself must already be canonical because ActionLease scope binds the
+        # exact payload digest.
+        artifact = self.to_artifact()
+        if artifact.artifact_kind != self.artifact_kind:
+            raise CuriosityPersistenceError(
+                "artifact_kind must already be canonical lowercase"
+            )
+        if artifact.tags != self.tags:
+            raise CuriosityPersistenceError(
+                "tags must already be sorted, unique, and lowercase"
+            )
+        if artifact.evidence_ref_sha256s != self.evidence_ref_sha256s:
+            raise CuriosityPersistenceError(
+                "evidence_ref_sha256s must already be sorted and unique"
+            )
+        if artifact.parent_artifact_sha256s != self.parent_artifact_sha256s:
+            raise CuriosityPersistenceError(
+                "parent_artifact_sha256s must already be sorted and unique"
+            )
 
     def to_artifact(self) -> CuriosityArtifact:
         return CuriosityArtifact.build(
