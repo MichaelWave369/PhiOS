@@ -5,6 +5,7 @@ import { ProcessObservationPanel } from "./components/ProcessObservationPanel";
 import { PackageObservationPanel } from "./components/PackageObservationPanel";
 import { DeviceObservationPanel } from "./components/DeviceObservationPanel";
 import { SystemStatePanel } from "./components/SystemStatePanel";
+import { SymbolLab } from "./components/SymbolLab";
 import {
   INITIAL_SHELL_STATE,
   type AuthorityRequest,
@@ -23,6 +24,7 @@ import {
 const nav: Array<{ id: View; icon: string; label: string }> = [
   { id: "home", icon: "⌂", label: "Home" },
   { id: "research", icon: "◈", label: "Research" },
+  { id: "dream", icon: "☾", label: "Dream" },
   { id: "build", icon: "⌘", label: "Build" },
   { id: "memory", icon: "◎", label: "Memory" },
   { id: "ledger", icon: "▤", label: "Ledger" },
@@ -105,6 +107,12 @@ const commands: CommandItem[] = [
     label: "Go to Research",
     detail: "Open the Research destination.",
     action: { type: "open-view", view: "research" },
+  },
+  {
+    id: "view-dream",
+    label: "Open ΦDream / Symbol Lab",
+    detail: "Enter the zero-authority curiosity workspace.",
+    action: { type: "open-view", view: "dream" },
   },
   {
     id: "window-research",
@@ -326,7 +334,8 @@ function Workspace({ title, subtitle }: { title: string; subtitle: string }) {
 
 function Center({ view }: { view: View }) {
   if (view === "home") return <Home />;
-  const copy: Record<Exclude<View, "home">, [string, string]> = {
+  if (view === "dream") return <SymbolLab />;
+  const copy: Record<Exclude<View, "home" | "dream">, [string, string]> = {
     research: [
       "Research",
       "Sources, evidence, notes, synthesis, and provenance in one governed workspace.",

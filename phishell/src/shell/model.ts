@@ -1,6 +1,7 @@
 export type View =
   | "home"
   | "research"
+  | "dream"
   | "build"
   | "memory"
   | "ledger"
