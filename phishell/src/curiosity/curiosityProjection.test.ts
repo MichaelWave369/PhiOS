@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   canonicalArtifactToSessionNode,
   createCuriosityProjectionProvider,
+  type CanonicalCuriosityArtifact,
 } from "./curiosityProjection";
 
 const now = "2026-09-25T20:00:00.000Z";
@@ -79,7 +80,7 @@ describe("Curiosity projection provider", () => {
   });
 
   it("maps canonical artifacts into zero-authority session nodes", () => {
-    const artifact = envelope().projection.artifacts[0];
+    const artifact = envelope().projection.artifacts[0] as CanonicalCuriosityArtifact;
     const node = canonicalArtifactToSessionNode(artifact);
 
     expect(node.id).toBe("canonical:" + "a".repeat(64));
