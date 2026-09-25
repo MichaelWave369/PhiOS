@@ -17,6 +17,12 @@ import {
   type CanonicalCuriosityArtifact,
   type CuriosityProjection,
 } from "../curiosity/curiosityProjection";
+import {
+  curiosityPersistenceClient,
+  nodeToPersistPayload,
+  type CuriosityAuthorityHealth,
+  type CuriosityPersistRequest,
+} from "../curiosity/curiosityPersistence";
 
 const kinds: Array<{ kind: SymbolKind; label: string; glyph: string }> = [
   { kind: "symbol", label: "Symbol", glyph: "◈" },
@@ -58,12 +64,20 @@ export function SymbolLab() {
   const [canonicalStatus, setCanonicalStatus] = useState<"loading" | "ready" | "unavailable">(
     "loading",
   );
+  const [authorityHealth, setAuthorityHealth] = useState<CuriosityAuthorityHealth | null>(null);
+  const [authorityStatus, setAuthorityStatus] = useState<"loading" | "ready" | "unavailable">(
+    "loading",
+  );
+  const [persistRequests, setPersistRequests] = useState<Record<string, CuriosityPersistRequest>>({});
+  const [persistBusy, setPersistBusy] = useState(false);
 
   const selected = nodes.find((node) => node.id === selectedId) ?? null;
   const related = useMemo(
     () => (selected ? relatedSeeds(selected, nodes).slice(0, 6) : []),
     [selected, nodes],
   );
+  const selectedPersistRequest = selected ? persistRequests[selected.id] ?? null : null;
+  const selectedPersistPayload = selected ? nodeToPersistPayload(selected) : null;
 
   async function refreshCanonical() {
     setCanonicalStatus("loading");
@@ -72,8 +86,16 @@ export function SymbolLab() {
     setCanonicalStatus(projection ? "ready" : "unavailable");
   }
 
+  async function refreshAuthority() {
+    setAuthorityStatus("loading");
+    const health = await curiosityPersistenceClient.health();
+    setAuthorityHealth(health);
+    setAuthorityStatus(health ? "ready" : "unavailable");
+  }
+
   useEffect(() => {
     void refreshCanonical();
+    void refreshAuthority();
   }, []);
 
   function openCanonical(artifact: CanonicalCuriosityArtifact) {
@@ -134,6 +156,31 @@ export function SymbolLab() {
     setProposals((current) => [proposal, ...current]);
   }
 
+  async function requestPersistence() {
+    if (!selected || !selectedPersistPayload || authorityStatus !== "ready") return;
+    setPersistBusy(true);
+    const request = await curiosityPersistenceClient.request(selected);
+    if (request) {
+      setPersistRequests((current) => ({ ...current, [selected.id]: request }));
+    } else {
+      setAuthorityStatus("unavailable");
+    }
+    setPersistBusy(false);
+  }
+
+  async function checkPersistence() {
+    if (!selected || !selectedPersistRequest) return;
+    setPersistBusy(true);
+    const updated = await curiosityPersistenceClient.status(selectedPersistRequest.requestId);
+    if (updated) {
+      setPersistRequests((current) => ({ ...current, [selected.id]: updated }));
+      if (updated.status === "succeeded") {
+        await refreshCanonical();
+      }
+    }
+    setPersistBusy(false);
+  }
+
   return (
     <section className="symbol-lab">
       <header className="symbol-lab-head">
@@ -146,7 +193,7 @@ export function SymbolLab() {
         </div>
         <div className="symbol-boundary">
           <b>SESSION CREATE · CANONICAL READ</b>
-          <span>WRITE HELD · ACTIONLEASE REQUIRED</span>
+          <span>PERSIST REQUEST · EXTERNAL OPERATOR APPROVAL</span>
         </div>
       </header>
 
@@ -216,7 +263,7 @@ export function SymbolLab() {
           </button>
           <small className="symbol-disclaimer">
             This creates an ephemeral Curiosity object in the current PhiShell session. Canonical
-            persistence remains held until a trusted ActionLease issuer/verifier is configured.
+            persistence requires an explicit local operator approval outside the browser.
           </small>
         </aside>
 
@@ -324,10 +371,61 @@ export function SymbolLab() {
 
               <section className="symbol-persist">
                 <h3>CANONICAL PERSISTENCE</h3>
-                <button disabled>Persist Selected</button>
-                <small>
-                  HELD · requires a trusted single-use ActionLease for curiosity.persist.
-                </small>
+                <div className="persist-health">
+                  <span>BROKER</span>
+                  <b>{authorityStatus.toUpperCase()}</b>
+                  {authorityHealth && <code>{authorityHealth.principalId}</code>}
+                </div>
+
+                {selected.id.startsWith("canonical:") ? (
+                  <small>This object is already canonical. Read copies cannot be re-persisted.</small>
+                ) : selectedPersistPayload === null ? (
+                  <small>
+                    HELD · persist session-local parent threads first so canonical lineage is not lost.
+                  </small>
+                ) : selectedPersistRequest ? (
+                  <div className="persist-request-card">
+                    <div>
+                      <span>STATUS</span>
+                      <b>{selectedPersistRequest.status.toUpperCase()}</b>
+                    </div>
+                    <code>{selectedPersistRequest.payloadSha256.slice(0, 20)}…</code>
+                    {selectedPersistRequest.status === "pending" && (
+                      <>
+                        <small>Approve this exact request outside PhiShell:</small>
+                        <pre>{selectedPersistRequest.approvalCommand}</pre>
+                      </>
+                    )}
+                    {selectedPersistRequest.artifactSha256 && (
+                      <div className="persist-artifact-hash">
+                        <span>CANONICAL SHA</span>
+                        <code>{selectedPersistRequest.artifactSha256}</code>
+                      </div>
+                    )}
+                    <button onClick={() => void checkPersistence()} disabled={persistBusy}>
+                      {persistBusy ? "Checking…" : "Check Status"}
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <button
+                      onClick={() => void requestPersistence()}
+                      disabled={persistBusy || authorityStatus !== "ready"}
+                    >
+                      {persistBusy ? "Requesting…" : "Request Persistence"}
+                    </button>
+                    <small>
+                      Creates a zero-authority pending request only. Approval, ActionLease issuance,
+                      and execution remain outside the browser.
+                    </small>
+                  </>
+                )}
+
+                {authorityStatus === "unavailable" && (
+                  <button onClick={() => void refreshAuthority()} disabled={persistBusy}>
+                    Retry Broker
+                  </button>
+                )}
               </section>
 
               <section className="symbol-promote">
@@ -381,11 +479,16 @@ export function SymbolLab() {
           </div>
         )}
         <div className="canonical-write-hold">
-          <b>WRITE HELD</b>
+          <b>WRITE GOVERNED</b>
           <span>
-            {canonicalProjection?.writeHoldReason ?? "action_lease_broker_unavailable"}
+            {authorityStatus === "ready"
+              ? "operator_approval_required"
+              : "authority_broker_unavailable"}
           </span>
-          <small>Stored artifacts can be read without granting them factual or action authority.</small>
+          <small>
+            Stored artifacts can be read without authority. New persistence requires an exact
+            external operator approval and a single-use ActionLease.
+          </small>
         </div>
       </section>
 
