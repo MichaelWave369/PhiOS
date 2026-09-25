@@ -21,10 +21,7 @@ from phios.action_lease import (
     evaluate_action_lease,
 )
 from phios.core.governed_action_binding import PlanActionBinding
-from phios.core.governed_execution_handoff import (
-    ExecutionHandoffReceipt,
-    GovernedExecutionHandoff,
-)
+from phios.core.governed_execution_handoff import GovernedExecutionHandoff
 from phios.core.governed_plan_adoption import PlanState
 from phios.spine.runtime import PhiOSSpine
 
