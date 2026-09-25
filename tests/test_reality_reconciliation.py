@@ -115,7 +115,10 @@ def _verify_interface(
 def _spine(tmp_path: Path) -> PhiOSSpine:
     return PhiOSSpine(
         state_root=tmp_path,
-        allowed_permissions=["reality.local_interface.read"],
+        allowed_permissions=[
+            "reality.verify",
+            "reality.local_interface.read",
+        ],
     )
 
 
