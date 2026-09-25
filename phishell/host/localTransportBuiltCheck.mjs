@@ -5,11 +5,63 @@ if (process.platform !== "linux") {
   process.exit(0);
 }
 
+const brokerHealth = {
+  schemaVersion: "phios.curiosity-authority-broker.v0.5",
+  brokerId: "phios.curiosity-authority-broker.local.v0.5",
+  localOnly: true,
+  principalId: "operator:test",
+  capabilityId: "curiosity.persist",
+  permission: "curiosity.write",
+  approvalMode: "local_cli_hmac_exact_payload",
+  browserCanApprove: false,
+  browserReceivesLease: false,
+  status: "ready",
+  operationalAuthority: false,
+  actionAuthority: false,
+  executionAuthority: false,
+  effectPerformed: false,
+};
+
+const persistRow = {
+  schemaVersion: "phios.curiosity-persist-request.v0.5",
+  requestId: "curiosity-request-" + "a".repeat(32),
+  payload: {
+    schema_version: "phios.curiosity_persist_payload.v0.4",
+    artifact_kind: "creative_seed",
+    title: "Bubble rhythm",
+    content: "Explore the metaphor without declaring a law.",
+    created_at: "2026-09-25T21:30:00.000Z",
+    created_by: "operator:test",
+    tags: ["gear", "music"],
+    evidence_ref_sha256s: [],
+    parent_artifact_sha256s: [],
+  },
+  payloadSha256: "b".repeat(64),
+  requestedAt: "2026-09-25T21:30:01.000Z",
+  expiresAt: "2026-09-25T21:40:01.000Z",
+  status: "pending",
+  reason: "awaiting_operator_approval",
+  approvedAt: null,
+  artifactSha256: null,
+  executionReceipt: null,
+  approvalCommand:
+    "python -m phios.curiosity_authority_broker approve curiosity-request-" +
+    "a".repeat(32),
+  operationalAuthority: false,
+  actionAuthority: false,
+  executionAuthority: false,
+  effectPerformed: false,
+};
+
 const transport = createLocalObservationServer({
   port: 0,
   historyProjectionFetcher: async () => null,
   historyComparisonFetcher: async () => null,
   curiosityProjectionFetcher: async () => null,
+  curiosityAuthorityHealthFetcher: async () => brokerHealth,
+  curiosityPersistRequestCreator: async () => persistRow,
+  curiosityPersistRequestFetcher: async (requestId) =>
+    requestId === persistRow.requestId ? persistRow : null,
 });
 const address = await transport.listen();
 const base = `http://127.0.0.1:${address.port}`;
@@ -150,18 +202,84 @@ try {
   assert.equal(curiosityUnavailable.executionAuthority, false);
   assert.equal(curiosityUnavailable.effectPerformed, false);
 
-  const curiosityWrite = await fetch(`${base}/api/v1/curiosity/artifacts`, {
+  const curiosityAuthority = await fetch(`${base}/api/v1/curiosity-authority`);
+  assert.equal(curiosityAuthority.status, 200);
+  const authorityEnvelope = await curiosityAuthority.json();
+  assert.equal(authorityEnvelope.browserCanApprove, false);
+  assert.equal(authorityEnvelope.browserReceivesLease, false);
+  assert.equal(authorityEnvelope.actionAuthority, false);
+  assert.equal(authorityEnvelope.executionAuthority, false);
+
+  const curiosityRequest = await fetch(
+    `${base}/api/v1/curiosity/persist-requests`,
+    {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        artifact_kind: "creative_seed",
+        title: "Bubble rhythm",
+        content: "Explore the metaphor without declaring a law.",
+        created_at: "2026-09-25T21:30:00.000Z",
+        tags: ["gear", "music"],
+        evidence_ref_sha256s: [],
+        parent_artifact_sha256s: [],
+      }),
+    },
+  );
+  assert.equal(curiosityRequest.status, 201);
+  const createdCuriosityRequest = await curiosityRequest.json();
+  assert.equal(createdCuriosityRequest.status, "pending");
+  assert.equal(createdCuriosityRequest.actionAuthority, false);
+  assert.equal(createdCuriosityRequest.executionAuthority, false);
+  assert.match(
+    createdCuriosityRequest.approvalCommand,
+    /^python -m phios\.curiosity_authority_broker approve curiosity-request-/,
+  );
+
+  const curiosityRequestStatus = await fetch(
+    `${base}/api/v1/curiosity/persist-requests/${persistRow.requestId}`,
+  );
+  assert.equal(curiosityRequestStatus.status, 200);
+  const requestStatusEnvelope = await curiosityRequestStatus.json();
+  assert.equal(requestStatusEnvelope.requestId, persistRow.requestId);
+  assert.equal(requestStatusEnvelope.status, "pending");
+
+  const invalidCuriosityRequest = await fetch(
+    `${base}/api/v1/curiosity/persist-requests`,
+    {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        artifact_kind: "creative_seed",
+        title: "Bad request",
+        content: "Browser tries to smuggle approval.",
+        created_at: "2026-09-25T21:30:00.000Z",
+        tags: [],
+        evidence_ref_sha256s: [],
+        parent_artifact_sha256s: [],
+        approved: true,
+      }),
+    },
+  );
+  assert.equal(invalidCuriosityRequest.status, 400);
+
+  const legacyCuriosityWrite = await fetch(`${base}/api/v1/curiosity/artifacts`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: "{}",
   });
-  assert.equal(curiosityWrite.status, 428);
-  const curiosityHeld = await curiosityWrite.json();
-  assert.equal(curiosityHeld.error, "action_lease_required");
-  assert.equal(curiosityHeld.writeAvailable, false);
-  assert.equal(curiosityHeld.actionAuthority, false);
-  assert.equal(curiosityHeld.executionAuthority, false);
-  assert.equal(curiosityHeld.effectPerformed, false);
+  assert.equal(legacyCuriosityWrite.status, 410);
+  const legacyCuriosityBody = await legacyCuriosityWrite.json();
+  assert.equal(legacyCuriosityBody.error, "legacy_curiosity_persist_endpoint_retired");
+  assert.equal(legacyCuriosityBody.actionAuthority, false);
+  assert.equal(legacyCuriosityBody.executionAuthority, false);
+
+  const browserApprovalAttempt = await fetch(`${base}/api/v1/operator-approval`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: "{}",
+  });
+  assert.equal(browserApprovalAttempt.status, 405);
 
   const mutation = await fetch(`${base}/api/v1/host-observation`, { method: "POST" });
   assert.equal(mutation.status, 405);
