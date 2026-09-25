@@ -78,6 +78,10 @@ class ExecutionReceipt:
     action_receipt_id: str | None = None
     mandala_status: str | None = None
     governed_provenance: ExecutionProvenance | None = None
+    executor_entered: bool = False
+    reconciliation_status: str = "not_required"
+    effect_confirmed: bool | None = None
+    reconciliation_receipt_sha256: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)

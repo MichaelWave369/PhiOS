@@ -19,7 +19,7 @@ from phios.core.leased_execution_handoff import (
 from phios.effect_intent import EffectIntent
 from phios.enforcement_profile import EnforcementProfile, EnforcementRule
 from phios.mandala import AuthoritativeAuthorityEvent, AuthorityEventKind
-from phios.spine.executor import ArtifactResult
+from phios.spine.executor import ArtifactResult, OutcomeUnknownError
 from phios.spine.models import Capability
 from phios.spine.runtime import PhiOSSpine
 
@@ -485,3 +485,72 @@ def test_existing_atomic_lease_claim_blocks_parallel_attempt(
     assert receipt.reason == "lease_execution_claim_unavailable"
     assert receipt.replay_blocked is True
     assert spine.ledger.recent(10) == []
+
+
+def test_outcome_unknown_consumes_lease_and_blocks_blind_retry(
+    tmp_path: Path,
+) -> None:
+    plan = _plan()
+    payload = {"value": "possibly-committed"}
+    capability = Capability(
+        id="custom.leased-unknown",
+        name="Leased uncertain effect",
+        description="effect may commit before acknowledgement is lost",
+        permissions=("artifact.write",),
+        effects=("filesystem.change",),
+        risk="medium",
+        version="1.0.0",
+    )
+    binding = _binding(plan, capability, payload)
+    lease = _lease(binding)
+    verification = _verification(lease)
+    spine = PhiOSSpine(
+        state_root=tmp_path,
+        allowed_permissions=["artifact.write"],
+    )
+    spine.registry.register(capability)
+
+    def uncertain_handler(data: dict[str, object]) -> ArtifactResult:
+        raise OutcomeUnknownError(
+            f"acknowledgement lost after effect attempt: {data}",
+            external_identifiers={"operation_id": "uncertain-op-001"},
+        )
+
+    spine.executors.register(
+        capability.id,
+        uncertain_handler,
+        effects=("filesystem.change",),
+    )
+    handoff = GovernedLeasedExecutionHandoff()
+
+    uncertain = handoff.execute(
+        plan=plan,
+        binding=binding,
+        payload=payload,
+        spine=spine,
+        lease=lease,
+        verification=verification,
+        current_authority_epoch_sha256=lease.authority_epoch_sha256,
+        checked_at="2026-09-24T02:05:00+00:00",
+    )
+    replay = handoff.execute(
+        plan=plan,
+        binding=binding,
+        payload=payload,
+        spine=spine,
+        lease=lease,
+        verification=verification,
+        current_authority_epoch_sha256=lease.authority_epoch_sha256,
+        checked_at="2026-09-24T02:06:00+00:00",
+    )
+
+    assert uncertain.status == "OUTCOME_UNKNOWN"
+    assert uncertain.reason == "spine_execution_outcome_unknown"
+    assert uncertain.lease_consumed is True
+    assert replay.status == "HELD"
+    assert replay.reason == "lease_consumed"
+
+    entry = spine.ledger.recent(1)[0]
+    assert entry["execution_status"] == "outcome_unknown"
+    assert entry["executor_entered"] is True
+    assert entry["reconciliation_status"] == "required"

@@ -33,7 +33,7 @@ class ExecutionHandoffContractError(ValueError):
 
 @dataclass(frozen=True, slots=True)
 class ExecutionHandoffReceipt:
-    """Runtime receipt for HELD / DENIED / SUCCEEDED / FAILED handoff outcomes."""
+    """Runtime receipt for governed execution handoff outcomes."""
 
     schema: str
     status: str
@@ -354,6 +354,15 @@ class GovernedExecutionHandoff:
             and execution.execution_status == "failed"
         ):
             return "FAILED", "spine_execution_failed", True
+        if (
+            execution.permission_status == "allowed"
+            and execution.execution_status == "outcome_unknown"
+        ):
+            return (
+                "OUTCOME_UNKNOWN",
+                "spine_execution_outcome_unknown",
+                True,
+            )
         raise ExecutionHandoffContractError(
             "spine returned an unsupported execution outcome"
         )
