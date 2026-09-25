@@ -242,3 +242,28 @@ linear-gradient(135deg,rgba(13,32,42,.92),rgba(5,13,17,.96));box-shadow:inset 0 
 .symbol-proposals article b{font-size:8px}.symbol-proposals article span{color:var(--cyan);font-size:7px}.symbol-proposals article em{font-style:normal;color:var(--gold);font-size:7px}.symbol-proposals article small{color:var(--muted);font-size:7px;text-align:right}
 @media (max-width:1200px){.symbol-lab-layout{grid-template-columns:230px minmax(0,1fr)}.symbol-inspector{grid-column:1/-1;grid-template-columns:repeat(2,minmax(0,1fr))}.symbol-inspector>.panel-title,.symbol-inspector-title,.symbol-content,.symbol-authority-grid{grid-column:1/-1}}
 @media (max-width:850px){.symbol-lab-head{display:grid}.symbol-boundary{text-align:left}.symbol-lab-layout{grid-template-columns:1fr}.symbol-inspector{grid-column:auto;display:grid}.symbol-node-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.symbol-proposals article{grid-template-columns:1fr 1fr}}
+
+
+/* PhiShell v0.15 · governed Curiosity persistence bridge */
+.symbol-persist{display:grid;gap:6px;padding-top:9px;border-top:1px solid rgba(215,174,97,.16)}
+.symbol-persist h3{margin:0;color:var(--gold);font-size:7px;letter-spacing:.11em}
+.symbol-persist button{height:30px;border:1px solid rgba(255,120,120,.18);border-radius:6px;background:rgba(255,120,120,.025);color:var(--muted);font-size:8px;cursor:not-allowed}
+.symbol-persist small{color:var(--muted);font-size:7px;line-height:1.45}
+.canonical-curiosity{display:grid;gap:8px}
+.canonical-curiosity-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.canonical-curiosity-head small{display:block;margin-top:3px;color:var(--muted);font:6px ui-monospace,monospace}
+.canonical-curiosity-head button{height:28px;padding:0 9px;border:1px solid rgba(39,223,255,.2);border-radius:6px;background:#071219;color:var(--cyan);font-size:8px;cursor:pointer}
+.canonical-curiosity-head button:disabled{opacity:.55;cursor:default}
+.canonical-curiosity-list{display:grid;gap:5px}
+.canonical-curiosity-list article{display:grid;grid-template-columns:minmax(0,1fr) 140px 110px;gap:8px;align-items:center;padding:8px;border:1px solid rgba(32,229,192,.16);border-radius:7px;background:rgba(32,229,192,.015)}
+.canonical-curiosity-list article>div{min-width:0}
+.canonical-curiosity-list small{display:block;color:var(--teal);font-size:6px;text-transform:uppercase;letter-spacing:.08em}
+.canonical-curiosity-list b{display:block;margin-top:3px;color:var(--text);font-size:8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.canonical-curiosity-list code{display:block;margin-top:4px;color:var(--cyan);font:6px ui-monospace,monospace}
+.canonical-curiosity-list span{color:var(--gold);font-size:6px;text-transform:uppercase}
+.canonical-curiosity-list button{height:27px;border:1px solid rgba(32,229,192,.22);border-radius:5px;background:rgba(32,229,192,.025);color:var(--teal);font-size:7px;cursor:pointer}
+.canonical-write-hold{display:grid;grid-template-columns:auto 1fr minmax(220px,2fr);gap:8px;align-items:center;padding-top:7px;border-top:1px solid rgba(215,174,97,.14)}
+.canonical-write-hold b{color:var(--red);font-size:7px}
+.canonical-write-hold span{color:var(--gold);font:7px ui-monospace,monospace}
+.canonical-write-hold small{color:var(--muted);font-size:7px;text-align:right}
+@media (max-width:850px){.canonical-curiosity-list article{grid-template-columns:1fr}.canonical-write-hold{grid-template-columns:1fr}.canonical-write-hold small{text-align:left}}

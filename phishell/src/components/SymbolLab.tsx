@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   claimClassFor,
   createNode,
@@ -11,6 +11,12 @@ import {
   type SymbolKind,
   type SymbolLabNode,
 } from "../curiosity/symbolLab";
+import {
+  canonicalArtifactToSessionNode,
+  curiosityProjectionProvider,
+  type CanonicalCuriosityArtifact,
+  type CuriosityProjection,
+} from "../curiosity/curiosityProjection";
 
 const kinds: Array<{ kind: SymbolKind; label: string; glyph: string }> = [
   { kind: "symbol", label: "Symbol", glyph: "◈" },
@@ -48,12 +54,35 @@ export function SymbolLab() {
   const [returnPrompt, setReturnPrompt] = useState("");
   const [returnContext, setReturnContext] = useState("");
   const [proposals, setProposals] = useState<PromotionProposal[]>([]);
+  const [canonicalProjection, setCanonicalProjection] = useState<CuriosityProjection | null>(null);
+  const [canonicalStatus, setCanonicalStatus] = useState<"loading" | "ready" | "unavailable">(
+    "loading",
+  );
 
   const selected = nodes.find((node) => node.id === selectedId) ?? null;
   const related = useMemo(
     () => (selected ? relatedSeeds(selected, nodes).slice(0, 6) : []),
     [selected, nodes],
   );
+
+  async function refreshCanonical() {
+    setCanonicalStatus("loading");
+    const projection = await curiosityProjectionProvider.read();
+    setCanonicalProjection(projection);
+    setCanonicalStatus(projection ? "ready" : "unavailable");
+  }
+
+  useEffect(() => {
+    void refreshCanonical();
+  }, []);
+
+  function openCanonical(artifact: CanonicalCuriosityArtifact) {
+    const node = canonicalArtifactToSessionNode(artifact);
+    setNodes((current) =>
+      current.some((item) => item.id === node.id) ? current : [...current, node],
+    );
+    setSelectedId(node.id);
+  }
 
   function addNode() {
     if (!title.trim() || !content.trim()) return;
@@ -116,8 +145,8 @@ export function SymbolLab() {
           </p>
         </div>
         <div className="symbol-boundary">
-          <b>SESSION LOCAL / UNPERSISTED</b>
-          <span>ZERO AUTHORITY · NO EXECUTE PATH</span>
+          <b>SESSION CREATE · CANONICAL READ</b>
+          <span>WRITE HELD · ACTIONLEASE REQUIRED</span>
         </div>
       </header>
 
@@ -186,8 +215,8 @@ export function SymbolLab() {
             Add to Session Field
           </button>
           <small className="symbol-disclaimer">
-            This creates an ephemeral Curiosity object in the current PhiShell session. It does
-            not write the Python Curiosity Store yet.
+            This creates an ephemeral Curiosity object in the current PhiShell session. Canonical
+            persistence remains held until a trusted ActionLease issuer/verifier is configured.
           </small>
         </aside>
 
@@ -226,6 +255,7 @@ export function SymbolLab() {
                   <em>{node.tags.slice(0, 3).join(" · ") || "untagged"}</em>
                   {node.parentIds.length > 0 && <i>↳ child thread</i>}
                   {node.returnPointers.length > 0 && <i>↻ return marked</i>}
+                  {node.id.startsWith("canonical:") && <i>◇ canonical source</i>}
                 </button>
               ))}
             </div>
@@ -292,6 +322,14 @@ export function SymbolLab() {
                 )}
               </section>
 
+              <section className="symbol-persist">
+                <h3>CANONICAL PERSISTENCE</h3>
+                <button disabled>Persist Selected</button>
+                <small>
+                  HELD · requires a trusted single-use ActionLease for curiosity.persist.
+                </small>
+              </section>
+
               <section className="symbol-promote">
                 <h3>EXPLICIT HANDOFF</h3>
                 {targets.map((item) => (
@@ -305,6 +343,51 @@ export function SymbolLab() {
           )}
         </aside>
       </div>
+
+      <section className="canonical-curiosity panel">
+        <div className="canonical-curiosity-head">
+          <div>
+            <div className="panel-title">CANONICAL CURIOSITY STORE</div>
+            <small>READ-ONLY PROJECTION · ZERO AUTHORITY</small>
+          </div>
+          <button onClick={() => void refreshCanonical()} disabled={canonicalStatus === "loading"}>
+            {canonicalStatus === "loading" ? "Reading…" : "Refresh"}
+          </button>
+        </div>
+        {canonicalStatus === "unavailable" ? (
+          <div className="empty-state">
+            Curiosity sidecar unavailable. Start the local projection service to read canonical
+            artifacts; the Symbol Lab remains session-local meanwhile.
+          </div>
+        ) : canonicalProjection?.artifacts.length ? (
+          <div className="canonical-curiosity-list">
+            {canonicalProjection.artifacts.slice(0, 8).map((artifact) => (
+              <article key={artifact.curiosity_artifact_sha256}>
+                <div>
+                  <small>{artifact.artifact_kind.replaceAll("_", " ")}</small>
+                  <b>{artifact.title}</b>
+                  <code>{artifact.curiosity_artifact_sha256.slice(0, 16)}…</code>
+                </div>
+                <span>{artifact.claim_class.replaceAll("_", " ")}</span>
+                <button onClick={() => openCanonical(artifact)}>Open Read Copy</button>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <div className="empty-state">
+            {canonicalStatus === "loading"
+              ? "Reading canonical Curiosity Store…"
+              : "No canonical Curiosity artifacts are stored yet."}
+          </div>
+        )}
+        <div className="canonical-write-hold">
+          <b>WRITE HELD</b>
+          <span>
+            {canonicalProjection?.writeHoldReason ?? "action_lease_broker_unavailable"}
+          </span>
+          <small>Stored artifacts can be read without granting them factual or action authority.</small>
+        </div>
+      </section>
 
       <section className="symbol-proposals panel">
         <div className="panel-title">PROMOTION PROPOSALS · SESSION ONLY</div>
