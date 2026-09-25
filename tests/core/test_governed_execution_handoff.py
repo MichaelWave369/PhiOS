@@ -11,7 +11,10 @@ from phios.core.governed_action_binding import (
     ActionBindingGrant,
     GovernedActionBinder,
 )
-from phios.core.governed_execution_handoff import GovernedExecutionHandoff
+from phios.core.governed_execution_handoff import (
+    ExecutionHandoffContractError,
+    GovernedExecutionHandoff,
+)
 from phios.core.governed_plan_adoption import GovernedPlanAdoptionGate
 from phios.spine.executor import ArtifactResult
 from phios.spine.models import Capability
@@ -446,3 +449,80 @@ def test_executor_effect_mismatch_is_held_before_binding_claim(tmp_path: Path) -
         "effect_boundary_capability_executor_effect_contract_mismatch"
     )
     assert spine.ledger.has_consumed_binding(binding.binding_sha256) is False
+
+
+def test_partial_lease_provenance_is_rejected_before_binding_claim(
+    tmp_path: Path,
+) -> None:
+    plan = _plan()
+    payload = {"name": "partial-lease", "text": "must fail closed"}
+    spine = PhiOSSpine(
+        state_root=tmp_path,
+        allowed_permissions=["artifact.write"],
+    )
+    binding = _binding(
+        plan,
+        spine.registry.get("commons.text_artifact"),
+        payload,
+    )
+    handoff = GovernedExecutionHandoff()
+
+    with pytest.raises(
+        ExecutionHandoffContractError,
+        match="lease provenance must provide all four SHA-256 digests",
+    ):
+        handoff.execute(
+            plan=plan,
+            binding=binding,
+            payload=payload,
+            spine=spine,
+            action_lease_sha256="a" * 64,
+        )
+
+    retry = handoff.execute(
+        plan=plan,
+        binding=binding,
+        payload=payload,
+        spine=spine,
+    )
+    assert retry.status == "SUCCEEDED"
+
+
+def test_malformed_complete_lease_provenance_is_rejected_before_binding_claim(
+    tmp_path: Path,
+) -> None:
+    plan = _plan()
+    payload = {"name": "bad-lease", "text": "digest validation"}
+    spine = PhiOSSpine(
+        state_root=tmp_path,
+        allowed_permissions=["artifact.write"],
+    )
+    binding = _binding(
+        plan,
+        spine.registry.get("commons.text_artifact"),
+        payload,
+    )
+    handoff = GovernedExecutionHandoff()
+
+    with pytest.raises(
+        ExecutionHandoffContractError,
+        match="action_lease_sha256 must be a lowercase SHA-256 digest",
+    ):
+        handoff.execute(
+            plan=plan,
+            binding=binding,
+            payload=payload,
+            spine=spine,
+            action_lease_sha256="A" * 64,
+            authority_epoch_sha256="b" * 64,
+            authorization_receipt_sha256="c" * 64,
+            lease_verification_sha256="d" * 64,
+        )
+
+    retry = handoff.execute(
+        plan=plan,
+        binding=binding,
+        payload=payload,
+        spine=spine,
+    )
+    assert retry.status == "SUCCEEDED"
