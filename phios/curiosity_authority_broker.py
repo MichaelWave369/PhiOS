@@ -822,7 +822,7 @@ class CuriosityAuthorityHandler(BaseHTTPRequestHandler):
         self.send_header("x-content-type-options", "nosniff")
         self.send_header(
             "cross-origin-resource-policy",
-            "same-origin",
+            "same-site" if browser_visible else "same-origin",
         )
         self.send_header("referrer-policy", "no-referrer")
         if browser_visible:
@@ -1040,6 +1040,10 @@ class CuriosityAuthorityHandler(BaseHTTPRequestHandler):
                     "executionAuthority": False,
                     "effectPerformed": False,
                 },
+                browser_visible=(
+                    parsed.path
+                    == "/api/v1/curiosity/persist-requests"
+                ),
             )
 
 
