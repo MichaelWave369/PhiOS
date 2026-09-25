@@ -7,7 +7,7 @@ from collections.abc import Iterable
 from dataclasses import replace
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from phios.mandala import (
     AbortReceipt,
@@ -71,6 +71,13 @@ from .gate import PermissionGate
 from .ledger import RealityLedger
 from .models import Capability, ExecutionProvenance, ExecutionReceipt
 from .registry import CapabilityRegistry
+
+if TYPE_CHECKING:
+    from phios.evidence_ref import EvidenceRef
+    from phios.reality_reconciliation import (
+        RealityBoundReconciliationReceipt,
+        RealityReconciliationPolicy,
+    )
 
 
 class PhiOSSpine:
@@ -356,6 +363,35 @@ class PhiOSSpine:
             source_receipt=verification.receipt,
             request=request,
         )
+
+    def reconcile_uncertain_execution(
+        self,
+        *,
+        execution: ExecutionReceipt,
+        capability: Capability,
+        policy: "RealityReconciliationPolicy",
+        verification: RealityVerificationResult,
+        evidence_refs: tuple["EvidenceRef", ...],
+        reconciler_id: str,
+        reconciled_at: str,
+    ) -> "RealityBoundReconciliationReceipt":
+        """Reconcile an outcome-unknown execution through bound Reality evidence."""
+
+        from phios.reality_reconciliation import (
+            reconcile_execution_with_reality,
+        )
+
+        receipt = reconcile_execution_with_reality(
+            execution=execution,
+            capability=capability,
+            policy=policy,
+            verification=verification,
+            evidence_refs=evidence_refs,
+            reconciler_id=reconciler_id,
+            reconciled_at=reconciled_at,
+        )
+        self.ledger.append_reconciliation(receipt)
+        return receipt
 
     def enhance_screen_evidence(
         self,
