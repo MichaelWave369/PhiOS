@@ -835,6 +835,12 @@ class CuriosityAuthorityHandler(BaseHTTPRequestHandler):
         self.wfile.write(encoded)
 
     def _read_json(self) -> dict[str, object]:
+        content_type = self.headers.get("content-type", "")
+        media_type = content_type.split(";", 1)[0].strip().lower()
+        if media_type != "application/json":
+            raise CuriosityAuthorityBrokerError(
+                "content-type must be application/json"
+            )
         raw_length = self.headers.get("content-length")
         if raw_length is None:
             raise CuriosityAuthorityBrokerError(
