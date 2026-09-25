@@ -10,6 +10,7 @@ from phios.curiosity_authority_broker import (
     CuriosityAuthorityBroker,
     CuriosityAuthorityBrokerError,
     OperatorApproval,
+    _canonical_now,
     create_operator_approval,
     load_or_create_local_key,
 )
@@ -47,7 +48,7 @@ def _approval(
         request_id=request_id,
         payload_sha256=payload_sha256,
         principal_id=broker.principal_id,
-        approved_at="2026-09-25T21:10:30+00:00",
+        approved_at=_canonical_now(),
         key=broker.key,
     )
 
@@ -81,23 +82,9 @@ def test_browser_request_cannot_choose_operator_principal(
 
 def test_exact_operator_approval_persists_once_through_governed_path(
     tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     broker = _broker(tmp_path)
     request = broker.create_request(_browser_payload())
-
-    class _Clock:
-        @staticmethod
-        def now(_tz):
-            from datetime import UTC, datetime
-
-            return datetime.fromisoformat(
-                "2026-09-25T21:10:31+00:00"
-            ).astimezone(UTC)
-
-    import phios.curiosity_authority_broker as module
-
-    monkeypatch.setattr(module, "datetime", _Clock)
 
     approval = _approval(
         broker,
@@ -201,7 +188,7 @@ def test_wrong_principal_approval_is_rejected(
         request_id=request.request_id,
         payload_sha256=request.payload_sha256,
         principal_id="operator:someone-else",
-        approved_at="2026-09-25T21:10:30+00:00",
+        approved_at=_canonical_now(),
         key=broker.key,
     )
 
