@@ -26,6 +26,29 @@ CURIOSITY_RETURN_POINTER_SCHEMA_VERSION = (
 )
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 _WORD_RE = re.compile(r"[a-z0-9]+(?:[_-][a-z0-9]+)*")
+_RELATION_STOPWORDS = {
+    "a",
+    "an",
+    "and",
+    "are",
+    "as",
+    "at",
+    "be",
+    "by",
+    "for",
+    "from",
+    "in",
+    "is",
+    "it",
+    "of",
+    "on",
+    "or",
+    "that",
+    "the",
+    "this",
+    "to",
+    "with",
+}
 
 
 class CuriosityStoreError(ValueError):
@@ -111,6 +134,16 @@ def _parse_time(value: str) -> datetime:
 
 def _tokens(value: str) -> set[str]:
     return set(_WORD_RE.findall(value.lower()))
+
+
+def _relation_tokens(value: str) -> set[str]:
+    """Return lexical tokens useful for transparent related-seed scoring."""
+
+    return {
+        token
+        for token in _tokens(value)
+        if token not in _RELATION_STOPWORDS and len(token) > 2
+    }
 
 
 @dataclass(frozen=True, slots=True)
@@ -533,7 +566,7 @@ class CuriosityStore:
             return []
 
         source_tags = set(source.tags)
-        source_tokens = _tokens(
+        source_tokens = _relation_tokens(
             f"{source.title} {source.content}"
         )
         relations: list[CuriosityRelation] = []
@@ -553,7 +586,7 @@ class CuriosityStore:
                     "shared_tags:" + ",".join(shared_tags)
                 )
 
-            candidate_tokens = _tokens(
+            candidate_tokens = _relation_tokens(
                 f"{candidate.title} {candidate.content}"
             )
             union = source_tokens.union(candidate_tokens)
