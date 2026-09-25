@@ -23,6 +23,10 @@ import {
   fetchPersistRequest,
 } from "./curiosityAuthorityProxy.mjs";
 import { readBoundedJsonObject } from "./boundedJsonBody.mjs";
+import {
+  validateCuriosityPersistRequestId,
+  validateCuriosityPersistRequestPayload,
+} from "./curiosityDoorbellContract.mjs";
 
 const LOOPBACK_HOST = "127.0.0.1";
 const DEFAULT_PORT = 3969;
@@ -118,14 +122,57 @@ export function createLocalObservationServer({
 
       if (
         request.method === "POST" &&
+        url.pathname === "/api/v1/curiosity/persist-requests"
+      ) {
+        let payload;
+        try {
+          payload = await readBoundedJsonObject(request, { maxBytes: 65536 });
+        } catch {
+          jsonResponse(response, 400, {
+            error: "invalid_curiosity_persist_request_body",
+            operationalAuthority: false,
+            actionAuthority: false,
+            executionAuthority: false,
+            effectPerformed: false,
+          });
+          return;
+        }
+
+        if (!validateCuriosityPersistRequestPayload(payload)) {
+          jsonResponse(response, 400, {
+            error: "invalid_curiosity_persist_request",
+            operationalAuthority: false,
+            actionAuthority: false,
+            executionAuthority: false,
+            effectPerformed: false,
+          });
+          return;
+        }
+
+        const created = await curiosityPersistRequestCreator(payload);
+        if (!created) {
+          jsonResponse(response, 503, {
+            error: "curiosity_authority_broker_unavailable",
+            operationalAuthority: false,
+            actionAuthority: false,
+            executionAuthority: false,
+            effectPerformed: false,
+          });
+          return;
+        }
+
+        jsonResponse(response, 201, created);
+        return;
+      }
+
+      if (
+        request.method === "POST" &&
         url.pathname === "/api/v1/curiosity/artifacts"
       ) {
-        jsonResponse(response, 428, {
-          error: "action_lease_required",
+        jsonResponse(response, 410, {
+          error: "legacy_curiosity_persist_endpoint_retired",
           reason:
-            "Curiosity persistence is held until a trusted ActionLease issuer/verifier bridge is configured.",
-          localOnly: true,
-          writeAvailable: false,
+            "Use the governed Curiosity persistence-request handshake.",
           operationalAuthority: false,
           actionAuthority: false,
           executionAuthority: false,
@@ -358,6 +405,75 @@ export function createLocalObservationServer({
           return;
         }
         jsonResponse(response, 200, historyEnvelope);
+        return;
+      }
+
+      if (url.pathname === "/api/v1/curiosity-authority") {
+        if ([...url.searchParams.keys()].length !== 0) {
+          jsonResponse(response, 400, {
+            error: "invalid_curiosity_authority_request",
+            operationalAuthority: false,
+            actionAuthority: false,
+            executionAuthority: false,
+            effectPerformed: false,
+          });
+          return;
+        }
+
+        const health = await curiosityAuthorityHealthFetcher();
+        if (!health) {
+          jsonResponse(response, 503, {
+            error: "curiosity_authority_broker_unavailable",
+            operationalAuthority: false,
+            actionAuthority: false,
+            executionAuthority: false,
+            effectPerformed: false,
+          });
+          return;
+        }
+
+        jsonResponse(response, 200, health);
+        return;
+      }
+
+      const persistRequestPrefix = "/api/v1/curiosity/persist-requests/";
+      if (url.pathname.startsWith(persistRequestPrefix)) {
+        if ([...url.searchParams.keys()].length !== 0) {
+          jsonResponse(response, 400, {
+            error: "invalid_curiosity_persist_status_request",
+            operationalAuthority: false,
+            actionAuthority: false,
+            executionAuthority: false,
+            effectPerformed: false,
+          });
+          return;
+        }
+
+        const requestId = url.pathname.slice(persistRequestPrefix.length);
+        if (!validateCuriosityPersistRequestId(requestId)) {
+          jsonResponse(response, 400, {
+            error: "invalid_curiosity_persist_request_id",
+            operationalAuthority: false,
+            actionAuthority: false,
+            executionAuthority: false,
+            effectPerformed: false,
+          });
+          return;
+        }
+
+        const item = await curiosityPersistRequestFetcher(requestId);
+        if (!item) {
+          jsonResponse(response, 503, {
+            error: "curiosity_persist_request_unavailable",
+            operationalAuthority: false,
+            actionAuthority: false,
+            executionAuthority: false,
+            effectPerformed: false,
+          });
+          return;
+        }
+
+        jsonResponse(response, 200, item);
         return;
       }
 
