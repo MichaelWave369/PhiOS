@@ -20,7 +20,7 @@ import json
 import re
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Mapping
+from typing import Any
 
 from phios.evidence_ref import EvidenceRef
 from phios.spine.models import ExecutionReceipt
