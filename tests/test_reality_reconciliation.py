@@ -7,6 +7,7 @@ import pytest
 
 from phios.evidence_ref import EvidenceRef
 from phios.reality import RealityClaim, RealityClaimKind
+from phios.reality.local_network import InterfaceObservation
 from phios.reality_reconciliation import (
     RealityReconciliationContractError,
     RealityReconciliationPolicy,
@@ -16,15 +17,34 @@ from phios.spine.models import Capability, ExecutionReceipt
 from phios.spine.runtime import PhiOSSpine
 
 
+class StaticInterfaceProvider:
+    name = "test.static-interface"
+
+    def __init__(self, *, is_up: bool) -> None:
+        self._is_up = is_up
+
+    def observe(self, interface_name: str) -> InterfaceObservation:
+        return InterfaceObservation(
+            interface_name=interface_name,
+            is_up=self._is_up,
+            duplex=2,
+            speed_mbps=1000,
+            mtu=1500,
+            provider=self.name,
+            provider_version="1.0",
+            captured_at_utc="2026-09-25T03:01:00+00:00",
+        )
+
+
 def _capability(
     *,
     version: str = "1.0.0",
-    effects: tuple[str, ...] = ("external_state.change",),
+    effects: tuple[str, ...] = ("local_state.change",),
 ) -> Capability:
     return Capability(
-        id="network.switch.port-state",
-        name="Switch port state",
-        description="Change one governed switch-port state.",
+        id="network.local-interface-state",
+        name="Local interface state",
+        description="Change one governed local interface state.",
         permissions=("network.change",),
         effects=effects,
         risk="medium",
@@ -37,7 +57,7 @@ def _unknown_execution() -> ExecutionReceipt:
         schema_version="phios.execution_receipt.v0.1",
         receipt_id="exec-reality-unknown-001",
         timestamp_utc="2026-09-25T03:00:00+00:00",
-        capability_id="network.switch.port-state",
+        capability_id="network.local-interface-state",
         planner="phivessel.spine.deterministic",
         input_sha256="a" * 64,
         permissions_requested=["network.change"],
@@ -45,7 +65,7 @@ def _unknown_execution() -> ExecutionReceipt:
         execution_status="outcome_unknown",
         executor_entered=True,
         reconciliation_status="required",
-        error="OutcomeUnknownError: connection lost after command send",
+        error="OutcomeUnknownError: connection lost after state change request",
     )
 
 
@@ -55,50 +75,60 @@ def _policy(
     contradicted_disposition: str = "inconclusive",
 ) -> RealityReconciliationPolicy:
     return RealityReconciliationPolicy.build(
-        policy_id="switch-port-postcondition-v01",
+        policy_id="local-interface-postcondition-v01",
         capability=capability,
-        allowed_claim_kinds=(RealityClaimKind.SOURCE_CONTAINS_TEXT,),
+        allowed_claim_kinds=(RealityClaimKind.LOCAL_INTERFACE_STATE,),
         contradicted_disposition=contradicted_disposition,
     )
 
 
-def _verify_text(
+def _verify_interface(
     spine: PhiOSSpine,
     *,
-    observed_text: str,
-    expected_text: str,
+    observed_is_up: bool,
+    expected_is_up: bool,
 ):
-    observation = spine.perceive_text(
-        source_id="switch-observer:test",
-        text=observed_text,
-    )
     claim = RealityClaim.create(
-        kind=RealityClaimKind.SOURCE_CONTAINS_TEXT,
-        statement="intended switch-port postcondition is present",
-        evidence_refs=(observation.evidence.evidence_ref,),
-        expected_text=expected_text,
+        kind=RealityClaimKind.LOCAL_INTERFACE_STATE,
+        statement="intended local interface postcondition is observed",
+        interface_name="eth-test",
+        expected_is_up=expected_is_up,
     )
-    verification = spine.verify_reality(claims=(claim,))
+    verification = spine.verify_reality(
+        claims=(claim,),
+        interface_provider=StaticInterfaceProvider(is_up=observed_is_up),
+    )
+    assert len(verification.receipt.evidence_used) == 1
+    evidence_uri = verification.receipt.evidence_used[0]
+    prefix = "evidence:sha256:"
+    assert evidence_uri.startswith(prefix)
     evidence = EvidenceRef.build(
-        source_id="switch-observer:test",
+        source_id="interface-observer:eth-test",
         source_kind="runtime_observation",
-        content_sha256=observation.evidence.sha256,
-        observed_at=observation.receipt.timestamp_utc,
-        exactness_class=observation.receipt.exactness_class,
+        content_sha256=evidence_uri[len(prefix):],
+        observed_at=verification.receipt.timestamp_utc,
+        exactness_class="direct_observation",
     )
     return verification, evidence
+
+
+def _spine(tmp_path: Path) -> PhiOSSpine:
+    return PhiOSSpine(
+        state_root=tmp_path,
+        allowed_permissions=["reality.local_interface.read"],
+    )
 
 
 def test_supported_reality_postcondition_confirms_uncertain_effect(
     tmp_path: Path,
 ) -> None:
-    spine = PhiOSSpine(state_root=tmp_path)
+    spine = _spine(tmp_path)
     capability = _capability()
     policy = _policy(capability)
-    verification, evidence = _verify_text(
+    verification, evidence = _verify_interface(
         spine,
-        observed_text="interface Gi1/0/24 state=down",
-        expected_text="state=down",
+        observed_is_up=False,
+        expected_is_up=False,
     )
 
     receipt = spine.reconcile_uncertain_execution(
@@ -107,7 +137,7 @@ def test_supported_reality_postcondition_confirms_uncertain_effect(
         policy=policy,
         verification=verification,
         evidence_refs=(evidence,),
-        reconciler_id="reconciler:switch-state",
+        reconciler_id="reconciler:local-interface",
         reconciled_at="2026-09-25T03:02:00+00:00",
     )
 
@@ -128,16 +158,16 @@ def test_supported_reality_postcondition_confirms_uncertain_effect(
 def test_contradicted_postcondition_can_confirm_no_effect_only_when_policy_allows(
     tmp_path: Path,
 ) -> None:
-    spine = PhiOSSpine(state_root=tmp_path)
+    spine = _spine(tmp_path)
     capability = _capability()
     policy = _policy(
         capability,
         contradicted_disposition="no_effect_confirmed",
     )
-    verification, evidence = _verify_text(
+    verification, evidence = _verify_interface(
         spine,
-        observed_text="interface Gi1/0/24 state=up",
-        expected_text="state=down",
+        observed_is_up=True,
+        expected_is_up=False,
     )
 
     receipt = reconcile_execution_with_reality(
@@ -146,7 +176,7 @@ def test_contradicted_postcondition_can_confirm_no_effect_only_when_policy_allow
         policy=policy,
         verification=verification,
         evidence_refs=(evidence,),
-        reconciler_id="reconciler:switch-state",
+        reconciler_id="reconciler:local-interface",
         reconciled_at="2026-09-25T03:02:00+00:00",
     )
 
@@ -161,13 +191,13 @@ def test_contradicted_postcondition_can_confirm_no_effect_only_when_policy_allow
 def test_contradiction_defaults_to_inconclusive(
     tmp_path: Path,
 ) -> None:
-    spine = PhiOSSpine(state_root=tmp_path)
+    spine = _spine(tmp_path)
     capability = _capability()
     policy = _policy(capability)
-    verification, evidence = _verify_text(
+    verification, evidence = _verify_interface(
         spine,
-        observed_text="interface Gi1/0/24 state=up",
-        expected_text="state=down",
+        observed_is_up=True,
+        expected_is_up=False,
     )
 
     receipt = reconcile_execution_with_reality(
@@ -176,7 +206,7 @@ def test_contradiction_defaults_to_inconclusive(
         policy=policy,
         verification=verification,
         evidence_refs=(evidence,),
-        reconciler_id="reconciler:switch-state",
+        reconciler_id="reconciler:local-interface",
         reconciled_at="2026-09-25T03:02:00+00:00",
     )
 
@@ -189,14 +219,14 @@ def test_contradiction_defaults_to_inconclusive(
 def test_capability_effect_scope_drift_fails_closed(
     tmp_path: Path,
 ) -> None:
-    spine = PhiOSSpine(state_root=tmp_path)
+    spine = _spine(tmp_path)
     original = _capability()
     policy = _policy(original)
     drifted = _capability(effects=("control_plane.change",))
-    verification, evidence = _verify_text(
+    verification, evidence = _verify_interface(
         spine,
-        observed_text="interface Gi1/0/24 state=down",
-        expected_text="state=down",
+        observed_is_up=False,
+        expected_is_up=False,
     )
 
     with pytest.raises(
@@ -209,7 +239,7 @@ def test_capability_effect_scope_drift_fails_closed(
             policy=policy,
             verification=verification,
             evidence_refs=(evidence,),
-            reconciler_id="reconciler:switch-state",
+            reconciler_id="reconciler:local-interface",
             reconciled_at="2026-09-25T03:02:00+00:00",
         )
 
@@ -217,13 +247,13 @@ def test_capability_effect_scope_drift_fails_closed(
 def test_unrelated_canonical_evidence_cannot_reconcile_reality_result(
     tmp_path: Path,
 ) -> None:
-    spine = PhiOSSpine(state_root=tmp_path)
+    spine = _spine(tmp_path)
     capability = _capability()
     policy = _policy(capability)
-    verification, _ = _verify_text(
+    verification, _ = _verify_interface(
         spine,
-        observed_text="interface Gi1/0/24 state=down",
-        expected_text="state=down",
+        observed_is_up=False,
+        expected_is_up=False,
     )
     unrelated = EvidenceRef.build(
         source_id="unrelated",
@@ -243,7 +273,7 @@ def test_unrelated_canonical_evidence_cannot_reconcile_reality_result(
             policy=policy,
             verification=verification,
             evidence_refs=(unrelated,),
-            reconciler_id="reconciler:switch-state",
+            reconciler_id="reconciler:local-interface",
             reconciled_at="2026-09-25T03:02:00+00:00",
         )
 
@@ -262,13 +292,13 @@ def test_policy_digest_is_deterministic_and_zero_authority() -> None:
 def test_tampered_reality_claim_results_cannot_be_reconciled(
     tmp_path: Path,
 ) -> None:
-    spine = PhiOSSpine(state_root=tmp_path)
+    spine = _spine(tmp_path)
     capability = _capability()
     policy = _policy(capability)
-    verification, evidence = _verify_text(
+    verification, evidence = _verify_interface(
         spine,
-        observed_text="interface Gi1/0/24 state=down",
-        expected_text="state=down",
+        observed_is_up=False,
+        expected_is_up=False,
     )
     tampered = replace(
         verification,
@@ -290,6 +320,6 @@ def test_tampered_reality_claim_results_cannot_be_reconciled(
             policy=policy,
             verification=tampered,
             evidence_refs=(evidence,),
-            reconciler_id="reconciler:switch-state",
+            reconciler_id="reconciler:local-interface",
             reconciled_at="2026-09-25T03:02:00+00:00",
         )
