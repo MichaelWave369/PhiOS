@@ -58,6 +58,7 @@ LEASE_TTL_SECONDS = 120
 MAX_REQUESTS = 32
 MAX_REQUEST_BYTES = 131_072
 BROKER_ID = "phios.curiosity-authority-broker.local.v0.5"
+DEFAULT_PHISHELL_ORIGIN = "http://127.0.0.1:3969"
 
 _BROKER_POLICY = {
     "schema_version": "phios.curiosity_authority_policy.v0.5",
@@ -808,6 +809,8 @@ class CuriosityAuthorityHandler(BaseHTTPRequestHandler):
         self,
         status: HTTPStatus,
         body: dict[str, object],
+        *,
+        browser_visible: bool = False,
     ) -> None:
         encoded = _canonical_json(body).encode("utf-8")
         self.send_response(status.value)
@@ -822,6 +825,11 @@ class CuriosityAuthorityHandler(BaseHTTPRequestHandler):
             "same-origin",
         )
         self.send_header("referrer-policy", "no-referrer")
+        if browser_visible:
+            origin = self.headers.get("origin")
+            if origin == DEFAULT_PHISHELL_ORIGIN:
+                self.send_header("access-control-allow-origin", origin)
+                self.send_header("vary", "Origin")
         self.send_header("content-length", str(len(encoded)))
         self.end_headers()
         self.wfile.write(encoded)
@@ -855,6 +863,32 @@ class CuriosityAuthorityHandler(BaseHTTPRequestHandler):
             )
         return parsed
 
+    def do_OPTIONS(self) -> None:
+        parsed = urlsplit(self.path)
+        origin = self.headers.get("origin")
+        requested_method = self.headers.get(
+            "access-control-request-method"
+        )
+        if (
+            parsed.path
+            == "/api/v1/curiosity/persist-requests"
+            and origin == DEFAULT_PHISHELL_ORIGIN
+            and requested_method == "POST"
+        ):
+            self.send_response(HTTPStatus.NO_CONTENT.value)
+            self.send_header("access-control-allow-origin", origin)
+            self.send_header("access-control-allow-methods", "POST")
+            self.send_header(
+                "access-control-allow-headers",
+                "content-type, accept",
+            )
+            self.send_header("access-control-max-age", "600")
+            self.send_header("vary", "Origin")
+            self.end_headers()
+            return
+        self.send_response(HTTPStatus.FORBIDDEN.value)
+        self.end_headers()
+
     def do_GET(self) -> None:
         parsed = urlsplit(self.path)
         if parsed.query:
@@ -868,6 +902,7 @@ class CuriosityAuthorityHandler(BaseHTTPRequestHandler):
             self._json(
                 HTTPStatus.OK,
                 self.server.broker.health(),
+                browser_visible=True,
             )
             return
 
@@ -896,6 +931,7 @@ class CuriosityAuthorityHandler(BaseHTTPRequestHandler):
             self._json(
                 HTTPStatus.OK,
                 item.public_dict(),
+                browser_visible=True,
             )
             return
 
@@ -925,6 +961,7 @@ class CuriosityAuthorityHandler(BaseHTTPRequestHandler):
                 self._json(
                     HTTPStatus.CREATED,
                     item.public_dict(),
+                    browser_visible=True,
                 )
                 return
 
