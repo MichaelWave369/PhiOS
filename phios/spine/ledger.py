@@ -9,6 +9,7 @@ from .models import ExecutionReceipt
 
 if TYPE_CHECKING:
     from phios.execution_outcome import ExecutionReconciliationReceipt
+    from phios.reality_reconciliation import RealityBoundReconciliationReceipt
 
 
 class RealityLedger:
@@ -34,7 +35,7 @@ class RealityLedger:
 
     def append_reconciliation(
         self,
-        receipt: "ExecutionReconciliationReceipt",
+        receipt: "ExecutionReconciliationReceipt | RealityBoundReconciliationReceipt",
     ) -> None:
         """Append one immutable reconciliation receipt beside execution history."""
 
