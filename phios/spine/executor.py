@@ -4,12 +4,38 @@ import hashlib
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from typing import Any
 
 from .effects import normalize_effects
 
 Handler = Callable[[dict[str, Any]], "ArtifactResult"]
+
+
+class OutcomeUnknownError(RuntimeError):
+    """Executor entered an effecting attempt but cannot prove final effect state."""
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        external_identifiers: Mapping[str, str] | None = None,
+    ) -> None:
+        if not isinstance(message, str) or not message:
+            raise ValueError("OutcomeUnknownError message must be non-empty")
+        identifiers = dict(external_identifiers or {})
+        for key, value in identifiers.items():
+            if (
+                not isinstance(key, str)
+                or not key
+                or not isinstance(value, str)
+                or not value
+            ):
+                raise ValueError(
+                    "OutcomeUnknownError external identifiers must be non-empty strings"
+                )
+        self.external_identifiers = dict(sorted(identifiers.items()))
+        super().__init__(message)
 
 
 @dataclass(frozen=True)
