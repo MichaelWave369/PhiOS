@@ -346,6 +346,51 @@ def _validate_policy_binding(
         )
 
 
+def _validate_verification_integrity(
+    verification: RealityVerificationResult,
+) -> None:
+    if verification.receipt.packet_id != verification.packet.packet_id:
+        raise RealityReconciliationContractError(
+            "Reality verification packet/receipt identity mismatch"
+        )
+    if verification.receipt.task_id != verification.packet.task_id:
+        raise RealityReconciliationContractError(
+            "Reality verification task identity mismatch"
+        )
+
+    claim_results = [dict(item) for item in verification.claim_results]
+    receipt_claims = [dict(item) for item in verification.receipt.claims_checked]
+    if _canonical_json(claim_results) != _canonical_json(receipt_claims):
+        raise RealityReconciliationContractError(
+            "Reality receipt claims_checked does not match claim_results"
+        )
+
+    packet_claim_ids = {
+        item.get("claim_id")
+        for item in verification.packet.claims
+        if isinstance(item, dict)
+    }
+    result_claim_ids = {
+        item.get("claim_id")
+        for item in verification.claim_results
+        if isinstance(item, dict)
+    }
+    if packet_claim_ids != result_claim_ids:
+        raise RealityReconciliationContractError(
+            "Reality packet claims do not match verification claim results"
+        )
+
+    expected_summary: dict[str, int] = {}
+    for item in verification.claim_results:
+        verdict = item.get("verdict")
+        if isinstance(verdict, str):
+            expected_summary[verdict] = expected_summary.get(verdict, 0) + 1
+    if expected_summary != verification.receipt.verdict_summary:
+        raise RealityReconciliationContractError(
+            "Reality verdict summary does not match claim results"
+        )
+
+
 def _claim_verdicts(
     *,
     verification: RealityVerificationResult,
@@ -456,6 +501,7 @@ def reconcile_execution_with_reality(
         capability=capability,
         policy=policy,
     )
+    _validate_verification_integrity(verification)
     verdicts = _claim_verdicts(
         verification=verification,
         policy=policy,
