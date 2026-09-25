@@ -174,7 +174,20 @@ export function SymbolLab() {
     const updated = await curiosityPersistenceClient.status(selectedPersistRequest.requestId);
     if (updated) {
       setPersistRequests((current) => ({ ...current, [selected.id]: updated }));
-      if (updated.status === "succeeded") {
+      if (updated.status === "succeeded" && updated.artifactSha256) {
+        const canonicalParentId = `canonical:${updated.artifactSha256}`;
+        setNodes((current) =>
+          current.map((node) =>
+            node.id === selected.id
+              ? node
+              : {
+                  ...node,
+                  parentIds: node.parentIds.map((parentId) =>
+                    parentId === selected.id ? canonicalParentId : parentId,
+                  ),
+                },
+          ),
+        );
         await refreshCanonical();
       }
     }
