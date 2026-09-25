@@ -66,7 +66,7 @@ from phios.soma import (
 from .api_keys import ApiKeyBoundary
 from .collaborator import PhiVesselAdapter
 from .effects import EffectBoundaryPolicy
-from .executor import ExecutorRegistry, text_artifact_handler
+from .executor import ExecutorRegistry, OutcomeUnknownError, text_artifact_handler
 from .gate import PermissionGate
 from .ledger import RealityLedger
 from .models import Capability, ExecutionProvenance, ExecutionReceipt
@@ -571,6 +571,7 @@ class PhiOSSpine:
             self.ledger.append(receipt)
             return receipt
 
+        receipt.executor_entered = True
         try:
             artifact = self.executors.execute(capability.id, plan.payload)
             receipt.execution_status = "succeeded"
@@ -590,6 +591,23 @@ class PhiOSSpine:
                     "artifact_path": str(artifact.path),
                     "artifact_sha256": artifact.sha256,
                 },
+            )
+            self.mandala_ledger.append(action_receipt)
+        except OutcomeUnknownError as exc:
+            receipt.execution_status = "outcome_unknown"
+            receipt.reconciliation_status = "required"
+            receipt.error = f"{type(exc).__name__}: {exc}"
+            action_receipt = ActionReceipt(
+                **receipt_meta(
+                    packet,
+                    status=MandalaStatus.ABORTED,
+                    produced_by="phios.action_gate",
+                    parent_receipt_id=gate_receipt.receipt_id,
+                ),
+                approved_grant=decision.granted,
+                side_effect={"capability_id": capability.id},
+                outcome="outcome_unknown",
+                external_identifiers=exc.external_identifiers,
             )
             self.mandala_ledger.append(action_receipt)
         except Exception as exc:  # noqa: BLE001 - executor boundary receipts arbitrary failures
