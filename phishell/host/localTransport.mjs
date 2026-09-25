@@ -17,11 +17,6 @@ import { assertValidSystemStateReceipt } from "./systemStateContract.mjs";
 import { fetchPersistentHistoryProjection } from "./persistentHistoryProxy.mjs";
 import { fetchHistoryComparison } from "./historyComparisonProxy.mjs";
 import { fetchCuriosityProjection } from "./curiosityProjectionProxy.mjs";
-import {
-  createPersistRequest,
-  fetchBrokerHealth,
-  fetchPersistRequest,
-} from "./curiosityAuthorityProxy.mjs";
 
 const LOOPBACK_HOST = "127.0.0.1";
 const DEFAULT_PORT = 3969;
@@ -103,9 +98,6 @@ export function createLocalObservationServer({
   historyProjectionFetcher = fetchPersistentHistoryProjection,
   historyComparisonFetcher = fetchHistoryComparison,
   curiosityProjectionFetcher = fetchCuriosityProjection,
-  curiosityAuthorityHealthFetcher = fetchBrokerHealth,
-  curiosityPersistRequestCreator = createPersistRequest,
-  curiosityPersistRequestFetcher = fetchPersistRequest,
 } = {}) {
   if (!Number.isInteger(port) || port < 0 || port > 65535) {
     throw new Error("local observation port must be an integer between 0 and 65535");
