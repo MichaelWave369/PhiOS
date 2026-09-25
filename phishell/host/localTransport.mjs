@@ -16,6 +16,7 @@ import { composeSystemStateReceipt } from "./systemStateComposer.mjs";
 import { assertValidSystemStateReceipt } from "./systemStateContract.mjs";
 import { fetchPersistentHistoryProjection } from "./persistentHistoryProxy.mjs";
 import { fetchHistoryComparison } from "./historyComparisonProxy.mjs";
+import { fetchCuriosityProjection } from "./curiosityProjectionProxy.mjs";
 
 const LOOPBACK_HOST = "127.0.0.1";
 const DEFAULT_PORT = 3969;
@@ -96,6 +97,7 @@ export function createLocalObservationServer({
   serveShell = true,
   historyProjectionFetcher = fetchPersistentHistoryProjection,
   historyComparisonFetcher = fetchHistoryComparison,
+  curiosityProjectionFetcher = fetchCuriosityProjection,
 } = {}) {
   if (!Number.isInteger(port) || port < 0 || port > 65535) {
     throw new Error("local observation port must be an integer between 0 and 65535");
@@ -104,6 +106,24 @@ export function createLocalObservationServer({
   const server = createServer(async (request, response) => {
     try {
       const url = new URL(request.url ?? "/", `http://${LOOPBACK_HOST}`);
+
+      if (
+        request.method === "POST" &&
+        url.pathname === "/api/v1/curiosity/artifacts"
+      ) {
+        jsonResponse(response, 428, {
+          error: "action_lease_required",
+          reason:
+            "Curiosity persistence is held until a trusted ActionLease issuer/verifier bridge is configured.",
+          localOnly: true,
+          writeAvailable: false,
+          operationalAuthority: false,
+          actionAuthority: false,
+          executionAuthority: false,
+          effectPerformed: false,
+        });
+        return;
+      }
 
       if (request.method !== "GET") {
         response.setHeader("allow", "GET");
@@ -329,6 +349,33 @@ export function createLocalObservationServer({
           return;
         }
         jsonResponse(response, 200, historyEnvelope);
+        return;
+      }
+
+      if (url.pathname === "/api/v1/curiosity") {
+        if ([...url.searchParams.keys()].length !== 0) {
+          jsonResponse(response, 400, {
+            error: "invalid_curiosity_projection_request",
+            readOnly: true,
+            executionAuthority: false,
+            effectPerformed: false,
+          });
+          return;
+        }
+        const curiosityEnvelope = await curiosityProjectionFetcher();
+        if (!curiosityEnvelope) {
+          jsonResponse(response, 503, {
+            error: "curiosity_projection_unavailable",
+            localOnly: true,
+            readOnly: true,
+            operationalAuthority: false,
+            actionAuthority: false,
+            executionAuthority: false,
+            effectPerformed: false,
+          });
+          return;
+        }
+        jsonResponse(response, 200, curiosityEnvelope);
         return;
       }
 
