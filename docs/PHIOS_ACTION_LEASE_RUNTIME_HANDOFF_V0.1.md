@@ -148,6 +148,11 @@ attempt must not be blindly retried.
 - `authorization_receipt_sha256`;
 - `lease_verification_sha256`.
 
+Lease provenance is an all-or-none tuple. A v0.9 handoff must provide all four
+lease/epoch/authorization/verification SHA-256 digests, and each digest must be
+canonical lowercase hexadecimal. Partial or malformed lease provenance fails
+closed before the binding is claimed or the executor is entered.
+
 The Reality Ledger considers a lease consumed when a matching provenance record
 shows:
 
