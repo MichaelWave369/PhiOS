@@ -298,7 +298,9 @@ class MacroRuntime:
             grants=grants,
         )
         if authority.decision is not AuthorityDecisionKind.GRANTED:
-            output: dict[str, Any] = {\n                "missing_capabilities": list(authority.missing_capabilities)\n            }
+            output: dict[str, Any] = {
+                "missing_capabilities": list(authority.missing_capabilities)
+            }
             receipt = self._receipt(
                 execution_id=execution_id,
                 principal_id=principal_id,
