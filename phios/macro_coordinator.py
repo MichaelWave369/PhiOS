@@ -59,6 +59,12 @@ class MacroRunCoordinator:
         self._runner = MacroRunner()
         self._journal = MacroRunJournal(ledger)
 
+    def has_run(self, *, run_id: str) -> bool:
+        """Return whether a validated persistent run already exists."""
+
+        self._validate_run_id(run_id)
+        return self._journal.has_run(run_id=run_id)
+
     def start_run(
         self,
         *,

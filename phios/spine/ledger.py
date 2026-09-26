@@ -12,6 +12,7 @@ if TYPE_CHECKING:
     from phios.macro_dispatcher import DoDispatchReceipt
     from phios.macro_journal import MacroRunJournalEntry, MacroRunResumeReceipt
     from phios.macro_spine_bridge import MacroSpineReceipt
+    from phios.macro_start import RunStartReceipt
     from phios.reality_reconciliation import RealityBoundReconciliationReceipt
 
 
@@ -150,6 +151,97 @@ class RealityLedger:
             return []
         lines = path.read_text(encoding="utf-8").splitlines()
         return [json.loads(line) for line in lines[-limit:]]
+
+    def append_macro_run_start_receipt(
+        self,
+        receipt: "RunStartReceipt",
+    ) -> None:
+        """Append one immutable macro run-start admission receipt."""
+
+        path = self.path.parent / "macro-run-start-receipts.jsonl"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps(receipt.to_dict(), sort_keys=True) + "\n")
+
+    def recent_macro_run_start_receipts(
+        self,
+        limit: int = 10,
+    ) -> list[dict[str, object]]:
+        """Return the newest macro run-start admission receipts."""
+
+        if isinstance(limit, bool) or not isinstance(limit, int):
+            raise TypeError(
+                "recent macro run start receipt limit must be an integer"
+            )
+        if limit < 0:
+            raise ValueError(
+                "recent macro run start receipt limit must be non-negative"
+            )
+        path = self.path.parent / "macro-run-start-receipts.jsonl"
+        if limit == 0 or not path.exists():
+            return []
+        lines = path.read_text(encoding="utf-8").splitlines()
+        return [json.loads(line) for line in lines[-limit:]]
+
+    def claim_macro_start_dedupe(self, dedupe_sha256: str) -> bool:
+        """Atomically reserve one trigger/macro admission identity."""
+
+        self._validate_sha256(dedupe_sha256, "dedupe_sha256")
+        claim_dir = self.path.parent / "macro-start-dedupe-claims"
+        claim_dir.mkdir(parents=True, exist_ok=True)
+        claim_path = claim_dir / f"{dedupe_sha256}.claim"
+        try:
+            fd = os.open(
+                claim_path,
+                os.O_CREAT | os.O_EXCL | os.O_WRONLY,
+                0o600,
+            )
+        except FileExistsError:
+            return False
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            handle.write(dedupe_sha256 + "\n")
+        return True
+
+    def release_macro_start_dedupe_claim(self, dedupe_sha256: str) -> None:
+        """Release a start dedupe claim when no run was admitted."""
+
+        self._validate_sha256(dedupe_sha256, "dedupe_sha256")
+        claim_path = (
+            self.path.parent
+            / "macro-start-dedupe-claims"
+            / f"{dedupe_sha256}.claim"
+        )
+        claim_path.unlink(missing_ok=True)
+
+    def claim_macro_run_id(self, run_id_sha256: str) -> bool:
+        """Atomically reserve one requested macro run identity."""
+
+        self._validate_sha256(run_id_sha256, "run_id_sha256")
+        claim_dir = self.path.parent / "macro-run-id-claims"
+        claim_dir.mkdir(parents=True, exist_ok=True)
+        claim_path = claim_dir / f"{run_id_sha256}.claim"
+        try:
+            fd = os.open(
+                claim_path,
+                os.O_CREAT | os.O_EXCL | os.O_WRONLY,
+                0o600,
+            )
+        except FileExistsError:
+            return False
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            handle.write(run_id_sha256 + "\n")
+        return True
+
+    def release_macro_run_id_claim(self, run_id_sha256: str) -> None:
+        """Release a run-ID claim when coordination never created the run."""
+
+        self._validate_sha256(run_id_sha256, "run_id_sha256")
+        claim_path = (
+            self.path.parent
+            / "macro-run-id-claims"
+            / f"{run_id_sha256}.claim"
+        )
+        claim_path.unlink(missing_ok=True)
 
     def append_reconciliation(
         self,
