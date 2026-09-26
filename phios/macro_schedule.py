@@ -91,6 +91,25 @@ def _require_text(
     return value
 
 
+def _require_sha256(value: object, field: str) -> str:
+    text = _require_text(value, field, maximum=64)
+    if len(text) != 64:
+        raise MacroScheduleContractError(
+            f"{field} must be a lowercase SHA-256 digest"
+        )
+    try:
+        int(text, 16)
+    except ValueError as exc:
+        raise MacroScheduleContractError(
+            f"{field} must be a lowercase SHA-256 digest"
+        ) from exc
+    if text != text.lower():
+        raise MacroScheduleContractError(
+            f"{field} must be a lowercase SHA-256 digest"
+        )
+    return text
+
+
 def _canonical_json(value: object) -> str:
     try:
         return json.dumps(
@@ -294,8 +313,12 @@ class ScheduleOccurrence:
     schema_version: str = SCHEDULE_OCCURRENCE_SCHEMA_VERSION
 
     def __post_init__(self) -> None:
+        if self.schema_version != SCHEDULE_OCCURRENCE_SCHEMA_VERSION:
+            raise MacroScheduleContractError(
+                "unsupported schedule occurrence schema"
+            )
         _require_text(self.schedule_id, "schedule_id")
-        _require_text(self.schedule_sha256, "schedule_sha256", maximum=64)
+        _require_sha256(self.schedule_sha256, "schedule_sha256")
         _require_text(self.local_due_at, "local_due_at", maximum=64)
         _require_text(self.due_at_utc, "due_at_utc", maximum=64)
         _require_text(self.occurrence_id, "occurrence_id", maximum=128)
