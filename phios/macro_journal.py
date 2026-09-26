@@ -524,6 +524,16 @@ class MacroRunJournal:
             )
         self._ledger = ledger
 
+    def has_run(self, *, run_id: str) -> bool:
+        """Return whether one validated journal chain exists for run_id."""
+
+        _require_text(run_id, "run_id")
+        rows = self._ledger.macro_run_journal_entries(run_id=run_id)
+        if not rows:
+            return False
+        self._load_and_validate(run_id)
+        return True
+
     def append_state(
         self,
         *,
