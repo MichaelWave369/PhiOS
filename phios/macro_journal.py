@@ -82,6 +82,51 @@ def _require_timestamp(value: object, field: str) -> str:
     return text
 
 
+def _require_int(
+    value: object,
+    field: str,
+    *,
+    minimum: int = 0,
+) -> int:
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise MacroRunJournalContractError(
+            f"{field} must be an integer"
+        )
+    if value < minimum:
+        raise MacroRunJournalContractError(
+            f"{field} must be at least {minimum}"
+        )
+    return value
+
+
+def _require_bool(value: object, field: str) -> bool:
+    if not isinstance(value, bool):
+        raise MacroRunJournalContractError(
+            f"{field} must be Boolean"
+        )
+    return value
+
+
+def _require_counter_pairs(
+    value: object,
+    field: str,
+) -> tuple[tuple[str, int], ...]:
+    if not isinstance(value, list):
+        raise MacroRunJournalContractError(
+            f"{field} must be a list"
+        )
+    result: list[tuple[str, int]] = []
+    for item in value:
+        if not isinstance(item, list) or len(item) != 2:
+            raise MacroRunJournalContractError(
+                f"{field} items must be two-item lists"
+            )
+        key = _require_sha256(item[0], f"{field} key")
+        count = _require_int(item[1], f"{field} count")
+        result.append((key, count))
+    return tuple(result)
+
+
 def _canonical_json(value: object) -> str:
     try:
         return json.dumps(
@@ -117,22 +162,25 @@ def _state_from_dict(payload: Mapping[str, object]) -> MacroRunState:
         "state.state_sha256",
     )
     try:
-        status = RunnerStatus(str(payload["status"]))
-        loop_iterations = tuple(
-            (str(item[0]), int(item[1]))
-            for item in payload.get("loop_iterations", [])
+        status = RunnerStatus(
+            _require_text(payload.get("status"), "state.status")
         )
-        foreach_indices = tuple(
-            (str(item[0]), int(item[1]))
-            for item in payload.get("foreach_indices", [])
-        )
-    except (KeyError, TypeError, ValueError, IndexError) as exc:
+    except ValueError as exc:
         raise MacroRunJournalContractError(
-            "persisted MacroRunState structure is malformed"
+            "persisted MacroRunState status is unsupported"
         ) from exc
 
-    variables_raw = payload.get("variables", {})
-    waiting_raw = payload.get("waiting_on", {})
+    loop_iterations = _require_counter_pairs(
+        payload.get("loop_iterations"),
+        "state.loop_iterations",
+    )
+    foreach_indices = _require_counter_pairs(
+        payload.get("foreach_indices"),
+        "state.foreach_indices",
+    )
+
+    variables_raw = payload.get("variables")
+    waiting_raw = payload.get("waiting_on")
     if not isinstance(variables_raw, dict):
         raise MacroRunJournalContractError(
             "persisted MacroRunState variables must be an object"
@@ -147,29 +195,46 @@ def _state_from_dict(payload: Mapping[str, object]) -> MacroRunState:
             "persisted last_instruction_path must be string or null"
         )
 
-    try:
-        state = MacroRunState(
-            macro_id=str(payload["macro_id"]),
-            macro_version=str(payload["macro_version"]),
-            plan_sha256=str(payload["plan_sha256"]),
-            cursor=int(payload["cursor"]),
-            status=status,
-            reason=str(payload["reason"]),
-            loop_iterations=loop_iterations,
-            foreach_indices=foreach_indices,
-            variables=dict(variables_raw),
-            waiting_on=dict(waiting_raw),
-            last_instruction_path=last_path_raw,
-            transitions=int(payload["transitions"]),
-            operational_authority=bool(payload["operational_authority"]),
-            action_authority=bool(payload["action_authority"]),
-            execution_authority=bool(payload["execution_authority"]),
-            schema_version=str(payload["schema_version"]),
-        )
-    except (KeyError, TypeError, ValueError) as exc:
-        raise MacroRunJournalContractError(
-            "persisted MacroRunState cannot be reconstructed"
-        ) from exc
+    state = MacroRunState(
+        macro_id=_require_text(payload.get("macro_id"), "state.macro_id"),
+        macro_version=_require_text(
+            payload.get("macro_version"),
+            "state.macro_version",
+            maximum=128,
+        ),
+        plan_sha256=_require_sha256(
+            payload.get("plan_sha256"),
+            "state.plan_sha256",
+        ),
+        cursor=_require_int(payload.get("cursor"), "state.cursor"),
+        status=status,
+        reason=_require_text(payload.get("reason"), "state.reason"),
+        loop_iterations=loop_iterations,
+        foreach_indices=foreach_indices,
+        variables=dict(variables_raw),
+        waiting_on=dict(waiting_raw),
+        last_instruction_path=last_path_raw,
+        transitions=_require_int(
+            payload.get("transitions"),
+            "state.transitions",
+        ),
+        operational_authority=_require_bool(
+            payload.get("operational_authority"),
+            "state.operational_authority",
+        ),
+        action_authority=_require_bool(
+            payload.get("action_authority"),
+            "state.action_authority",
+        ),
+        execution_authority=_require_bool(
+            payload.get("execution_authority"),
+            "state.execution_authority",
+        ),
+        schema_version=_require_text(
+            payload.get("schema_version"),
+            "state.schema_version",
+        ),
+    )
 
     if state.state_sha256 != claimed_hash:
         raise MacroRunJournalContractError(
@@ -327,7 +392,10 @@ class MacroRunJournalEntry:
         try:
             entry = cls(
                 run_id=str(payload["run_id"]),
-                sequence=int(payload["sequence"]),
+                sequence=_require_int(
+                    payload.get("sequence"),
+                    "journal sequence",
+                ),
                 kind=JournalEntryKind(str(payload["kind"])),
                 macro_id=str(payload["macro_id"]),
                 macro_version=str(payload["macro_version"]),
