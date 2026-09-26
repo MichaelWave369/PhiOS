@@ -14,7 +14,6 @@ from dataclasses import dataclass
 from phios.macro_graph import MacroPlan
 from phios.macro_journal import (
     MacroRunJournal,
-    MacroRunJournalEntry,
     MacroRunResumeReceipt,
 )
 from phios.macro_runner import (
@@ -205,7 +204,7 @@ class MacroRunCoordinator:
             plan=plan,
             state=aborted,
             expected_head_sha256=current.head_entry.entry_sha256,
-            evidence_ref_sha256s=evidence_ref_sha256s,
+            evidence_ref_sha256s=tuple(sorted(set(evidence_ref_sha256s))),
         )
         return CoordinatedRun(
             run_id=run_id,
