@@ -13,7 +13,7 @@ import re
 from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
-from typing import Any, Mapping
+from typing import Mapping
 
 from phios.macro_graph import MacroPlan
 from phios.macro_runner import (
