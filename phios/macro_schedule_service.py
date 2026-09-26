@@ -17,7 +17,6 @@ from typing import Mapping
 
 from phios.macro_graph import MacroPlan
 from phios.macro_schedule import (
-    SchedulePollResult,
     ScheduledTrigger,
     WallClockSchedule,
     WallClockScheduleProducer,
