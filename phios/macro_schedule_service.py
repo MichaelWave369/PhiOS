@@ -125,6 +125,31 @@ def _utc_iso(value: datetime) -> str:
     return value.astimezone(UTC).isoformat().replace("+00:00", "Z")
 
 
+def _require_int(
+    value: object,
+    field: str,
+    *,
+    minimum: int = 0,
+) -> int:
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise MacroScheduleServiceContractError(
+            f"{field} must be an integer"
+        )
+    if value < minimum:
+        raise MacroScheduleServiceContractError(
+            f"{field} must be at least {minimum}"
+        )
+    return value
+
+
+def _require_bool(value: object, field: str) -> bool:
+    if not isinstance(value, bool):
+        raise MacroScheduleServiceContractError(
+            f"{field} must be Boolean"
+        )
+    return value
+
+
 def _canonical_json(value: object) -> str:
     try:
         return json.dumps(
@@ -269,44 +294,100 @@ class ScheduleServiceStateEntry:
             payload.get("entry_sha256"),
             "entry_sha256",
         )
+        previous_entry_raw = payload.get("previous_entry_sha256")
+        last_poll_raw = payload.get("last_poll_receipt_sha256")
         try:
-            entry = cls(
-                service_id=str(payload["service_id"]),
-                sequence=int(payload["sequence"]),
-                kind=ScheduleServiceEntryKind(str(payload["kind"])),
-                schedule_id=str(payload["schedule_id"]),
-                schedule_sha256=str(payload["schedule_sha256"]),
-                macro_id=str(payload["macro_id"]),
-                macro_version=str(payload["macro_version"]),
-                plan_sha256=str(payload["plan_sha256"]),
-                policy_id=str(payload["policy_id"]),
-                policy_sha256=str(payload["policy_sha256"]),
-                cursor_utc=str(payload["cursor_utc"]),
-                status=ScheduleServiceStatus(str(payload["status"])),
-                reason=str(payload["reason"]),
-                previous_entry_sha256=(
-                    None
-                    if payload.get("previous_entry_sha256") is None
-                    else str(payload["previous_entry_sha256"])
-                ),
-                last_poll_receipt_sha256=(
-                    None
-                    if payload.get("last_poll_receipt_sha256") is None
-                    else str(payload["last_poll_receipt_sha256"])
-                ),
-                operational_authority=bool(
-                    payload["operational_authority"]
-                ),
-                action_authority=bool(payload["action_authority"]),
-                execution_authority=bool(
-                    payload["execution_authority"]
-                ),
-                schema_version=str(payload["schema_version"]),
+            kind = ScheduleServiceEntryKind(
+                _require_text(payload.get("kind"), "kind")
             )
-        except (KeyError, TypeError, ValueError) as exc:
+            status = ScheduleServiceStatus(
+                _require_text(payload.get("status"), "status")
+            )
+        except ValueError as exc:
             raise MacroScheduleServiceContractError(
-                "schedule service state entry is malformed"
+                "schedule service state enum value is unsupported"
             ) from exc
+        entry = cls(
+            service_id=_require_text(
+                payload.get("service_id"),
+                "service_id",
+            ),
+            sequence=_require_int(
+                payload.get("sequence"),
+                "sequence",
+            ),
+            kind=kind,
+            schedule_id=_require_text(
+                payload.get("schedule_id"),
+                "schedule_id",
+            ),
+            schedule_sha256=_require_sha256(
+                payload.get("schedule_sha256"),
+                "schedule_sha256",
+            ),
+            macro_id=_require_text(
+                payload.get("macro_id"),
+                "macro_id",
+            ),
+            macro_version=_require_text(
+                payload.get("macro_version"),
+                "macro_version",
+                maximum=128,
+            ),
+            plan_sha256=_require_sha256(
+                payload.get("plan_sha256"),
+                "plan_sha256",
+            ),
+            policy_id=_require_text(
+                payload.get("policy_id"),
+                "policy_id",
+            ),
+            policy_sha256=_require_sha256(
+                payload.get("policy_sha256"),
+                "policy_sha256",
+            ),
+            cursor_utc=_require_timestamp(
+                payload.get("cursor_utc"),
+                "cursor_utc",
+            ),
+            status=status,
+            reason=_require_text(
+                payload.get("reason"),
+                "reason",
+            ),
+            previous_entry_sha256=(
+                None
+                if previous_entry_raw is None
+                else _require_sha256(
+                    previous_entry_raw,
+                    "previous_entry_sha256",
+                )
+            ),
+            last_poll_receipt_sha256=(
+                None
+                if last_poll_raw is None
+                else _require_sha256(
+                    last_poll_raw,
+                    "last_poll_receipt_sha256",
+                )
+            ),
+            operational_authority=_require_bool(
+                payload.get("operational_authority"),
+                "operational_authority",
+            ),
+            action_authority=_require_bool(
+                payload.get("action_authority"),
+                "action_authority",
+            ),
+            execution_authority=_require_bool(
+                payload.get("execution_authority"),
+                "execution_authority",
+            ),
+            schema_version=_require_text(
+                payload.get("schema_version"),
+                "schema_version",
+            ),
+        )
         if entry.entry_sha256 != claimed:
             raise MacroScheduleServiceContractError(
                 "schedule service state entry hash mismatch"
@@ -627,8 +708,8 @@ class ScheduleService:
             macro_id=head.macro_id,
             macro_version=head.macro_version,
             plan_sha256=head.plan_sha256,
-            policy_id=head.policy_id,
-            policy_sha256=head.policy_sha256,
+            policy_id=policy.policy_id,
+            policy_sha256=policy.policy_sha256,
             cursor_utc=next_cursor,
             status=(
                 ScheduleServiceStatus.ACTIVE
@@ -733,7 +814,6 @@ class ScheduleService:
                 or entry.macro_version != first.macro_version
                 or entry.plan_sha256 != first.plan_sha256
                 or entry.policy_id != first.policy_id
-                or entry.policy_sha256 != first.policy_sha256
             ):
                 raise MacroScheduleServiceContractError(
                     "schedule service binding changed within state chain"
@@ -768,7 +848,6 @@ class ScheduleService:
             plan.macro_version,
             plan.plan_sha256,
             policy.policy_id,
-            policy.policy_sha256,
         )
         observed = (
             head.schedule_id,
@@ -777,7 +856,6 @@ class ScheduleService:
             head.macro_version,
             head.plan_sha256,
             head.policy_id,
-            head.policy_sha256,
         )
         if observed != expected:
             raise MacroScheduleServiceContractError(
