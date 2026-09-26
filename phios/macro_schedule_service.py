@@ -464,10 +464,42 @@ class ScheduleServicePollReceipt:
                 raise MacroScheduleServiceContractError(
                     f"{field} must be a non-negative integer"
                 )
+        if self.candidate_count < self.emitted_count:
+            raise MacroScheduleServiceContractError(
+                "candidate_count cannot be less than emitted_count"
+            )
+        if self.emitted_count != len(self.admissions):
+            raise MacroScheduleServiceContractError(
+                "emitted_count must equal admission result count"
+            )
         _require_text(self.reason, "reason")
         if not isinstance(self.cursor_advanced, bool):
             raise MacroScheduleServiceContractError(
                 "cursor_advanced must be Boolean"
+            )
+        after = _parse_utc(
+            self.after_exclusive_utc,
+            "after_exclusive_utc",
+        )
+        through = _parse_utc(
+            self.through_inclusive_utc,
+            "through_inclusive_utc",
+        )
+        next_cursor = _parse_utc(
+            self.next_cursor_utc,
+            "next_cursor_utc",
+        )
+        if through < after:
+            raise MacroScheduleServiceContractError(
+                "poll receipt window moves backward"
+            )
+        if self.cursor_advanced and next_cursor != through:
+            raise MacroScheduleServiceContractError(
+                "committed poll cursor must equal through_inclusive"
+            )
+        if not self.cursor_advanced and next_cursor != after:
+            raise MacroScheduleServiceContractError(
+                "held poll cursor must remain at after_exclusive"
             )
         if (
             self.operational_authority is not False
