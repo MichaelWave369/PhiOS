@@ -11,6 +11,10 @@ if TYPE_CHECKING:
     from phios.execution_outcome import ExecutionReconciliationReceipt
     from phios.macro_dispatcher import DoDispatchReceipt
     from phios.macro_journal import MacroRunJournalEntry, MacroRunResumeReceipt
+    from phios.macro_schedule_service import (
+        ScheduleServicePollReceipt,
+        ScheduleServiceStateEntry,
+    )
     from phios.macro_spine_bridge import MacroSpineReceipt
     from phios.macro_start import RunStartReceipt
     from phios.reality_reconciliation import RealityBoundReconciliationReceipt
@@ -242,6 +246,66 @@ class RealityLedger:
             / f"{run_id_sha256}.claim"
         )
         claim_path.unlink(missing_ok=True)
+
+    def append_schedule_service_state(
+        self,
+        entry: "ScheduleServiceStateEntry",
+    ) -> None:
+        """Append one immutable schedule-service cursor/state entry."""
+
+        path = self.path.parent / "schedule-service-state.jsonl"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps(entry.to_dict(), sort_keys=True) + "\n")
+
+    def schedule_service_state_entries(
+        self,
+        *,
+        service_id: str | None = None,
+    ) -> list[dict[str, object]]:
+        """Return append-order schedule-service state entries."""
+
+        path = self.path.parent / "schedule-service-state.jsonl"
+        if not path.exists():
+            return []
+        rows = [
+            json.loads(line)
+            for line in path.read_text(encoding="utf-8").splitlines()
+        ]
+        if service_id is None:
+            return rows
+        return [row for row in rows if row.get("service_id") == service_id]
+
+    def append_schedule_service_poll_receipt(
+        self,
+        receipt: "ScheduleServicePollReceipt",
+    ) -> None:
+        """Append one immutable schedule-service poll receipt."""
+
+        path = self.path.parent / "schedule-service-poll-receipts.jsonl"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps(receipt.to_dict(), sort_keys=True) + "\n")
+
+    def recent_schedule_service_poll_receipts(
+        self,
+        limit: int = 10,
+    ) -> list[dict[str, object]]:
+        """Return the newest schedule-service poll receipts."""
+
+        if isinstance(limit, bool) or not isinstance(limit, int):
+            raise TypeError(
+                "recent schedule service poll receipt limit must be an integer"
+            )
+        if limit < 0:
+            raise ValueError(
+                "recent schedule service poll receipt limit must be non-negative"
+            )
+        path = self.path.parent / "schedule-service-poll-receipts.jsonl"
+        if limit == 0 or not path.exists():
+            return []
+        lines = path.read_text(encoding="utf-8").splitlines()
+        return [json.loads(line) for line in lines[-limit:]]
 
     def append_reconciliation(
         self,
