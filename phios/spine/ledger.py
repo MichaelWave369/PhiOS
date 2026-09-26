@@ -10,6 +10,7 @@ from .models import ExecutionReceipt
 if TYPE_CHECKING:
     from phios.execution_outcome import ExecutionReconciliationReceipt
     from phios.macro_dispatcher import DoDispatchReceipt
+    from phios.macro_journal import MacroRunJournalEntry, MacroRunResumeReceipt
     from phios.macro_spine_bridge import MacroSpineReceipt
     from phios.reality_reconciliation import RealityBoundReconciliationReceipt
 
@@ -85,6 +86,66 @@ class RealityLedger:
                 "recent macro dispatch receipt limit must be non-negative"
             )
         path = self.path.parent / "macro-dispatch-receipts.jsonl"
+        if limit == 0 or not path.exists():
+            return []
+        lines = path.read_text(encoding="utf-8").splitlines()
+        return [json.loads(line) for line in lines[-limit:]]
+
+    def append_macro_run_journal_entry(
+        self,
+        entry: "MacroRunJournalEntry",
+    ) -> None:
+        """Append one immutable MacroRunState journal entry."""
+
+        path = self.path.parent / "macro-run-journal.jsonl"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps(entry.to_dict(), sort_keys=True) + "\n")
+
+    def macro_run_journal_entries(
+        self,
+        *,
+        run_id: str | None = None,
+    ) -> list[dict[str, object]]:
+        """Return append-order MacroRun journal entries, optionally by run."""
+
+        path = self.path.parent / "macro-run-journal.jsonl"
+        if not path.exists():
+            return []
+        rows = [
+            json.loads(line)
+            for line in path.read_text(encoding="utf-8").splitlines()
+        ]
+        if run_id is None:
+            return rows
+        return [row for row in rows if row.get("run_id") == run_id]
+
+    def append_macro_run_resume_receipt(
+        self,
+        receipt: "MacroRunResumeReceipt",
+    ) -> None:
+        """Append evidence for one validated MacroRun reconstruction."""
+
+        path = self.path.parent / "macro-run-resume-receipts.jsonl"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps(receipt.to_dict(), sort_keys=True) + "\n")
+
+    def recent_macro_run_resume_receipts(
+        self,
+        limit: int = 10,
+    ) -> list[dict[str, object]]:
+        """Return the newest MacroRun resume receipts."""
+
+        if isinstance(limit, bool) or not isinstance(limit, int):
+            raise TypeError(
+                "recent macro run resume receipt limit must be an integer"
+            )
+        if limit < 0:
+            raise ValueError(
+                "recent macro run resume receipt limit must be non-negative"
+            )
+        path = self.path.parent / "macro-run-resume-receipts.jsonl"
         if limit == 0 or not path.exists():
             return []
         lines = path.read_text(encoding="utf-8").splitlines()
