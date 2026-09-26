@@ -271,11 +271,7 @@ class MacroRunCoordinator:
         )
 
     def _has_existing_run(self, run_id: str) -> bool:
-        try:
-            self._journal._load_and_validate(run_id)
-        except Exception:
-            raise
-        return bool(self._journal._ledger.macro_run_journal_entries(run_id=run_id))
+        return self._journal.has_run(run_id=run_id)
 
     @staticmethod
     def _validate_run_id(run_id: str) -> None:
