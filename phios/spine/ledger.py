@@ -9,6 +9,7 @@ from .models import ExecutionReceipt
 
 if TYPE_CHECKING:
     from phios.execution_outcome import ExecutionReconciliationReceipt
+    from phios.macro_spine_bridge import MacroSpineReceipt
     from phios.reality_reconciliation import RealityBoundReconciliationReceipt
 
 
@@ -31,6 +32,30 @@ class RealityLedger:
         if limit == 0 or not self.path.exists():
             return []
         lines = self.path.read_text(encoding="utf-8").splitlines()
+        return [json.loads(line) for line in lines[-limit:]]
+
+    def append_macro_receipt(self, receipt: "MacroSpineReceipt") -> None:
+        """Append one immutable macro-to-Spine execution receipt."""
+
+        path = self.path.parent / "macro-receipts.jsonl"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps(receipt.to_dict(), sort_keys=True) + "\n")
+
+    def recent_macro_receipts(
+        self,
+        limit: int = 10,
+    ) -> list[dict[str, object]]:
+        """Return the newest append-only macro execution receipts."""
+
+        if isinstance(limit, bool) or not isinstance(limit, int):
+            raise TypeError("recent macro receipt limit must be an integer")
+        if limit < 0:
+            raise ValueError("recent macro receipt limit must be non-negative")
+        path = self.path.parent / "macro-receipts.jsonl"
+        if limit == 0 or not path.exists():
+            return []
+        lines = path.read_text(encoding="utf-8").splitlines()
         return [json.loads(line) for line in lines[-limit:]]
 
     def append_reconciliation(
