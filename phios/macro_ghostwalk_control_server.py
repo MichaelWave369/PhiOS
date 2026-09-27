@@ -59,6 +59,11 @@ from phios.phivessel_bridge import (
     PhiVesselObservationKind,
     PhiVesselProposalType,
 )
+from phios.phivessel_local_execution import (
+    PhiVesselLocalExecutionError,
+    build_local_execution_mount,
+    execution_manifest_path,
+)
 from phios.spine.ledger import RealityLedger
 
 LOOPBACK_HOST = "127.0.0.1"
@@ -1861,14 +1866,39 @@ def main() -> None:
         policy_admission=policy_admission,
         requester_id=DEFAULT_OPERATOR_AUTHOR_ID,
     )
+    shared_ledger = RealityLedger(
+        args.state_root.expanduser()
+        / "ledger"
+        / "receipts.jsonl"
+    )
+    manifest_path = execution_manifest_path(
+        state_root=args.state_root,
+        environ=os.environ,
+    )
+    try:
+        execution_mount = build_local_execution_mount(
+            state_root=args.state_root,
+            ledger=shared_ledger,
+            authority_requests=authority_requests,
+            authorizer_id=DEFAULT_OPERATOR_AUTHOR_ID,
+            manifest_path=manifest_path,
+        )
+    except PhiVesselLocalExecutionError as exc:
+        execution_mount = None
+        print(
+            "PhiOS PhiVessel execution mount HELD: "
+            f"{exc}",
+            file=sys.stderr,
+        )
+
     phivessel_bridge = PhiVesselBridgeService(
-        ledger=RealityLedger(
-            args.state_root.expanduser()
-            / "ledger"
-            / "receipts.jsonl"
-        ),
+        ledger=shared_ledger,
         ghostwalk_surface=surface,
-        lease_executor=None,
+        lease_executor=(
+            None
+            if execution_mount is None
+            else execution_mount.execution_handoff
+        ),
     )
     server = GhostWalkControlServer(
         (LOOPBACK_HOST, args.port),
