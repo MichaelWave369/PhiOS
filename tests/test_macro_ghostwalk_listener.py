@@ -319,3 +319,40 @@ def test_listener_008_raw_hook_event_is_zero_authority() -> None:
     assert raw.action_authority is False
     assert raw.execution_authority is False
     assert len(raw.raw_event_sha256) == 64
+
+
+def test_listener_009_tampered_prior_receipt_hash_fails_before_next_event(
+    tmp_path: Path,
+) -> None:
+    ledger = _ledger(tmp_path)
+    _start_session(ledger, "ghost:listener-hash-tamper")
+    bridge, _ = _bridge(
+        ledger,
+        listener_id="listener:hash-tamper",
+    )
+    bridge.observe_left_button(
+        session_id="ghost:listener-hash-tamper",
+        raw_event=_raw(),
+        observed_at="2026-09-27T01:20:08+00:00",
+    )
+
+    path = tmp_path / "ledger" / "ghostwalk-listener-receipts.jsonl"
+    rows = [
+        json.loads(line)
+        for line in path.read_text(encoding="utf-8").splitlines()
+    ]
+    rows[0]["observed_at"] = "2026-09-27T01:20:09+00:00"
+    path.write_text(
+        "\n".join(json.dumps(row, sort_keys=True) for row in rows) + "\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(
+        GhostWalkListenerContractError,
+        match="listener receipt hash mismatch",
+    ):
+        bridge.observe_left_button(
+            session_id="ghost:listener-hash-tamper",
+            raw_event=_raw(hook_time_ms=999),
+            observed_at="2026-09-27T01:20:10+00:00",
+        )
