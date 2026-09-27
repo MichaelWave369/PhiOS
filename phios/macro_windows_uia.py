@@ -587,6 +587,13 @@ class ComtypesWindowsUiaBackend:
         )
         if element is None:
             return None
+        return self.snapshot_from_element(element)
+
+    def snapshot_from_element(
+        self,
+        element: object,
+    ) -> UiaElementSnapshot:
+        """Convert one UIA COM element into the privacy-bounded snapshot."""
 
         process_id = self._required_int_property(
             element,
