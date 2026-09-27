@@ -407,6 +407,7 @@ class TrustMutationReceipt:
 class TrustMutationJournal:
     operation: str
     previous_manifest_sha256: str
+    previous_authority_epoch_sha256: str
     next_manifest: PhiVesselLocalExecutionManifest
     next_authority_state: PhiVesselAuthorityState | None
     authority_event_id: str | None
@@ -419,6 +420,9 @@ class TrustMutationJournal:
             "schema_version": self.schema_version,
             "operation": self.operation,
             "previous_manifest_sha256": self.previous_manifest_sha256,
+            "previous_authority_epoch_sha256": (
+                self.previous_authority_epoch_sha256
+            ),
             "next_manifest": self.next_manifest.to_dict(),
             "next_authority_state": (
                 None
@@ -450,6 +454,7 @@ class TrustMutationJournal:
             "schema_version",
             "operation",
             "previous_manifest_sha256",
+            "previous_authority_epoch_sha256",
             "next_manifest",
             "next_authority_state",
             "authority_event_id",
@@ -496,6 +501,10 @@ class TrustMutationJournal:
             previous_manifest_sha256=_require_sha256(
                 data["previous_manifest_sha256"],
                 "previous_manifest_sha256",
+            ),
+            previous_authority_epoch_sha256=_require_sha256(
+                data["previous_authority_epoch_sha256"],
+                "previous_authority_epoch_sha256",
             ),
             next_manifest=manifest,
             next_authority_state=state,
@@ -1149,6 +1158,9 @@ class PhiVesselTrustOperator:
             previous_manifest_sha256=(
                 previous_manifest.manifest_sha256
             ),
+            previous_authority_epoch_sha256=(
+                previous_manifest.authority_epoch.authority_epoch_sha256
+            ),
             next_manifest=next_manifest,
             next_authority_state=next_authority_state,
             authority_event_id=authority_event_id,
@@ -1174,24 +1186,6 @@ class PhiVesselTrustOperator:
         self,
         journal: TrustMutationJournal,
     ) -> TrustMutationReceipt:
-        try:
-            old_manifest = PhiVesselLocalExecutionManifest.read(
-                self.manifest_path
-            )
-        except (FileNotFoundError, PhiVesselLocalExecutionError):
-            old_epoch_sha = journal.next_manifest.authority_epoch.authority_epoch_sha256
-        else:
-            if (
-                old_manifest.manifest_sha256
-                == journal.previous_manifest_sha256
-            ):
-                old_epoch_sha = (
-                    old_manifest.authority_epoch.authority_epoch_sha256
-                )
-            else:
-                old_epoch_sha = (
-                    journal.next_manifest.authority_epoch.authority_epoch_sha256
-                )
         receipt_id = (
             "trust:"
             + _canonical_sha256(
@@ -1217,7 +1211,9 @@ class PhiVesselTrustOperator:
             next_manifest_sha256=(
                 journal.next_manifest.manifest_sha256
             ),
-            previous_authority_epoch_sha256=old_epoch_sha,
+            previous_authority_epoch_sha256=(
+                journal.previous_authority_epoch_sha256
+            ),
             next_authority_epoch_sha256=(
                 journal.next_manifest.authority_epoch.authority_epoch_sha256
             ),
