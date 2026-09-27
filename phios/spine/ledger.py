@@ -35,6 +35,7 @@ if TYPE_CHECKING:
     from phios.macro_authority_request import GhostWalkAuthorityRequest
     from phios.macro_authorization_decision import GhostWalkAuthorizationDecision
     from phios.macro_capability_binding import GhostWalkExecutableBinding
+    from phios.macro_action_lease_service import GhostWalkActionLeaseRecord
     from phios.macro_post_action_verification import (
         PostActionVerificationReceipt,
     )
@@ -681,6 +682,50 @@ class RealityLedger:
                 for row in rows
                 if row.get("authorization_decision_sha256")
                 == authorization_decision_sha256
+            ]
+        return rows
+
+    def append_ghostwalk_action_lease_record(
+        self,
+        record: "GhostWalkActionLeaseRecord",
+    ) -> None:
+        """Append one immutable Ghost-Walk ActionLease custody record."""
+
+        path = self.path.parent / "ghostwalk-action-lease-records.jsonl"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("a", encoding="utf-8") as handle:
+            handle.write(
+                json.dumps(record.to_dict(), sort_keys=True) + "\n"
+            )
+
+    def ghostwalk_action_lease_records(
+        self,
+        *,
+        target_inference_receipt_sha256: str | None = None,
+        executable_binding_sha256: str | None = None,
+    ) -> list[dict[str, object]]:
+        """Return append-order Ghost-Walk ActionLease custody records."""
+
+        path = self.path.parent / "ghostwalk-action-lease-records.jsonl"
+        if not path.exists():
+            return []
+        rows = [
+            json.loads(line)
+            for line in path.read_text(encoding="utf-8").splitlines()
+        ]
+        if target_inference_receipt_sha256 is not None:
+            rows = [
+                row
+                for row in rows
+                if row.get("target_inference_receipt_sha256")
+                == target_inference_receipt_sha256
+            ]
+        if executable_binding_sha256 is not None:
+            rows = [
+                row
+                for row in rows
+                if row.get("executable_binding_sha256")
+                == executable_binding_sha256
             ]
         return rows
 
