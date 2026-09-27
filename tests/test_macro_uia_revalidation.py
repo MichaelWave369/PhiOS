@@ -11,6 +11,7 @@ from phios.macro_interaction_guard import WindowFrame
 from phios.macro_uia_revalidation import (
     ComtypesWindowsUiaReplayBackend,
     SemanticReplayRevalidator,
+    SemanticRevalidationContractError,
     SemanticRevalidationDecision,
     SemanticRevalidationReason,
 )
@@ -360,7 +361,7 @@ def test_revalidation_012_real_backend_rejects_non_windows() -> None:
     if os.name == "nt":
         pytest.skip("non-Windows contract test")
     with pytest.raises(
-        Exception,
+        SemanticRevalidationContractError,
         match="requires Windows",
     ):
         ComtypesWindowsUiaReplayBackend()
