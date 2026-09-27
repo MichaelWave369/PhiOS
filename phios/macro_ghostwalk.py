@@ -98,13 +98,13 @@ def _require_int(
     value: object,
     field: str,
     *,
-    minimum: int = 0,
+    minimum: int | None = 0,
 ) -> int:
     if isinstance(value, bool) or not isinstance(value, int):
         raise GhostWalkContractError(
             f"{field} must be an integer"
         )
-    if value < minimum:
+    if minimum is not None and value < minimum:
         raise GhostWalkContractError(
             f"{field} must be at least {minimum}"
         )
@@ -381,10 +381,12 @@ def _pixel_anchor_from_dict(
         observed_x_px=_require_int(
             payload.get("observed_x_px"),
             "observed_x_px",
+            minimum=None,
         ),
         observed_y_px=_require_int(
             payload.get("observed_y_px"),
             "observed_y_px",
+            minimum=None,
         ),
         semantic_hint=(
             None
