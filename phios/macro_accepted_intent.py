@@ -377,7 +377,8 @@ class GhostWalkAcceptedIntentRegistry:
             "target_inference_receipt_sha256",
         )
         with self._lock:
-            return self._load_chain(target)[-1] if self._load_chain(target) else None
+            chain = self._load_chain(target)
+            return chain[-1] if chain else None
 
     def accept(
         self,
