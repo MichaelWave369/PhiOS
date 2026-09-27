@@ -757,6 +757,42 @@ class GhostWalkHostService:
             self._tick_thread = None
             return self.health()
 
+    def arm_baseline(self) -> GhostWalkHostHealth:
+        """Arm a fresh learning baseline through the host lifecycle boundary."""
+
+        with self._lock:
+            if self._session_id is None or self._status not in {
+                GhostWalkHostStatus.RUNNING,
+                GhostWalkHostStatus.DEGRADED,
+            }:
+                raise GhostWalkHostContractError(
+                    "Ghost-Walk host must be running before baseline arm"
+                )
+            outcome = self._baseline_service.arm(
+                session_id=self._session_id
+            )
+            self._status = (
+                GhostWalkHostStatus.RUNNING
+                if outcome.receipt.status is BaselineRefreshStatus.FRESH
+                else GhostWalkHostStatus.DEGRADED
+            )
+            return self.health()
+
+    def disarm_baseline(self) -> GhostWalkHostHealth:
+        """Pause learning-state capture without stopping the host listener."""
+
+        with self._lock:
+            if self._session_id is None or self._status not in {
+                GhostWalkHostStatus.RUNNING,
+                GhostWalkHostStatus.DEGRADED,
+            }:
+                raise GhostWalkHostContractError(
+                    "Ghost-Walk host must be running before baseline disarm"
+                )
+            self._baseline_service.disarm()
+            self._status = GhostWalkHostStatus.DEGRADED
+            return self.health()
+
     def health(self) -> GhostWalkHostHealth:
         observed_at = _require_timestamp(
             self._clock(),
