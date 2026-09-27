@@ -275,12 +275,6 @@ class SemanticRevalidationReceipt:
             )
         for item in self.candidate_snapshot_sha256s:
             _require_sha256(item, "candidate_snapshot_sha256")
-        if len(set(self.candidate_snapshot_sha256s)) != len(
-            self.candidate_snapshot_sha256s
-        ):
-            raise SemanticRevalidationContractError(
-                "candidate snapshot hashes must be unique"
-            )
         if self.selected_snapshot_sha256 is not None:
             _require_sha256(
                 self.selected_snapshot_sha256,
@@ -492,10 +486,6 @@ class SemanticReplayRevalidator:
                 observed_at=observed_at,
             )
 
-        unique: dict[str, UiaElementSnapshot] = {}
-        for candidate in candidates:
-            unique[candidate.snapshot_sha256] = candidate
-        candidates = tuple(unique.values())
         for candidate in candidates:
             self._ledger.append_uia_element_snapshot(candidate)
 
