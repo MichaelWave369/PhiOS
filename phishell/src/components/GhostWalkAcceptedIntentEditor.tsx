@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { GhostWalkPolicyAdmissionCard } from "./GhostWalkPolicyAdmissionCard";
 import {
   GHOSTWALK_INTENT_FAMILIES,
   ghostWalkAcceptedIntentClient,
@@ -219,6 +220,15 @@ export function GhostWalkAcceptedIntentEditor({
           <div className="ghostwalk-intent-boundary">
             MACHINE CANDIDATE != HUMAN ANNOTATION != ACCEPTED INTENT != EXECUTION POLICY
           </div>
+
+
+          {current && (
+            <GhostWalkPolicyAdmissionCard
+              targetSha256={targetSha256}
+              acceptedIntentRevisionSha256={current.revision_sha256}
+              operatorNoteRevisionSha256={sourceOperatorNoteRevisionSha256}
+            />
+          )}
         </>
       )}
     </section>
