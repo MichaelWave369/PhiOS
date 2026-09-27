@@ -575,7 +575,7 @@ export function createGhostWalkAuthorizationConsoleClient({
         !sha(targetSha256) ||
         !sha(expectedAuthorityRequestSha256) ||
         !nullableSha(expectedPreviousDecisionSha256) ||
-        decisionNote?.length > 2048
+        (decisionNote !== null && decisionNote.length > 2048)
       ) {
         return Promise.resolve({ kind: "unavailable" } as const);
       }
