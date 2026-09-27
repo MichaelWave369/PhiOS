@@ -19,6 +19,12 @@ from pathlib import Path
 from typing import Callable, Mapping, Protocol
 from urllib.parse import parse_qs, urlsplit
 
+from phios.macro_accepted_intent import (
+    GhostWalkAcceptedIntentError,
+    GhostWalkAcceptedIntentRegistry,
+    GhostWalkAcceptedIntentRevision,
+    GhostWalkIntentFamily,
+)
 from phios.macro_ghostwalk_control_surface import (
     GhostWalkControlAction,
     GhostWalkControlOutcome,
@@ -44,6 +50,10 @@ OPERATOR_TRANSPORT_SCHEMA_VERSION = (
     "phios.ghostwalk-operator-log-transport.v0.28"
 )
 OPERATOR_TRANSPORT_IDENTITY = "phios-ghostwalk-operator-editor"
+ACCEPTED_INTENT_TRANSPORT_SCHEMA_VERSION = (
+    "phios.ghostwalk-accepted-intent-transport.v0.29"
+)
+ACCEPTED_INTENT_TRANSPORT_IDENTITY = "phios-ghostwalk-accepted-intent"
 DEFAULT_HOST_ID = "ghostwalk-host:local"
 DEFAULT_BASELINE_SERVICE_ID = "ghostwalk-baseline:local"
 DEFAULT_COORDINATOR_ID = "ghostwalk-coordinator:local"
@@ -83,6 +93,33 @@ class GhostWalkOperatorEditorPort(Protocol):
         status: OperatorNoteStatus = OperatorNoteStatus.ACTIVE,
         created_at: str | None = None,
     ) -> GhostWalkOperatorEditOutcome: ...
+
+
+class GhostWalkAcceptedIntentPort(Protocol):
+    def current(
+        self,
+        *,
+        target_inference_receipt_sha256: str,
+    ) -> GhostWalkAcceptedIntentRevision | None: ...
+
+    def accept(
+        self,
+        *,
+        target_inference_receipt_sha256: str,
+        source_operator_note_revision_sha256: str,
+        intent_family: GhostWalkIntentFamily,
+        intent_code: str,
+        expected_current_revision_sha256: str | None,
+        accepted_at: str | None = None,
+    ) -> GhostWalkAcceptedIntentRevision: ...
+
+    def revoke(
+        self,
+        *,
+        target_inference_receipt_sha256: str,
+        expected_current_revision_sha256: str,
+        accepted_at: str | None = None,
+    ) -> GhostWalkAcceptedIntentRevision: ...
 
 
 def _utc_now() -> str:
@@ -229,6 +266,167 @@ def parse_operator_edit_payload(
     return target, expected, body, status
 
 
+def _accepted_intent_transport_base(
+    *,
+    effect_performed: bool,
+) -> dict[str, object]:
+    return {
+        "transportSchemaVersion": (
+            ACCEPTED_INTENT_TRANSPORT_SCHEMA_VERSION
+        ),
+        "transport": "loopback-http",
+        "transportIdentity": ACCEPTED_INTENT_TRANSPORT_IDENTITY,
+        "localOnly": True,
+        "intentMutation": effect_performed,
+        "desktopEffectPerformed": False,
+        "policyAuthority": False,
+        "operationalAuthority": False,
+        "actionAuthority": False,
+        "executionAuthority": False,
+        "effectPerformed": effect_performed,
+    }
+
+
+def accepted_intent_envelope(
+    registry: GhostWalkAcceptedIntentPort,
+    *,
+    target_inference_receipt_sha256: str,
+) -> dict[str, object] | None:
+    current = registry.current(
+        target_inference_receipt_sha256=(
+            target_inference_receipt_sha256
+        )
+    )
+    if current is None:
+        return None
+    payload = _accepted_intent_transport_base(effect_performed=False)
+    payload.update(
+        {
+            "servedAt": _utc_now(),
+            "intent": current.to_dict(),
+        }
+    )
+    return payload
+
+
+def accepted_intent_mutation_envelope(
+    revision: GhostWalkAcceptedIntentRevision,
+) -> dict[str, object]:
+    payload = _accepted_intent_transport_base(effect_performed=True)
+    payload.update(
+        {
+            "servedAt": _utc_now(),
+            "intent": revision.to_dict(),
+        }
+    )
+    return payload
+
+
+def parse_accepted_intent_payload(
+    payload: object,
+) -> tuple[
+    str,
+    str,
+    str | None,
+    GhostWalkIntentFamily | None,
+    str | None,
+    str | None,
+]:
+    if not isinstance(payload, Mapping):
+        raise GhostWalkControlBridgeError(
+            "accepted-intent body must be an object"
+        )
+    operation = payload.get("operation")
+    if operation == "ACCEPT":
+        expected_keys = {
+            "operation",
+            "target_inference_receipt_sha256",
+            "source_operator_note_revision_sha256",
+            "intent_family",
+            "intent_code",
+            "expected_current_revision_sha256",
+        }
+        if set(payload) != expected_keys:
+            raise GhostWalkControlBridgeError(
+                "accepted-intent ACCEPT fields do not match contract"
+            )
+        target = payload.get("target_inference_receipt_sha256")
+        source_note = payload.get(
+            "source_operator_note_revision_sha256"
+        )
+        expected = payload.get("expected_current_revision_sha256")
+        raw_family = payload.get("intent_family")
+        intent_code = payload.get("intent_code")
+        if (
+            not isinstance(target, str)
+            or re.fullmatch(r"[0-9a-f]{64}", target) is None
+            or not isinstance(source_note, str)
+            or re.fullmatch(r"[0-9a-f]{64}", source_note) is None
+            or (
+                expected is not None
+                and (
+                    not isinstance(expected, str)
+                    or re.fullmatch(r"[0-9a-f]{64}", expected) is None
+                )
+            )
+            or not isinstance(raw_family, str)
+            or not isinstance(intent_code, str)
+        ):
+            raise GhostWalkControlBridgeError(
+                "accepted-intent ACCEPT values are invalid"
+            )
+        try:
+            family = GhostWalkIntentFamily(raw_family)
+        except ValueError as exc:
+            raise GhostWalkControlBridgeError(
+                "accepted-intent family is unsupported"
+            ) from exc
+        if (
+            not intent_code
+            or len(intent_code) > 128
+            or re.fullmatch(r"[A-Z][A-Z0-9_]{2,127}", intent_code)
+            is None
+        ):
+            raise GhostWalkControlBridgeError(
+                "accepted-intent code is invalid"
+            )
+        return (
+            operation,
+            target,
+            expected,
+            family,
+            intent_code,
+            source_note,
+        )
+
+    if operation == "REVOKE":
+        expected_keys = {
+            "operation",
+            "target_inference_receipt_sha256",
+            "expected_current_revision_sha256",
+        }
+        if set(payload) != expected_keys:
+            raise GhostWalkControlBridgeError(
+                "accepted-intent REVOKE fields do not match contract"
+            )
+        target = payload.get("target_inference_receipt_sha256")
+        expected = payload.get("expected_current_revision_sha256")
+        if (
+            not isinstance(target, str)
+            or re.fullmatch(r"[0-9a-f]{64}", target) is None
+            or not isinstance(expected, str)
+            or re.fullmatch(r"[0-9a-f]{64}", expected) is None
+        ):
+            raise GhostWalkControlBridgeError(
+                "accepted-intent REVOKE values are invalid"
+            )
+        return operation, target, expected, None, None, None
+
+    raise GhostWalkControlBridgeError(
+        "accepted-intent operation is unsupported"
+    )
+
+
 def status_envelope(surface: GhostWalkSurface) -> dict[str, object]:
     payload = _transport_base()
     payload.update(
@@ -366,6 +564,15 @@ class GhostWalkControlHandler(BaseHTTPRequestHandler):
         body.update({"error": code, "servedAt": _utc_now()})
         self._json(status, body)
 
+    def _accepted_intent_error(
+        self,
+        status: HTTPStatus,
+        code: str,
+    ) -> None:
+        body = _accepted_intent_transport_base(effect_performed=False)
+        body.update({"error": code, "servedAt": _utc_now()})
+        self._json(status, body)
+
     def _read_json(
         self,
         *,
@@ -400,6 +607,57 @@ class GhostWalkControlHandler(BaseHTTPRequestHandler):
 
     def do_GET(self) -> None:
         parsed = urlsplit(self.path)
+
+        if parsed.path == "/api/v1/ghostwalk/accepted-intent":
+            if self.server.accepted_intents is None:
+                self._accepted_intent_error(
+                    HTTPStatus.SERVICE_UNAVAILABLE,
+                    "ghostwalk_accepted_intent_unavailable",
+                )
+                return
+            try:
+                query = parse_qs(
+                    parsed.query,
+                    keep_blank_values=True,
+                    strict_parsing=True,
+                )
+            except ValueError:
+                self._accepted_intent_error(
+                    HTTPStatus.BAD_REQUEST,
+                    "invalid_ghostwalk_accepted_intent_request",
+                )
+                return
+            targets = query.get("target")
+            if (
+                set(query) != {"target"}
+                or targets is None
+                or len(targets) != 1
+                or re.fullmatch(r"[0-9a-f]{64}", targets[0]) is None
+            ):
+                self._accepted_intent_error(
+                    HTTPStatus.BAD_REQUEST,
+                    "invalid_ghostwalk_accepted_intent_request",
+                )
+                return
+            try:
+                envelope = accepted_intent_envelope(
+                    self.server.accepted_intents,
+                    target_inference_receipt_sha256=targets[0],
+                )
+            except GhostWalkAcceptedIntentError:
+                self._accepted_intent_error(
+                    HTTPStatus.CONFLICT,
+                    "ghostwalk_accepted_intent_invalid_history",
+                )
+                return
+            if envelope is None:
+                self._accepted_intent_error(
+                    HTTPStatus.NOT_FOUND,
+                    "ghostwalk_accepted_intent_not_found",
+                )
+                return
+            self._json(HTTPStatus.OK, envelope)
+            return
 
         if parsed.path == "/api/v1/ghostwalk/operator-log":
             if self.server.editor is None:
@@ -460,6 +718,75 @@ class GhostWalkControlHandler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:
         parsed = urlsplit(self.path)
+
+        if parsed.path == "/api/v1/ghostwalk/accepted-intent/revisions":
+            if parsed.query or parsed.fragment:
+                self._accepted_intent_error(
+                    HTTPStatus.BAD_REQUEST,
+                    "invalid_ghostwalk_accepted_intent_mutation",
+                )
+                return
+            if self.server.accepted_intents is None:
+                self._accepted_intent_error(
+                    HTTPStatus.SERVICE_UNAVAILABLE,
+                    "ghostwalk_accepted_intent_unavailable",
+                )
+                return
+            try:
+                (
+                    operation,
+                    target,
+                    expected,
+                    family,
+                    intent_code,
+                    source_note,
+                ) = parse_accepted_intent_payload(self._read_json())
+            except GhostWalkControlBridgeError:
+                self._accepted_intent_error(
+                    HTTPStatus.BAD_REQUEST,
+                    "invalid_ghostwalk_accepted_intent_mutation",
+                )
+                return
+
+            try:
+                if operation == "ACCEPT":
+                    assert family is not None
+                    assert intent_code is not None
+                    assert source_note is not None
+                    revision = self.server.accepted_intents.accept(
+                        target_inference_receipt_sha256=target,
+                        source_operator_note_revision_sha256=source_note,
+                        intent_family=family,
+                        intent_code=intent_code,
+                        expected_current_revision_sha256=expected,
+                    )
+                else:
+                    assert expected is not None
+                    revision = self.server.accepted_intents.revoke(
+                        target_inference_receipt_sha256=target,
+                        expected_current_revision_sha256=expected,
+                    )
+            except GhostWalkAcceptedIntentError as exc:
+                text = str(exc)
+                conflict = (
+                    "changed before" in text
+                    or "prior history" in text
+                )
+                self._accepted_intent_error(
+                    HTTPStatus.CONFLICT if conflict else HTTPStatus.BAD_REQUEST,
+                    (
+                        "ghostwalk_accepted_intent_conflict"
+                        if conflict
+                        else "ghostwalk_accepted_intent_rejected"
+                    ),
+                )
+                return
+
+            self._json(
+                HTTPStatus.OK,
+                accepted_intent_mutation_envelope(revision),
+            )
+            return
 
         if parsed.path == "/api/v1/ghostwalk/operator-log/revisions":
             if parsed.query or parsed.fragment:
@@ -552,6 +879,7 @@ class GhostWalkControlServer(ThreadingHTTPServer):
         *,
         surface: GhostWalkSurface,
         editor: GhostWalkOperatorEditorPort | None = None,
+        accepted_intents: GhostWalkAcceptedIntentPort | None = None,
         stop_callback: Callable[[], object] | None = None,
     ) -> None:
         if address[0] != LOOPBACK_HOST:
@@ -560,6 +888,7 @@ class GhostWalkControlServer(ThreadingHTTPServer):
             )
         self.surface = surface
         self.editor = editor
+        self.accepted_intents = accepted_intents
         self._stop_callback = stop_callback
         super().__init__(address, GhostWalkControlHandler)
 
@@ -650,10 +979,19 @@ def main() -> None:
         ),
         author_id=DEFAULT_OPERATOR_AUTHOR_ID,
     )
+    accepted_intents = GhostWalkAcceptedIntentRegistry(
+        ledger=RealityLedger(
+            args.state_root.expanduser()
+            / "ledger"
+            / "receipts.jsonl"
+        ),
+        accepted_by=DEFAULT_OPERATOR_AUTHOR_ID,
+    )
     server = GhostWalkControlServer(
         (LOOPBACK_HOST, args.port),
         surface=surface,
         editor=editor,
+        accepted_intents=accepted_intents,
         stop_callback=host.stop,
     )
 
