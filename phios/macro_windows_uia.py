@@ -555,21 +555,25 @@ class ComtypesWindowsUiaBackend:
             element,
             "CurrentAutomationId",
             "currentAutomationId",
+            maximum=2048,
         )
         name = self._string_property(
             element,
             "CurrentName",
             "currentName",
+            maximum=512,
         )
         class_name = self._string_property(
             element,
             "CurrentClassName",
             "currentClassName",
+            maximum=512,
         )
         framework_id = self._string_property(
             element,
             "CurrentFrameworkId",
             "currentFrameworkId",
+            maximum=256,
         )
         control_type_raw = self._optional_property(
             element,
@@ -674,6 +678,7 @@ class ComtypesWindowsUiaBackend:
     def _string_property(
         element: object,
         *names: str,
+        maximum: int,
     ) -> str | None:
         value = ComtypesWindowsUiaBackend._optional_property(
             element,
@@ -687,8 +692,8 @@ class ComtypesWindowsUiaBackend:
             return None
         if not text:
             return None
-        if len(text) > 2048:
-            text = text[:2048]
+        if len(text) > maximum:
+            text = text[:maximum]
         if any(ord(char) < 32 for char in text):
             text = "".join(
                 char if ord(char) >= 32 else " "
