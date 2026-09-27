@@ -594,15 +594,6 @@ class GhostWalkTransitionCoordinator:
         baseline = self._baseline
         self._baseline = None
         baseline_consumed = baseline is not None
-        baseline_sha = (
-            None if baseline is None else baseline.baseline_sha256
-        )
-        baseline_observer_sha = (
-            None
-            if baseline is None
-            else baseline.state_observation_receipt_sha256
-        )
-
         if outcome.receipt.injected:
             return self._finish(
                 outcome=outcome,
