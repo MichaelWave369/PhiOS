@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { GhostWalkOperatorEditor } from "./GhostWalkOperatorEditor";
 import {
   ghostWalkControlClient,
   type GhostWalkAction,
@@ -19,6 +20,7 @@ export function GhostWalkControlPanel() {
   const [busy, setBusy] = useState(false);
   const [unavailable, setUnavailable] = useState(false);
   const [lastResult, setLastResult] = useState<string | null>(null);
+  const [selectedInference, setSelectedInference] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     const next = await ghostWalkControlClient.status();
@@ -199,15 +201,26 @@ export function GhostWalkControlPanel() {
                 <span>{transition.status}</span>
               </div>
               <small>{new Date(transition.inferred_at).toLocaleTimeString()}</small>
-              <em>
+              <button
+                className="ghostwalk-note-button"
+                onClick={() => setSelectedInference(transition.inference_receipt_sha256)}
+              >
                 {transition.operator_note_revision
-                  ? `NOTE r${transition.operator_note_revision}`
-                  : "UNEDITED"}
-              </em>
+                  ? `EDIT NOTE r${transition.operator_note_revision}`
+                  : "EDIT NOTE"}
+              </button>
             </div>
           ))
         )}
       </div>
+
+      {selectedInference && (
+        <GhostWalkOperatorEditor
+          targetSha256={selectedInference}
+          onClose={() => setSelectedInference(null)}
+          onSaved={() => void refresh()}
+        />
+      )}
 
       <div className="ghostwalk-section">
         <div className="ghostwalk-section-title">RECENT HOLDS / FAILURES</div>
