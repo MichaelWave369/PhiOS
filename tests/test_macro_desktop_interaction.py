@@ -36,6 +36,11 @@ from phios.macro_dispatcher import GovernedDoDispatcher
 from phios.macro_ghostwalk import SemanticTarget
 from phios.macro_graph import DoStep, MacroDefinition, MacroGraphPlanner
 from phios.macro_interaction_guard import PixelAnchor, WindowFrame
+from phios.macro_post_action_verification import (
+    PostActionExpectation,
+    PostActionExpectationKind,
+    PostActionVerifier,
+)
 from phios.macro_runner import MacroRunner, RunnerInputs, RunnerStatus
 from phios.macro_runtime import (
     ExecutionMode,
@@ -121,12 +126,13 @@ def _payload(
     strategy: str = "SEMANTIC",
     semantic: SemanticTarget | None = None,
     anchor: PixelAnchor | None = None,
+    post_action_expectation: PostActionExpectation | None = None,
 ) -> dict[str, object]:
     pixel = anchor or _anchor()
     target = semantic
     if strategy == "SEMANTIC" and target is None:
         target = _semantic_target()
-    return {
+    payload: dict[str, object] = {
         "observation_sha256": "f" * 64,
         "preferred_strategy": strategy,
         "process_id": pixel.process_id,
@@ -138,6 +144,11 @@ def _payload(
         "absolute_pixel_is_evidence_only": True,
         "guard_required": True,
     }
+    if post_action_expectation is not None:
+        payload["post_action_expectation"] = (
+            post_action_expectation.to_dict()
+        )
+    return payload
 
 
 def _candidate(
@@ -301,6 +312,7 @@ def _executor(
     probes: tuple[OperatorInputSnapshot, ...] | None = None,
     injector: StaticInjector | None = None,
     candidates: tuple[UiaElementSnapshot, ...] = (_candidate(),),
+    post_action: bool = False,
 ):
     spine = PhiOSSpine(
         state_root=tmp_path,
@@ -327,12 +339,24 @@ def _executor(
         ledger=spine.ledger,
         backend=StaticReplayBackend(candidates),
     )
+    post_verifier = (
+        PostActionVerifier(
+            ledger=spine.ledger,
+            frame_provider=frame_provider,
+            semantic_revalidator=replay,
+            clock=SequenceClock(),
+            pause=lambda _seconds: None,
+        )
+        if post_action
+        else None
+    )
     executor = GovernedDesktopClickExecutor(
         spine=spine,
         frame_provider=frame_provider,
         input_probe=input_probe,
         injector=actual_injector,
         semantic_revalidator=replay,
+        post_action_verifier=post_verifier,
         clock=SequenceClock(),
     )
     capability = install_desktop_click_capability(
@@ -831,3 +855,165 @@ def test_desktop_011_windows_components_reject_non_windows(
         match="requires Windows",
     ):
         GovernedDesktopClickExecutor.from_windows(spine=spine)
+
+
+
+def _title_changed_expectation(
+    *,
+    max_observations: int = 1,
+) -> PostActionExpectation:
+    return PostActionExpectation(
+        kind=PostActionExpectationKind.WINDOW_TITLE_CHANGED,
+        expected_process_id="pid:4242",
+        source_window_title_sha256=TITLE,
+        max_observations=max_observations,
+        interval_ms=0,
+    )
+
+
+def test_desktop_012_post_action_verified_allows_success(
+    tmp_path: Path,
+) -> None:
+    new_title = "7" * 64
+    spine, executor, _, _, _, injector = _executor(
+        tmp_path,
+        current_frames=(
+            _frame(captured_at="2026-09-27T02:30:01+00:00"),
+            _frame(captured_at="2026-09-27T02:30:02+00:00"),
+            _frame(captured_at="2026-09-27T02:30:03+00:00"),
+            _frame(
+                captured_at="2026-09-27T02:30:04+00:00",
+                title=new_title,
+            ),
+        ),
+        post_action=True,
+    )
+    payload = _payload(
+        post_action_expectation=_title_changed_expectation()
+    )
+
+    artifact = executor.execute(payload)
+
+    assert artifact.path.exists()
+    assert injector.calls == [(500, 350)]
+    desktop = spine.ledger.recent_desktop_interaction_receipts(1)[0]
+    assert desktop["outcome"] == "SUCCEEDED"
+    post = spine.ledger.recent_post_action_verification_receipts(1)[0]
+    assert post["decision"] == "VERIFIED"
+    assert post["causation_proven"] is False
+
+
+def test_desktop_013_post_action_not_verified_is_outcome_unknown(
+    tmp_path: Path,
+) -> None:
+    spine, executor, _, _, _, injector = _executor(
+        tmp_path,
+        current_frames=(
+            _frame(captured_at="2026-09-27T02:30:01+00:00"),
+            _frame(captured_at="2026-09-27T02:30:02+00:00"),
+            _frame(captured_at="2026-09-27T02:30:03+00:00"),
+            _frame(captured_at="2026-09-27T02:30:04+00:00"),
+        ),
+        post_action=True,
+    )
+    payload = _payload(
+        post_action_expectation=_title_changed_expectation()
+    )
+
+    with pytest.raises(
+        OutcomeUnknownError,
+        match="post-action expectation",
+    ):
+        executor.execute(payload)
+
+    assert injector.calls == [(500, 350)]
+    desktop = spine.ledger.recent_desktop_interaction_receipts(1)[0]
+    assert desktop["outcome"] == "SUCCEEDED"
+    assert desktop["effect_performed"] is True
+    post = spine.ledger.recent_post_action_verification_receipts(1)[0]
+    assert post["decision"] == "NOT_VERIFIED"
+
+
+def test_desktop_014_full_macro_holds_when_postcondition_unverified(
+    tmp_path: Path,
+) -> None:
+    (
+        spine,
+        _executor_instance,
+        capability,
+        _frames,
+        _probe_instance,
+        injector,
+    ) = _executor(
+        tmp_path,
+        current_frames=(
+            _frame(captured_at="2026-09-27T02:30:01+00:00"),
+            _frame(captured_at="2026-09-27T02:30:02+00:00"),
+            _frame(captured_at="2026-09-27T02:30:03+00:00"),
+            _frame(captured_at="2026-09-27T02:30:04+00:00"),
+        ),
+        post_action=True,
+    )
+    payload = _payload(
+        post_action_expectation=_title_changed_expectation()
+    )
+    operation = _operation(payload)
+    macro_plan = MacroGraphPlanner().plan(
+        MacroDefinition(
+            macro_id="macro:desktop-postcondition",
+            macro_version="0.19.0",
+            steps=(DoStep(operation),),
+        )
+    )
+    runner = MacroRunner()
+    waiting = runner.advance(
+        macro_plan,
+        runner.start(macro_plan),
+    )
+    plan = _plan_state()
+    binding = _binding(plan, capability, payload)
+    lease = _lease(binding)
+    dispatcher = GovernedDoDispatcher()
+    package = dispatcher.package(
+        macro_plan=macro_plan,
+        run_state=waiting,
+        operation=operation,
+    )
+
+    dispatched = dispatcher.dispatch(
+        work_package=package,
+        macro_plan=macro_plan,
+        run_state=waiting,
+        operation=operation,
+        plan=plan,
+        binding=binding,
+        payload=payload,
+        spine=spine,
+        lease=lease,
+        verification=_verification(lease),
+        current_authority_epoch_sha256=(
+            lease.authority_epoch_sha256
+        ),
+        checked_at="2026-09-27T02:23:00+00:00",
+    )
+
+    assert injector.calls == [(500, 350)]
+    assert dispatched.macro_spine_receipt.status == "OUTCOME_UNKNOWN"
+    assert dispatched.operation_resolution.status.value == "HELD"
+    held = runner.advance(
+        macro_plan,
+        waiting,
+        RunnerInputs(
+            operations=(dispatched.operation_resolution,),
+        ),
+    )
+    assert held.status is RunnerStatus.HELD
+    assert held.reason == "operation_held"
+
+    execution = spine.ledger.recent(1)[0]
+    assert execution["execution_status"] == "outcome_unknown"
+    assert execution["reconciliation_status"] == "required"
+    desktop = spine.ledger.recent_desktop_interaction_receipts(1)[0]
+    assert desktop["outcome"] == "SUCCEEDED"
+    post = spine.ledger.recent_post_action_verification_receipts(1)[0]
+    assert post["decision"] == "NOT_VERIFIED"

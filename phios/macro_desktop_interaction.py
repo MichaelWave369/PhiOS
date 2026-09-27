@@ -22,6 +22,11 @@ from enum import StrEnum
 from typing import Callable, Mapping, Protocol
 
 from phios.macro_ghostwalk import SemanticTarget
+from phios.macro_post_action_verification import (
+    PostActionExpectation,
+    PostActionVerificationDecision,
+    PostActionVerifier,
+)
 from phios.macro_interaction_guard import (
     GuardDecision,
     InteractionGuard,
@@ -38,7 +43,7 @@ from phios.spine.models import Capability
 from phios.spine.runtime import PhiOSSpine
 
 DESKTOP_CLICK_CAPABILITY_ID = "desktop.interaction.click"
-DESKTOP_CLICK_CAPABILITY_VERSION = "0.18.0"
+DESKTOP_CLICK_CAPABILITY_VERSION = "0.19.0"
 DESKTOP_INTERACTION_RECEIPT_SCHEMA_VERSION = (
     "phios.desktop_interaction_receipt.v0.18"
 )
@@ -629,6 +634,7 @@ class GovernedDesktopClickExecutor:
         input_probe: OperatorInputProbe,
         injector: MouseInjector,
         semantic_revalidator: SemanticReplayRevalidator,
+        post_action_verifier: PostActionVerifier | None = None,
         clock: Callable[[], str] = _utc_now_iso,
     ) -> None:
         self._spine = spine
@@ -637,6 +643,7 @@ class GovernedDesktopClickExecutor:
         self._input_probe = input_probe
         self._injector = injector
         self._semantic_revalidator = semantic_revalidator
+        self._post_action_verifier = post_action_verifier
         self._pixel_guard = InteractionGuard(spine.ledger)
         self._clock = clock
 
@@ -650,20 +657,53 @@ class GovernedDesktopClickExecutor:
             raise DesktopInteractionContractError(
                 "Windows desktop interaction executor requires Windows"
             )
+        frame_provider = WindowsDesktopFrameProvider()
+        semantic_revalidator = SemanticReplayRevalidator.from_system(
+            ledger=spine.ledger
+        )
+        post_action_verifier = PostActionVerifier(
+            ledger=spine.ledger,
+            frame_provider=frame_provider,
+            semantic_revalidator=semantic_revalidator,
+        )
         return cls(
             spine=spine,
-            frame_provider=WindowsDesktopFrameProvider(),
+            frame_provider=frame_provider,
             input_probe=WindowsOperatorInputProbe(),
             injector=WindowsMouseInjector(),
-            semantic_revalidator=(
-                SemanticReplayRevalidator.from_system(
-                    ledger=spine.ledger
-                )
-            ),
+            semantic_revalidator=semantic_revalidator,
+            post_action_verifier=post_action_verifier,
         )
 
     def execute(self, payload: dict[str, object]) -> ArtifactResult:
-        request = DesktopClickRequest.from_payload(payload)
+        click_payload = dict(payload)
+        expectation_raw = click_payload.pop(
+            "post_action_expectation",
+            None,
+        )
+        expectation = (
+            None
+            if expectation_raw is None
+            else PostActionExpectation.from_dict(expectation_raw)
+        )
+        request = DesktopClickRequest.from_payload(click_payload)
+        if expectation is not None:
+            if self._post_action_verifier is None:
+                raise DesktopInteractionContractError(
+                    "post-action expectation requires configured verifier"
+                )
+            if expectation.expected_process_id != request.process_id:
+                raise DesktopInteractionContractError(
+                    "post-action expectation process differs from click request"
+                )
+            if (
+                expectation.source_window_title_sha256
+                != request.window_title_sha256
+            ):
+                raise DesktopInteractionContractError(
+                    "post-action expectation source window differs from click request"
+                )
+        operation_payload_sha256 = _canonical_sha256(payload)
         attempted_at = _require_timestamp(
             self._clock(),
             "attempted_at",
@@ -892,6 +932,33 @@ class GovernedDesktopClickExecutor:
             inserted_events=injection.inserted_events,
         )
         self._ledger.append_desktop_interaction_receipt(receipt)
+
+        if expectation is not None:
+            assert self._post_action_verifier is not None
+            verification = self._post_action_verifier.verify(
+                desktop_interaction_receipt_sha256=receipt.receipt_sha256,
+                operation_payload_sha256=operation_payload_sha256,
+                expectation=expectation,
+            )
+            if (
+                verification.decision
+                is not PostActionVerificationDecision.VERIFIED
+            ):
+                raise OutcomeUnknownError(
+                    "desktop post-action expectation was not verified",
+                    external_identifiers={
+                        "desktop_interaction_receipt_sha256": (
+                            receipt.receipt_sha256
+                        ),
+                        "post_action_verification_receipt_sha256": (
+                            verification.receipt_sha256
+                        ),
+                        "post_action_decision": (
+                            verification.decision.value
+                        ),
+                    },
+                )
+
         return self._artifact(receipt)
 
     def _resolve_target(
