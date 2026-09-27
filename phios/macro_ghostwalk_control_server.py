@@ -1675,22 +1675,10 @@ class GhostWalkControlHandler(BaseHTTPRequestHandler):
                     "phivessel_session_required_or_invalid",
                 )
                 return
-            except PhiVesselHandshakeError:
-                self._phivessel_error(
-                    HTTPStatus.UNAUTHORIZED,
-                    "phivessel_session_required_or_invalid",
-                )
-                return
             except PhiVesselBridgeUnavailableError:
                 self._phivessel_error(
                     HTTPStatus.SERVICE_UNAVAILABLE,
                     "phivessel_observation_unavailable",
-                )
-                return
-            except PhiVesselHandshakeError:
-                self._phivessel_error(
-                    HTTPStatus.UNAUTHORIZED,
-                    "phivessel_session_required_or_invalid",
                 )
                 return
             except (GhostWalkControlBridgeError, PhiVesselBridgeError):
@@ -2199,6 +2187,12 @@ class GhostWalkControlHandler(BaseHTTPRequestHandler):
                     packet_refs=packet_refs,
                     proposal_type=proposal_type,
                 )
+            except PhiVesselHandshakeError:
+                self._phivessel_error(
+                    HTTPStatus.UNAUTHORIZED,
+                    "phivessel_session_required_or_invalid",
+                )
+                return
             except (GhostWalkControlBridgeError, PhiVesselBridgeError):
                 self._phivessel_error(
                     HTTPStatus.BAD_REQUEST,
@@ -2232,6 +2226,12 @@ class GhostWalkControlHandler(BaseHTTPRequestHandler):
                     self.server.phivessel_bridge,
                     action_lease_sha256=lease_id,
                 )
+            except PhiVesselHandshakeError:
+                self._phivessel_error(
+                    HTTPStatus.UNAUTHORIZED,
+                    "phivessel_session_required_or_invalid",
+                )
+                return
             except PhiVesselBridgeUnavailableError:
                 self._phivessel_error(
                     HTTPStatus.SERVICE_UNAVAILABLE,
