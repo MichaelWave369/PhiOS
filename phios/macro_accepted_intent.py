@@ -564,9 +564,10 @@ class GhostWalkAcceptedIntentRegistry:
         self,
         intent: GhostWalkAcceptedIntentRevision,
     ) -> None:
+        all_rows = self._ledger.operator_log_revisions()
         matches = [
             row
-            for row in self._ledger.operator_log_revisions()
+            for row in all_rows
             if row.get("revision_sha256")
             == intent.source_operator_note_revision_sha256
         ]
@@ -586,4 +587,47 @@ class GhostWalkAcceptedIntentRegistry:
         ):
             raise GhostWalkAcceptedIntentError(
                 "accepted intent source OperatorLog target mismatch"
+            )
+
+        prefix_rows = [
+            row
+            for row in all_rows
+            if row.get("note_id") == revision.note_id
+            and isinstance(row.get("revision"), int)
+            and not isinstance(row.get("revision"), bool)
+            and int(row["revision"]) <= revision.revision
+        ]
+        parsed: list[OperatorLogRevision] = []
+        try:
+            parsed = [
+                OperatorLogRevision.from_dict(row)
+                for row in prefix_rows
+            ]
+        except OperatorLogContractError as exc:
+            raise GhostWalkAcceptedIntentError(
+                "accepted intent source OperatorLog prefix is invalid"
+            ) from exc
+
+        previous: OperatorLogRevision | None = None
+        for expected_revision, item in enumerate(parsed, start=1):
+            if item.revision != expected_revision:
+                raise GhostWalkAcceptedIntentError(
+                    "accepted intent source OperatorLog revisions are not contiguous"
+                )
+            if item.target_sha256 != revision.target_sha256:
+                raise GhostWalkAcceptedIntentError(
+                    "accepted intent source OperatorLog target changed"
+                )
+            if previous is not None and (
+                item.supersedes_revision_sha256
+                != previous.revision_sha256
+            ):
+                raise GhostWalkAcceptedIntentError(
+                    "accepted intent source OperatorLog chain mismatch"
+                )
+            previous = item
+
+        if not parsed or parsed[-1].revision_sha256 != revision.revision_sha256:
+            raise GhostWalkAcceptedIntentError(
+                "accepted intent source OperatorLog prefix is incomplete"
             )
