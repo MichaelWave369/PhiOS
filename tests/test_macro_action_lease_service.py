@@ -204,3 +204,194 @@ def _service(
             current=current_binding,
         ),
         policies=GhostWalkLeasePolicyRegistry(policies if policies is not None else (_policy(),)),
+        authority_epochs=_Epochs(epoch if epoch is not None else _epoch()),
+        clock=lambda: NOW,
+    )
+
+
+def test_ready_state_binds_exact_prelease_trust_state(tmp_path) -> None:
+    service = _service(tmp_path)
+
+    readiness = service.readiness(target_inference_receipt_sha256=TARGET)
+
+    assert readiness.ready is True
+    assert readiness.reason is GhostWalkLeaseReadinessReason.READY
+    assert readiness.executable_binding_sha256 == _binding().executable_binding_sha256
+    assert readiness.required_permissions == ("ui.interact",)
+    assert readiness.missing_permissions == ()
+    assert readiness.unenforced_effects == ("filesystem.change",)
+    assert readiness.accepted_unenforced_effects == ("filesystem.change",)
+    assert readiness.action_authority is False
+    assert readiness.execution_authority is False
+
+
+def test_issue_creates_single_use_action_authority_not_execution_authority(tmp_path) -> None:
+    service = _service(tmp_path)
+    readiness = service.readiness(target_inference_receipt_sha256=TARGET)
+
+    record = service.issue(
+        target_inference_receipt_sha256=TARGET,
+        expected_executable_binding_sha256=readiness.executable_binding_sha256 or "",
+        expected_policy_sha256=readiness.policy_sha256 or "",
+        expected_policy_set_sha256=readiness.policy_set_sha256,
+        expected_enforcement_profile_sha256=readiness.enforcement_profile_sha256 or "",
+        expected_authority_epoch_sha256=readiness.authority_epoch_sha256 or "",
+    )
+
+    lease = record.action_lease
+    assert lease.authorization_receipt_sha256 == AUTH_DECISION
+    assert lease.permissions_authorized == ("ui.interact",)
+    assert lease.max_uses == 1
+    assert lease.action_authority is True
+    assert lease.execution_authority is False
+    assert lease.effect_performed is False
+    assert record.executable_binding_sha256 == _binding().executable_binding_sha256
+    assert record.execution_authority is False
+    assert service.latest(target_inference_receipt_sha256=TARGET) == record
+
+    later = service.readiness(target_inference_receipt_sha256=TARGET)
+    assert later.ready is False
+    assert later.reason is GhostWalkLeaseReadinessReason.LEASE_ALREADY_EXISTS
+    assert later.existing_action_lease_sha256 == lease.action_lease_sha256
+
+
+def test_no_server_owned_policy_holds(tmp_path) -> None:
+    service = _service(tmp_path, policies=())
+
+    readiness = service.readiness(target_inference_receipt_sha256=TARGET)
+
+    assert readiness.reason is GhostWalkLeaseReadinessReason.LEASE_POLICY_MISSING
+    assert readiness.ready is False
+
+
+def test_unmapped_effect_holds(tmp_path) -> None:
+    policy = _policy(rules=(_display_rule(),), accepted_unenforced=())
+    service = _service(tmp_path, policies=(policy,))
+
+    readiness = service.readiness(target_inference_receipt_sha256=TARGET)
+
+    assert readiness.reason is GhostWalkLeaseReadinessReason.ENFORCEMENT_PROFILE_INCOMPLETE
+    assert readiness.ready is False
+
+
+def test_unenforced_effect_requires_exact_policy_acknowledgement(tmp_path) -> None:
+    policy = _policy(accepted_unenforced=())
+    service = _service(tmp_path, policies=(policy,))
+
+    readiness = service.readiness(target_inference_receipt_sha256=TARGET)
+
+    assert readiness.reason is GhostWalkLeaseReadinessReason.UNENFORCED_EFFECT_ACK_REQUIRED
+    assert readiness.unenforced_effects == ("filesystem.change",)
+
+
+def test_missing_authority_permission_holds(tmp_path) -> None:
+    service = _service(tmp_path, epoch=_epoch(include_grant=False))
+
+    readiness = service.readiness(target_inference_receipt_sha256=TARGET)
+
+    assert readiness.reason is GhostWalkLeaseReadinessReason.AUTHORITY_PERMISSION_MISSING
+    assert readiness.missing_permissions == ("ui.interact",)
+
+
+def test_authority_principal_must_match_server_policy(tmp_path) -> None:
+    service = _service(tmp_path, epoch=_epoch(principal_id="service:other"))
+
+    readiness = service.readiness(target_inference_receipt_sha256=TARGET)
+
+    assert readiness.reason is GhostWalkLeaseReadinessReason.AUTHORITY_PRINCIPAL_MISMATCH
+
+
+def test_stale_executable_binding_holds(tmp_path) -> None:
+    service = _service(tmp_path, current_binding=False)
+
+    readiness = service.readiness(target_inference_receipt_sha256=TARGET)
+
+    assert readiness.reason is GhostWalkLeaseReadinessReason.EXECUTABLE_BINDING_STALE
+
+
+def test_expired_known_authority_transition_holds(tmp_path) -> None:
+    epoch = _epoch(expires_at="2026-09-27T18:44:59+00:00")
+    service = _service(tmp_path, epoch=epoch)
+
+    readiness = service.readiness(target_inference_receipt_sha256=TARGET)
+
+    assert readiness.reason is GhostWalkLeaseReadinessReason.AUTHORITY_EPOCH_STALE
+
+
+def test_optimistic_concurrency_rejects_changed_epoch(tmp_path) -> None:
+    epochs = _Epochs(_epoch())
+    service = GhostWalkActionLeaseService(
+        ledger=RealityLedger(tmp_path / "ledger" / "receipts.jsonl"),
+        capability_bindings=_Bindings(_binding()),
+        policies=GhostWalkLeasePolicyRegistry((_policy(),)),
+        authority_epochs=epochs,
+        clock=lambda: NOW,
+    )
+    readiness = service.readiness(target_inference_receipt_sha256=TARGET)
+    epochs.epoch = AuthorityEpoch.build(
+        principal_id="operator:local",
+        policy_sha256="9" * 64,
+        ceiling=("ui.interact",),
+        events=(
+            AuthoritativeAuthorityEvent(
+                event_id="grant-ui-interact",
+                sequence=1,
+                kind=AuthorityEventKind.GRANT,
+                permission="ui.interact",
+                authority_source="operator-ledger",
+                effective_at="2026-09-27T18:40:00+00:00",
+                expires_at="2026-09-27T18:50:00+00:00",
+            ),
+        ),
+        observed_at="2026-09-27T18:44:40+00:00",
+    )
+
+    with pytest.raises(GhostWalkActionLeaseError, match="AuthorityEpoch changed"):
+        service.issue(
+            target_inference_receipt_sha256=TARGET,
+            expected_executable_binding_sha256=readiness.executable_binding_sha256 or "",
+            expected_policy_sha256=readiness.policy_sha256 or "",
+            expected_policy_set_sha256=readiness.policy_set_sha256,
+            expected_enforcement_profile_sha256=readiness.enforcement_profile_sha256 or "",
+            expected_authority_epoch_sha256=readiness.authority_epoch_sha256 or "",
+        )
+
+
+def test_tampered_persisted_lease_record_fails_closed(tmp_path) -> None:
+    service = _service(tmp_path)
+    readiness = service.readiness(target_inference_receipt_sha256=TARGET)
+    record = service.issue(
+        target_inference_receipt_sha256=TARGET,
+        expected_executable_binding_sha256=readiness.executable_binding_sha256 or "",
+        expected_policy_sha256=readiness.policy_sha256 or "",
+        expected_policy_set_sha256=readiness.policy_set_sha256,
+        expected_enforcement_profile_sha256=readiness.enforcement_profile_sha256 or "",
+        expected_authority_epoch_sha256=readiness.authority_epoch_sha256 or "",
+    )
+    path = service._ledger.path.parent / "ghostwalk-action-lease-records.jsonl"
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    payload["action_lease"]["issuer_id"] = "phios:tampered"
+    path.write_text(json.dumps(payload, sort_keys=True) + "\n", encoding="utf-8")
+
+    with pytest.raises(GhostWalkActionLeaseError, match="persisted Ghost-Walk ActionLease"):
+        service.latest(target_inference_receipt_sha256=record.target_inference_receipt_sha256)
+
+
+def test_serialized_record_cannot_claim_execution(tmp_path) -> None:
+    service = _service(tmp_path)
+    readiness = service.readiness(target_inference_receipt_sha256=TARGET)
+    record = service.issue(
+        target_inference_receipt_sha256=TARGET,
+        expected_executable_binding_sha256=readiness.executable_binding_sha256 or "",
+        expected_policy_sha256=readiness.policy_sha256 or "",
+        expected_policy_set_sha256=readiness.policy_set_sha256,
+        expected_enforcement_profile_sha256=readiness.enforcement_profile_sha256 or "",
+        expected_authority_epoch_sha256=readiness.authority_epoch_sha256 or "",
+    )
+    payload = copy.deepcopy(record.to_dict())
+    payload["execution_authority"] = True
+    path = service._ledger.path.parent / "ghostwalk-action-lease-records.jsonl"
+    path.write_text(json.dumps(payload, sort_keys=True) + "\n", encoding="utf-8")
+
+    with pytest.raises(GhostWalkActionLeaseError, match="persisted Ghost-Walk ActionLease"):
+        service.latest(target_inference_receipt_sha256=TARGET)
