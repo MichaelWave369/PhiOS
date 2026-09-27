@@ -479,6 +479,8 @@ class WindowsUiaSemanticProvider:
         snapshot: UiaElementSnapshot | None,
         target: SemanticTarget | None,
     ) -> None:
+        if snapshot is not None:
+            self._ledger.append_uia_element_snapshot(snapshot)
         receipt = UiaLookupReceipt(
             event_sha256=event.event_sha256,
             frame_sha256=frame.frame_sha256,
