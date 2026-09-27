@@ -7,6 +7,8 @@ desktop state, or execution authority.
 
 from __future__ import annotations
 
+import hashlib
+import json
 import re
 import threading
 from dataclasses import dataclass
@@ -68,6 +70,22 @@ def _require_sha256(value: object, field: str) -> str:
             f"{field} must be a lowercase SHA-256 digest"
         )
     return text
+
+
+def _canonical_sha256(value: object) -> str:
+    try:
+        encoded = json.dumps(
+            value,
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=False,
+            allow_nan=False,
+        ).encode("utf-8")
+    except (TypeError, ValueError) as exc:
+        raise GhostWalkOperatorEditorError(
+            "transition inference payload must be canonical JSON"
+        ) from exc
+    return hashlib.sha256(encoded).hexdigest()
 
 
 def _require_timestamp(value: object, field: str) -> str:
@@ -304,6 +322,16 @@ class GhostWalkOperatorEditor:
         if row is None:
             raise GhostWalkOperatorEditorError(
                 "transition inference receipt does not exist"
+            )
+        claimed = _require_sha256(
+            row.get("receipt_sha256"),
+            "inference_receipt_sha256",
+        )
+        body = dict(row)
+        del body["receipt_sha256"]
+        if _canonical_sha256(body) != claimed:
+            raise GhostWalkOperatorEditorError(
+                "transition inference receipt hash mismatch"
             )
         return row
 
