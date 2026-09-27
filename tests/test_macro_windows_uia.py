@@ -401,3 +401,73 @@ def test_uia_011_v014_capture_prefers_strong_uia_target(
         outcome.observation.semantic_target.provider
         == "windows.uia.v0.16"
     )
+
+
+def test_uia_012_bounds_mismatch_is_ambiguous(
+    tmp_path: Path,
+) -> None:
+    ledger = _ledger(tmp_path)
+    snapshot = UiaElementSnapshot(
+        process_id=4242,
+        automation_id="save-button",
+        name_hint="Save",
+        control_type=50000,
+        class_name="Button",
+        framework_id="Win32",
+        enabled=True,
+        offscreen=False,
+        is_password=False,
+        bounding_left=10,
+        bounding_top=10,
+        bounding_right=20,
+        bounding_bottom=20,
+    )
+    provider = WindowsUiaSemanticProvider(
+        ledger=ledger,
+        backend=StaticUiaBackend(snapshot),
+    )
+
+    target = provider.target_for_click(
+        event=_event(),
+        frame=_frame(),
+    )
+
+    assert target is None
+    row = ledger.recent_uia_lookup_receipts(1)[0]
+    assert row["decision"] == "AMBIGUOUS"
+    assert row["reason"] == "uia_element_bounds_do_not_contain_click"
+
+
+def test_uia_013_offscreen_element_is_ambiguous(
+    tmp_path: Path,
+) -> None:
+    ledger = _ledger(tmp_path)
+    snapshot = UiaElementSnapshot(
+        process_id=4242,
+        automation_id="save-button",
+        name_hint="Save",
+        control_type=50000,
+        class_name="Button",
+        framework_id="Win32",
+        enabled=True,
+        offscreen=True,
+        is_password=False,
+        bounding_left=450,
+        bounding_top=320,
+        bounding_right=550,
+        bounding_bottom=380,
+    )
+    provider = WindowsUiaSemanticProvider(
+        ledger=ledger,
+        backend=StaticUiaBackend(snapshot),
+    )
+
+    target = provider.target_for_click(
+        event=_event(),
+        frame=_frame(),
+    )
+
+    assert target is None
+    row = ledger.recent_uia_lookup_receipts(1)[0]
+    assert row["decision"] == "AMBIGUOUS"
+    assert row["reason"] == "uia_element_reported_offscreen"
