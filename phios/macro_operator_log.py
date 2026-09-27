@@ -68,6 +68,14 @@ def _require_timestamp(value: object, field: str) -> str:
     return text
 
 
+def _require_bool(value: object, field: str) -> bool:
+    if not isinstance(value, bool):
+        raise OperatorLogContractError(
+            f"{field} must be Boolean"
+        )
+    return value
+
+
 def _canonical_json(value: object) -> str:
     try:
         return json.dumps(
@@ -239,13 +247,18 @@ class OperatorLogRevision:
                     "supersedes_revision_sha256",
                 )
             ),
-            operational_authority=payload.get(
-                "operational_authority"
-            ) is True,
-            action_authority=payload.get("action_authority") is True,
-            execution_authority=payload.get(
-                "execution_authority"
-            ) is True,
+            operational_authority=_require_bool(
+                payload.get("operational_authority"),
+                "operational_authority",
+            ),
+            action_authority=_require_bool(
+                payload.get("action_authority"),
+                "action_authority",
+            ),
+            execution_authority=_require_bool(
+                payload.get("execution_authority"),
+                "execution_authority",
+            ),
             schema_version=_require_text(
                 payload.get("schema_version"),
                 "schema_version",
