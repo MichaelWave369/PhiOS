@@ -10,13 +10,14 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import sys
 from datetime import UTC, datetime
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Callable, Mapping, Protocol
-from urllib.parse import urlsplit
+from urllib.parse import parse_qs, urlsplit
 
 from phios.macro_ghostwalk_control_surface import (
     GhostWalkControlAction,
@@ -25,6 +26,13 @@ from phios.macro_ghostwalk_control_surface import (
     GhostWalkControlSurface,
 )
 from phios.macro_ghostwalk_host_service import GhostWalkHostService
+from phios.macro_ghostwalk_operator_editor import (
+    GhostWalkOperatorEditOutcome,
+    GhostWalkOperatorEditor,
+    GhostWalkOperatorEditorError,
+    GhostWalkOperatorNoteView,
+)
+from phios.macro_operator_log import OperatorNoteStatus
 from phios.spine.ledger import RealityLedger
 
 LOOPBACK_HOST = "127.0.0.1"
@@ -32,6 +40,10 @@ DEFAULT_GHOSTWALK_PORT = 3973
 MAX_REQUEST_BYTES = 8192
 TRANSPORT_SCHEMA_VERSION = "phios.ghostwalk-control-transport.v0.26"
 TRANSPORT_IDENTITY = "phios-ghostwalk-control"
+OPERATOR_TRANSPORT_SCHEMA_VERSION = (
+    "phios.ghostwalk-operator-log-transport.v0.28"
+)
+OPERATOR_TRANSPORT_IDENTITY = "phios-ghostwalk-operator-editor"
 DEFAULT_HOST_ID = "ghostwalk-host:local"
 DEFAULT_BASELINE_SERVICE_ID = "ghostwalk-baseline:local"
 DEFAULT_COORDINATOR_ID = "ghostwalk-coordinator:local"
@@ -55,6 +67,24 @@ class GhostWalkSurface(Protocol):
     ) -> GhostWalkControlOutcome: ...
 
 
+class GhostWalkOperatorEditorPort(Protocol):
+    def view(
+        self,
+        *,
+        target_inference_receipt_sha256: str,
+    ) -> GhostWalkOperatorNoteView: ...
+
+    def edit(
+        self,
+        *,
+        target_inference_receipt_sha256: str,
+        expected_current_revision_sha256: str,
+        body: str,
+        status: OperatorNoteStatus = OperatorNoteStatus.ACTIVE,
+        created_at: str | None = None,
+    ) -> GhostWalkOperatorEditOutcome: ...
+
+
 def _utc_now() -> str:
     return datetime.now(UTC).isoformat()
 
@@ -70,6 +100,133 @@ def _transport_base() -> dict[str, object]:
         "executionAuthority": False,
         "effectPerformed": False,
     }
+
+
+def _operator_transport_base(
+    *,
+    effect_performed: bool,
+) -> dict[str, object]:
+    return {
+        "transportSchemaVersion": OPERATOR_TRANSPORT_SCHEMA_VERSION,
+        "transport": "loopback-http",
+        "transportIdentity": OPERATOR_TRANSPORT_IDENTITY,
+        "localOnly": True,
+        "annotationMutation": effect_performed,
+        "desktopEffectPerformed": False,
+        "operationalAuthority": False,
+        "actionAuthority": False,
+        "executionAuthority": False,
+        "effectPerformed": effect_performed,
+    }
+
+
+def operator_note_envelope(
+    editor: GhostWalkOperatorEditorPort,
+    *,
+    target_inference_receipt_sha256: str,
+) -> dict[str, object]:
+    payload = _operator_transport_base(effect_performed=False)
+    payload.update(
+        {
+            "servedAt": _utc_now(),
+            "note": editor.view(
+                target_inference_receipt_sha256=(
+                    target_inference_receipt_sha256
+                )
+            ).to_dict(),
+        }
+    )
+    return payload
+
+
+def operator_edit_envelope(
+    editor: GhostWalkOperatorEditorPort,
+    *,
+    target_inference_receipt_sha256: str,
+    expected_current_revision_sha256: str,
+    body: str,
+    status: OperatorNoteStatus,
+) -> dict[str, object]:
+    outcome = editor.edit(
+        target_inference_receipt_sha256=(
+            target_inference_receipt_sha256
+        ),
+        expected_current_revision_sha256=(
+            expected_current_revision_sha256
+        ),
+        body=body,
+        status=status,
+    )
+    payload = _operator_transport_base(effect_performed=True)
+    payload.update(
+        {
+            "servedAt": _utc_now(),
+            "outcome": outcome.to_dict(),
+        }
+    )
+    return payload
+
+
+def parse_operator_edit_payload(
+    payload: object,
+) -> tuple[str, str, str, OperatorNoteStatus]:
+    if not isinstance(payload, Mapping):
+        raise GhostWalkControlBridgeError(
+            "OperatorLog edit body must be an object"
+        )
+    expected_keys = {
+        "target_inference_receipt_sha256",
+        "expected_current_revision_sha256",
+        "body",
+        "status",
+    }
+    if set(payload) != expected_keys:
+        raise GhostWalkControlBridgeError(
+            "OperatorLog edit fields do not match contract"
+        )
+
+    target = payload.get("target_inference_receipt_sha256")
+    expected = payload.get("expected_current_revision_sha256")
+    body = payload.get("body")
+    raw_status = payload.get("status")
+
+    if (
+        not isinstance(target, str)
+        or not re.fullmatch(r"[0-9a-f]{64}", target)
+    ):
+        raise GhostWalkControlBridgeError(
+            "target inference receipt must be a SHA-256 digest"
+        )
+    if (
+        not isinstance(expected, str)
+        or not re.fullmatch(r"[0-9a-f]{64}", expected)
+    ):
+        raise GhostWalkControlBridgeError(
+            "expected revision must be a SHA-256 digest"
+        )
+    if (
+        not isinstance(body, str)
+        or not body
+        or len(body) > 16384
+        or any(
+            ord(char) < 32 and char not in "\n\r\t"
+            for char in body
+        )
+    ):
+        raise GhostWalkControlBridgeError(
+            "operator note body is invalid"
+        )
+    if not isinstance(raw_status, str):
+        raise GhostWalkControlBridgeError(
+            "operator note status must be a string"
+        )
+    try:
+        status = OperatorNoteStatus(raw_status)
+    except ValueError as exc:
+        raise GhostWalkControlBridgeError(
+            "operator note status is unsupported"
+        ) from exc
+    return target, expected, body, status
 
 
 def status_envelope(surface: GhostWalkSurface) -> dict[str, object]:
@@ -200,6 +357,15 @@ class GhostWalkControlHandler(BaseHTTPRequestHandler):
         body.update({"error": code, "servedAt": _utc_now()})
         self._json(status, body)
 
+    def _operator_error(
+        self,
+        status: HTTPStatus,
+        code: str,
+    ) -> None:
+        body = _operator_transport_base(effect_performed=False)
+        body.update({"error": code, "servedAt": _utc_now()})
+        self._json(status, body)
+
     def _read_json(self) -> object:
         raw_length = self.headers.get("content-length")
         if raw_length is None:
@@ -230,6 +396,52 @@ class GhostWalkControlHandler(BaseHTTPRequestHandler):
 
     def do_GET(self) -> None:
         parsed = urlsplit(self.path)
+
+        if parsed.path == "/api/v1/ghostwalk/operator-log":
+            if self.server.editor is None:
+                self._operator_error(
+                    HTTPStatus.SERVICE_UNAVAILABLE,
+                    "ghostwalk_operator_editor_unavailable",
+                )
+                return
+            try:
+                query = parse_qs(
+                    parsed.query,
+                    keep_blank_values=True,
+                    strict_parsing=True,
+                )
+            except ValueError:
+                self._operator_error(
+                    HTTPStatus.BAD_REQUEST,
+                    "invalid_ghostwalk_operator_note_request",
+                )
+                return
+            targets = query.get("target")
+            if (
+                set(query) != {"target"}
+                or targets is None
+                or len(targets) != 1
+                or re.fullmatch(r"[0-9a-f]{64}", targets[0]) is None
+            ):
+                self._operator_error(
+                    HTTPStatus.BAD_REQUEST,
+                    "invalid_ghostwalk_operator_note_request",
+                )
+                return
+            try:
+                envelope = operator_note_envelope(
+                    self.server.editor,
+                    target_inference_receipt_sha256=targets[0],
+                )
+            except GhostWalkOperatorEditorError:
+                self._operator_error(
+                    HTTPStatus.NOT_FOUND,
+                    "ghostwalk_operator_note_not_found",
+                )
+                return
+            self._json(HTTPStatus.OK, envelope)
+            return
+
         if (
             parsed.path != "/api/v1/ghostwalk"
             or parsed.query
@@ -244,6 +456,49 @@ class GhostWalkControlHandler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:
         parsed = urlsplit(self.path)
+
+        if parsed.path == "/api/v1/ghostwalk/operator-log/revisions":
+            if parsed.query or parsed.fragment:
+                self._operator_error(
+                    HTTPStatus.BAD_REQUEST,
+                    "invalid_ghostwalk_operator_edit_request",
+                )
+                return
+            if self.server.editor is None:
+                self._operator_error(
+                    HTTPStatus.SERVICE_UNAVAILABLE,
+                    "ghostwalk_operator_editor_unavailable",
+                )
+                return
+            try:
+                target, expected, body, status = (
+                    parse_operator_edit_payload(self._read_json())
+                )
+            except GhostWalkControlBridgeError:
+                self._operator_error(
+                    HTTPStatus.BAD_REQUEST,
+                    "invalid_ghostwalk_operator_edit_request",
+                )
+                return
+            try:
+                envelope = operator_edit_envelope(
+                    self.server.editor,
+                    target_inference_receipt_sha256=target,
+                    expected_current_revision_sha256=expected,
+                    body=body,
+                    status=status,
+                )
+            except GhostWalkOperatorEditorError as exc:
+                code = (
+                    "ghostwalk_operator_edit_conflict"
+                    if "revision changed before edit" in str(exc)
+                    else "ghostwalk_operator_edit_rejected"
+                )
+                self._operator_error(HTTPStatus.CONFLICT, code)
+                return
+            self._json(HTTPStatus.OK, envelope)
+            return
+
         if (
             parsed.path != "/api/v1/ghostwalk/actions"
             or parsed.query
@@ -290,6 +545,7 @@ class GhostWalkControlServer(ThreadingHTTPServer):
         address: tuple[str, int],
         *,
         surface: GhostWalkSurface,
+        editor: GhostWalkOperatorEditorPort | None = None,
         stop_callback: Callable[[], object] | None = None,
     ) -> None:
         if address[0] != LOOPBACK_HOST:
@@ -297,6 +553,7 @@ class GhostWalkControlServer(ThreadingHTTPServer):
                 "Ghost-Walk control server must bind IPv4 loopback"
             )
         self.surface = surface
+        self.editor = editor
         self._stop_callback = stop_callback
         super().__init__(address, GhostWalkControlHandler)
 
@@ -379,9 +636,18 @@ def main() -> None:
     host, surface = build_local_runtime(
         state_root=args.state_root,
     )
+    editor = GhostWalkOperatorEditor(
+        ledger=RealityLedger(
+            args.state_root.expanduser()
+            / "ledger"
+            / "receipts.jsonl"
+        ),
+        author_id=DEFAULT_OPERATOR_AUTHOR_ID,
+    )
     server = GhostWalkControlServer(
         (LOOPBACK_HOST, args.port),
         surface=surface,
+        editor=editor,
         stop_callback=host.stop,
     )
 
