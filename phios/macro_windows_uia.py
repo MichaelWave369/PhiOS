@@ -588,12 +588,10 @@ class ComtypesWindowsUiaBackend:
         if element is None:
             return None
 
-        process_id = int(
-            self._property(
-                element,
-                "CurrentProcessId",
-                "currentProcessId",
-            )
+        process_id = self._required_int_property(
+            element,
+            "CurrentProcessId",
+            "currentProcessId",
         )
         automation_id = self._string_property(
             element,
@@ -647,24 +645,37 @@ class ComtypesWindowsUiaBackend:
 
         bounds: tuple[int, int, int, int] | None = None
         if rectangle is not None:
-            try:
-                bounds = (
-                    int(rectangle.left),
-                    int(rectangle.top),
-                    int(rectangle.right),
-                    int(rectangle.bottom),
-                )
-            except (AttributeError, TypeError, ValueError):
-                bounds = None
+            left = self._coerce_int(
+                getattr(rectangle, "left", None),
+                "bounding_left",
+            )
+            top = self._coerce_int(
+                getattr(rectangle, "top", None),
+                "bounding_top",
+            )
+            right = self._coerce_int(
+                getattr(rectangle, "right", None),
+                "bounding_right",
+            )
+            bottom = self._coerce_int(
+                getattr(rectangle, "bottom", None),
+                "bounding_bottom",
+            )
+            if (
+                left is not None
+                and top is not None
+                and right is not None
+                and bottom is not None
+            ):
+                bounds = (left, top, right, bottom)
 
         return UiaElementSnapshot(
             process_id=process_id,
             automation_id=automation_id,
             name_hint=name,
-            control_type=(
-                None
-                if control_type_raw is None
-                else int(control_type_raw)
+            control_type=self._coerce_int(
+                control_type_raw,
+                "control_type",
             ),
             class_name=class_name,
             framework_id=framework_id,
@@ -690,6 +701,59 @@ class ComtypesWindowsUiaBackend:
                 None if bounds is None else bounds[3]
             ),
         )
+
+    @staticmethod
+    def _coerce_int(
+        value: object,
+        field: str,
+    ) -> int | None:
+        if value is None:
+            return None
+        if isinstance(value, bool):
+            raise WindowsUiaContractError(
+                f"{field} cannot be Boolean"
+            )
+        if isinstance(value, int):
+            return value
+        raw = getattr(value, "value", None)
+        if isinstance(raw, bool):
+            raise WindowsUiaContractError(
+                f"{field} cannot be Boolean"
+            )
+        if isinstance(raw, int):
+            return raw
+        if isinstance(value, str):
+            try:
+                return int(value)
+            except ValueError as exc:
+                raise WindowsUiaContractError(
+                    f"{field} is not integer-like"
+                ) from exc
+        try:
+            return int(str(value))
+        except (TypeError, ValueError) as exc:
+            raise WindowsUiaContractError(
+                f"{field} is not integer-like"
+            ) from exc
+
+    @staticmethod
+    def _required_int_property(
+        element: object,
+        *names: str,
+    ) -> int:
+        value = ComtypesWindowsUiaBackend._property(
+            element,
+            *names,
+        )
+        coerced = ComtypesWindowsUiaBackend._coerce_int(
+            value,
+            names[0],
+        )
+        if coerced is None:
+            raise WindowsUiaContractError(
+                f"UIA integer property unavailable: {names[0]}"
+            )
+        return coerced
 
     @staticmethod
     def _property(
