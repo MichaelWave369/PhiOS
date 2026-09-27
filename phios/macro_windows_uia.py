@@ -425,6 +425,37 @@ class WindowsUiaSemanticProvider:
             )
             return None
 
+        if (
+            snapshot.bounding_left is not None
+            and snapshot.bounding_top is not None
+            and snapshot.bounding_right is not None
+            and snapshot.bounding_bottom is not None
+            and not (
+                snapshot.bounding_left <= event.x_px < snapshot.bounding_right
+                and snapshot.bounding_top <= event.y_px < snapshot.bounding_bottom
+            )
+        ):
+            self._append_receipt(
+                event=event,
+                frame=frame,
+                decision=UiaLookupDecision.AMBIGUOUS,
+                reason="uia_element_bounds_do_not_contain_click",
+                snapshot=snapshot,
+                target=None,
+            )
+            return None
+
+        if snapshot.offscreen is True:
+            self._append_receipt(
+                event=event,
+                frame=frame,
+                decision=UiaLookupDecision.AMBIGUOUS,
+                reason="uia_element_reported_offscreen",
+                snapshot=snapshot,
+                target=None,
+            )
+            return None
+
         automation_id = _optional_text(
             snapshot.automation_id,
             "automation_id",
