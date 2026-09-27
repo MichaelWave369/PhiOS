@@ -380,6 +380,19 @@ class WindowsUiaSemanticProvider:
         self._ledger = ledger
         self._backend = backend
 
+    @classmethod
+    def from_system(
+        cls,
+        *,
+        ledger: RealityLedger,
+    ) -> "WindowsUiaSemanticProvider":
+        """Construct the real optional Windows/comtypes UIA provider."""
+
+        return cls(
+            ledger=ledger,
+            backend=ComtypesWindowsUiaBackend(),
+        )
+
     def target_for_click(
         self,
         *,
