@@ -171,3 +171,156 @@ class GhostWalkLeasePolicy:
         ordered = tuple(sorted(self.enforcement_rules, key=lambda item: item.rule_id))
         if ordered != self.enforcement_rules:
             raise GhostWalkActionLeaseError("enforcement_rules must be sorted by rule_id")
+        if len({item.rule_id for item in self.enforcement_rules}) != len(self.enforcement_rules):
+            raise GhostWalkActionLeaseError("enforcement rule IDs must be unique")
+        declared = set(self.effects_declared)
+        for rule in self.enforcement_rules:
+            if set(rule.effect_scope) - declared:
+                raise GhostWalkActionLeaseError("enforcement rule exceeds policy effect scope")
+        _text_tuple(self.accepted_unenforced_effects, "accepted_unenforced_effects")
+        if not set(self.accepted_unenforced_effects).issubset(declared):
+            raise GhostWalkActionLeaseError(
+                "accepted_unenforced_effects must be a subset of effects_declared"
+            )
+        if isinstance(self.max_lease_seconds, bool) or not isinstance(self.max_lease_seconds, int):
+            raise GhostWalkActionLeaseError("max_lease_seconds must be an integer")
+        if not 1 <= self.max_lease_seconds <= 300:
+            raise GhostWalkActionLeaseError("max_lease_seconds must be from 1 to 300")
+        if (
+            self.effect_performed
+            or self.operational_authority
+            or self.action_authority
+            or self.execution_authority
+        ):
+            raise GhostWalkActionLeaseError(
+                "lease policy cannot perform effects or carry action authority"
+            )
+
+    def body_dict(self) -> dict[str, object]:
+        return {
+            "schema_version": self.schema_version,
+            "policy_id": self.policy_id,
+            "principal_id": self.principal_id,
+            "issuer_id": self.issuer_id,
+            "capability_id": self.capability_id,
+            "capability_version": self.capability_version,
+            "permissions_authorized": list(self.permissions_authorized),
+            "effects_declared": list(self.effects_declared),
+            "enforcement_rules": [rule.to_dict() for rule in self.enforcement_rules],
+            "accepted_unenforced_effects": list(self.accepted_unenforced_effects),
+            "max_lease_seconds": self.max_lease_seconds,
+            "effect_performed": self.effect_performed,
+            "operational_authority": self.operational_authority,
+            "action_authority": self.action_authority,
+            "execution_authority": self.execution_authority,
+        }
+
+    @property
+    def policy_sha256(self) -> str:
+        return _canonical_sha256(self.body_dict())
+
+    def to_dict(self) -> dict[str, object]:
+        payload = self.body_dict()
+        payload["policy_sha256"] = self.policy_sha256
+        return payload
+
+
+class GhostWalkLeasePolicyRegistry:
+    """Immutable server-owned lease-policy set."""
+
+    def __init__(self, policies: tuple[GhostWalkLeasePolicy, ...] = ()) -> None:
+        ordered = tuple(sorted(policies, key=lambda item: item.policy_id))
+        ids = tuple(item.policy_id for item in ordered)
+        if len(set(ids)) != len(ids):
+            raise GhostWalkActionLeaseError("lease policy IDs must be unique")
+        self._policies = ordered
+        self.policy_set_sha256 = _canonical_sha256([item.to_dict() for item in ordered])
+
+    @property
+    def policies(self) -> tuple[GhostWalkLeasePolicy, ...]:
+        return self._policies
+
+    def for_binding(self, binding: GhostWalkExecutableBinding) -> GhostWalkLeasePolicy | None:
+        matches = tuple(
+            item
+            for item in self._policies
+            if item.capability_id == binding.capability_id
+            and item.capability_version == binding.capability_version
+            and item.permissions_authorized == binding.permissions_required
+            and item.effects_declared == binding.effects_declared
+        )
+        if len(matches) > 1:
+            raise GhostWalkActionLeaseError("multiple lease policies match executable binding")
+        return matches[0] if matches else None
+
+
+class GhostWalkBindingPort(Protocol):
+    def latest(
+        self,
+        *,
+        target_inference_receipt_sha256: str,
+    ) -> GhostWalkExecutableBinding | None: ...
+
+    def readiness(
+        self,
+        *,
+        target_inference_receipt_sha256: str,
+    ) -> object: ...
+
+
+class GhostWalkAuthorityEpochProvider(Protocol):
+    def current(self) -> AuthorityEpoch | None: ...
+
+
+@dataclass(frozen=True, slots=True)
+class GhostWalkLeaseReadiness:
+    target_inference_receipt_sha256: str
+    executable_binding_sha256: str | None
+    policy_sha256: str | None
+    policy_set_sha256: str
+    enforcement_profile_sha256: str | None
+    authority_epoch_sha256: str | None
+    required_permissions: tuple[str, ...]
+    missing_permissions: tuple[str, ...]
+    unenforced_effects: tuple[str, ...]
+    accepted_unenforced_effects: tuple[str, ...]
+    existing_action_lease_sha256: str | None
+    ready: bool
+    reason: GhostWalkLeaseReadinessReason
+    effect_performed: bool = False
+    operational_authority: bool = False
+    action_authority: bool = False
+    execution_authority: bool = False
+    schema_version: str = GHOSTWALK_LEASE_READINESS_SCHEMA_VERSION
+
+    def __post_init__(self) -> None:
+        if self.schema_version != GHOSTWALK_LEASE_READINESS_SCHEMA_VERSION:
+            raise GhostWalkActionLeaseError("unsupported Ghost-Walk lease readiness schema")
+        _require_sha256(self.target_inference_receipt_sha256, "target_inference_receipt_sha256")
+        _optional_sha256(self.executable_binding_sha256, "executable_binding_sha256")
+        _optional_sha256(self.policy_sha256, "policy_sha256")
+        _require_sha256(self.policy_set_sha256, "policy_set_sha256")
+        _optional_sha256(self.enforcement_profile_sha256, "enforcement_profile_sha256")
+        _optional_sha256(self.authority_epoch_sha256, "authority_epoch_sha256")
+        _optional_sha256(self.existing_action_lease_sha256, "existing_action_lease_sha256")
+        _text_tuple(self.required_permissions, "required_permissions")
+        _text_tuple(self.missing_permissions, "missing_permissions")
+        _text_tuple(self.unenforced_effects, "unenforced_effects")
+        _text_tuple(self.accepted_unenforced_effects, "accepted_unenforced_effects")
+        if self.ready is not (self.reason is GhostWalkLeaseReadinessReason.READY):
+            raise GhostWalkActionLeaseError("lease readiness Boolean must match reason")
+        if (
+            self.effect_performed
+            or self.operational_authority
+            or self.action_authority
+            or self.execution_authority
+        ):
+            raise GhostWalkActionLeaseError("lease readiness cannot carry effects or authority")
+
+    def to_dict(self) -> dict[str, object]:
+        payload: dict[str, object] = {
+            "schema_version": self.schema_version,
+            "target_inference_receipt_sha256": self.target_inference_receipt_sha256,
+            "executable_binding_sha256": self.executable_binding_sha256,
+            "policy_sha256": self.policy_sha256,
+            "policy_set_sha256": self.policy_set_sha256,
