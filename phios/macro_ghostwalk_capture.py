@@ -13,6 +13,7 @@ import json
 import os
 import re
 from dataclasses import dataclass
+from datetime import datetime
 from enum import StrEnum
 from typing import Protocol
 
@@ -155,8 +156,6 @@ class PointerClickEvent:
                 "injected must be Boolean"
             )
         _require_text(self.observed_at, "observed_at", maximum=64)
-        from datetime import datetime
-
         try:
             parsed = datetime.fromisoformat(
                 self.observed_at.replace("Z", "+00:00")
@@ -277,6 +276,26 @@ class GhostWalkCaptureReceipt:
                 "preferred_strategy",
                 maximum=64,
             )
+        if self.semantic_lookup_status is SemanticLookupStatus.FOUND:
+            if (
+                self.semantic_provider_id is None
+                or self.semantic_target_sha256 is None
+            ):
+                raise GhostWalkCaptureContractError(
+                    "FOUND semantic lookup requires provider and target hash"
+                )
+        elif self.semantic_target_sha256 is not None:
+            raise GhostWalkCaptureContractError(
+                "non-FOUND semantic lookup cannot claim target hash"
+            )
+        if (
+            self.semantic_lookup_status
+            is SemanticLookupStatus.NOT_CONFIGURED
+            and self.semantic_provider_id is not None
+        ):
+            raise GhostWalkCaptureContractError(
+                "NOT_CONFIGURED semantic lookup cannot name a provider"
+            )
         if self.status is CaptureStatus.RECORDED:
             if (
                 self.frame_sha256 is None
@@ -287,9 +306,12 @@ class GhostWalkCaptureReceipt:
                     "RECORDED receipt requires frame, observation, and strategy"
                 )
         else:
-            if self.observation_sha256 is not None:
+            if (
+                self.observation_sha256 is not None
+                or self.preferred_strategy is not None
+            ):
                 raise GhostWalkCaptureContractError(
-                    "HELD receipt cannot claim an observation"
+                    "HELD receipt cannot claim observation or strategy"
                 )
         if (
             self.operational_authority
