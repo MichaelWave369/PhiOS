@@ -852,7 +852,7 @@ class GhostWalkControlHandler(BaseHTTPRequestHandler):
                 )
                 return
             try:
-                envelope = accepted_intent_envelope(
+                intent_envelope = accepted_intent_envelope(
                     self.server.accepted_intents,
                     target_inference_receipt_sha256=targets[0],
                 )
@@ -862,13 +862,13 @@ class GhostWalkControlHandler(BaseHTTPRequestHandler):
                     "ghostwalk_accepted_intent_invalid_history",
                 )
                 return
-            if envelope is None:
+            if intent_envelope is None:
                 self._accepted_intent_error(
                     HTTPStatus.NOT_FOUND,
                     "ghostwalk_accepted_intent_not_found",
                 )
                 return
-            self._json(HTTPStatus.OK, envelope)
+            self._json(HTTPStatus.OK, intent_envelope)
             return
 
         if parsed.path == "/api/v1/ghostwalk/operator-log":
