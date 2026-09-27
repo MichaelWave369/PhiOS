@@ -153,6 +153,15 @@ export function GhostWalkAcceptedIntentEditor({
             </div>
           )}
 
+          {current &&
+            current.source_operator_note_revision_sha256 !==
+              sourceOperatorNoteRevisionSha256 && (
+              <div className="ghostwalk-intent-warning">
+                STALE BINDING: this accepted intent was based on an older OperatorLog revision.
+                Append a new accepted-intent revision to bind the current human interpretation.
+              </div>
+            )}
+
           <div className="ghostwalk-intent-form">
             <select
               value={family}
