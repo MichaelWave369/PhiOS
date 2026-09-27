@@ -23,6 +23,7 @@ from phios.macro_ghostwalk_operator_editor import (
     GhostWalkOperatorEditorError,
 )
 from phios.macro_operator_log import (
+    OperatorLogContractError,
     OperatorLogRevision,
     OperatorNoteStatus,
 )
@@ -575,7 +576,7 @@ class GhostWalkAcceptedIntentRegistry:
             )
         try:
             revision = OperatorLogRevision.from_dict(matches[0])
-        except Exception as exc:
+        except OperatorLogContractError as exc:
             raise GhostWalkAcceptedIntentError(
                 "accepted intent source OperatorLog revision is invalid"
             ) from exc
