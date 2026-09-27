@@ -472,7 +472,8 @@ export async function fetchGhostWalkAuthorizationConsole(
 ) {
   if (!sha(targetSha256)) return null;
   const response = await request(
-    `http://${GHOSTWALK_HOST}:${port}/api/v1/ghostwalk/authorization-console?target=${targetSha256}`,
+    `http://${GHOSTWALK_HOST}:${port}` +
+      `/api/v1/ghostwalk/authorization-console?target=${targetSha256}`,
     {
       method: "GET",
       cache: "no-store",
