@@ -10,6 +10,11 @@ from .models import ExecutionReceipt
 if TYPE_CHECKING:
     from phios.execution_outcome import ExecutionReconciliationReceipt
     from phios.macro_dispatcher import DoDispatchReceipt
+    from phios.macro_ghostwalk import (
+        GhostWalkDraftReceipt,
+        GhostWalkObservation,
+        GhostWalkSession,
+    )
     from phios.macro_interaction_guard import InteractionGuardReceipt
     from phios.macro_journal import MacroRunJournalEntry, MacroRunResumeReceipt
     from phios.macro_operator_log import OperatorLogRevision
@@ -480,6 +485,97 @@ class RealityLedger:
                 "recent interaction guard receipt limit must be non-negative"
             )
         path = self.path.parent / "interaction-guard-receipts.jsonl"
+        if limit == 0 or not path.exists():
+            return []
+        lines = path.read_text(encoding="utf-8").splitlines()
+        return [json.loads(line) for line in lines[-limit:]]
+
+    def append_ghostwalk_session(
+        self,
+        session: "GhostWalkSession",
+    ) -> None:
+        """Append one immutable ghost-walk demonstration session."""
+
+        path = self.path.parent / "ghostwalk-sessions.jsonl"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps(session.to_dict(), sort_keys=True) + "\n")
+
+    def ghostwalk_sessions(
+        self,
+        *,
+        session_id: str | None = None,
+    ) -> list[dict[str, object]]:
+        """Return persisted ghost-walk sessions."""
+
+        path = self.path.parent / "ghostwalk-sessions.jsonl"
+        if not path.exists():
+            return []
+        rows = [
+            json.loads(line)
+            for line in path.read_text(encoding="utf-8").splitlines()
+        ]
+        if session_id is None:
+            return rows
+        return [row for row in rows if row.get("session_id") == session_id]
+
+    def append_ghostwalk_observation(
+        self,
+        observation: "GhostWalkObservation",
+    ) -> None:
+        """Append one immutable ghost-walk observation."""
+
+        path = self.path.parent / "ghostwalk-observations.jsonl"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("a", encoding="utf-8") as handle:
+            handle.write(
+                json.dumps(observation.to_dict(), sort_keys=True) + "\n"
+            )
+
+    def ghostwalk_observations(
+        self,
+        *,
+        session_id: str | None = None,
+    ) -> list[dict[str, object]]:
+        """Return append-order ghost-walk observations."""
+
+        path = self.path.parent / "ghostwalk-observations.jsonl"
+        if not path.exists():
+            return []
+        rows = [
+            json.loads(line)
+            for line in path.read_text(encoding="utf-8").splitlines()
+        ]
+        if session_id is None:
+            return rows
+        return [row for row in rows if row.get("session_id") == session_id]
+
+    def append_ghostwalk_draft_receipt(
+        self,
+        receipt: "GhostWalkDraftReceipt",
+    ) -> None:
+        """Append one immutable ghost-walk draft compilation receipt."""
+
+        path = self.path.parent / "ghostwalk-draft-receipts.jsonl"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps(receipt.to_dict(), sort_keys=True) + "\n")
+
+    def recent_ghostwalk_draft_receipts(
+        self,
+        limit: int = 10,
+    ) -> list[dict[str, object]]:
+        """Return newest ghost-walk draft compilation receipts."""
+
+        if isinstance(limit, bool) or not isinstance(limit, int):
+            raise TypeError(
+                "recent ghost-walk draft receipt limit must be an integer"
+            )
+        if limit < 0:
+            raise ValueError(
+                "recent ghost-walk draft receipt limit must be non-negative"
+            )
+        path = self.path.parent / "ghostwalk-draft-receipts.jsonl"
         if limit == 0 or not path.exists():
             return []
         lines = path.read_text(encoding="utf-8").splitlines()
