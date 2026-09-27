@@ -630,6 +630,15 @@ class GhostWalkHostService:
             GhostWalkHostStatus.STOPPING,
         }
 
+    @property
+    def active(self) -> bool:
+        return bool(
+            self.running
+            or self._listener_thread is not None
+            or self._tick_thread is not None
+            or self._session_id is not None
+        )
+
     def start(self, *, session_id: str) -> GhostWalkHostHealth:
         session_id = _require_text(
             session_id,
@@ -688,7 +697,7 @@ class GhostWalkHostService:
 
     def stop(self) -> GhostWalkHostHealth:
         with self._lock:
-            if not self.running:
+            if not self.active:
                 return self.health()
             self._status = GhostWalkHostStatus.STOPPING
             self._append_receipt(
