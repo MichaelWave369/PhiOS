@@ -296,7 +296,6 @@ def _probe(
 def _executor(
     tmp_path: Path,
     *,
-    strategy: str = "SEMANTIC",
     current_frames: tuple[WindowFrame | None, ...] | None = None,
     point_frames: tuple[WindowFrame | None, ...] | None = None,
     probes: tuple[OperatorInputSnapshot, ...] | None = None,
@@ -371,10 +370,7 @@ def test_desktop_001_semantic_clear_performs_one_bounded_click(
 def test_desktop_002_pixel_guard_performs_window_relative_click(
     tmp_path: Path,
 ) -> None:
-    spine, executor, _, _, _, injector = _executor(
-        tmp_path,
-        strategy="WINDOW_RELATIVE_PIXEL",
-    )
+    spine, executor, _, _, _, injector = _executor(tmp_path)
 
     artifact = executor.execute(
         _payload(
