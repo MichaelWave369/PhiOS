@@ -120,7 +120,7 @@ def _versions(values: tuple[str, ...]) -> tuple[str, ...]:
 def _operations(
     values: tuple[PhiVesselSessionOperation, ...],
 ) -> tuple[PhiVesselSessionOperation, ...]:
-    if not values or len(values) > len(PhiVesselSessionOperation):
+    if not values or len(values) > 3:
         raise PhiVesselHandshakeError(
             "requested operations must contain 1-3 values"
         )
