@@ -18,6 +18,11 @@ import { fetchPersistentHistoryProjection } from "./persistentHistoryProxy.mjs";
 import { fetchHistoryComparison } from "./historyComparisonProxy.mjs";
 import { fetchCuriosityProjection } from "./curiosityProjectionProxy.mjs";
 import {
+  applyGhostWalkAction,
+  fetchGhostWalkStatus,
+  validateGhostWalkActionPayload,
+} from "./ghostWalkControlProxy.mjs";
+import {
   createPersistRequest,
   fetchBrokerHealth,
   fetchPersistRequest,
@@ -111,6 +116,8 @@ export function createLocalObservationServer({
   curiosityAuthorityHealthFetcher = fetchBrokerHealth,
   curiosityPersistRequestCreator = createPersistRequest,
   curiosityPersistRequestFetcher = fetchPersistRequest,
+  ghostWalkStatusFetcher = fetchGhostWalkStatus,
+  ghostWalkActionApplier = applyGhostWalkAction,
 } = {}) {
   if (!Number.isInteger(port) || port < 0 || port > 65535) {
     throw new Error("local observation port must be an integer between 0 and 65535");
@@ -119,6 +126,51 @@ export function createLocalObservationServer({
   const server = createServer(async (request, response) => {
     try {
       const url = new URL(request.url ?? "/", `http://${LOOPBACK_HOST}`);
+
+      if (
+        request.method === "POST" &&
+        url.pathname === "/api/v1/ghostwalk/actions"
+      ) {
+        let payload;
+        try {
+          payload = await readBoundedJsonObject(request, { maxBytes: 8192 });
+        } catch {
+          jsonResponse(response, 400, {
+            error: "invalid_ghostwalk_control_body",
+            operationalAuthority: false,
+            actionAuthority: false,
+            executionAuthority: false,
+            effectPerformed: false,
+          });
+          return;
+        }
+
+        if (!validateGhostWalkActionPayload(payload)) {
+          jsonResponse(response, 400, {
+            error: "invalid_ghostwalk_control_request",
+            operationalAuthority: false,
+            actionAuthority: false,
+            executionAuthority: false,
+            effectPerformed: false,
+          });
+          return;
+        }
+
+        const outcome = await ghostWalkActionApplier(payload);
+        if (!outcome) {
+          jsonResponse(response, 503, {
+            error: "ghostwalk_control_unavailable",
+            operationalAuthority: false,
+            actionAuthority: false,
+            executionAuthority: false,
+            effectPerformed: false,
+          });
+          return;
+        }
+
+        jsonResponse(response, 200, outcome);
+        return;
+      }
 
       if (
         request.method === "POST" &&
@@ -203,6 +255,34 @@ export function createLocalObservationServer({
           effectPerformed: false,
           status: "ready",
         });
+        return;
+      }
+
+      if (url.pathname === "/api/v1/ghostwalk") {
+        if ([...url.searchParams.keys()].length !== 0) {
+          jsonResponse(response, 400, {
+            error: "invalid_ghostwalk_status_request",
+            operationalAuthority: false,
+            actionAuthority: false,
+            executionAuthority: false,
+            effectPerformed: false,
+          });
+          return;
+        }
+
+        const status = await ghostWalkStatusFetcher();
+        if (!status) {
+          jsonResponse(response, 503, {
+            error: "ghostwalk_control_unavailable",
+            localOnly: true,
+            operationalAuthority: false,
+            actionAuthority: false,
+            executionAuthority: false,
+            effectPerformed: false,
+          });
+          return;
+        }
+        jsonResponse(response, 200, status);
         return;
       }
 

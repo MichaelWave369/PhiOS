@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { HostObservationPanel } from "./components/HostObservationPanel";
+import { GhostWalkControlPanel } from "./components/GhostWalkControlPanel";
 import { ServiceObservationPanel } from "./components/ServiceObservationPanel";
 import { ProcessObservationPanel } from "./components/ProcessObservationPanel";
 import { PackageObservationPanel } from "./components/PackageObservationPanel";
@@ -385,6 +386,7 @@ function WindowBody({ item }: { item: WindowModel }) {
   if (item.id === "system-window") {
     return (
       <>
+        <GhostWalkControlPanel />
         <SystemStatePanel />
         <HostObservationPanel />
         <ServiceObservationPanel />
