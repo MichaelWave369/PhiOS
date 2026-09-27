@@ -757,7 +757,13 @@ class WindowsGhostWalkListener:
                     ) from error
         finally:
             unhook_windows_hook_ex(hook)
-            event_queue.put(None)
+            try:
+                event_queue.put_nowait(None)
+            except queue.Full:
+                if self._last_callback_error is None:
+                    self._last_callback_error = GhostWalkListenerContractError(
+                        "ghost-walk observation queue remained full at shutdown"
+                    )
             worker_thread.join(timeout=WORKER_SHUTDOWN_SECONDS)
             if worker_thread.is_alive() and self._last_callback_error is None:
                 self._last_callback_error = GhostWalkListenerContractError(
