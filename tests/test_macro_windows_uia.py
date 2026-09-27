@@ -364,3 +364,40 @@ def test_uia_010_comtypes_backend_rejects_non_windows() -> None:
         match="requires Windows",
     ):
         ComtypesWindowsUiaBackend()
+
+
+def test_uia_011_v014_capture_prefers_strong_uia_target(
+    tmp_path: Path,
+) -> None:
+    ledger = _ledger(tmp_path)
+    GhostWalkRecorder(ledger).start(
+        session_id="ghost:uia-strong",
+        recorder_id="operator:mikey",
+        started_at="2026-09-27T01:40:00+00:00",
+    )
+    provider = WindowsUiaSemanticProvider(
+        ledger=ledger,
+        backend=StaticUiaBackend(_snapshot()),
+    )
+    adapter = GhostWalkCaptureAdapter(
+        ledger=ledger,
+        window_provider=StaticWindowProvider(),
+        semantic_provider=provider,
+    )
+
+    outcome = adapter.capture_click(
+        session_id="ghost:uia-strong",
+        event=_event(),
+    )
+
+    assert (
+        outcome.receipt.semantic_lookup_status
+        is SemanticLookupStatus.FOUND
+    )
+    assert outcome.observation is not None
+    assert outcome.observation.semantic_target is not None
+    assert outcome.observation.preferred_strategy.value == "SEMANTIC"
+    assert (
+        outcome.observation.semantic_target.provider
+        == "windows.uia.v0.16"
+    )
