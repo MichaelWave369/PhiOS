@@ -694,7 +694,7 @@ class GhostWalkAuthorityRequestService:
             target_inference_receipt_sha256=target
         )
         requests = [
-            GhostWalkAuthorityRequest.from_dict(row)
+            self._parse_request_row(row)
             for row in rows
         ]
         return requests[-1] if requests else None
@@ -755,7 +755,7 @@ class GhostWalkAuthorityRequestService:
     ) -> GhostWalkAuthorityRequest | None:
         matches: list[GhostWalkAuthorityRequest] = []
         for row in self._ledger.ghostwalk_authority_requests():
-            request = GhostWalkAuthorityRequest.from_dict(row)
+            request = self._parse_request_row(row)
             if (
                 request.admission_receipt_sha256
                 == admission_receipt_sha256
@@ -766,3 +766,56 @@ class GhostWalkAuthorityRequestService:
                 "multiple AuthorityRequests exist for one admission receipt"
             )
         return matches[0] if matches else None
+
+    def _parse_request_row(
+        self,
+        row: Mapping[str, object],
+    ) -> GhostWalkAuthorityRequest:
+        try:
+            request = GhostWalkAuthorityRequest.from_dict(row)
+        except GhostWalkAuthorityRequestError as exc:
+            raise GhostWalkAuthorityRequestError(
+                "persisted AuthorityRequest is invalid"
+            ) from exc
+        self._validate_request_provenance(request)
+        return request
+
+    def _validate_request_provenance(
+        self,
+        request: GhostWalkAuthorityRequest,
+    ) -> None:
+        receipt = self._receipt_by_sha256(
+            request.admission_receipt_sha256
+        )
+        if receipt is None:
+            raise GhostWalkAuthorityRequestError(
+                "AuthorityRequest admission receipt is missing"
+            )
+        if (
+            receipt.target_inference_receipt_sha256
+            != request.target_inference_receipt_sha256
+        ):
+            raise GhostWalkAuthorityRequestError(
+                "AuthorityRequest target does not match admission receipt"
+            )
+        if (
+            receipt.accepted_intent_revision_sha256
+            != request.accepted_intent_revision_sha256
+        ):
+            raise GhostWalkAuthorityRequestError(
+                "AuthorityRequest accepted intent does not match admission receipt"
+            )
+        if (
+            receipt.policy_profile_sha256
+            != request.policy_profile_sha256
+        ):
+            raise GhostWalkAuthorityRequestError(
+                "AuthorityRequest policy profile does not match admission receipt"
+            )
+        if (
+            receipt.decision is not GhostWalkPolicyDecision.ALLOW_REQUEST
+            or not receipt.request_authority_eligible
+        ):
+            raise GhostWalkAuthorityRequestError(
+                "AuthorityRequest admission receipt is not ALLOW_REQUEST"
+            )
