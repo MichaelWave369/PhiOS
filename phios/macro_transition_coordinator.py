@@ -270,7 +270,10 @@ class GhostWalkTransitionBaseline:
             "schema_version": self.schema_version,
             "session_id": self.session_id,
             "baseline_binding_sha256": self.baseline_binding_sha256,
-            "frame": self.frame.to_dict(),
+            "frame": {
+                **self.frame.body_dict(),
+                "frame_sha256": self.frame.frame_sha256,
+            },
             "state_observation_receipt_sha256": (
                 self.state_observation_receipt_sha256
             ),
