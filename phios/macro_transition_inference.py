@@ -13,7 +13,6 @@ import re
 from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
-from typing import Mapping
 
 from phios.macro_ghostwalk import SemanticTarget
 from phios.macro_operator_log import OperatorLog, OperatorLogRevision
