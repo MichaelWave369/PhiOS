@@ -543,3 +543,37 @@ def test_host_011_receipts_are_contiguous_and_hash_chained(
     assert all(row["operational_authority"] is False for row in rows)
     assert all(row["action_authority"] is False for row in rows)
     assert all(row["execution_authority"] is False for row in rows)
+
+
+
+def test_host_012_baseline_disarm_pauses_learning_without_stopping_listener(
+    tmp_path: Path,
+) -> None:
+    host, service, factory, _ = _host(tmp_path)
+    host.start(session_id=SESSION)
+    assert factory.instances[0].started.wait(timeout=1.0)
+
+    health = host.disarm_baseline()
+
+    assert health.status is GhostWalkHostStatus.DEGRADED
+    assert health.baseline_armed is False
+    assert factory.instances[0].stopped.is_set() is False
+    assert service.disarm_calls == 1
+    host.stop()
+
+
+def test_host_013_baseline_arm_resumes_learning_through_host(
+    tmp_path: Path,
+) -> None:
+    host, service, factory, _ = _host(tmp_path)
+    host.start(session_id=SESSION)
+    assert factory.instances[0].started.wait(timeout=1.0)
+    host.disarm_baseline()
+
+    health = host.arm_baseline()
+
+    assert health.status is GhostWalkHostStatus.RUNNING
+    assert health.baseline_armed is True
+    assert service.arm_calls == 2
+    assert factory.instances[0].stopped.is_set() is False
+    host.stop()

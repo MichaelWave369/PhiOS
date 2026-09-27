@@ -20,6 +20,7 @@ if TYPE_CHECKING:
     from phios.macro_ghostwalk_capture import GhostWalkCaptureReceipt
     from phios.macro_ghostwalk_listener import GhostWalkListenerReceipt
     from phios.macro_ghostwalk_host_service import GhostWalkHostReceipt
+    from phios.macro_ghostwalk_control_surface import GhostWalkControlReceipt
     from phios.macro_uia_revalidation import SemanticRevalidationReceipt
     from phios.macro_uia_state_observer import UiaStateObservationReceipt
     from phios.macro_windows_uia import (
@@ -1137,6 +1138,92 @@ class RealityLedger:
         if not isinstance(value, str):
             raise TypeError(
                 "persisted Ghost-Walk host receipt hash must be string"
+            )
+        return value
+
+    def append_ghostwalk_control_receipt(
+        self,
+        receipt: "GhostWalkControlReceipt",
+    ) -> None:
+        """Append one immutable Ghost-Walk control-surface receipt."""
+
+        path = self.path.parent / "ghostwalk-control-receipts.jsonl"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps(receipt.to_dict(), sort_keys=True) + "\n")
+
+    def ghostwalk_control_receipts(
+        self,
+        *,
+        surface_id: str | None = None,
+    ) -> list[dict[str, object]]:
+        """Return append-order Ghost-Walk control receipts."""
+
+        path = self.path.parent / "ghostwalk-control-receipts.jsonl"
+        if not path.exists():
+            return []
+        rows = [
+            json.loads(line)
+            for line in path.read_text(encoding="utf-8").splitlines()
+        ]
+        if surface_id is None:
+            return rows
+        return [
+            row
+            for row in rows
+            if row.get("surface_id") == surface_id
+        ]
+
+    def next_ghostwalk_control_sequence(
+        self,
+        *,
+        surface_id: str,
+    ) -> int:
+        """Return next control sequence when persisted history is intact."""
+
+        rows = self.ghostwalk_control_receipts(surface_id=surface_id)
+        if not rows:
+            return 0
+        sequences: list[int] = []
+        previous_sha: str | None = None
+        for row in rows:
+            sequence = row.get("sequence")
+            if isinstance(sequence, bool) or not isinstance(sequence, int):
+                raise TypeError(
+                    "persisted Ghost-Walk control sequence must be integer"
+                )
+            receipt_sha = row.get("receipt_sha256")
+            if not isinstance(receipt_sha, str) or len(receipt_sha) != 64:
+                raise TypeError(
+                    "persisted Ghost-Walk control receipt hash is invalid"
+                )
+            claimed_previous = row.get("previous_receipt_sha256")
+            if claimed_previous != previous_sha:
+                raise ValueError(
+                    "persisted Ghost-Walk control receipt hash chain mismatch"
+                )
+            sequences.append(sequence)
+            previous_sha = receipt_sha
+        if sequences != list(range(len(sequences))):
+            raise ValueError(
+                "persisted Ghost-Walk control sequences are not contiguous"
+            )
+        return len(sequences)
+
+    def latest_ghostwalk_control_receipt_sha256(
+        self,
+        *,
+        surface_id: str,
+    ) -> str | None:
+        """Return latest receipt hash for one Ghost-Walk control surface."""
+
+        rows = self.ghostwalk_control_receipts(surface_id=surface_id)
+        if not rows:
+            return None
+        value = rows[-1].get("receipt_sha256")
+        if not isinstance(value, str):
+            raise TypeError(
+                "persisted Ghost-Walk control receipt hash must be string"
             )
         return value
 
