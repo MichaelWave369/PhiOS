@@ -31,6 +31,26 @@ MACRO_SPINE_BINDING_SCHEMA_VERSION = "phios.macro_spine_binding.v0.2"
 MACRO_SPINE_RECEIPT_SCHEMA_VERSION = "phios.macro_spine_receipt.v0.2"
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 
+_DESKTOP_ADAPTER_CAPABILITIES = {
+    ("desktop.interaction", "click"): "desktop.interaction.click",
+}
+
+
+def operation_capability_id(operation: Operation) -> str:
+    """Resolve one macro adapter/action pair to its governed Spine capability."""
+
+    if operation.adapter_id == "phios.spine":
+        return operation.action
+    mapped = _DESKTOP_ADAPTER_CAPABILITIES.get(
+        (operation.adapter_id, operation.action)
+    )
+    if mapped is not None:
+        return mapped
+    raise MacroSpineBridgeContractError(
+        "macro operation adapter/action has no governed Spine capability mapping"
+    )
+
+
 
 class MacroSpineBridgeContractError(ValueError):
     """Raised when macro-to-spine scope cannot be proven exactly."""
@@ -352,13 +372,10 @@ class MacroSpineBridge:
         payload: Mapping[str, Any],
         lease: ActionLease,
     ) -> None:
-        if operation.adapter_id != "phios.spine":
+        expected_capability_id = operation_capability_id(operation)
+        if expected_capability_id != binding.capability_id:
             raise MacroSpineBridgeContractError(
-                "LIVE Spine operation requires adapter_id=phios.spine"
-            )
-        if operation.action != binding.capability_id:
-            raise MacroSpineBridgeContractError(
-                "macro operation action must equal bound Spine capability"
+                "macro operation adapter/action does not match bound Spine capability"
             )
         if operation.required_capabilities != binding.permissions_requested:
             raise MacroSpineBridgeContractError(
