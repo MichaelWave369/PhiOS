@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import threading
 from pathlib import Path
@@ -13,8 +14,21 @@ from phios.macro_ghostwalk_operator_editor import (
 from phios.macro_operator_log import OperatorLog, OperatorNoteStatus
 from phios.spine.ledger import RealityLedger
 
-TARGET = "a" * 64
 ACTION = "b" * 64
+_INFERENCE_BODY = {
+    "status": "CANDIDATES",
+    "session_id": "demo",
+    "action_observation_sha256": ACTION,
+}
+TARGET = hashlib.sha256(
+    json.dumps(
+        _INFERENCE_BODY,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+        allow_nan=False,
+    ).encode("utf-8")
+).hexdigest()
 
 
 def _ledger(tmp_path: Path) -> RealityLedger:
@@ -26,10 +40,8 @@ def _seed(ledger: RealityLedger) -> str:
     path.write_text(
         json.dumps(
             {
+                **_INFERENCE_BODY,
                 "receipt_sha256": TARGET,
-                "status": "CANDIDATES",
-                "session_id": "demo",
-                "action_observation_sha256": ACTION,
             },
             sort_keys=True,
         )
@@ -200,4 +212,30 @@ def test_editor_rejects_unknown_inference_target(
     ):
         editor.view(
             target_inference_receipt_sha256="f" * 64
+        )
+
+
+def test_editor_rejects_tampered_inference_receipt(
+    tmp_path: Path,
+) -> None:
+    ledger = _ledger(tmp_path)
+    _seed(ledger)
+    path = ledger.path.parent / "transition-inference-receipts.jsonl"
+    row = json.loads(path.read_text(encoding="utf-8"))
+    row["session_id"] = "tampered"
+    path.write_text(
+        json.dumps(row, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+    editor = GhostWalkOperatorEditor(
+        ledger=ledger,
+        author_id="operator:local",
+    )
+    with pytest.raises(
+        GhostWalkOperatorEditorError,
+        match="inference receipt hash mismatch",
+    ):
+        editor.view(
+            target_inference_receipt_sha256=TARGET
         )
