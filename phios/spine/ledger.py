@@ -9,6 +9,7 @@ from .models import ExecutionReceipt
 
 if TYPE_CHECKING:
     from phios.execution_outcome import ExecutionReconciliationReceipt
+    from phios.macro_desktop_interaction import DesktopInteractionReceipt
     from phios.macro_dispatcher import DoDispatchReceipt
     from phios.macro_ghostwalk import (
         GhostWalkDraftReceipt,
@@ -768,6 +769,37 @@ class RealityLedger:
                 "recent semantic revalidation limit must be non-negative"
             )
         path = self.path.parent / "semantic-revalidation-receipts.jsonl"
+        if limit == 0 or not path.exists():
+            return []
+        lines = path.read_text(encoding="utf-8").splitlines()
+        return [json.loads(line) for line in lines[-limit:]]
+
+    def append_desktop_interaction_receipt(
+        self,
+        receipt: "DesktopInteractionReceipt",
+    ) -> None:
+        """Append one immutable governed desktop interaction receipt."""
+
+        path = self.path.parent / "desktop-interaction-receipts.jsonl"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps(receipt.to_dict(), sort_keys=True) + "\n")
+
+    def recent_desktop_interaction_receipts(
+        self,
+        limit: int = 10,
+    ) -> list[dict[str, object]]:
+        """Return newest governed desktop interaction receipts."""
+
+        if isinstance(limit, bool) or not isinstance(limit, int):
+            raise TypeError(
+                "recent desktop interaction limit must be an integer"
+            )
+        if limit < 0:
+            raise ValueError(
+                "recent desktop interaction limit must be non-negative"
+            )
+        path = self.path.parent / "desktop-interaction-receipts.jsonl"
         if limit == 0 or not path.exists():
             return []
         lines = path.read_text(encoding="utf-8").splitlines()
