@@ -10,6 +10,7 @@ from .models import ExecutionReceipt
 if TYPE_CHECKING:
     from phios.execution_outcome import ExecutionReconciliationReceipt
     from phios.macro_desktop_interaction import DesktopInteractionReceipt
+    from phios.macro_baseline_refresh_service import BaselineRefreshReceipt
     from phios.macro_dispatcher import DoDispatchReceipt
     from phios.macro_ghostwalk import (
         GhostWalkDraftReceipt,
@@ -973,6 +974,76 @@ class RealityLedger:
             return []
         lines = path.read_text(encoding="utf-8").splitlines()
         return [json.loads(line) for line in lines[-limit:]]
+
+    def append_baseline_refresh_receipt(
+        self,
+        receipt: "BaselineRefreshReceipt",
+    ) -> None:
+        """Append one immutable Ghost-Walk baseline refresh receipt."""
+
+        path = self.path.parent / "baseline-refresh-receipts.jsonl"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps(receipt.to_dict(), sort_keys=True) + "\n")
+
+    def baseline_refresh_receipts(
+        self,
+        *,
+        service_id: str | None = None,
+    ) -> list[dict[str, object]]:
+        """Return append-order baseline refresh receipts."""
+
+        path = self.path.parent / "baseline-refresh-receipts.jsonl"
+        if not path.exists():
+            return []
+        rows = [
+            json.loads(line)
+            for line in path.read_text(encoding="utf-8").splitlines()
+        ]
+        if service_id is None:
+            return rows
+        return [row for row in rows if row.get("service_id") == service_id]
+
+    def next_baseline_refresh_sequence(
+        self,
+        *,
+        service_id: str,
+    ) -> int:
+        """Derive the next contiguous baseline refresh service sequence."""
+
+        rows = self.baseline_refresh_receipts(service_id=service_id)
+        if not rows:
+            return 0
+        sequences: list[int] = []
+        for row in rows:
+            value = row.get("sequence")
+            if isinstance(value, bool) or not isinstance(value, int):
+                raise TypeError(
+                    "persisted baseline refresh sequence must be integer"
+                )
+            sequences.append(value)
+        if sequences != list(range(len(sequences))):
+            raise ValueError(
+                "persisted baseline refresh sequences are not contiguous"
+            )
+        return len(sequences)
+
+    def latest_baseline_refresh_receipt_sha256(
+        self,
+        *,
+        service_id: str,
+    ) -> str | None:
+        """Return the latest receipt hash for one baseline refresh service."""
+
+        rows = self.baseline_refresh_receipts(service_id=service_id)
+        if not rows:
+            return None
+        value = rows[-1].get("receipt_sha256")
+        if not isinstance(value, str):
+            raise TypeError(
+                "persisted baseline refresh receipt hash must be string"
+            )
+        return value
 
     def append_reconciliation(
         self,
