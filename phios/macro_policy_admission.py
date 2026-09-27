@@ -92,6 +92,14 @@ def _require_sha256(value: object, field: str) -> str:
     return text
 
 
+def _require_bool(value: object, field: str) -> bool:
+    if not isinstance(value, bool):
+        raise GhostWalkPolicyAdmissionError(
+            f"{field} must be Boolean"
+        )
+    return value
+
+
 def _require_timestamp(value: object, field: str) -> str:
     text = _require_text(value, field, maximum=64)
     try:
@@ -564,25 +572,46 @@ class GhostWalkPolicyAdmissionReceipt:
             ),
             decision=decision,
             reason=reason,
-            request_authority_eligible=payload[
-                "request_authority_eligible"
-            ],
+            request_authority_eligible=_require_bool(
+                payload.get("request_authority_eligible"),
+                "request_authority_eligible",
+            ),
             evaluated_at=_require_timestamp(
                 payload.get("evaluated_at"),
                 "evaluated_at",
             ),
-            effect_performed=payload["effect_performed"],
-            desktop_effect_performed=payload[
-                "desktop_effect_performed"
-            ],
-            authority_request_created=payload[
-                "authority_request_created"
-            ],
-            action_lease_created=payload["action_lease_created"],
-            policy_authority=payload["policy_authority"],
-            operational_authority=payload["operational_authority"],
-            action_authority=payload["action_authority"],
-            execution_authority=payload["execution_authority"],
+            effect_performed=_require_bool(
+                payload.get("effect_performed"),
+                "effect_performed",
+            ),
+            desktop_effect_performed=_require_bool(
+                payload.get("desktop_effect_performed"),
+                "desktop_effect_performed",
+            ),
+            authority_request_created=_require_bool(
+                payload.get("authority_request_created"),
+                "authority_request_created",
+            ),
+            action_lease_created=_require_bool(
+                payload.get("action_lease_created"),
+                "action_lease_created",
+            ),
+            policy_authority=_require_bool(
+                payload.get("policy_authority"),
+                "policy_authority",
+            ),
+            operational_authority=_require_bool(
+                payload.get("operational_authority"),
+                "operational_authority",
+            ),
+            action_authority=_require_bool(
+                payload.get("action_authority"),
+                "action_authority",
+            ),
+            execution_authority=_require_bool(
+                payload.get("execution_authority"),
+                "execution_authority",
+            ),
             schema_version=_require_text(
                 payload.get("schema_version"),
                 "schema_version",
