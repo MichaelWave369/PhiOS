@@ -387,6 +387,25 @@ class PhiVesselLocalExecutionManifest:
             ) from exc
         return cls.from_dict(value)
 
+    def body_dict(self) -> dict[str, object]:
+        return {
+            "schema_version": self.schema_version,
+            "enabled": self.enabled,
+            "desktop_executor_enabled": self.desktop_executor_enabled,
+            "mappings": [
+                item.to_dict() for item in self.mappings
+            ],
+            "lease_policies": [
+                item.to_dict() for item in self.lease_policies
+            ],
+            "authority_epoch": self.authority_epoch.to_dict(),
+        }
+
+    def to_dict(self) -> dict[str, object]:
+        payload = self.body_dict()
+        payload["manifest_sha256"] = _canonical_sha256(payload)
+        return payload
+
     @property
     def static_config_sha256(self) -> str:
         return _canonical_sha256(
