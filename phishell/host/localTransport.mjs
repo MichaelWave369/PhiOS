@@ -23,6 +23,11 @@ import {
   validateGhostWalkActionPayload,
 } from "./ghostWalkControlProxy.mjs";
 import {
+  applyGhostWalkOperatorEdit,
+  fetchGhostWalkOperatorNote,
+  validateGhostWalkOperatorEditPayload,
+} from "./ghostWalkOperatorLogProxy.mjs";
+import {
   createPersistRequest,
   fetchBrokerHealth,
   fetchPersistRequest,
@@ -118,6 +123,8 @@ export function createLocalObservationServer({
   curiosityPersistRequestFetcher = fetchPersistRequest,
   ghostWalkStatusFetcher = fetchGhostWalkStatus,
   ghostWalkActionApplier = applyGhostWalkAction,
+  ghostWalkOperatorNoteFetcher = fetchGhostWalkOperatorNote,
+  ghostWalkOperatorEditApplier = applyGhostWalkOperatorEdit,
 } = {}) {
   if (!Number.isInteger(port) || port < 0 || port > 65535) {
     throw new Error("local observation port must be an integer between 0 and 65535");
@@ -126,6 +133,61 @@ export function createLocalObservationServer({
   const server = createServer(async (request, response) => {
     try {
       const url = new URL(request.url ?? "/", `http://${LOOPBACK_HOST}`);
+
+      if (
+        request.method === "POST" &&
+        url.pathname === "/api/v1/ghostwalk/operator-log/revisions"
+      ) {
+        let payload;
+        try {
+          payload = await readBoundedJsonObject(request, { maxBytes: 32768 });
+        } catch {
+          jsonResponse(response, 400, {
+            error: "invalid_ghostwalk_operator_edit_body",
+            operationalAuthority: false,
+            actionAuthority: false,
+            executionAuthority: false,
+            effectPerformed: false,
+          });
+          return;
+        }
+
+        if (!validateGhostWalkOperatorEditPayload(payload)) {
+          jsonResponse(response, 400, {
+            error: "invalid_ghostwalk_operator_edit_request",
+            operationalAuthority: false,
+            actionAuthority: false,
+            executionAuthority: false,
+            effectPerformed: false,
+          });
+          return;
+        }
+
+        const result = await ghostWalkOperatorEditApplier(payload);
+        if (result?.kind === "conflict") {
+          jsonResponse(response, 409, {
+            error: "ghostwalk_operator_edit_conflict",
+            operationalAuthority: false,
+            actionAuthority: false,
+            executionAuthority: false,
+            effectPerformed: false,
+          });
+          return;
+        }
+        if (!result || result.kind !== "applied") {
+          jsonResponse(response, 503, {
+            error: "ghostwalk_operator_editor_unavailable",
+            operationalAuthority: false,
+            actionAuthority: false,
+            executionAuthority: false,
+            effectPerformed: false,
+          });
+          return;
+        }
+
+        jsonResponse(response, 200, result.envelope);
+        return;
+      }
 
       if (
         request.method === "POST" &&
@@ -255,6 +317,40 @@ export function createLocalObservationServer({
           effectPerformed: false,
           status: "ready",
         });
+        return;
+      }
+
+      if (url.pathname === "/api/v1/ghostwalk/operator-log") {
+        const keys = [...url.searchParams.keys()];
+        const target = url.searchParams.get("target");
+        if (
+          keys.length !== 1 ||
+          keys[0] !== "target" ||
+          typeof target !== "string" ||
+          !/^[0-9a-f]{64}$/.test(target)
+        ) {
+          jsonResponse(response, 400, {
+            error: "invalid_ghostwalk_operator_note_request",
+            operationalAuthority: false,
+            actionAuthority: false,
+            executionAuthority: false,
+            effectPerformed: false,
+          });
+          return;
+        }
+
+        const note = await ghostWalkOperatorNoteFetcher(target);
+        if (!note) {
+          jsonResponse(response, 503, {
+            error: "ghostwalk_operator_note_unavailable",
+            operationalAuthority: false,
+            actionAuthority: false,
+            executionAuthority: false,
+            effectPerformed: false,
+          });
+          return;
+        }
+        jsonResponse(response, 200, note);
         return;
       }
 
