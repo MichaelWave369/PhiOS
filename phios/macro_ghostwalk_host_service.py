@@ -82,7 +82,9 @@ class HostListener(Protocol):
 
 class HostBaselineService(Protocol):
     refresh_interval_ms: int
-    armed_session_id: str | None
+
+    @property
+    def armed_session_id(self) -> str | None: ...
 
     def arm(self, *, session_id: str) -> BaselineServiceTickOutcome: ...
 
