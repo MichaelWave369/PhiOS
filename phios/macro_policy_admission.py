@@ -477,6 +477,125 @@ class GhostWalkPolicyAdmissionReceipt:
         return payload
 
 
+    @classmethod
+    def from_dict(
+        cls,
+        payload: Mapping[str, object],
+    ) -> "GhostWalkPolicyAdmissionReceipt":
+        expected = {
+            "schema_version",
+            "projection_sha256",
+            "target_inference_receipt_sha256",
+            "accepted_intent_revision_sha256",
+            "policy_profile_sha256",
+            "decision",
+            "reason",
+            "request_authority_eligible",
+            "evaluated_at",
+            "effect_performed",
+            "desktop_effect_performed",
+            "authority_request_created",
+            "action_lease_created",
+            "policy_authority",
+            "operational_authority",
+            "action_authority",
+            "execution_authority",
+            "admission_receipt_sha256",
+        }
+        if set(payload) != expected:
+            raise GhostWalkPolicyAdmissionError(
+                "policy admission receipt fields do not match contract"
+            )
+        claimed = _require_sha256(
+            payload.get("admission_receipt_sha256"),
+            "admission_receipt_sha256",
+        )
+        for field in (
+            "request_authority_eligible",
+            "effect_performed",
+            "desktop_effect_performed",
+            "authority_request_created",
+            "action_lease_created",
+            "policy_authority",
+            "operational_authority",
+            "action_authority",
+            "execution_authority",
+        ):
+            if not isinstance(payload.get(field), bool):
+                raise GhostWalkPolicyAdmissionError(
+                    f"{field} must be Boolean"
+                )
+        try:
+            decision = GhostWalkPolicyDecision(
+                _require_text(
+                    payload.get("decision"),
+                    "decision",
+                    maximum=64,
+                )
+            )
+            reason = GhostWalkPolicyReason(
+                _require_text(
+                    payload.get("reason"),
+                    "reason",
+                    maximum=64,
+                )
+            )
+        except ValueError as exc:
+            raise GhostWalkPolicyAdmissionError(
+                "policy admission receipt enum value is unsupported"
+            ) from exc
+
+        receipt = cls(
+            projection_sha256=_require_sha256(
+                payload.get("projection_sha256"),
+                "projection_sha256",
+            ),
+            target_inference_receipt_sha256=_require_sha256(
+                payload.get("target_inference_receipt_sha256"),
+                "target_inference_receipt_sha256",
+            ),
+            accepted_intent_revision_sha256=_require_sha256(
+                payload.get("accepted_intent_revision_sha256"),
+                "accepted_intent_revision_sha256",
+            ),
+            policy_profile_sha256=_require_sha256(
+                payload.get("policy_profile_sha256"),
+                "policy_profile_sha256",
+            ),
+            decision=decision,
+            reason=reason,
+            request_authority_eligible=payload[
+                "request_authority_eligible"
+            ],
+            evaluated_at=_require_timestamp(
+                payload.get("evaluated_at"),
+                "evaluated_at",
+            ),
+            effect_performed=payload["effect_performed"],
+            desktop_effect_performed=payload[
+                "desktop_effect_performed"
+            ],
+            authority_request_created=payload[
+                "authority_request_created"
+            ],
+            action_lease_created=payload["action_lease_created"],
+            policy_authority=payload["policy_authority"],
+            operational_authority=payload["operational_authority"],
+            action_authority=payload["action_authority"],
+            execution_authority=payload["execution_authority"],
+            schema_version=_require_text(
+                payload.get("schema_version"),
+                "schema_version",
+                maximum=128,
+            ),
+        )
+        if receipt.admission_receipt_sha256 != claimed:
+            raise GhostWalkPolicyAdmissionError(
+                "policy admission receipt hash mismatch"
+            )
+        return receipt
+
+
 class GhostWalkPolicyAdmissionService:
     """Evaluate accepted intent against server-owned, fail-closed policy."""
 
