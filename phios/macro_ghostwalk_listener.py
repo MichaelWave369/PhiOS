@@ -564,6 +564,9 @@ class WindowsGhostWalkListener:
         *,
         bridge: GhostWalkListenerBridge,
         clock: Callable[[], str] = _utc_now_iso,
+        outcome_handler: (
+            Callable[[GhostWalkListenerOutcome], object] | None
+        ) = None,
     ) -> None:
         if os.name != "nt":
             raise GhostWalkListenerContractError(
@@ -571,6 +574,7 @@ class WindowsGhostWalkListener:
             )
         self._bridge = bridge
         self._clock = clock
+        self._outcome_handler = outcome_handler
         self._thread_id: int | None = None
         self._hook_handle: int | None = None
         self._callback_ref: object | None = None
@@ -666,11 +670,13 @@ class WindowsGhostWalkListener:
                     return
                 raw, observed_at = item
                 try:
-                    self._bridge.observe_left_button(
+                    outcome = self._bridge.observe_left_button(
                         session_id=session_id,
                         raw_event=raw,
                         observed_at=observed_at,
                     )
+                    if self._outcome_handler is not None:
+                        self._outcome_handler(outcome)
                 except Exception as exc:
                     self._last_callback_error = exc
                     request_quit()
