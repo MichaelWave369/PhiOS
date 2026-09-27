@@ -19,6 +19,12 @@ from pathlib import Path
 from typing import Callable, Mapping, Protocol
 from urllib.parse import parse_qs, urlsplit
 
+from phios.macro_authority_request import (
+    GhostWalkAuthorityRequest,
+    GhostWalkAuthorityRequestError,
+    GhostWalkAuthorityRequestReadiness,
+    GhostWalkAuthorityRequestService,
+)
 from phios.macro_accepted_intent import (
     GhostWalkAcceptedIntentError,
     GhostWalkAcceptedIntentRegistry,
@@ -65,6 +71,10 @@ POLICY_ADMISSION_TRANSPORT_SCHEMA_VERSION = (
     "phios.ghostwalk-policy-admission-transport.v0.30"
 )
 POLICY_ADMISSION_TRANSPORT_IDENTITY = "phios-ghostwalk-policy-admission"
+AUTHORITY_REQUEST_TRANSPORT_SCHEMA_VERSION = (
+    "phios.ghostwalk-authority-request-transport.v0.31"
+)
+AUTHORITY_REQUEST_TRANSPORT_IDENTITY = "phios-ghostwalk-authority-request"
 DEFAULT_HOST_ID = "ghostwalk-host:local"
 DEFAULT_BASELINE_SERVICE_ID = "ghostwalk-baseline:local"
 DEFAULT_COORDINATOR_ID = "ghostwalk-coordinator:local"
@@ -151,6 +161,28 @@ class GhostWalkPolicyAdmissionPort(Protocol):
         evaluated_at: str | None = None,
     ) -> GhostWalkPolicyAdmissionReceipt: ...
 
+
+
+class GhostWalkAuthorityRequestPort(Protocol):
+    def readiness(
+        self,
+        *,
+        target_inference_receipt_sha256: str,
+    ) -> GhostWalkAuthorityRequestReadiness: ...
+
+    def latest(
+        self,
+        *,
+        target_inference_receipt_sha256: str,
+    ) -> GhostWalkAuthorityRequest | None: ...
+
+    def create(
+        self,
+        *,
+        target_inference_receipt_sha256: str,
+        expected_admission_receipt_sha256: str,
+        requested_at: str | None = None,
+    ) -> GhostWalkAuthorityRequest: ...
 
 
 def _utc_now() -> str:
@@ -576,6 +608,114 @@ def parse_policy_admission_record_payload(
     return target, expected_intent, expected_profile
 
 
+def _authority_request_transport_base(
+    *,
+    effect_performed: bool,
+) -> dict[str, object]:
+    return {
+        "transportSchemaVersion": (
+            AUTHORITY_REQUEST_TRANSPORT_SCHEMA_VERSION
+        ),
+        "transport": "loopback-http",
+        "transportIdentity": AUTHORITY_REQUEST_TRANSPORT_IDENTITY,
+        "localOnly": True,
+        "requestCreated": effect_performed,
+        "desktopEffectPerformed": False,
+        "authorizationGranted": False,
+        "actionLeaseCreated": False,
+        "policyAuthority": False,
+        "operationalAuthority": False,
+        "actionAuthority": False,
+        "executionAuthority": False,
+        "effectPerformed": effect_performed,
+    }
+
+
+def authority_request_status_envelope(
+    service: GhostWalkAuthorityRequestPort,
+    *,
+    target_inference_receipt_sha256: str,
+) -> dict[str, object]:
+    readiness = service.readiness(
+        target_inference_receipt_sha256=(
+            target_inference_receipt_sha256
+        )
+    )
+    current = service.latest(
+        target_inference_receipt_sha256=(
+            target_inference_receipt_sha256
+        )
+    )
+    payload = _authority_request_transport_base(
+        effect_performed=False
+    )
+    payload.update(
+        {
+            "servedAt": _utc_now(),
+            "readiness": readiness.to_dict(),
+            "request": (
+                None if current is None else current.to_dict()
+            ),
+        }
+    )
+    return payload
+
+
+def authority_request_create_envelope(
+    service: GhostWalkAuthorityRequestPort,
+    *,
+    target_inference_receipt_sha256: str,
+    expected_admission_receipt_sha256: str,
+) -> dict[str, object]:
+    request = service.create(
+        target_inference_receipt_sha256=(
+            target_inference_receipt_sha256
+        ),
+        expected_admission_receipt_sha256=(
+            expected_admission_receipt_sha256
+        ),
+    )
+    payload = _authority_request_transport_base(
+        effect_performed=True
+    )
+    payload.update(
+        {
+            "servedAt": _utc_now(),
+            "request": request.to_dict(),
+        }
+    )
+    return payload
+
+
+def parse_authority_request_create_payload(
+    payload: object,
+) -> tuple[str, str]:
+    if not isinstance(payload, Mapping):
+        raise GhostWalkControlBridgeError(
+            "AuthorityRequest body must be an object"
+        )
+    expected_keys = {
+        "target_inference_receipt_sha256",
+        "expected_admission_receipt_sha256",
+    }
+    if set(payload) != expected_keys:
+        raise GhostWalkControlBridgeError(
+            "AuthorityRequest fields do not match contract"
+        )
+    target = payload.get("target_inference_receipt_sha256")
+    admission = payload.get("expected_admission_receipt_sha256")
+    if (
+        not isinstance(target, str)
+        or re.fullmatch(r"[0-9a-f]{64}", target) is None
+        or not isinstance(admission, str)
+        or re.fullmatch(r"[0-9a-f]{64}", admission) is None
+    ):
+        raise GhostWalkControlBridgeError(
+            "AuthorityRequest evidence hashes are invalid"
+        )
+    return target, admission
+
+
 def status_envelope(surface: GhostWalkSurface) -> dict[str, object]:
     payload = _transport_base()
     payload.update(
@@ -733,6 +873,17 @@ class GhostWalkControlHandler(BaseHTTPRequestHandler):
         body.update({"error": code, "servedAt": _utc_now()})
         self._json(status, body)
 
+    def _authority_request_error(
+        self,
+        status: HTTPStatus,
+        code: str,
+    ) -> None:
+        body = _authority_request_transport_base(
+            effect_performed=False
+        )
+        body.update({"error": code, "servedAt": _utc_now()})
+        self._json(status, body)
+
     def _read_json(
         self,
         *,
@@ -767,6 +918,58 @@ class GhostWalkControlHandler(BaseHTTPRequestHandler):
 
     def do_GET(self) -> None:
         parsed = urlsplit(self.path)
+
+        if parsed.path == "/api/v1/ghostwalk/authority-request":
+            if self.server.authority_requests is None:
+                self._authority_request_error(
+                    HTTPStatus.SERVICE_UNAVAILABLE,
+                    "ghostwalk_authority_request_unavailable",
+                )
+                return
+            try:
+                query = parse_qs(
+                    parsed.query,
+                    keep_blank_values=True,
+                    strict_parsing=True,
+                )
+            except ValueError:
+                self._authority_request_error(
+                    HTTPStatus.BAD_REQUEST,
+                    "invalid_ghostwalk_authority_request_status",
+                )
+                return
+            targets = query.get("target")
+            if (
+                set(query) != {"target"}
+                or targets is None
+                or len(targets) != 1
+                or re.fullmatch(r"[0-9a-f]{64}", targets[0]) is None
+            ):
+                self._authority_request_error(
+                    HTTPStatus.BAD_REQUEST,
+                    "invalid_ghostwalk_authority_request_status",
+                )
+                return
+            try:
+                request_status = authority_request_status_envelope(
+                    self.server.authority_requests,
+                    target_inference_receipt_sha256=targets[0],
+                )
+            except GhostWalkAuthorityRequestError as exc:
+                code = (
+                    "ghostwalk_authority_request_not_ready"
+                    if "does not exist" in str(exc)
+                    else "ghostwalk_authority_request_invalid_evidence"
+                )
+                self._authority_request_error(
+                    HTTPStatus.NOT_FOUND
+                    if code.endswith("not_ready")
+                    else HTTPStatus.CONFLICT,
+                    code,
+                )
+                return
+            self._json(HTTPStatus.OK, request_status)
+            return
 
         if parsed.path == "/api/v1/ghostwalk/policy-admission":
             if self.server.policy_admission is None:
@@ -930,6 +1133,57 @@ class GhostWalkControlHandler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:
         parsed = urlsplit(self.path)
+
+        if parsed.path == "/api/v1/ghostwalk/authority-request/requests":
+            if parsed.query or parsed.fragment:
+                self._authority_request_error(
+                    HTTPStatus.BAD_REQUEST,
+                    "invalid_ghostwalk_authority_request_create",
+                )
+                return
+            if self.server.authority_requests is None:
+                self._authority_request_error(
+                    HTTPStatus.SERVICE_UNAVAILABLE,
+                    "ghostwalk_authority_request_unavailable",
+                )
+                return
+            try:
+                target, admission = (
+                    parse_authority_request_create_payload(
+                        self._read_json()
+                    )
+                )
+            except GhostWalkControlBridgeError:
+                self._authority_request_error(
+                    HTTPStatus.BAD_REQUEST,
+                    "invalid_ghostwalk_authority_request_create",
+                )
+                return
+            try:
+                request_envelope = authority_request_create_envelope(
+                    self.server.authority_requests,
+                    target_inference_receipt_sha256=target,
+                    expected_admission_receipt_sha256=admission,
+                )
+            except GhostWalkAuthorityRequestError as exc:
+                conflict = (
+                    "changed before" in str(exc)
+                    or "not ready" in str(exc)
+                    or "already" in str(exc)
+                )
+                self._authority_request_error(
+                    HTTPStatus.CONFLICT
+                    if conflict
+                    else HTTPStatus.BAD_REQUEST,
+                    (
+                        "ghostwalk_authority_request_conflict"
+                        if conflict
+                        else "ghostwalk_authority_request_rejected"
+                    ),
+                )
+                return
+            self._json(HTTPStatus.OK, request_envelope)
+            return
 
         if parsed.path == "/api/v1/ghostwalk/policy-admission/evaluations":
             if parsed.query or parsed.fragment:
@@ -1151,6 +1405,7 @@ class GhostWalkControlServer(ThreadingHTTPServer):
         editor: GhostWalkOperatorEditorPort | None = None,
         accepted_intents: GhostWalkAcceptedIntentPort | None = None,
         policy_admission: GhostWalkPolicyAdmissionPort | None = None,
+        authority_requests: GhostWalkAuthorityRequestPort | None = None,
         stop_callback: Callable[[], object] | None = None,
     ) -> None:
         if address[0] != LOOPBACK_HOST:
@@ -1161,6 +1416,7 @@ class GhostWalkControlServer(ThreadingHTTPServer):
         self.editor = editor
         self.accepted_intents = accepted_intents
         self.policy_admission = policy_admission
+        self.authority_requests = authority_requests
         self._stop_callback = stop_callback
         super().__init__(address, GhostWalkControlHandler)
 
@@ -1269,12 +1525,22 @@ def main() -> None:
         operator_editor=editor,
         profile=GhostWalkPolicyProfile.from_environment(os.environ),
     )
+    authority_requests = GhostWalkAuthorityRequestService(
+        ledger=RealityLedger(
+            args.state_root.expanduser()
+            / "ledger"
+            / "receipts.jsonl"
+        ),
+        policy_admission=policy_admission,
+        requester_id=DEFAULT_OPERATOR_AUTHOR_ID,
+    )
     server = GhostWalkControlServer(
         (LOOPBACK_HOST, args.port),
         surface=surface,
         editor=editor,
         accepted_intents=accepted_intents,
         policy_admission=policy_admission,
+        authority_requests=authority_requests,
         stop_callback=host.stop,
     )
 

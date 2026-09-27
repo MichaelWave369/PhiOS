@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { GhostWalkAuthorityRequestCard } from "./GhostWalkAuthorityRequestCard";
 import {
   ghostWalkPolicyAdmissionClient,
   type GhostWalkPolicyProfile,
@@ -121,6 +122,13 @@ export function GhostWalkPolicyAdmissionCard({
       <div className="ghostwalk-policy-boundary">
         ALLOW_REQUEST != AUTHORITY REQUEST · POLICY ADMISSION != ACTIONLEASE · NO EXECUTION
       </div>
+
+      {projection && profile && (
+        <GhostWalkAuthorityRequestCard
+          targetSha256={targetSha256}
+          refreshToken={`${acceptedIntentRevisionSha256}:${profile.profile_sha256}:${receipt?.admission_receipt_sha256 ?? ""}`}
+        />
+      )}
     </section>
   );
 }
