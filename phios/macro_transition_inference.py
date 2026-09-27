@@ -119,6 +119,18 @@ def _canonical_sha256(value: object) -> str:
     return hashlib.sha256(_canonical_json(value).encode("utf-8")).hexdigest()
 
 
+def _semantic_identity_sha256(target: SemanticTarget) -> str:
+    """Hash stable semantic identity while excluding descriptive name hints."""
+
+    return _canonical_sha256(
+        {
+            "provider": target.provider,
+            "selector": target.selector,
+            "role": target.role,
+        }
+    )
+
+
 @dataclass(frozen=True, slots=True)
 class GhostWalkUiStateSnapshot:
     """Immutable zero-authority UI state around one demonstrated action."""
@@ -438,11 +450,11 @@ class GhostWalkTransitionInferer:
             )
 
         before_targets = {
-            target.target_sha256: target
+            _semantic_identity_sha256(target): target
             for target in before.semantic_targets
         }
         after_targets = {
-            target.target_sha256: target
+            _semantic_identity_sha256(target): target
             for target in after.semantic_targets
         }
 
