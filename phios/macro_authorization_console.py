@@ -17,20 +17,17 @@ from typing import Protocol
 from phios.macro_action_lease_service import (
     GhostWalkActionLeaseError,
     GhostWalkActionLeaseRecord,
-    GhostWalkActionLeaseService,
     GhostWalkLeaseReadiness,
 )
 from phios.macro_authorization_decision import (
     GhostWalkAuthorizationDecision,
     GhostWalkAuthorizationDecisionError,
     GhostWalkAuthorizationDecisionKind,
-    GhostWalkAuthorizationDecisionService,
     GhostWalkAuthorizationReadiness,
 )
 from phios.macro_capability_binding import (
     GhostWalkBindingReadiness,
     GhostWalkCapabilityBindingError,
-    GhostWalkCapabilityBindingService,
     GhostWalkExecutableBinding,
 )
 
