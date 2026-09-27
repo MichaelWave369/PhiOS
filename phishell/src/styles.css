@@ -328,3 +328,14 @@ linear-gradient(135deg,rgba(13,32,42,.92),rgba(5,13,17,.96));box-shadow:inset 0 
 .ghostwalk-intent-message,.ghostwalk-intent-warning{padding:7px 8px;border-radius:6px;font-size:7px;line-height:1.45}.ghostwalk-intent-message{border:1px solid rgba(32,229,192,.18);background:rgba(32,229,192,.02);color:var(--teal)}.ghostwalk-intent-warning{border:1px solid rgba(243,182,75,.28);background:rgba(243,182,75,.03);color:#d7c18f}
 .ghostwalk-intent-boundary{padding:7px 8px;border:1px solid rgba(39,223,255,.18);border-radius:6px;background:rgba(39,223,255,.02);color:var(--cyan);font:6px ui-monospace,monospace;letter-spacing:.04em;line-height:1.45}
 @media(max-width:780px){.ghostwalk-intent-form{grid-template-columns:1fr}}
+
+
+/* Macro Runtime v0.30 policy admission */
+.ghostwalk-policy{display:grid;gap:8px;margin-top:4px;padding:10px;border:1px solid rgba(184,151,255,.25);border-radius:8px;background:linear-gradient(155deg,rgba(21,14,35,.55),rgba(5,15,20,.92))}
+.ghostwalk-policy-head{display:flex;align-items:center;justify-content:space-between;gap:8px}.ghostwalk-policy-head small{display:block;color:#c8adff;font-size:7px;letter-spacing:.13em}.ghostwalk-policy-head b{display:block;margin-top:4px;color:var(--secondary);font:8px ui-monospace,monospace}.ghostwalk-policy-head>span{padding:4px 6px;border:1px solid rgba(184,151,255,.24);border-radius:4px;color:#c8adff;font:6px ui-monospace,monospace;letter-spacing:.05em}
+.ghostwalk-policy-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px}.ghostwalk-policy-grid span{display:grid;gap:2px;padding:6px;border:1px solid rgba(184,151,255,.14);border-radius:5px;color:var(--muted);font:6px ui-monospace,monospace}.ghostwalk-policy-grid b{color:var(--secondary);font-size:7px;overflow-wrap:anywhere}
+.ghostwalk-policy-rules{display:flex;flex-wrap:wrap;gap:5px}.ghostwalk-policy-rules span{padding:4px 6px;border:1px solid rgba(23,67,84,.45);border-radius:4px;color:var(--muted);font:6px ui-monospace,monospace}
+.ghostwalk-policy-record{height:30px;border:1px solid rgba(184,151,255,.34);border-radius:6px;background:rgba(184,151,255,.04);color:#c8adff;font-size:6px;letter-spacing:.05em;cursor:pointer}.ghostwalk-policy-record:disabled{opacity:.4;cursor:not-allowed}
+.ghostwalk-policy-receipt,.ghostwalk-policy-message{padding:7px 8px;border-radius:6px;font-size:7px;line-height:1.45}.ghostwalk-policy-receipt{border:1px solid rgba(32,229,192,.18);background:rgba(32,229,192,.02);color:var(--teal)}.ghostwalk-policy-message{border:1px solid rgba(243,182,75,.22);background:rgba(243,182,75,.025);color:#d7c18f}
+.ghostwalk-policy-boundary{padding:7px 8px;border:1px solid rgba(184,151,255,.2);border-radius:6px;background:rgba(184,151,255,.02);color:#c8adff;font:6px ui-monospace,monospace;letter-spacing:.04em;line-height:1.45}
+@media(max-width:780px){.ghostwalk-policy-grid{grid-template-columns:1fr}}

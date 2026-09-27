@@ -33,6 +33,11 @@ import {
   validateGhostWalkAcceptedIntentMutationPayload,
 } from "./ghostWalkAcceptedIntentProxy.mjs";
 import {
+  fetchGhostWalkPolicyAdmission,
+  recordGhostWalkPolicyAdmission,
+  validateGhostWalkPolicyRecordPayload,
+} from "./ghostWalkPolicyAdmissionProxy.mjs";
+import {
   createPersistRequest,
   fetchBrokerHealth,
   fetchPersistRequest,
@@ -132,6 +137,8 @@ export function createLocalObservationServer({
   ghostWalkOperatorEditApplier = applyGhostWalkOperatorEdit,
   ghostWalkAcceptedIntentFetcher = fetchGhostWalkAcceptedIntent,
   ghostWalkAcceptedIntentMutator = applyGhostWalkAcceptedIntentMutation,
+  ghostWalkPolicyAdmissionFetcher = fetchGhostWalkPolicyAdmission,
+  ghostWalkPolicyAdmissionRecorder = recordGhostWalkPolicyAdmission,
 } = {}) {
   if (!Number.isInteger(port) || port < 0 || port > 65535) {
     throw new Error("local observation port must be an integer between 0 and 65535");
@@ -140,6 +147,65 @@ export function createLocalObservationServer({
   const server = createServer(async (request, response) => {
     try {
       const url = new URL(request.url ?? "/", `http://${LOOPBACK_HOST}`);
+
+      if (
+        request.method === "POST" &&
+        url.pathname === "/api/v1/ghostwalk/policy-admission/evaluations"
+      ) {
+        let payload;
+        try {
+          payload = await readBoundedJsonObject(request, { maxBytes: 8192 });
+        } catch {
+          jsonResponse(response, 400, {
+            error: "invalid_ghostwalk_policy_admission_body",
+            policyAuthority: false,
+            operationalAuthority: false,
+            actionAuthority: false,
+            executionAuthority: false,
+            effectPerformed: false,
+          });
+          return;
+        }
+
+        if (!validateGhostWalkPolicyRecordPayload(payload)) {
+          jsonResponse(response, 400, {
+            error: "invalid_ghostwalk_policy_admission_request",
+            policyAuthority: false,
+            operationalAuthority: false,
+            actionAuthority: false,
+            executionAuthority: false,
+            effectPerformed: false,
+          });
+          return;
+        }
+
+        const result = await ghostWalkPolicyAdmissionRecorder(payload);
+        if (result?.kind === "conflict") {
+          jsonResponse(response, 409, {
+            error: "ghostwalk_policy_admission_conflict",
+            policyAuthority: false,
+            operationalAuthority: false,
+            actionAuthority: false,
+            executionAuthority: false,
+            effectPerformed: false,
+          });
+          return;
+        }
+        if (!result || result.kind !== "recorded") {
+          jsonResponse(response, 503, {
+            error: "ghostwalk_policy_admission_unavailable",
+            policyAuthority: false,
+            operationalAuthority: false,
+            actionAuthority: false,
+            executionAuthority: false,
+            effectPerformed: false,
+          });
+          return;
+        }
+
+        jsonResponse(response, 200, result.envelope);
+        return;
+      }
 
       if (
         request.method === "POST" &&
@@ -383,6 +449,54 @@ export function createLocalObservationServer({
           effectPerformed: false,
           status: "ready",
         });
+        return;
+      }
+
+      if (url.pathname === "/api/v1/ghostwalk/policy-admission") {
+        const keys = [...url.searchParams.keys()];
+        const target = url.searchParams.get("target");
+        if (
+          keys.length !== 1 ||
+          keys[0] !== "target" ||
+          typeof target !== "string" ||
+          !/^[0-9a-f]{64}$/.test(target)
+        ) {
+          jsonResponse(response, 400, {
+            error: "invalid_ghostwalk_policy_admission_request",
+            policyAuthority: false,
+            operationalAuthority: false,
+            actionAuthority: false,
+            executionAuthority: false,
+            effectPerformed: false,
+          });
+          return;
+        }
+
+        const result = await ghostWalkPolicyAdmissionFetcher(target);
+        if (result?.kind === "not_ready") {
+          jsonResponse(response, 404, {
+            error: "ghostwalk_policy_admission_not_ready",
+            policyAuthority: false,
+            operationalAuthority: false,
+            actionAuthority: false,
+            executionAuthority: false,
+            effectPerformed: false,
+          });
+          return;
+        }
+        if (!result || result.kind !== "found") {
+          jsonResponse(response, 503, {
+            error: "ghostwalk_policy_admission_unavailable",
+            policyAuthority: false,
+            operationalAuthority: false,
+            actionAuthority: false,
+            executionAuthority: false,
+            effectPerformed: false,
+          });
+          return;
+        }
+
+        jsonResponse(response, 200, result.envelope);
         return;
       }
 

@@ -39,6 +39,13 @@ from phios.macro_ghostwalk_operator_editor import (
     GhostWalkOperatorNoteView,
 )
 from phios.macro_operator_log import OperatorNoteStatus
+from phios.macro_policy_admission import (
+    GhostWalkPolicyAdmissionError,
+    GhostWalkPolicyAdmissionProjection,
+    GhostWalkPolicyAdmissionReceipt,
+    GhostWalkPolicyAdmissionService,
+    GhostWalkPolicyProfile,
+)
 from phios.spine.ledger import RealityLedger
 
 LOOPBACK_HOST = "127.0.0.1"
@@ -54,6 +61,10 @@ ACCEPTED_INTENT_TRANSPORT_SCHEMA_VERSION = (
     "phios.ghostwalk-accepted-intent-transport.v0.29"
 )
 ACCEPTED_INTENT_TRANSPORT_IDENTITY = "phios-ghostwalk-accepted-intent"
+POLICY_ADMISSION_TRANSPORT_SCHEMA_VERSION = (
+    "phios.ghostwalk-policy-admission-transport.v0.30"
+)
+POLICY_ADMISSION_TRANSPORT_IDENTITY = "phios-ghostwalk-policy-admission"
 DEFAULT_HOST_ID = "ghostwalk-host:local"
 DEFAULT_BASELINE_SERVICE_ID = "ghostwalk-baseline:local"
 DEFAULT_COORDINATOR_ID = "ghostwalk-coordinator:local"
@@ -120,6 +131,26 @@ class GhostWalkAcceptedIntentPort(Protocol):
         expected_current_revision_sha256: str,
         accepted_at: str | None = None,
     ) -> GhostWalkAcceptedIntentRevision: ...
+
+
+class GhostWalkPolicyAdmissionPort(Protocol):
+    profile: GhostWalkPolicyProfile
+
+    def project(
+        self,
+        *,
+        target_inference_receipt_sha256: str,
+    ) -> GhostWalkPolicyAdmissionProjection: ...
+
+    def record(
+        self,
+        *,
+        target_inference_receipt_sha256: str,
+        expected_accepted_intent_revision_sha256: str,
+        expected_policy_profile_sha256: str,
+        evaluated_at: str | None = None,
+    ) -> GhostWalkPolicyAdmissionReceipt: ...
+
 
 
 def _utc_now() -> str:
@@ -427,6 +458,124 @@ def parse_accepted_intent_payload(
     )
 
 
+def _policy_admission_transport_base(
+    *,
+    effect_performed: bool,
+) -> dict[str, object]:
+    return {
+        "transportSchemaVersion": (
+            POLICY_ADMISSION_TRANSPORT_SCHEMA_VERSION
+        ),
+        "transport": "loopback-http",
+        "transportIdentity": POLICY_ADMISSION_TRANSPORT_IDENTITY,
+        "localOnly": True,
+        "admissionRecorded": effect_performed,
+        "desktopEffectPerformed": False,
+        "authorityRequestCreated": False,
+        "actionLeaseCreated": False,
+        "policyAuthority": False,
+        "operationalAuthority": False,
+        "actionAuthority": False,
+        "executionAuthority": False,
+        "effectPerformed": effect_performed,
+    }
+
+
+def policy_admission_projection_envelope(
+    service: GhostWalkPolicyAdmissionPort,
+    *,
+    target_inference_receipt_sha256: str,
+) -> dict[str, object]:
+    projection = service.project(
+        target_inference_receipt_sha256=(
+            target_inference_receipt_sha256
+        )
+    )
+    payload = _policy_admission_transport_base(
+        effect_performed=False
+    )
+    payload.update(
+        {
+            "servedAt": _utc_now(),
+            "profile": service.profile.to_dict(),
+            "projection": projection.to_dict(),
+        }
+    )
+    return payload
+
+
+def policy_admission_record_envelope(
+    service: GhostWalkPolicyAdmissionPort,
+    *,
+    target_inference_receipt_sha256: str,
+    expected_accepted_intent_revision_sha256: str,
+    expected_policy_profile_sha256: str,
+) -> dict[str, object]:
+    receipt = service.record(
+        target_inference_receipt_sha256=(
+            target_inference_receipt_sha256
+        ),
+        expected_accepted_intent_revision_sha256=(
+            expected_accepted_intent_revision_sha256
+        ),
+        expected_policy_profile_sha256=(
+            expected_policy_profile_sha256
+        ),
+    )
+    payload = _policy_admission_transport_base(
+        effect_performed=True
+    )
+    payload.update(
+        {
+            "servedAt": _utc_now(),
+            "profile": service.profile.to_dict(),
+            "receipt": receipt.to_dict(),
+        }
+    )
+    return payload
+
+
+def parse_policy_admission_record_payload(
+    payload: object,
+) -> tuple[str, str, str]:
+    if not isinstance(payload, Mapping):
+        raise GhostWalkControlBridgeError(
+            "policy-admission record body must be an object"
+        )
+    expected_keys = {
+        "target_inference_receipt_sha256",
+        "expected_accepted_intent_revision_sha256",
+        "expected_policy_profile_sha256",
+    }
+    if set(payload) != expected_keys:
+        raise GhostWalkControlBridgeError(
+            "policy-admission record fields do not match contract"
+        )
+    target = payload.get("target_inference_receipt_sha256")
+    expected_intent = payload.get(
+        "expected_accepted_intent_revision_sha256"
+    )
+    expected_profile = payload.get(
+        "expected_policy_profile_sha256"
+    )
+    for value, field in (
+        (target, "target inference receipt"),
+        (expected_intent, "expected accepted intent revision"),
+        (expected_profile, "expected policy profile"),
+    ):
+        if (
+            not isinstance(value, str)
+            or re.fullmatch(r"[0-9a-f]{64}", value) is None
+        ):
+            raise GhostWalkControlBridgeError(
+                f"{field} must be a SHA-256 digest"
+            )
+    assert isinstance(target, str)
+    assert isinstance(expected_intent, str)
+    assert isinstance(expected_profile, str)
+    return target, expected_intent, expected_profile
+
+
 def status_envelope(surface: GhostWalkSurface) -> dict[str, object]:
     payload = _transport_base()
     payload.update(
@@ -573,6 +722,17 @@ class GhostWalkControlHandler(BaseHTTPRequestHandler):
         body.update({"error": code, "servedAt": _utc_now()})
         self._json(status, body)
 
+    def _policy_admission_error(
+        self,
+        status: HTTPStatus,
+        code: str,
+    ) -> None:
+        body = _policy_admission_transport_base(
+            effect_performed=False
+        )
+        body.update({"error": code, "servedAt": _utc_now()})
+        self._json(status, body)
+
     def _read_json(
         self,
         *,
@@ -608,6 +768,58 @@ class GhostWalkControlHandler(BaseHTTPRequestHandler):
     def do_GET(self) -> None:
         parsed = urlsplit(self.path)
 
+        if parsed.path == "/api/v1/ghostwalk/policy-admission":
+            if self.server.policy_admission is None:
+                self._policy_admission_error(
+                    HTTPStatus.SERVICE_UNAVAILABLE,
+                    "ghostwalk_policy_admission_unavailable",
+                )
+                return
+            try:
+                query = parse_qs(
+                    parsed.query,
+                    keep_blank_values=True,
+                    strict_parsing=True,
+                )
+            except ValueError:
+                self._policy_admission_error(
+                    HTTPStatus.BAD_REQUEST,
+                    "invalid_ghostwalk_policy_admission_request",
+                )
+                return
+            targets = query.get("target")
+            if (
+                set(query) != {"target"}
+                or targets is None
+                or len(targets) != 1
+                or re.fullmatch(r"[0-9a-f]{64}", targets[0]) is None
+            ):
+                self._policy_admission_error(
+                    HTTPStatus.BAD_REQUEST,
+                    "invalid_ghostwalk_policy_admission_request",
+                )
+                return
+            try:
+                envelope = policy_admission_projection_envelope(
+                    self.server.policy_admission,
+                    target_inference_receipt_sha256=targets[0],
+                )
+            except GhostWalkPolicyAdmissionError as exc:
+                code = (
+                    "ghostwalk_policy_admission_not_ready"
+                    if "does not exist" in str(exc)
+                    else "ghostwalk_policy_admission_invalid_evidence"
+                )
+                self._policy_admission_error(
+                    HTTPStatus.NOT_FOUND
+                    if code.endswith("not_ready")
+                    else HTTPStatus.CONFLICT,
+                    code,
+                )
+                return
+            self._json(HTTPStatus.OK, envelope)
+            return
+
         if parsed.path == "/api/v1/ghostwalk/accepted-intent":
             if self.server.accepted_intents is None:
                 self._accepted_intent_error(
@@ -640,7 +852,7 @@ class GhostWalkControlHandler(BaseHTTPRequestHandler):
                 )
                 return
             try:
-                envelope = accepted_intent_envelope(
+                intent_envelope = accepted_intent_envelope(
                     self.server.accepted_intents,
                     target_inference_receipt_sha256=targets[0],
                 )
@@ -650,13 +862,13 @@ class GhostWalkControlHandler(BaseHTTPRequestHandler):
                     "ghostwalk_accepted_intent_invalid_history",
                 )
                 return
-            if envelope is None:
+            if intent_envelope is None:
                 self._accepted_intent_error(
                     HTTPStatus.NOT_FOUND,
                     "ghostwalk_accepted_intent_not_found",
                 )
                 return
-            self._json(HTTPStatus.OK, envelope)
+            self._json(HTTPStatus.OK, intent_envelope)
             return
 
         if parsed.path == "/api/v1/ghostwalk/operator-log":
@@ -718,6 +930,56 @@ class GhostWalkControlHandler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:
         parsed = urlsplit(self.path)
+
+        if parsed.path == "/api/v1/ghostwalk/policy-admission/evaluations":
+            if parsed.query or parsed.fragment:
+                self._policy_admission_error(
+                    HTTPStatus.BAD_REQUEST,
+                    "invalid_ghostwalk_policy_admission_record",
+                )
+                return
+            if self.server.policy_admission is None:
+                self._policy_admission_error(
+                    HTTPStatus.SERVICE_UNAVAILABLE,
+                    "ghostwalk_policy_admission_unavailable",
+                )
+                return
+            try:
+                target, expected_intent, expected_profile = (
+                    parse_policy_admission_record_payload(
+                        self._read_json()
+                    )
+                )
+            except GhostWalkControlBridgeError:
+                self._policy_admission_error(
+                    HTTPStatus.BAD_REQUEST,
+                    "invalid_ghostwalk_policy_admission_record",
+                )
+                return
+            try:
+                envelope = policy_admission_record_envelope(
+                    self.server.policy_admission,
+                    target_inference_receipt_sha256=target,
+                    expected_accepted_intent_revision_sha256=(
+                        expected_intent
+                    ),
+                    expected_policy_profile_sha256=expected_profile,
+                )
+            except GhostWalkPolicyAdmissionError as exc:
+                conflict = "changed before" in str(exc)
+                self._policy_admission_error(
+                    HTTPStatus.CONFLICT
+                    if conflict
+                    else HTTPStatus.BAD_REQUEST,
+                    (
+                        "ghostwalk_policy_admission_conflict"
+                        if conflict
+                        else "ghostwalk_policy_admission_rejected"
+                    ),
+                )
+                return
+            self._json(HTTPStatus.OK, envelope)
+            return
 
         if parsed.path == "/api/v1/ghostwalk/accepted-intent/revisions":
             if parsed.query or parsed.fragment:
@@ -888,6 +1150,7 @@ class GhostWalkControlServer(ThreadingHTTPServer):
         surface: GhostWalkSurface,
         editor: GhostWalkOperatorEditorPort | None = None,
         accepted_intents: GhostWalkAcceptedIntentPort | None = None,
+        policy_admission: GhostWalkPolicyAdmissionPort | None = None,
         stop_callback: Callable[[], object] | None = None,
     ) -> None:
         if address[0] != LOOPBACK_HOST:
@@ -897,6 +1160,7 @@ class GhostWalkControlServer(ThreadingHTTPServer):
         self.surface = surface
         self.editor = editor
         self.accepted_intents = accepted_intents
+        self.policy_admission = policy_admission
         self._stop_callback = stop_callback
         super().__init__(address, GhostWalkControlHandler)
 
@@ -995,11 +1259,22 @@ def main() -> None:
         ),
         accepted_by=DEFAULT_OPERATOR_AUTHOR_ID,
     )
+    policy_admission = GhostWalkPolicyAdmissionService(
+        ledger=RealityLedger(
+            args.state_root.expanduser()
+            / "ledger"
+            / "receipts.jsonl"
+        ),
+        accepted_intents=accepted_intents,
+        operator_editor=editor,
+        profile=GhostWalkPolicyProfile.from_environment(os.environ),
+    )
     server = GhostWalkControlServer(
         (LOOPBACK_HOST, args.port),
         surface=surface,
         editor=editor,
         accepted_intents=accepted_intents,
+        policy_admission=policy_admission,
         stop_callback=host.stop,
     )
 
