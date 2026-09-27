@@ -485,7 +485,7 @@ def test_refresh_009_receipts_form_contiguous_hash_chain(
     )
     assert [row["sequence"] for row in rows] == [0, 1, 2, 3]
     assert rows[0]["previous_receipt_sha256"] is None
-    for previous, current in zip(rows, rows[1:], strict=True):
+    for previous, current in zip(rows[:-1], rows[1:], strict=True):
         assert (
             current["previous_receipt_sha256"]
             == previous["receipt_sha256"]
