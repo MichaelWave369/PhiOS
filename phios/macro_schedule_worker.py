@@ -15,6 +15,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from enum import StrEnum
 from pathlib import Path
+from typing import BinaryIO
 
 from phios.macro_graph import MacroPlan
 from phios.macro_schedule import WallClockSchedule
@@ -470,7 +471,7 @@ class _WorkerFileLock:
 
     def __init__(self, path: Path) -> None:
         self.path = path
-        self.handle: object | None = None
+        self.handle: BinaryIO | None = None
 
     def acquire(self) -> bool:
         if self.handle is not None:
@@ -779,12 +780,20 @@ class ScheduleWorkerManager:
             service_id=service_id
         )
         previous_sha = (
-            str(previous["lease_sha256"])
+            _require_sha256(
+                previous.get("lease_sha256"),
+                "previous lease_sha256",
+            )
             if previous is not None
             else None
         )
         generation = (
-            int(previous["generation"]) + 1
+            _require_int(
+                previous.get("generation"),
+                "previous generation",
+                minimum=1,
+            )
+            + 1
             if previous is not None
             else 1
         )
