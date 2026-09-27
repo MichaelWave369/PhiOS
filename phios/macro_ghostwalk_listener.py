@@ -11,7 +11,9 @@ import ctypes
 import hashlib
 import json
 import os
+import queue
 import re
+import threading
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Callable, Mapping
@@ -35,6 +37,8 @@ WM_LBUTTONDOWN = 0x0201
 WM_QUIT = 0x0012
 LLMHF_INJECTED = 0x00000001
 LLMHF_LOWER_IL_INJECTED = 0x00000002
+MAX_PENDING_HOOK_EVENTS = 1024
+WORKER_SHUTDOWN_SECONDS = 10.0
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 
 
@@ -76,6 +80,14 @@ def _require_int(
     if minimum is not None and value < minimum:
         raise GhostWalkListenerContractError(
             f"{field} must be at least {minimum}"
+        )
+    return value
+
+
+def _require_bool(value: object, field: str) -> bool:
+    if not isinstance(value, bool):
+        raise GhostWalkListenerContractError(
+            f"{field} must be Boolean"
         )
     return value
 
@@ -210,6 +222,7 @@ class GhostWalkListenerReceipt:
     injected: bool
     lower_integrity_injected: bool
     observed_at: str
+    previous_listener_receipt_sha256: str | None = None
     operational_authority: bool = False
     action_authority: bool = False
     execution_authority: bool = False
@@ -237,13 +250,24 @@ class GhostWalkListenerReceipt:
             "capture_receipt_sha256",
         )
         _require_timestamp(self.observed_at, "observed_at")
-        if not isinstance(self.injected, bool):
-            raise GhostWalkListenerContractError(
-                "injected must be Boolean"
-            )
-        if not isinstance(self.lower_integrity_injected, bool):
-            raise GhostWalkListenerContractError(
-                "lower_integrity_injected must be Boolean"
+        _require_bool(self.injected, "injected")
+        _require_bool(
+            self.lower_integrity_injected,
+            "lower_integrity_injected",
+        )
+        if self.listener_sequence == 0:
+            if self.previous_listener_receipt_sha256 is not None:
+                raise GhostWalkListenerContractError(
+                    "first listener receipt cannot reference prior history"
+                )
+        else:
+            if self.previous_listener_receipt_sha256 is None:
+                raise GhostWalkListenerContractError(
+                    "later listener receipt requires prior receipt hash"
+                )
+            _require_sha256(
+                self.previous_listener_receipt_sha256,
+                "previous_listener_receipt_sha256",
             )
         if self.lower_integrity_injected and not self.injected:
             raise GhostWalkListenerContractError(
@@ -271,6 +295,9 @@ class GhostWalkListenerReceipt:
             "injected": self.injected,
             "lower_integrity_injected": self.lower_integrity_injected,
             "observed_at": self.observed_at,
+            "previous_listener_receipt_sha256": (
+                self.previous_listener_receipt_sha256
+            ),
             "operational_authority": self.operational_authority,
             "action_authority": self.action_authority,
             "execution_authority": self.execution_authority,
@@ -302,16 +329,14 @@ class GhostWalkListenerReceipt:
             raise GhostWalkListenerContractError(
                 "listener_sequence must be an integer"
             )
-        injected_raw = payload.get("injected")
-        lower_raw = payload.get("lower_integrity_injected")
-        if not isinstance(injected_raw, bool):
-            raise GhostWalkListenerContractError(
-                "injected must be Boolean"
-            )
-        if not isinstance(lower_raw, bool):
-            raise GhostWalkListenerContractError(
-                "lower_integrity_injected must be Boolean"
-            )
+        injected_raw = _require_bool(
+            payload.get("injected"),
+            "injected",
+        )
+        lower_raw = _require_bool(
+            payload.get("lower_integrity_injected"),
+            "lower_integrity_injected",
+        )
         try:
             capture_status = CaptureStatus(
                 _require_text(
@@ -355,14 +380,25 @@ class GhostWalkListenerReceipt:
                 payload.get("observed_at"),
                 "observed_at",
             ),
-            operational_authority=(
-                payload.get("operational_authority") is True
+            previous_listener_receipt_sha256=(
+                None
+                if payload.get("previous_listener_receipt_sha256") is None
+                else _require_sha256(
+                    payload.get("previous_listener_receipt_sha256"),
+                    "previous_listener_receipt_sha256",
+                )
             ),
-            action_authority=(
-                payload.get("action_authority") is True
+            operational_authority=_require_bool(
+                payload.get("operational_authority"),
+                "operational_authority",
             ),
-            execution_authority=(
-                payload.get("execution_authority") is True
+            action_authority=_require_bool(
+                payload.get("action_authority"),
+                "action_authority",
+            ),
+            execution_authority=_require_bool(
+                payload.get("execution_authority"),
+                "execution_authority",
             ),
             schema_version=_require_text(
                 payload.get("schema_version"),
@@ -422,6 +458,7 @@ class GhostWalkListenerBridge:
             GhostWalkListenerReceipt.from_dict(row)
             for row in prior_rows
         ]
+        previous_receipt: GhostWalkListenerReceipt | None = None
         for expected_sequence, item in enumerate(prior):
             if item.listener_id != self.listener_id:
                 raise GhostWalkListenerContractError(
@@ -431,6 +468,16 @@ class GhostWalkListenerBridge:
                 raise GhostWalkListenerContractError(
                     "persisted listener sequences are not contiguous"
                 )
+            expected_previous = (
+                None
+                if previous_receipt is None
+                else previous_receipt.receipt_sha256
+            )
+            if item.previous_listener_receipt_sha256 != expected_previous:
+                raise GhostWalkListenerContractError(
+                    "persisted listener receipt hash chain mismatch"
+                )
+            previous_receipt = item
         sequence = len(prior)
         event_identity = _canonical_sha256(
             {
@@ -466,6 +513,11 @@ class GhostWalkListenerBridge:
                 raw_event.lower_integrity_injected
             ),
             observed_at=observed_at,
+            previous_listener_receipt_sha256=(
+                None
+                if previous_receipt is None
+                else previous_receipt.receipt_sha256
+            ),
         )
         self._ledger.append_ghostwalk_listener_receipt(receipt)
         return GhostWalkListenerOutcome(
@@ -542,6 +594,19 @@ class WindowsGhostWalkListener:
         user32 = windll.user32
         kernel32 = windll.kernel32
 
+        post_thread_message = user32.PostThreadMessageW
+        post_thread_message.argtypes = [
+            ctypes.c_uint32,
+            ctypes.c_uint,
+            ctypes.c_size_t,
+            ctypes.c_ssize_t,
+        ]
+        post_thread_message.restype = ctypes.c_int
+
+        event_queue: queue.Queue[
+            tuple[RawMouseHookEvent, str] | None
+        ] = queue.Queue(maxsize=MAX_PENDING_HOOK_EVENTS)
+
         hook_proc_type = winfunctype(
             ctypes.c_ssize_t,
             ctypes.c_int,
@@ -584,6 +649,39 @@ class WindowsGhostWalkListener:
         get_current_thread_id.argtypes = []
         get_current_thread_id.restype = ctypes.c_uint32
 
+        def request_quit() -> None:
+            thread_id = self._thread_id
+            if thread_id is not None:
+                post_thread_message(
+                    thread_id,
+                    WM_QUIT,
+                    0,
+                    0,
+                )
+
+        def observation_worker() -> None:
+            while True:
+                item = event_queue.get()
+                if item is None:
+                    return
+                raw, observed_at = item
+                try:
+                    self._bridge.observe_left_button(
+                        session_id=session_id,
+                        raw_event=raw,
+                        observed_at=observed_at,
+                    )
+                except Exception as exc:
+                    self._last_callback_error = exc
+                    request_quit()
+                    return
+
+        worker_thread = threading.Thread(
+            target=observation_worker,
+            name="PhiOS-GhostWalk-Observer",
+            daemon=True,
+        )
+
         def callback(
             n_code: int,
             w_param: int,
@@ -602,13 +700,12 @@ class WindowsGhostWalkListener:
                         hook_time_ms=int(observed.time),
                         extra_info=int(observed.dwExtraInfo),
                     )
-                    self._bridge.observe_left_button(
-                        session_id=session_id,
-                        raw_event=raw,
-                        observed_at=self._clock(),
+                    event_queue.put_nowait(
+                        (raw, self._clock())
                     )
-                except Exception as exc:
+                except (Exception, queue.Full) as exc:
                     self._last_callback_error = exc
+                    request_quit()
             return int(
                 call_next_hook_ex(
                     None,
@@ -633,6 +730,7 @@ class WindowsGhostWalkListener:
         self._callback_ref = callback_ref
         self._hook_handle = int(hook)
         self._thread_id = int(get_current_thread_id())
+        worker_thread.start()
         message = _MSG()
 
         try:
@@ -659,6 +757,12 @@ class WindowsGhostWalkListener:
                     ) from error
         finally:
             unhook_windows_hook_ex(hook)
+            event_queue.put(None)
+            worker_thread.join(timeout=WORKER_SHUTDOWN_SECONDS)
+            if worker_thread.is_alive() and self._last_callback_error is None:
+                self._last_callback_error = GhostWalkListenerContractError(
+                    "ghost-walk observation worker did not stop"
+                )
             self._hook_handle = None
             self._thread_id = None
             self._callback_ref = None
