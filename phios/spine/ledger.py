@@ -26,6 +26,9 @@ if TYPE_CHECKING:
     from phios.macro_interaction_guard import InteractionGuardReceipt
     from phios.macro_journal import MacroRunJournalEntry, MacroRunResumeReceipt
     from phios.macro_operator_log import OperatorLogRevision
+    from phios.macro_post_action_verification import (
+        PostActionVerificationReceipt,
+    )
     from phios.macro_schedule_service import (
         ScheduleServicePollReceipt,
         ScheduleServiceStateEntry,
@@ -800,6 +803,37 @@ class RealityLedger:
                 "recent desktop interaction limit must be non-negative"
             )
         path = self.path.parent / "desktop-interaction-receipts.jsonl"
+        if limit == 0 or not path.exists():
+            return []
+        lines = path.read_text(encoding="utf-8").splitlines()
+        return [json.loads(line) for line in lines[-limit:]]
+
+    def append_post_action_verification_receipt(
+        self,
+        receipt: "PostActionVerificationReceipt",
+    ) -> None:
+        """Append one immutable post-action verification receipt."""
+
+        path = self.path.parent / "post-action-verification-receipts.jsonl"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps(receipt.to_dict(), sort_keys=True) + "\n")
+
+    def recent_post_action_verification_receipts(
+        self,
+        limit: int = 10,
+    ) -> list[dict[str, object]]:
+        """Return newest post-action verification receipts."""
+
+        if isinstance(limit, bool) or not isinstance(limit, int):
+            raise TypeError(
+                "recent post-action verification limit must be an integer"
+            )
+        if limit < 0:
+            raise ValueError(
+                "recent post-action verification limit must be non-negative"
+            )
+        path = self.path.parent / "post-action-verification-receipts.jsonl"
         if limit == 0 or not path.exists():
             return []
         lines = path.read_text(encoding="utf-8").splitlines()
