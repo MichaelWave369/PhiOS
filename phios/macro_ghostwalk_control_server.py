@@ -52,6 +52,13 @@ from phios.macro_policy_admission import (
     GhostWalkPolicyAdmissionService,
     GhostWalkPolicyProfile,
 )
+from phios.phivessel_bridge import (
+    PhiVesselBridgeError,
+    PhiVesselBridgeService,
+    PhiVesselBridgeUnavailableError,
+    PhiVesselObservationKind,
+    PhiVesselProposalType,
+)
 from phios.spine.ledger import RealityLedger
 
 LOOPBACK_HOST = "127.0.0.1"
@@ -75,6 +82,10 @@ AUTHORITY_REQUEST_TRANSPORT_SCHEMA_VERSION = (
     "phios.ghostwalk-authority-request-transport.v0.31"
 )
 AUTHORITY_REQUEST_TRANSPORT_IDENTITY = "phios-ghostwalk-authority-request"
+PHIVESSEL_BRIDGE_TRANSPORT_SCHEMA_VERSION = (
+    "phios.phivessel-bridge-transport.v0.1"
+)
+PHIVESSEL_BRIDGE_TRANSPORT_IDENTITY = "phios-phivessel-bridge"
 DEFAULT_HOST_ID = "ghostwalk-host:local"
 DEFAULT_BASELINE_SERVICE_ID = "ghostwalk-baseline:local"
 DEFAULT_COORDINATOR_ID = "ghostwalk-coordinator:local"
@@ -716,6 +727,204 @@ def parse_authority_request_create_payload(
     return target, admission
 
 
+def _phivessel_transport_base(
+    *,
+    bridge_mutation: bool = False,
+    desktop_effect_performed: bool | None = False,
+) -> dict[str, object]:
+    return {
+        "transportSchemaVersion": (
+            PHIVESSEL_BRIDGE_TRANSPORT_SCHEMA_VERSION
+        ),
+        "transport": "loopback-http",
+        "transportIdentity": PHIVESSEL_BRIDGE_TRANSPORT_IDENTITY,
+        "localOnly": True,
+        "bridgeMutation": bridge_mutation,
+        "desktopEffectPerformed": desktop_effect_performed,
+        "authorityRequestCreated": False,
+        "authorizationGranted": False,
+        "actionLeaseCreated": False,
+        "policyAuthority": False,
+        "operationalAuthority": False,
+        "actionAuthority": False,
+        "executionAuthority": False,
+        "effectPerformed": (
+            bridge_mutation
+            if desktop_effect_performed is False
+            else desktop_effect_performed
+        ),
+    }
+
+
+def phivessel_observation_envelope(
+    service: PhiVesselBridgeService,
+    *,
+    kind: PhiVesselObservationKind,
+    action_lease_sha256: str | None = None,
+) -> dict[str, object]:
+    observation = service.observe(
+        kind=kind,
+        action_lease_sha256=action_lease_sha256,
+    )
+    payload = _phivessel_transport_base()
+    payload.update(
+        {
+            "servedAt": _utc_now(),
+            "observation": observation.to_dict(),
+        }
+    )
+    return payload
+
+
+def phivessel_proposal_envelope(
+    service: PhiVesselBridgeService,
+    *,
+    work_id: str,
+    packet_refs: tuple[str, ...],
+    proposal_type: PhiVesselProposalType,
+) -> dict[str, object]:
+    proposal = service.propose(
+        work_id=work_id,
+        packet_refs=packet_refs,
+        proposal_type=proposal_type,
+    )
+    payload = _phivessel_transport_base(bridge_mutation=True)
+    payload.update(
+        {
+            "servedAt": _utc_now(),
+            "proposalRecorded": True,
+            "proposal": proposal.to_dict(),
+        }
+    )
+    return payload
+
+
+def phivessel_execute_envelope(
+    service: PhiVesselBridgeService,
+    *,
+    action_lease_sha256: str,
+) -> dict[str, object]:
+    receipt = service.execute(
+        action_lease_sha256=action_lease_sha256
+    )
+    payload = _phivessel_transport_base(
+        desktop_effect_performed=receipt.effect_performed
+    )
+    payload.update(
+        {
+            "servedAt": _utc_now(),
+            "receipt": receipt.to_dict(),
+        }
+    )
+    return payload
+
+
+def parse_phivessel_observe_query(
+    query_string: str,
+) -> tuple[PhiVesselObservationKind, str | None]:
+    try:
+        query = parse_qs(
+            query_string,
+            keep_blank_values=True,
+            strict_parsing=True,
+        )
+    except ValueError as exc:
+        raise GhostWalkControlBridgeError(
+            "PhiVessel observe query is invalid"
+        ) from exc
+    kinds = query.get("kind")
+    if kinds is None or len(kinds) != 1:
+        raise GhostWalkControlBridgeError(
+            "PhiVessel observe requires one kind"
+        )
+    try:
+        kind = PhiVesselObservationKind(kinds[0])
+    except ValueError as exc:
+        raise GhostWalkControlBridgeError(
+            "PhiVessel observation kind is unsupported"
+        ) from exc
+    if kind is PhiVesselObservationKind.LEASE_STATUS:
+        leases = query.get("leaseId")
+        if (
+            set(query) != {"kind", "leaseId"}
+            or leases is None
+            or len(leases) != 1
+            or re.fullmatch(r"[0-9a-f]{64}", leases[0]) is None
+        ):
+            raise GhostWalkControlBridgeError(
+                "LEASE_STATUS requires one leaseId SHA-256"
+            )
+        return kind, leases[0]
+    if set(query) != {"kind"}:
+        raise GhostWalkControlBridgeError(
+            "PhiVessel observe query fields do not match contract"
+        )
+    return kind, None
+
+
+def parse_phivessel_proposal_payload(
+    payload: object,
+) -> tuple[str, tuple[str, ...], PhiVesselProposalType]:
+    if not isinstance(payload, Mapping):
+        raise GhostWalkControlBridgeError(
+            "PhiVessel proposal body must be an object"
+        )
+    if set(payload) != {"workId", "packetRefs", "proposalType"}:
+        raise GhostWalkControlBridgeError(
+            "PhiVessel proposal fields do not match contract"
+        )
+    work_id = payload.get("workId")
+    packet_refs = payload.get("packetRefs")
+    raw_type = payload.get("proposalType")
+    if (
+        not isinstance(work_id, str)
+        or not work_id
+        or len(work_id) > 256
+        or any(ord(char) < 32 for char in work_id)
+        or not isinstance(packet_refs, list)
+        or not packet_refs
+        or len(packet_refs) > 64
+        or any(
+            not isinstance(value, str)
+            or not value
+            or len(value) > 256
+            or any(ord(char) < 32 for char in value)
+            for value in packet_refs
+        )
+        or not isinstance(raw_type, str)
+    ):
+        raise GhostWalkControlBridgeError(
+            "PhiVessel proposal values are invalid"
+        )
+    try:
+        proposal_type = PhiVesselProposalType(raw_type)
+    except ValueError as exc:
+        raise GhostWalkControlBridgeError(
+            "PhiVessel proposal type is unsupported"
+        ) from exc
+    return work_id, tuple(packet_refs), proposal_type
+
+
+def parse_phivessel_execute_payload(payload: object) -> str:
+    if not isinstance(payload, Mapping):
+        raise GhostWalkControlBridgeError(
+            "PhiVessel execute body must be an object"
+        )
+    if set(payload) != {"leaseId"}:
+        raise GhostWalkControlBridgeError(
+            "PhiVessel execute accepts leaseId only"
+        )
+    lease_id = payload.get("leaseId")
+    if (
+        not isinstance(lease_id, str)
+        or re.fullmatch(r"[0-9a-f]{64}", lease_id) is None
+    ):
+        raise GhostWalkControlBridgeError(
+            "PhiVessel leaseId must be a SHA-256 digest"
+        )
+    return lease_id
+
+
 def status_envelope(surface: GhostWalkSurface) -> dict[str, object]:
     payload = _transport_base()
     payload.update(
@@ -884,6 +1093,15 @@ class GhostWalkControlHandler(BaseHTTPRequestHandler):
         body.update({"error": code, "servedAt": _utc_now()})
         self._json(status, body)
 
+    def _phivessel_error(
+        self,
+        status: HTTPStatus,
+        code: str,
+    ) -> None:
+        body = _phivessel_transport_base()
+        body.update({"error": code, "servedAt": _utc_now()})
+        self._json(status, body)
+
     def _read_json(
         self,
         *,
@@ -918,6 +1136,43 @@ class GhostWalkControlHandler(BaseHTTPRequestHandler):
 
     def do_GET(self) -> None:
         parsed = urlsplit(self.path)
+
+        if parsed.path == "/api/v1/phivessel/observe":
+            if self.server.phivessel_bridge is None:
+                self._phivessel_error(
+                    HTTPStatus.SERVICE_UNAVAILABLE,
+                    "phivessel_bridge_unavailable",
+                )
+                return
+            if parsed.fragment:
+                self._phivessel_error(
+                    HTTPStatus.BAD_REQUEST,
+                    "invalid_phivessel_observe_request",
+                )
+                return
+            try:
+                kind, lease_id = parse_phivessel_observe_query(
+                    parsed.query
+                )
+                envelope = phivessel_observation_envelope(
+                    self.server.phivessel_bridge,
+                    kind=kind,
+                    action_lease_sha256=lease_id,
+                )
+            except PhiVesselBridgeUnavailableError:
+                self._phivessel_error(
+                    HTTPStatus.SERVICE_UNAVAILABLE,
+                    "phivessel_observation_unavailable",
+                )
+                return
+            except (GhostWalkControlBridgeError, PhiVesselBridgeError):
+                self._phivessel_error(
+                    HTTPStatus.BAD_REQUEST,
+                    "invalid_phivessel_observe_request",
+                )
+                return
+            self._json(HTTPStatus.OK, envelope)
+            return
 
         if parsed.path == "/api/v1/ghostwalk/authority-request":
             if self.server.authority_requests is None:
@@ -1133,6 +1388,76 @@ class GhostWalkControlHandler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:
         parsed = urlsplit(self.path)
+
+        if parsed.path == "/api/v1/phivessel/proposals":
+            if parsed.query or parsed.fragment:
+                self._phivessel_error(
+                    HTTPStatus.BAD_REQUEST,
+                    "invalid_phivessel_proposal_request",
+                )
+                return
+            if self.server.phivessel_bridge is None:
+                self._phivessel_error(
+                    HTTPStatus.SERVICE_UNAVAILABLE,
+                    "phivessel_bridge_unavailable",
+                )
+                return
+            try:
+                work_id, packet_refs, proposal_type = (
+                    parse_phivessel_proposal_payload(
+                        self._read_json(max_bytes=32768)
+                    )
+                )
+                envelope = phivessel_proposal_envelope(
+                    self.server.phivessel_bridge,
+                    work_id=work_id,
+                    packet_refs=packet_refs,
+                    proposal_type=proposal_type,
+                )
+            except (GhostWalkControlBridgeError, PhiVesselBridgeError):
+                self._phivessel_error(
+                    HTTPStatus.BAD_REQUEST,
+                    "invalid_phivessel_proposal_request",
+                )
+                return
+            self._json(HTTPStatus.OK, envelope)
+            return
+
+        if parsed.path == "/api/v1/phivessel/execute":
+            if parsed.query or parsed.fragment:
+                self._phivessel_error(
+                    HTTPStatus.BAD_REQUEST,
+                    "invalid_phivessel_execute_request",
+                )
+                return
+            if self.server.phivessel_bridge is None:
+                self._phivessel_error(
+                    HTTPStatus.SERVICE_UNAVAILABLE,
+                    "phivessel_bridge_unavailable",
+                )
+                return
+            try:
+                lease_id = parse_phivessel_execute_payload(
+                    self._read_json()
+                )
+                envelope = phivessel_execute_envelope(
+                    self.server.phivessel_bridge,
+                    action_lease_sha256=lease_id,
+                )
+            except PhiVesselBridgeUnavailableError:
+                self._phivessel_error(
+                    HTTPStatus.SERVICE_UNAVAILABLE,
+                    "phivessel_execution_unavailable",
+                )
+                return
+            except (GhostWalkControlBridgeError, PhiVesselBridgeError):
+                self._phivessel_error(
+                    HTTPStatus.BAD_REQUEST,
+                    "invalid_phivessel_execute_request",
+                )
+                return
+            self._json(HTTPStatus.OK, envelope)
+            return
 
         if parsed.path == "/api/v1/ghostwalk/authority-request/requests":
             if parsed.query or parsed.fragment:
@@ -1406,6 +1731,7 @@ class GhostWalkControlServer(ThreadingHTTPServer):
         accepted_intents: GhostWalkAcceptedIntentPort | None = None,
         policy_admission: GhostWalkPolicyAdmissionPort | None = None,
         authority_requests: GhostWalkAuthorityRequestPort | None = None,
+        phivessel_bridge: PhiVesselBridgeService | None = None,
         stop_callback: Callable[[], object] | None = None,
     ) -> None:
         if address[0] != LOOPBACK_HOST:
@@ -1417,6 +1743,7 @@ class GhostWalkControlServer(ThreadingHTTPServer):
         self.accepted_intents = accepted_intents
         self.policy_admission = policy_admission
         self.authority_requests = authority_requests
+        self.phivessel_bridge = phivessel_bridge
         self._stop_callback = stop_callback
         super().__init__(address, GhostWalkControlHandler)
 
@@ -1534,6 +1861,15 @@ def main() -> None:
         policy_admission=policy_admission,
         requester_id=DEFAULT_OPERATOR_AUTHOR_ID,
     )
+    phivessel_bridge = PhiVesselBridgeService(
+        ledger=RealityLedger(
+            args.state_root.expanduser()
+            / "ledger"
+            / "receipts.jsonl"
+        ),
+        ghostwalk_surface=surface,
+        lease_executor=None,
+    )
     server = GhostWalkControlServer(
         (LOOPBACK_HOST, args.port),
         surface=surface,
@@ -1541,6 +1877,7 @@ def main() -> None:
         accepted_intents=accepted_intents,
         policy_admission=policy_admission,
         authority_requests=authority_requests,
+        phivessel_bridge=phivessel_bridge,
         stop_callback=host.stop,
     )
 
