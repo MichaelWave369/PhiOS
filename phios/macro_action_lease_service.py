@@ -24,7 +24,7 @@ import threading
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from enum import StrEnum
-from typing import Callable, Mapping, Protocol
+from typing import Any, Callable, Mapping, Protocol
 
 from phios.action_lease import ActionLease, ActionLeaseContractError
 from phios.authority_epoch import AuthorityEpoch, AuthorityEpochContractError
@@ -629,7 +629,7 @@ class GhostWalkActionLeaseService:
         records = [self._parse_record(row) for row in rows]
         return records[-1] if records else None
 
-    def _trusted_state(self, target: str, *, now: datetime) -> dict[str, object]:
+    def _trusted_state(self, target: str, *, now: datetime) -> dict[str, Any]:
         try:
             binding = self._capability_bindings.latest(
                 target_inference_receipt_sha256=target
