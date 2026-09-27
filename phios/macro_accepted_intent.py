@@ -22,7 +22,10 @@ from phios.macro_ghostwalk_operator_editor import (
     GhostWalkOperatorEditor,
     GhostWalkOperatorEditorError,
 )
-from phios.macro_operator_log import OperatorNoteStatus
+from phios.macro_operator_log import (
+    OperatorLogRevision,
+    OperatorNoteStatus,
+)
 from phios.spine.ledger import RealityLedger
 
 GHOSTWALK_ACCEPTED_INTENT_SCHEMA_VERSION = (
@@ -88,6 +91,14 @@ def _optional_sha256(value: object, field: str) -> str | None:
     if value is None:
         return None
     return _require_sha256(value, field)
+
+
+def _require_bool(value: object, field: str) -> bool:
+    if not isinstance(value, bool):
+        raise GhostWalkAcceptedIntentError(
+            f"{field} must be Boolean"
+        )
+    return value
 
 
 def _require_timestamp(value: object, field: str) -> str:
@@ -318,17 +329,29 @@ class GhostWalkAcceptedIntentRevision:
                 payload.get("supersedes_revision_sha256"),
                 "supersedes_revision_sha256",
             ),
-            human_intent_confirmed=(
-                payload.get("human_intent_confirmed") is True
+            human_intent_confirmed=_require_bool(
+                payload.get("human_intent_confirmed"),
+                "human_intent_confirmed",
             ),
-            causation_proven=(payload.get("causation_proven") is True),
-            policy_authority=(payload.get("policy_authority") is True),
-            operational_authority=(
-                payload.get("operational_authority") is True
+            causation_proven=_require_bool(
+                payload.get("causation_proven"),
+                "causation_proven",
             ),
-            action_authority=(payload.get("action_authority") is True),
-            execution_authority=(
-                payload.get("execution_authority") is True
+            policy_authority=_require_bool(
+                payload.get("policy_authority"),
+                "policy_authority",
+            ),
+            operational_authority=_require_bool(
+                payload.get("operational_authority"),
+                "operational_authority",
+            ),
+            action_authority=_require_bool(
+                payload.get("action_authority"),
+                "action_authority",
+            ),
+            execution_authority=_require_bool(
+                payload.get("execution_authority"),
+                "execution_authority",
             ),
             schema_version=_require_text(
                 payload.get("schema_version"),
@@ -524,6 +547,7 @@ class GhostWalkAcceptedIntentRegistry:
                 raise GhostWalkAcceptedIntentError(
                     "accepted-intent revisions are not contiguous"
                 )
+            self._validate_source_operator_note(item)
             if previous is not None:
                 if (
                     item.supersedes_revision_sha256
@@ -534,3 +558,31 @@ class GhostWalkAcceptedIntentRegistry:
                     )
             previous = item
         return revisions
+
+    def _validate_source_operator_note(
+        self,
+        intent: GhostWalkAcceptedIntentRevision,
+    ) -> None:
+        matches = [
+            row
+            for row in self._ledger.operator_log_revisions()
+            if row.get("revision_sha256")
+            == intent.source_operator_note_revision_sha256
+        ]
+        if len(matches) != 1:
+            raise GhostWalkAcceptedIntentError(
+                "accepted intent source OperatorLog revision is missing or ambiguous"
+            )
+        try:
+            revision = OperatorLogRevision.from_dict(matches[0])
+        except Exception as exc:
+            raise GhostWalkAcceptedIntentError(
+                "accepted intent source OperatorLog revision is invalid"
+            ) from exc
+        if (
+            revision.target_sha256
+            != intent.target_inference_receipt_sha256
+        ):
+            raise GhostWalkAcceptedIntentError(
+                "accepted intent source OperatorLog target mismatch"
+            )
