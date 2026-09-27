@@ -589,14 +589,16 @@ class GhostWalkAcceptedIntentRegistry:
                 "accepted intent source OperatorLog target mismatch"
             )
 
-        prefix_rows = [
-            row
-            for row in all_rows
-            if row.get("note_id") == revision.note_id
-            and isinstance(row.get("revision"), int)
-            and not isinstance(row.get("revision"), bool)
-            and int(row["revision"]) <= revision.revision
-        ]
+        prefix_rows: list[dict[str, object]] = []
+        for row in all_rows:
+            raw_revision = row.get("revision")
+            if (
+                row.get("note_id") == revision.note_id
+                and isinstance(raw_revision, int)
+                and not isinstance(raw_revision, bool)
+                and raw_revision <= revision.revision
+            ):
+                prefix_rows.append(row)
         parsed: list[OperatorLogRevision] = []
         try:
             parsed = [
