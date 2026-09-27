@@ -20,6 +20,7 @@ from datetime import UTC, datetime
 from typing import Callable, Mapping
 
 from phios.action_lease import ActionLeaseContractError, evaluate_action_lease
+from phios.authority_epoch import AuthorityEpoch, AuthorityEpochContractError
 from phios.enforcement_profile import (
     EnforcementProfile,
     EnforcementProfileContractError,
@@ -39,7 +40,7 @@ from phios.macro_capability_binding import (
 )
 from phios.spine.effects import EffectBoundaryContractError, normalize_effects
 from phios.spine.ledger import RealityLedger
-from phios.spine.models import GhostWalkExecutionProvenance
+from phios.spine.models import ExecutionReceipt, GhostWalkExecutionProvenance
 from phios.spine.runtime import PhiOSSpine
 
 GHOSTWALK_LEASE_EXECUTION_RECEIPT_SCHEMA_VERSION = (
@@ -676,3 +677,305 @@ class GhostWalkLeaseExecutionHandoff:
                 ),
                 execution=execution,
             )
+
+    def _lease_record(
+        self,
+        lease_sha: str,
+    ) -> GhostWalkActionLeaseRecord | None:
+        rows = self._ledger.ghostwalk_action_lease_records(
+            action_lease_sha256=lease_sha
+        )
+        records: list[GhostWalkActionLeaseRecord] = []
+        for row in rows:
+            try:
+                records.append(
+                    GhostWalkActionLeaseRecord.from_dict(row)
+                )
+            except GhostWalkActionLeaseError as exc:
+                raise GhostWalkLeaseExecutionError(
+                    "persisted Ghost-Walk ActionLease custody is invalid"
+                ) from exc
+        if len(records) > 1:
+            raise GhostWalkLeaseExecutionError(
+                "ActionLease identity is not unique in Ghost-Walk custody"
+            )
+        if not records:
+            return None
+        record = records[0]
+        if record.action_lease.action_lease_sha256 != lease_sha:
+            raise GhostWalkLeaseExecutionError(
+                "ActionLease lookup returned mismatched custody"
+            )
+        return record
+
+    def _current_binding(
+        self,
+        record: GhostWalkActionLeaseRecord,
+    ) -> GhostWalkExecutableBinding | None:
+        try:
+            binding = self._capability_bindings.latest(
+                target_inference_receipt_sha256=(
+                    record.target_inference_receipt_sha256
+                )
+            )
+            readiness = self._capability_bindings.readiness(
+                target_inference_receipt_sha256=(
+                    record.target_inference_receipt_sha256
+                )
+            )
+        except GhostWalkCapabilityBindingError as exc:
+            raise GhostWalkLeaseExecutionError(
+                "current executable binding could not be verified"
+            ) from exc
+        if binding is None:
+            return None
+        if (
+            binding.executable_binding_sha256
+            != record.executable_binding_sha256
+        ):
+            return None
+        reason = getattr(readiness, "reason", None)
+        existing = getattr(
+            readiness,
+            "existing_binding_sha256",
+            None,
+        )
+        if (
+            reason
+            is not GhostWalkBindingReadinessReason.BINDING_ALREADY_EXISTS
+            or existing != binding.executable_binding_sha256
+        ):
+            return None
+        return binding
+
+    def _current_policy_and_profile(
+        self,
+        *,
+        record: GhostWalkActionLeaseRecord,
+        binding: GhostWalkExecutableBinding,
+    ) -> tuple[
+        GhostWalkLeasePolicy | None,
+        EnforcementProfile | None,
+    ]:
+        policy = self._policies.for_binding(binding)
+        if policy is None or policy.policy_sha256 != record.policy_sha256:
+            return None, None
+        try:
+            profile = EnforcementProfile.build(
+                intent=binding.effect_intent,
+                rules=policy.enforcement_rules,
+            )
+        except EnforcementProfileContractError as exc:
+            raise GhostWalkLeaseExecutionError(
+                "current lease policy cannot reconstruct EnforcementProfile"
+            ) from exc
+        if (
+            profile.profile_sha256
+            != record.enforcement_profile.profile_sha256
+        ):
+            return None, None
+        if (
+            policy.accepted_unenforced_effects
+            != profile.effects_without_enforced_rule
+        ):
+            return None, None
+        return policy, profile
+
+    def _current_epoch(self) -> AuthorityEpoch | None:
+        try:
+            return self._authority_epochs.current()
+        except AuthorityEpochContractError as exc:
+            raise GhostWalkLeaseExecutionError(
+                "current AuthorityEpoch could not be verified"
+            ) from exc
+
+    def _validate_exact_scope(
+        self,
+        *,
+        record: GhostWalkActionLeaseRecord,
+        binding: GhostWalkExecutableBinding,
+        policy: GhostWalkLeasePolicy,
+        profile: EnforcementProfile,
+    ) -> None:
+        lease = record.action_lease
+        mismatches = (
+            lease.authorization_receipt_sha256
+            != binding.authorization_decision_sha256,
+            lease.effect_intent_sha256
+            != binding.effect_intent.effect_intent_sha256,
+            lease.enforcement_profile_sha256
+            != profile.profile_sha256,
+            lease.capability_id != binding.capability_id,
+            lease.capability_version != binding.capability_version,
+            lease.payload_sha256 != binding.payload_sha256,
+            lease.effects_declared != binding.effects_declared,
+            lease.permissions_authorized
+            != binding.permissions_required,
+            lease.principal_id != policy.principal_id,
+            lease.issuer_id != policy.issuer_id,
+            lease.accepted_unenforced_effects
+            != policy.accepted_unenforced_effects,
+        )
+        if any(mismatches):
+            raise GhostWalkLeaseExecutionError(
+                "ActionLease scope diverges from current Ghost-Walk custody"
+            )
+
+    def _runtime_scope_reason(
+        self,
+        binding: GhostWalkExecutableBinding,
+    ) -> str | None:
+        try:
+            capability = self._spine.registry.get(
+                binding.capability_id
+            )
+        except KeyError:
+            return "capability_not_registered"
+
+        try:
+            effects = normalize_effects(
+                capability.effects,
+                label="runtime capability effects",
+            )
+        except EffectBoundaryContractError:
+            return "capability_effect_contract_invalid"
+
+        if (
+            capability.version != binding.capability_version
+            or tuple(capability.permissions)
+            != binding.permissions_required
+            or effects != binding.effects_declared
+        ):
+            return "capability_contract_drift"
+
+        try:
+            executor_effects = self._spine.executors.effects(
+                capability.id
+            )
+        except KeyError:
+            return "executor_effect_contract_missing"
+        decision = self._spine.effect_policy.evaluate(
+            capability,
+            executor_effects=executor_effects,
+        )
+        if not decision.allowed:
+            return f"effect_boundary_{decision.reason}"
+        return None
+
+    @staticmethod
+    def _validate_spine_receipt(
+        *,
+        execution: ExecutionReceipt,
+        binding: GhostWalkExecutableBinding,
+        provenance: GhostWalkExecutionProvenance,
+    ) -> None:
+        if execution.capability_id != binding.capability_id:
+            raise GhostWalkLeaseExecutionError(
+                "Spine receipt capability diverged from binding"
+            )
+        if execution.input_sha256 != binding.payload_sha256:
+            raise GhostWalkLeaseExecutionError(
+                "Spine receipt payload diverged from binding"
+            )
+        if execution.permissions_requested != list(
+            binding.permissions_required
+        ):
+            raise GhostWalkLeaseExecutionError(
+                "Spine permission request diverged from binding"
+            )
+        if execution.governed_provenance != provenance:
+            raise GhostWalkLeaseExecutionError(
+                "Spine execution provenance diverged from Ghost-Walk custody"
+            )
+
+    def _complete(
+        self,
+        *,
+        lease_sha: str,
+        attempted_at: str,
+        record: GhostWalkActionLeaseRecord,
+        binding: GhostWalkExecutableBinding,
+        policy: GhostWalkLeasePolicy,
+        profile: EnforcementProfile,
+        authority_epoch_sha256: str,
+        execution: ExecutionReceipt,
+    ) -> GhostWalkLeaseExecutionReceipt:
+        if execution.permission_status == "denied":
+            self._ledger.release_action_lease_claim(lease_sha)
+            return self._record_receipt(
+                status="DENIED",
+                reason=execution.error or "spine_permission_denied",
+                lease_sha=lease_sha,
+                attempted_at=attempted_at,
+                record=record,
+                binding=binding,
+                policy=policy,
+                profile=profile,
+                authority_epoch_sha256=authority_epoch_sha256,
+                spine_receipt_id=execution.receipt_id,
+                spine_permission_status=execution.permission_status,
+                spine_execution_status=execution.execution_status,
+                executor_entered=False,
+                lease_claimed=True,
+                lease_consumed=False,
+                replay_blocked=False,
+                effect_performed=False,
+            )
+
+        if execution.permission_status != "allowed":
+            if not execution.executor_entered:
+                self._ledger.release_action_lease_claim(lease_sha)
+            raise GhostWalkLeaseExecutionError(
+                "Spine returned unsupported permission state"
+            )
+
+        outcomes: dict[str, tuple[str, str, bool | None]] = {
+            "succeeded": (
+                "SUCCEEDED",
+                "spine_execution_succeeded",
+                True,
+            ),
+            "failed": (
+                "FAILED",
+                "spine_execution_failed",
+                None,
+            ),
+            "outcome_unknown": (
+                "OUTCOME_UNKNOWN",
+                "spine_execution_outcome_unknown",
+                None,
+            ),
+        }
+        selected = outcomes.get(execution.execution_status)
+        if selected is None:
+            if not execution.executor_entered:
+                self._ledger.release_action_lease_claim(lease_sha)
+            raise GhostWalkLeaseExecutionError(
+                "Spine returned unsupported execution state"
+            )
+        status, reason, effect_performed = selected
+        if not execution.executor_entered:
+            self._ledger.release_action_lease_claim(lease_sha)
+            raise GhostWalkLeaseExecutionError(
+                "effectful Spine outcome did not record executor entry"
+            )
+
+        return self._record_receipt(
+            status=status,
+            reason=reason,
+            lease_sha=lease_sha,
+            attempted_at=attempted_at,
+            record=record,
+            binding=binding,
+            policy=policy,
+            profile=profile,
+            authority_epoch_sha256=authority_epoch_sha256,
+            spine_receipt_id=execution.receipt_id,
+            spine_permission_status=execution.permission_status,
+            spine_execution_status=execution.execution_status,
+            executor_entered=True,
+            lease_claimed=True,
+            lease_consumed=True,
+            replay_blocked=False,
+            effect_performed=effect_performed,
+        )
