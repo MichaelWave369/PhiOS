@@ -488,7 +488,9 @@ class _WorkerFileLock:
             if os.name == "nt":
                 import msvcrt
 
-                msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
+                locking = getattr(msvcrt, "locking")
+                lock_nonblocking = getattr(msvcrt, "LK_NBLCK")
+                locking(handle.fileno(), lock_nonblocking, 1)
             else:
                 import fcntl
 
@@ -511,7 +513,9 @@ class _WorkerFileLock:
             if os.name == "nt":
                 import msvcrt
 
-                msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
+                locking = getattr(msvcrt, "locking")
+                unlock = getattr(msvcrt, "LK_UNLCK")
+                locking(handle.fileno(), unlock, 1)
             else:
                 import fcntl
 
