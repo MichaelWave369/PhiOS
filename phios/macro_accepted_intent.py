@@ -18,10 +18,7 @@ from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Mapping
 
-from phios.macro_ghostwalk_operator_editor import (
-    GhostWalkOperatorEditor,
-    GhostWalkOperatorEditorError,
-)
+from phios.macro_ghostwalk_operator_editor import GhostWalkOperatorEditor
 from phios.macro_operator_log import (
     OperatorLogContractError,
     OperatorLogRevision,
