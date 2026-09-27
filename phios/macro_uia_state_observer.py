@@ -141,6 +141,16 @@ def _canonical_sha256(value: object) -> str:
     return hashlib.sha256(_canonical_json(value).encode("utf-8")).hexdigest()
 
 
+def _semantic_identity_sha256(target: SemanticTarget) -> str:
+    return _canonical_sha256(
+        {
+            "provider": target.provider,
+            "selector": target.selector,
+            "role": target.role,
+        }
+    )
+
+
 def _parse_pid(process_id: str) -> int:
     match = _PID_RE.fullmatch(
         _require_text(process_id, "process_id", maximum=128)
@@ -471,14 +481,19 @@ class GhostWalkUiaStateObserver:
                 )
             )
 
-        counts = Counter(
-            target.target_sha256
+        identity_keys = tuple(
+            _semantic_identity_sha256(target)
             for target in candidate_targets
         )
-        unique_by_hash = {
-            target.target_sha256: target
-            for target in candidate_targets
-            if counts[target.target_sha256] == 1
+        counts = Counter(identity_keys)
+        unique_by_identity = {
+            identity_key: target
+            for identity_key, target in zip(
+                identity_keys,
+                candidate_targets,
+                strict=True,
+            )
+            if counts[identity_key] == 1
         }
         ambiguous_identity_count = sum(
             count
@@ -486,8 +501,14 @@ class GhostWalkUiaStateObserver:
             if count > 1
         )
         unique_targets = tuple(
-            unique_by_hash[target_sha]
-            for target_sha in sorted(unique_by_hash)
+            unique_by_identity[identity_key]
+            for identity_key in sorted(unique_by_identity)
+        )
+        unique_targets = tuple(
+            sorted(
+                unique_targets,
+                key=lambda target: target.target_sha256,
+            )
         )
 
         if len(unique_targets) > MAX_UIA_STATE_TARGETS:
