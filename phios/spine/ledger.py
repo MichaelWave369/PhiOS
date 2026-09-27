@@ -37,6 +37,7 @@ if TYPE_CHECKING:
     from phios.macro_capability_binding import GhostWalkExecutableBinding
     from phios.macro_action_lease_service import GhostWalkActionLeaseRecord
     from phios.macro_lease_execution_handoff import GhostWalkLeaseExecutionReceipt
+    from phios.phivessel_bridge import PhiVesselProposalPacket
     from phios.macro_post_action_verification import (
         PostActionVerificationReceipt,
     )
@@ -772,6 +773,41 @@ class RealityLedger:
             row
             for row in rows
             if row.get("action_lease_sha256") == action_lease_sha256
+        ]
+
+    def append_phivessel_proposal(
+        self,
+        proposal: "PhiVesselProposalPacket",
+    ) -> None:
+        """Append one zero-authority PhiVessel proposal record."""
+
+        path = self.path.parent / "phivessel-proposals.jsonl"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("a", encoding="utf-8") as handle:
+            handle.write(
+                json.dumps(proposal.to_dict(), sort_keys=True) + "\n"
+            )
+
+    def phivessel_proposals(
+        self,
+        *,
+        work_id: str | None = None,
+    ) -> list[dict[str, object]]:
+        """Return append-order PhiVessel proposal records."""
+
+        path = self.path.parent / "phivessel-proposals.jsonl"
+        if not path.exists():
+            return []
+        rows = [
+            json.loads(line)
+            for line in path.read_text(encoding="utf-8").splitlines()
+        ]
+        if work_id is None:
+            return rows
+        return [
+            row
+            for row in rows
+            if row.get("work_id") == work_id
         ]
 
     def append_interaction_guard_receipt(
