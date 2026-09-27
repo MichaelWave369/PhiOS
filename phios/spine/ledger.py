@@ -19,6 +19,7 @@ if TYPE_CHECKING:
     from phios.macro_ghostwalk_capture import GhostWalkCaptureReceipt
     from phios.macro_ghostwalk_listener import GhostWalkListenerReceipt
     from phios.macro_uia_revalidation import SemanticRevalidationReceipt
+    from phios.macro_uia_state_observer import UiaStateObservationReceipt
     from phios.macro_windows_uia import (
         UiaElementSnapshot,
         UiaLookupReceipt,
@@ -903,6 +904,37 @@ class RealityLedger:
                 "recent transition inference limit must be non-negative"
             )
         path = self.path.parent / "transition-inference-receipts.jsonl"
+        if limit == 0 or not path.exists():
+            return []
+        lines = path.read_text(encoding="utf-8").splitlines()
+        return [json.loads(line) for line in lines[-limit:]]
+
+    def append_uia_state_observation_receipt(
+        self,
+        receipt: "UiaStateObservationReceipt",
+    ) -> None:
+        """Append one immutable bounded UIA state-observer receipt."""
+
+        path = self.path.parent / "uia-state-observer-receipts.jsonl"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps(receipt.to_dict(), sort_keys=True) + "\n")
+
+    def recent_uia_state_observation_receipts(
+        self,
+        limit: int = 10,
+    ) -> list[dict[str, object]]:
+        """Return newest bounded UIA state-observer receipts."""
+
+        if isinstance(limit, bool) or not isinstance(limit, int):
+            raise TypeError(
+                "recent UIA state-observer limit must be an integer"
+            )
+        if limit < 0:
+            raise ValueError(
+                "recent UIA state-observer limit must be non-negative"
+            )
+        path = self.path.parent / "uia-state-observer-receipts.jsonl"
         if limit == 0 or not path.exists():
             return []
         lines = path.read_text(encoding="utf-8").splitlines()
