@@ -299,3 +299,37 @@ def test_tampered_accepted_intent_chain_fails_closed(
         registry.current(
             target_inference_receipt_sha256=TARGET
         )
+
+
+def test_tampered_source_operator_note_invalidates_accepted_intent(
+    tmp_path: Path,
+) -> None:
+    ledger = _ledger(tmp_path)
+    note_sha = _seed(ledger)
+    registry = GhostWalkAcceptedIntentRegistry(
+        ledger=ledger,
+        accepted_by="operator:local",
+    )
+    registry.accept(
+        target_inference_receipt_sha256=TARGET,
+        source_operator_note_revision_sha256=note_sha,
+        intent_family=GhostWalkIntentFamily.OPEN,
+        intent_code="OPEN_NETWORK_ADAPTER_PROPERTIES",
+        expected_current_revision_sha256=None,
+    )
+
+    path = ledger.path.parent / "operator-log-revisions.jsonl"
+    row = json.loads(path.read_text(encoding="utf-8"))
+    row["body"] = "Tampered human interpretation."
+    path.write_text(
+        json.dumps(row, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(
+        GhostWalkAcceptedIntentError,
+        match="source OperatorLog revision is invalid",
+    ):
+        registry.current(
+            target_inference_receipt_sha256=TARGET
+        )
