@@ -366,7 +366,11 @@ class GhostWalkControlHandler(BaseHTTPRequestHandler):
         body.update({"error": code, "servedAt": _utc_now()})
         self._json(status, body)
 
-    def _read_json(self) -> object:
+    def _read_json(
+        self,
+        *,
+        max_bytes: int = MAX_REQUEST_BYTES,
+    ) -> object:
         raw_length = self.headers.get("content-length")
         if raw_length is None:
             raise GhostWalkControlBridgeError(
@@ -378,7 +382,7 @@ class GhostWalkControlHandler(BaseHTTPRequestHandler):
             raise GhostWalkControlBridgeError(
                 "content-length must be an integer"
             ) from exc
-        if length < 1 or length > MAX_REQUEST_BYTES:
+        if length < 1 or length > max_bytes:
             raise GhostWalkControlBridgeError(
                 "request body length is outside the allowed bound"
             )
@@ -472,7 +476,9 @@ class GhostWalkControlHandler(BaseHTTPRequestHandler):
                 return
             try:
                 target, expected, body, status = (
-                    parse_operator_edit_payload(self._read_json())
+                    parse_operator_edit_payload(
+                        self._read_json(max_bytes=32768)
+                    )
                 )
             except GhostWalkControlBridgeError:
                 self._operator_error(
