@@ -750,9 +750,14 @@ class GhostWalkControlHandler(BaseHTTPRequestHandler):
 
             try:
                 if operation == "ACCEPT":
-                    assert family is not None
-                    assert intent_code is not None
-                    assert source_note is not None
+                    if (
+                        family is None
+                        or intent_code is None
+                        or source_note is None
+                    ):
+                        raise GhostWalkAcceptedIntentError(
+                            "accepted-intent ACCEPT parse was incomplete"
+                        )
                     revision = self.server.accepted_intents.accept(
                         target_inference_receipt_sha256=target,
                         source_operator_note_revision_sha256=source_note,
@@ -761,7 +766,10 @@ class GhostWalkControlHandler(BaseHTTPRequestHandler):
                         expected_current_revision_sha256=expected,
                     )
                 else:
-                    assert expected is not None
+                    if expected is None:
+                        raise GhostWalkAcceptedIntentError(
+                            "accepted-intent REVOKE parse was incomplete"
+                        )
                     revision = self.server.accepted_intents.revoke(
                         target_inference_receipt_sha256=target,
                         expected_current_revision_sha256=expected,
