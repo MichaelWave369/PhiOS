@@ -342,3 +342,337 @@ class GhostWalkLeaseExecutionReceipt:
             raise GhostWalkLeaseExecutionError(
                 "lease execution receipt fields do not match contract"
             )
+        bool_fields = (
+            "executor_entered",
+            "lease_claimed",
+            "lease_consumed",
+            "replay_blocked",
+            "action_authority",
+            "execution_authority",
+        )
+        for field in bool_fields:
+            if not isinstance(value.get(field), bool):
+                raise GhostWalkLeaseExecutionError(
+                    f"{field} must be Boolean"
+                )
+        effect = value.get("effect_performed")
+        if effect not in {True, False, None}:
+            raise GhostWalkLeaseExecutionError(
+                "effect_performed must be Boolean or null"
+            )
+        item = cls(
+            schema_version=_require_text(
+                value.get("schema_version"),
+                "schema_version",
+                maximum=128,
+            ),
+            status=_require_text(
+                value.get("status"),
+                "status",
+                maximum=64,
+            ),
+            reason=_require_text(value.get("reason"), "reason"),
+            action_lease_sha256=_require_sha256(
+                value.get("action_lease_sha256"),
+                "action_lease_sha256",
+            ),
+            attempted_at=_require_text(
+                value.get("attempted_at"),
+                "attempted_at",
+                maximum=64,
+            ),
+            lease_record_sha256=_optional_sha256(
+                value.get("lease_record_sha256"),
+                "lease_record_sha256",
+            ),
+            target_inference_receipt_sha256=_optional_sha256(
+                value.get("target_inference_receipt_sha256"),
+                "target_inference_receipt_sha256",
+            ),
+            executable_binding_sha256=_optional_sha256(
+                value.get("executable_binding_sha256"),
+                "executable_binding_sha256",
+            ),
+            authority_epoch_sha256=_optional_sha256(
+                value.get("authority_epoch_sha256"),
+                "authority_epoch_sha256",
+            ),
+            policy_sha256=_optional_sha256(
+                value.get("policy_sha256"),
+                "policy_sha256",
+            ),
+            enforcement_profile_sha256=_optional_sha256(
+                value.get("enforcement_profile_sha256"),
+                "enforcement_profile_sha256",
+            ),
+            spine_receipt_id=_optional_text(
+                value.get("spine_receipt_id"),
+                "spine_receipt_id",
+            ),
+            spine_permission_status=_optional_text(
+                value.get("spine_permission_status"),
+                "spine_permission_status",
+                maximum=64,
+            ),
+            spine_execution_status=_optional_text(
+                value.get("spine_execution_status"),
+                "spine_execution_status",
+                maximum=64,
+            ),
+            executor_entered=value["executor_entered"],
+            lease_claimed=value["lease_claimed"],
+            lease_consumed=value["lease_consumed"],
+            replay_blocked=value["replay_blocked"],
+            effect_performed=effect,
+            action_authority=value["action_authority"],
+            execution_authority=value["execution_authority"],
+        )
+        if value.get("receipt_sha256") != item.receipt_sha256:
+            raise GhostWalkLeaseExecutionError(
+                "lease execution receipt hash mismatch"
+            )
+        return item
+
+
+class GhostWalkLeaseExecutionHandoff:
+    """Execute exactly one lease-owned Ghost-Walk binding.
+
+    Public execution is intentionally lease-only:
+
+        execute(action_lease_sha256=...)
+
+    Every executable detail is recovered server-side.
+    """
+
+    def __init__(
+        self,
+        *,
+        ledger: RealityLedger,
+        capability_bindings: GhostWalkBindingPort,
+        policies: GhostWalkLeasePolicyRegistry,
+        authority_epochs: GhostWalkAuthorityEpochProvider,
+        spine: PhiOSSpine,
+        clock: Callable[[], datetime] | None = None,
+    ) -> None:
+        if not isinstance(ledger, RealityLedger):
+            raise GhostWalkLeaseExecutionError(
+                "ledger must be a RealityLedger"
+            )
+        if spine.ledger.path != ledger.path:
+            raise GhostWalkLeaseExecutionError(
+                "execution Spine and Ghost-Walk custody must share one RealityLedger"
+            )
+        self._ledger = ledger
+        self._capability_bindings = capability_bindings
+        self._policies = policies
+        self._authority_epochs = authority_epochs
+        self._spine = spine
+        self._clock = clock or (lambda: datetime.now(UTC))
+        self._lock = threading.RLock()
+
+    def execute(
+        self,
+        *,
+        action_lease_sha256: str,
+    ) -> GhostWalkLeaseExecutionReceipt:
+        lease_sha = _require_sha256(
+            action_lease_sha256,
+            "action_lease_sha256",
+        )
+        attempted_at = _canonical_time(self._now())
+
+        with self._lock:
+            record = self._lease_record(lease_sha)
+            if record is None:
+                return self._held(
+                    lease_sha=lease_sha,
+                    attempted_at=attempted_at,
+                    reason="lease_not_found",
+                )
+
+            binding = self._current_binding(record)
+            if binding is None:
+                return self._held(
+                    lease_sha=lease_sha,
+                    attempted_at=attempted_at,
+                    reason="executable_binding_stale",
+                    record=record,
+                )
+
+            policy, profile = self._current_policy_and_profile(
+                record=record,
+                binding=binding,
+            )
+            if policy is None or profile is None:
+                return self._held(
+                    lease_sha=lease_sha,
+                    attempted_at=attempted_at,
+                    reason="lease_policy_or_enforcement_changed",
+                    record=record,
+                    binding=binding,
+                )
+
+            epoch = self._current_epoch()
+            if epoch is None:
+                return self._held(
+                    lease_sha=lease_sha,
+                    attempted_at=attempted_at,
+                    reason="authority_epoch_unavailable",
+                    record=record,
+                    binding=binding,
+                    policy=policy,
+                    profile=profile,
+                )
+            if (
+                epoch.authority_epoch_sha256
+                != record.action_lease.authority_epoch_sha256
+            ):
+                return self._held(
+                    lease_sha=lease_sha,
+                    attempted_at=attempted_at,
+                    reason="authority_epoch_changed",
+                    record=record,
+                    binding=binding,
+                    policy=policy,
+                    profile=profile,
+                    authority_epoch_sha256=(
+                        epoch.authority_epoch_sha256
+                    ),
+                )
+
+            self._validate_exact_scope(
+                record=record,
+                binding=binding,
+                policy=policy,
+                profile=profile,
+            )
+            scope_reason = self._runtime_scope_reason(binding)
+            if scope_reason is not None:
+                return self._held(
+                    lease_sha=lease_sha,
+                    attempted_at=attempted_at,
+                    reason=scope_reason,
+                    record=record,
+                    binding=binding,
+                    policy=policy,
+                    profile=profile,
+                    authority_epoch_sha256=(
+                        epoch.authority_epoch_sha256
+                    ),
+                )
+
+            try:
+                consumed = self._ledger.has_consumed_action_lease(
+                    lease_sha
+                )
+                evaluation = evaluate_action_lease(
+                    lease=record.action_lease,
+                    checked_at=attempted_at,
+                    current_authority_epoch_sha256=(
+                        epoch.authority_epoch_sha256
+                    ),
+                    uses_consumed=1 if consumed else 0,
+                )
+            except (
+                OSError,
+                json.JSONDecodeError,
+                ValueError,
+                ActionLeaseContractError,
+            ) as exc:
+                raise GhostWalkLeaseExecutionError(
+                    "ActionLease currency could not be verified safely"
+                ) from exc
+
+            if not evaluation.usable:
+                return self._held(
+                    lease_sha=lease_sha,
+                    attempted_at=attempted_at,
+                    reason=evaluation.reason,
+                    record=record,
+                    binding=binding,
+                    policy=policy,
+                    profile=profile,
+                    authority_epoch_sha256=(
+                        epoch.authority_epoch_sha256
+                    ),
+                    replay_blocked=(
+                        evaluation.reason == "lease_consumed"
+                    ),
+                )
+
+            try:
+                claimed = self._ledger.claim_action_lease(lease_sha)
+            except (OSError, ValueError) as exc:
+                raise GhostWalkLeaseExecutionError(
+                    "ActionLease could not be claimed safely"
+                ) from exc
+            if not claimed:
+                return self._held(
+                    lease_sha=lease_sha,
+                    attempted_at=attempted_at,
+                    reason="lease_execution_claim_unavailable",
+                    record=record,
+                    binding=binding,
+                    policy=policy,
+                    profile=profile,
+                    authority_epoch_sha256=(
+                        epoch.authority_epoch_sha256
+                    ),
+                    replay_blocked=True,
+                )
+
+            provenance = GhostWalkExecutionProvenance(
+                schema_version=(
+                    GHOSTWALK_EXECUTION_PROVENANCE_SCHEMA_VERSION
+                ),
+                target_inference_receipt_sha256=(
+                    record.target_inference_receipt_sha256
+                ),
+                authorization_decision_sha256=(
+                    binding.authorization_decision_sha256
+                ),
+                executable_binding_sha256=(
+                    binding.executable_binding_sha256
+                ),
+                lease_record_sha256=record.lease_record_sha256,
+                action_lease_sha256=lease_sha,
+                authority_epoch_sha256=(
+                    epoch.authority_epoch_sha256
+                ),
+                policy_sha256=policy.policy_sha256,
+                enforcement_profile_sha256=profile.profile_sha256,
+            )
+
+            try:
+                execution = self._spine.run(
+                    binding.capability_id,
+                    dict(binding.payload),
+                    governed_provenance=provenance,
+                )
+            except (KeyError, TypeError, ValueError) as exc:
+                self._ledger.release_action_lease_claim(lease_sha)
+                raise GhostWalkLeaseExecutionError(
+                    "Spine rejected execution before a receipted executor attempt"
+                ) from exc
+            except Exception as exc:
+                raise GhostWalkLeaseExecutionError(
+                    "unexpected Spine failure after lease claim; claim retained fail-closed"
+                ) from exc
+
+            self._validate_spine_receipt(
+                execution=execution,
+                binding=binding,
+                provenance=provenance,
+            )
+            return self._complete(
+                lease_sha=lease_sha,
+                attempted_at=attempted_at,
+                record=record,
+                binding=binding,
+                policy=policy,
+                profile=profile,
+                authority_epoch_sha256=(
+                    epoch.authority_epoch_sha256
+                ),
+                execution=execution,
+            )
