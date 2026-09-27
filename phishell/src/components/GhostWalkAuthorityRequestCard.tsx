@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { GhostWalkAuthorizationConsoleCard } from "./GhostWalkAuthorizationConsoleCard";
 import {
   ghostWalkAuthorityRequestClient,
   type GhostWalkAuthorityRequest,
@@ -122,6 +123,13 @@ export function GhostWalkAuthorityRequestCard({
       <div className="ghostwalk-authority-request-boundary">
         REQUEST != AUTHORIZATION · PENDING_AUTHORIZATION != ACTION AUTHORITY · ACTIONLEASE NOT CREATED
       </div>
+
+      {request && (
+        <GhostWalkAuthorizationConsoleCard
+          targetSha256={targetSha256}
+          refreshToken={`${refreshToken}:${request.authority_request_sha256}`}
+        />
+      )}
     </section>
   );
 }
