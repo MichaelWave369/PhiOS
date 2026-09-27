@@ -10,7 +10,9 @@ from .models import ExecutionReceipt
 if TYPE_CHECKING:
     from phios.execution_outcome import ExecutionReconciliationReceipt
     from phios.macro_dispatcher import DoDispatchReceipt
+    from phios.macro_interaction_guard import InteractionGuardReceipt
     from phios.macro_journal import MacroRunJournalEntry, MacroRunResumeReceipt
+    from phios.macro_operator_log import OperatorLogRevision
     from phios.macro_schedule_service import (
         ScheduleServicePollReceipt,
         ScheduleServiceStateEntry,
@@ -418,6 +420,70 @@ class RealityLedger:
         if indices != expected:
             raise ValueError("persisted worker cycle indices are not contiguous")
         return len(indices)
+
+    def append_operator_log_revision(
+        self,
+        revision: "OperatorLogRevision",
+    ) -> None:
+        """Append one immutable operator-log revision."""
+
+        path = self.path.parent / "operator-log-revisions.jsonl"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("a", encoding="utf-8") as handle:
+            handle.write(
+                json.dumps(revision.to_dict(), sort_keys=True) + "\n"
+            )
+
+    def operator_log_revisions(
+        self,
+        *,
+        note_id: str | None = None,
+    ) -> list[dict[str, object]]:
+        """Return append-order operator-log revisions."""
+
+        path = self.path.parent / "operator-log-revisions.jsonl"
+        if not path.exists():
+            return []
+        rows = [
+            json.loads(line)
+            for line in path.read_text(encoding="utf-8").splitlines()
+        ]
+        if note_id is None:
+            return rows
+        return [row for row in rows if row.get("note_id") == note_id]
+
+    def append_interaction_guard_receipt(
+        self,
+        receipt: "InteractionGuardReceipt",
+    ) -> None:
+        """Append one immutable GUI interaction guard receipt."""
+
+        path = self.path.parent / "interaction-guard-receipts.jsonl"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("a", encoding="utf-8") as handle:
+            handle.write(
+                json.dumps(receipt.to_dict(), sort_keys=True) + "\n"
+            )
+
+    def recent_interaction_guard_receipts(
+        self,
+        limit: int = 10,
+    ) -> list[dict[str, object]]:
+        """Return the newest interaction guard receipts."""
+
+        if isinstance(limit, bool) or not isinstance(limit, int):
+            raise TypeError(
+                "recent interaction guard receipt limit must be an integer"
+            )
+        if limit < 0:
+            raise ValueError(
+                "recent interaction guard receipt limit must be non-negative"
+            )
+        path = self.path.parent / "interaction-guard-receipts.jsonl"
+        if limit == 0 or not path.exists():
+            return []
+        lines = path.read_text(encoding="utf-8").splitlines()
+        return [json.loads(line) for line in lines[-limit:]]
 
     def append_reconciliation(
         self,
