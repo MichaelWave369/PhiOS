@@ -66,7 +66,8 @@ export function GhostWalkAuthorizationConsoleCard({
           });
         if (result.kind === "conflict") {
           setMessage(
-            "Authorization conflict: the request or decision history changed. Reload before deciding again.",
+            "Authorization conflict: the request or decision history " +
+              "changed. Reload before deciding again.",
           );
           return;
         }
@@ -116,7 +117,8 @@ export function GhostWalkAuthorizationConsoleCard({
       }
       if (result.kind === "unavailable") {
         setMessage(
-          "Executable binding is unavailable. Trusted local execution configuration may be absent or invalid.",
+          "Executable binding is unavailable. Trusted local execution " +
+            "configuration may be absent or invalid.",
         );
         return;
       }
@@ -168,7 +170,8 @@ export function GhostWalkAuthorizationConsoleCard({
       }
       setSnapshot(result.snapshot);
       setMessage(
-        "Single-use ActionLease issued. The lease carries bounded action authority; this console still cannot execute it.",
+        "Single-use ActionLease issued. The lease carries bounded action " +
+          "authority; this console still cannot execute it.",
       );
     } finally {
       setBusy(null);
