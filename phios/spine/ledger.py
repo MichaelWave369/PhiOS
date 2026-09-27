@@ -33,6 +33,7 @@ if TYPE_CHECKING:
     from phios.macro_accepted_intent import GhostWalkAcceptedIntentRevision
     from phios.macro_policy_admission import GhostWalkPolicyAdmissionReceipt
     from phios.macro_authority_request import GhostWalkAuthorityRequest
+    from phios.macro_authorization_decision import GhostWalkAuthorizationDecision
     from phios.macro_post_action_verification import (
         PostActionVerificationReceipt,
     )
@@ -600,6 +601,42 @@ class RealityLedger:
             for row in rows
             if row.get("target_inference_receipt_sha256")
             == target_inference_receipt_sha256
+        ]
+
+    def append_ghostwalk_authorization_decision(
+        self,
+        decision: "GhostWalkAuthorizationDecision",
+    ) -> None:
+        """Append one immutable Ghost-Walk authorization decision."""
+
+        path = self.path.parent / "ghostwalk-authorization-decisions.jsonl"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("a", encoding="utf-8") as handle:
+            handle.write(
+                json.dumps(decision.to_dict(), sort_keys=True) + "\n"
+            )
+
+    def ghostwalk_authorization_decisions(
+        self,
+        *,
+        authority_request_sha256: str | None = None,
+    ) -> list[dict[str, object]]:
+        """Return append-order Ghost-Walk AuthorizationDecisions."""
+
+        path = self.path.parent / "ghostwalk-authorization-decisions.jsonl"
+        if not path.exists():
+            return []
+        rows = [
+            json.loads(line)
+            for line in path.read_text(encoding="utf-8").splitlines()
+        ]
+        if authority_request_sha256 is None:
+            return rows
+        return [
+            row
+            for row in rows
+            if row.get("authority_request_sha256")
+            == authority_request_sha256
         ]
 
     def append_interaction_guard_receipt(
