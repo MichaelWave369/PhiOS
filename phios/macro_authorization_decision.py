@@ -488,7 +488,7 @@ class GhostWalkAuthorizationReadiness:
             )
 
     def to_dict(self) -> dict[str, object]:
-        payload = {
+        payload: dict[str, object] = {
             "schema_version": self.schema_version,
             "target_inference_receipt_sha256": (
                 self.target_inference_receipt_sha256
