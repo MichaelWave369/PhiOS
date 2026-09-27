@@ -13,6 +13,7 @@ import os
 import re
 from collections import Counter
 from dataclasses import dataclass
+from datetime import datetime
 from enum import StrEnum
 from typing import Protocol
 
@@ -106,6 +107,21 @@ def _require_int(
     return value
 
 
+def _require_timestamp(value: object, field: str) -> str:
+    text = _require_text(value, field, maximum=64)
+    try:
+        parsed = datetime.fromisoformat(text.replace("Z", "+00:00"))
+    except ValueError as exc:
+        raise UiaStateObserverContractError(
+            f"{field} must be an ISO-8601 timestamp"
+        ) from exc
+    if parsed.tzinfo is None:
+        raise UiaStateObserverContractError(
+            f"{field} must include a timezone"
+        )
+    return text
+
+
 def _canonical_json(value: object) -> str:
     try:
         return json.dumps(
@@ -174,6 +190,7 @@ class UiaStateObservationReceipt:
     action_observation_sha256: str
     phase: SnapshotPhase
     frame_sha256: str
+    observed_at: str
     backend_id: str
     status: UiaStateObservationStatus
     reason: UiaStateObservationReason
@@ -203,6 +220,7 @@ class UiaStateObservationReceipt:
             "action_observation_sha256",
         )
         _require_sha256(self.frame_sha256, "frame_sha256")
+        _require_timestamp(self.observed_at, "observed_at")
         _require_text(self.backend_id, "backend_id", maximum=256)
         for field, value in (
             ("scanned_element_count", self.scanned_element_count),
@@ -279,6 +297,7 @@ class UiaStateObservationReceipt:
             ),
             "phase": self.phase.value,
             "frame_sha256": self.frame_sha256,
+            "observed_at": self.observed_at,
             "backend_id": self.backend_id,
             "status": self.status.value,
             "reason": self.reason.value,
@@ -366,6 +385,7 @@ class GhostWalkUiaStateObserver:
                 action_observation_sha256=action_observation_sha256,
                 phase=phase,
                 frame=frame,
+                observed_at=observed_at,
                 reason=UiaStateObservationReason.FRAME_NOT_FOREGROUND,
             )
 
@@ -377,6 +397,7 @@ class GhostWalkUiaStateObserver:
                 action_observation_sha256=action_observation_sha256,
                 phase=phase,
                 frame=frame,
+                observed_at=observed_at,
                 reason=(
                     UiaStateObservationReason.INVENTORY_LIMIT_EXCEEDED
                 ),
@@ -387,13 +408,13 @@ class GhostWalkUiaStateObserver:
                 action_observation_sha256=action_observation_sha256,
                 phase=phase,
                 frame=frame,
+                observed_at=observed_at,
                 reason=UiaStateObservationReason.BACKEND_ERROR,
             )
 
         expected_pid = _parse_pid(frame.process_id)
         scoped: list[UiaElementSnapshot] = []
         for snapshot in scan.snapshots:
-            self._ledger.append_uia_element_snapshot(snapshot)
             if snapshot.process_id != expected_pid:
                 continue
             if snapshot.offscreen is True:
@@ -415,6 +436,7 @@ class GhostWalkUiaStateObserver:
             ):
                 continue
             scoped.append(snapshot)
+            self._ledger.append_uia_element_snapshot(snapshot)
 
         candidate_targets: list[SemanticTarget] = []
         excluded_password_names = 0
@@ -474,6 +496,7 @@ class GhostWalkUiaStateObserver:
                 action_observation_sha256=action_observation_sha256,
                 phase=phase,
                 frame=frame,
+                observed_at=observed_at,
                 reason=UiaStateObservationReason.TARGET_LIMIT_EXCEEDED,
                 scanned_element_count=scan.scanned_element_count,
                 scoped_element_count=len(scoped),
@@ -497,6 +520,7 @@ class GhostWalkUiaStateObserver:
             action_observation_sha256=action_observation_sha256,
             phase=phase,
             frame_sha256=frame.frame_sha256,
+            observed_at=observed_at,
             backend_id=self._backend.backend_id,
             status=UiaStateObservationStatus.CAPTURED,
             reason=UiaStateObservationReason.COMPLETE_INVENTORY,
@@ -527,6 +551,7 @@ class GhostWalkUiaStateObserver:
         action_observation_sha256: str,
         phase: SnapshotPhase,
         frame: WindowFrame,
+        observed_at: str,
         reason: UiaStateObservationReason,
         scanned_element_count: int = 0,
         scoped_element_count: int = 0,
@@ -539,6 +564,10 @@ class GhostWalkUiaStateObserver:
             action_observation_sha256=action_observation_sha256,
             phase=phase,
             frame_sha256=frame.frame_sha256,
+            observed_at=_require_timestamp(
+                observed_at,
+                "observed_at",
+            ),
             backend_id=self._backend.backend_id,
             status=UiaStateObservationStatus.HELD,
             reason=reason,
