@@ -16,6 +16,7 @@ if TYPE_CHECKING:
         GhostWalkSession,
     )
     from phios.macro_ghostwalk_capture import GhostWalkCaptureReceipt
+    from phios.macro_ghostwalk_listener import GhostWalkListenerReceipt
     from phios.macro_interaction_guard import InteractionGuardReceipt
     from phios.macro_journal import MacroRunJournalEntry, MacroRunResumeReceipt
     from phios.macro_operator_log import OperatorLogRevision
@@ -612,6 +613,65 @@ class RealityLedger:
             return []
         lines = path.read_text(encoding="utf-8").splitlines()
         return [json.loads(line) for line in lines[-limit:]]
+
+    def append_ghostwalk_listener_receipt(
+        self,
+        receipt: "GhostWalkListenerReceipt",
+    ) -> None:
+        """Append one immutable Windows ghost-walk listener receipt."""
+
+        path = self.path.parent / "ghostwalk-listener-receipts.jsonl"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps(receipt.to_dict(), sort_keys=True) + "\n")
+
+    def ghostwalk_listener_receipts(
+        self,
+        *,
+        listener_id: str | None = None,
+    ) -> list[dict[str, object]]:
+        """Return append-order listener provenance receipts."""
+
+        path = self.path.parent / "ghostwalk-listener-receipts.jsonl"
+        if not path.exists():
+            return []
+        rows = [
+            json.loads(line)
+            for line in path.read_text(encoding="utf-8").splitlines()
+        ]
+        if listener_id is None:
+            return rows
+        return [
+            row
+            for row in rows
+            if row.get("listener_id") == listener_id
+        ]
+
+    def next_ghostwalk_listener_sequence(
+        self,
+        *,
+        listener_id: str,
+    ) -> int:
+        """Derive next listener event sequence from persisted receipts."""
+
+        rows = self.ghostwalk_listener_receipts(
+            listener_id=listener_id
+        )
+        if not rows:
+            return 0
+        indices: list[int] = []
+        for row in rows:
+            value = row.get("listener_sequence")
+            if isinstance(value, bool) or not isinstance(value, int):
+                raise TypeError(
+                    "persisted listener_sequence must be integer"
+                )
+            indices.append(value)
+        if indices != list(range(len(indices))):
+            raise ValueError(
+                "persisted listener sequences are not contiguous"
+            )
+        return len(indices)
 
     def append_reconciliation(
         self,
