@@ -14,7 +14,7 @@ import os
 import re
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import Callable
+from typing import Callable, Mapping
 
 from phios.macro_ghostwalk_capture import (
     CaptureStatus,
@@ -285,6 +285,97 @@ class GhostWalkListenerReceipt:
         payload["receipt_sha256"] = self.receipt_sha256
         return payload
 
+    @classmethod
+    def from_dict(
+        cls,
+        payload: Mapping[str, object],
+    ) -> "GhostWalkListenerReceipt":
+        claimed = _require_sha256(
+            payload.get("receipt_sha256"),
+            "receipt_sha256",
+        )
+        sequence_raw = payload.get("listener_sequence")
+        if isinstance(sequence_raw, bool) or not isinstance(
+            sequence_raw,
+            int,
+        ):
+            raise GhostWalkListenerContractError(
+                "listener_sequence must be an integer"
+            )
+        injected_raw = payload.get("injected")
+        lower_raw = payload.get("lower_integrity_injected")
+        if not isinstance(injected_raw, bool):
+            raise GhostWalkListenerContractError(
+                "injected must be Boolean"
+            )
+        if not isinstance(lower_raw, bool):
+            raise GhostWalkListenerContractError(
+                "lower_integrity_injected must be Boolean"
+            )
+        try:
+            capture_status = CaptureStatus(
+                _require_text(
+                    payload.get("capture_status"),
+                    "capture_status",
+                    maximum=64,
+                )
+            )
+        except ValueError as exc:
+            raise GhostWalkListenerContractError(
+                "unsupported capture_status"
+            ) from exc
+        receipt = cls(
+            listener_id=_require_text(
+                payload.get("listener_id"),
+                "listener_id",
+                maximum=512,
+            ),
+            listener_sequence=sequence_raw,
+            session_id=_require_text(
+                payload.get("session_id"),
+                "session_id",
+                maximum=512,
+            ),
+            raw_event_sha256=_require_sha256(
+                payload.get("raw_event_sha256"),
+                "raw_event_sha256",
+            ),
+            pointer_event_sha256=_require_sha256(
+                payload.get("pointer_event_sha256"),
+                "pointer_event_sha256",
+            ),
+            capture_receipt_sha256=_require_sha256(
+                payload.get("capture_receipt_sha256"),
+                "capture_receipt_sha256",
+            ),
+            capture_status=capture_status,
+            injected=injected_raw,
+            lower_integrity_injected=lower_raw,
+            observed_at=_require_timestamp(
+                payload.get("observed_at"),
+                "observed_at",
+            ),
+            operational_authority=(
+                payload.get("operational_authority") is True
+            ),
+            action_authority=(
+                payload.get("action_authority") is True
+            ),
+            execution_authority=(
+                payload.get("execution_authority") is True
+            ),
+            schema_version=_require_text(
+                payload.get("schema_version"),
+                "schema_version",
+                maximum=128,
+            ),
+        )
+        if receipt.receipt_sha256 != claimed:
+            raise GhostWalkListenerContractError(
+                "ghost-walk listener receipt hash mismatch"
+            )
+        return receipt
+
 
 @dataclass(frozen=True, slots=True)
 class GhostWalkListenerOutcome:
@@ -324,9 +415,23 @@ class GhostWalkListenerBridge:
     ) -> GhostWalkListenerOutcome:
         _require_text(session_id, "session_id", maximum=512)
         observed_at = _require_timestamp(observed_at, "observed_at")
-        sequence = self._ledger.next_ghostwalk_listener_sequence(
+        prior_rows = self._ledger.ghostwalk_listener_receipts(
             listener_id=self.listener_id
         )
+        prior = [
+            GhostWalkListenerReceipt.from_dict(row)
+            for row in prior_rows
+        ]
+        for expected_sequence, item in enumerate(prior):
+            if item.listener_id != self.listener_id:
+                raise GhostWalkListenerContractError(
+                    "listener identity changed in persisted receipt chain"
+                )
+            if item.listener_sequence != expected_sequence:
+                raise GhostWalkListenerContractError(
+                    "persisted listener sequences are not contiguous"
+                )
+        sequence = len(prior)
         event_identity = _canonical_sha256(
             {
                 "listener_id": self.listener_id,
