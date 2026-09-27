@@ -25,6 +25,14 @@ from phios.macro_authority_request import (
     GhostWalkAuthorityRequestReadiness,
     GhostWalkAuthorityRequestService,
 )
+from phios.macro_authorization_decision import (
+    GhostWalkAuthorizationDecisionKind,
+    GhostWalkAuthorizationDecisionService,
+)
+from phios.macro_authorization_console import (
+    GhostWalkAuthorizationConsoleError,
+    GhostWalkAuthorizationConsoleService,
+)
 from phios.macro_accepted_intent import (
     GhostWalkAcceptedIntentError,
     GhostWalkAcceptedIntentRegistry,
@@ -87,6 +95,12 @@ AUTHORITY_REQUEST_TRANSPORT_SCHEMA_VERSION = (
     "phios.ghostwalk-authority-request-transport.v0.31"
 )
 AUTHORITY_REQUEST_TRANSPORT_IDENTITY = "phios-ghostwalk-authority-request"
+AUTHORIZATION_CONSOLE_TRANSPORT_SCHEMA_VERSION = (
+    "phios.ghostwalk-authorization-console-transport.v0.36"
+)
+AUTHORIZATION_CONSOLE_TRANSPORT_IDENTITY = (
+    "phios-ghostwalk-authorization-console"
+)
 PHIVESSEL_BRIDGE_TRANSPORT_SCHEMA_VERSION = (
     "phios.phivessel-bridge-transport.v0.1"
 )
@@ -732,6 +746,302 @@ def parse_authority_request_create_payload(
     return target, admission
 
 
+def _authorization_console_transport_base(
+    *,
+    mutation_kind: str = "NONE",
+) -> dict[str, object]:
+    if mutation_kind not in {"NONE", "DECISION", "BINDING", "LEASE"}:
+        raise GhostWalkControlBridgeError(
+            "authorization-console mutation kind is invalid"
+        )
+    mutated = mutation_kind != "NONE"
+    return {
+        "transportSchemaVersion": (
+            AUTHORIZATION_CONSOLE_TRANSPORT_SCHEMA_VERSION
+        ),
+        "transport": "loopback-http",
+        "transportIdentity": (
+            AUTHORIZATION_CONSOLE_TRANSPORT_IDENTITY
+        ),
+        "localOnly": True,
+        "humanAuthorizationSurface": True,
+        "mutationKind": mutation_kind,
+        "decisionRecorded": mutation_kind == "DECISION",
+        "bindingCreated": mutation_kind == "BINDING",
+        "actionLeaseCreated": mutation_kind == "LEASE",
+        "desktopEffectPerformed": False,
+        "policyAuthority": False,
+        "operationalAuthority": False,
+        "actionAuthority": False,
+        "executionAuthority": False,
+        "effectPerformed": mutated,
+    }
+
+
+def authorization_console_status_envelope(
+    service: GhostWalkAuthorizationConsoleService,
+    *,
+    target_inference_receipt_sha256: str,
+) -> dict[str, object]:
+    snapshot = service.snapshot(
+        target_inference_receipt_sha256=(
+            target_inference_receipt_sha256
+        )
+    )
+    payload = _authorization_console_transport_base()
+    payload.update(
+        {
+            "servedAt": _utc_now(),
+            "snapshot": snapshot.to_dict(),
+        }
+    )
+    return payload
+
+
+def authorization_console_decision_envelope(
+    service: GhostWalkAuthorizationConsoleService,
+    *,
+    target_inference_receipt_sha256: str,
+    expected_authority_request_sha256: str,
+    expected_previous_decision_sha256: str | None,
+    decision: GhostWalkAuthorizationDecisionKind,
+    decision_note: str | None,
+) -> dict[str, object]:
+    item = service.record_decision(
+        target_inference_receipt_sha256=(
+            target_inference_receipt_sha256
+        ),
+        expected_authority_request_sha256=(
+            expected_authority_request_sha256
+        ),
+        expected_previous_decision_sha256=(
+            expected_previous_decision_sha256
+        ),
+        decision=decision,
+        decision_note=decision_note,
+    )
+    snapshot = service.snapshot(
+        target_inference_receipt_sha256=(
+            target_inference_receipt_sha256
+        )
+    )
+    payload = _authorization_console_transport_base(
+        mutation_kind="DECISION"
+    )
+    payload.update(
+        {
+            "servedAt": _utc_now(),
+            "decision": item.to_dict(),
+            "snapshot": snapshot.to_dict(),
+        }
+    )
+    return payload
+
+
+def authorization_console_binding_envelope(
+    service: GhostWalkAuthorizationConsoleService,
+    *,
+    target_inference_receipt_sha256: str,
+    expected_authorization_decision_sha256: str,
+    expected_mapping_sha256: str,
+    expected_mapping_set_sha256: str,
+) -> dict[str, object]:
+    binding = service.create_binding(
+        target_inference_receipt_sha256=(
+            target_inference_receipt_sha256
+        ),
+        expected_authorization_decision_sha256=(
+            expected_authorization_decision_sha256
+        ),
+        expected_mapping_sha256=expected_mapping_sha256,
+        expected_mapping_set_sha256=expected_mapping_set_sha256,
+        bound_at=_utc_now(),
+    )
+    snapshot = service.snapshot(
+        target_inference_receipt_sha256=(
+            target_inference_receipt_sha256
+        )
+    )
+    payload = _authorization_console_transport_base(
+        mutation_kind="BINDING"
+    )
+    payload.update(
+        {
+            "servedAt": _utc_now(),
+            "binding": binding.to_dict(),
+            "snapshot": snapshot.to_dict(),
+        }
+    )
+    return payload
+
+
+def authorization_console_lease_envelope(
+    service: GhostWalkAuthorizationConsoleService,
+    *,
+    target_inference_receipt_sha256: str,
+    expected_executable_binding_sha256: str,
+    expected_policy_sha256: str,
+    expected_policy_set_sha256: str,
+    expected_enforcement_profile_sha256: str,
+    expected_authority_epoch_sha256: str,
+) -> dict[str, object]:
+    lease = service.issue_lease(
+        target_inference_receipt_sha256=(
+            target_inference_receipt_sha256
+        ),
+        expected_executable_binding_sha256=(
+            expected_executable_binding_sha256
+        ),
+        expected_policy_sha256=expected_policy_sha256,
+        expected_policy_set_sha256=expected_policy_set_sha256,
+        expected_enforcement_profile_sha256=(
+            expected_enforcement_profile_sha256
+        ),
+        expected_authority_epoch_sha256=(
+            expected_authority_epoch_sha256
+        ),
+    )
+    snapshot = service.snapshot(
+        target_inference_receipt_sha256=(
+            target_inference_receipt_sha256
+        )
+    )
+    payload = _authorization_console_transport_base(
+        mutation_kind="LEASE"
+    )
+    payload.update(
+        {
+            "servedAt": _utc_now(),
+            "lease": lease.to_dict(),
+            "snapshot": snapshot.to_dict(),
+        }
+    )
+    return payload
+
+
+def _console_sha(value: object, field: str) -> str:
+    if (
+        not isinstance(value, str)
+        or re.fullmatch(r"[0-9a-f]{64}", value) is None
+    ):
+        raise GhostWalkControlBridgeError(
+            f"{field} must be a SHA-256 digest"
+        )
+    return value
+
+
+def parse_authorization_console_decision_payload(
+    payload: object,
+) -> tuple[
+    str,
+    str,
+    str | None,
+    GhostWalkAuthorizationDecisionKind,
+    str | None,
+]:
+    if not isinstance(payload, Mapping):
+        raise GhostWalkControlBridgeError(
+            "authorization decision body must be an object"
+        )
+    expected_keys = {
+        "target_inference_receipt_sha256",
+        "expected_authority_request_sha256",
+        "expected_previous_decision_sha256",
+        "decision",
+        "decision_note",
+    }
+    if set(payload) != expected_keys:
+        raise GhostWalkControlBridgeError(
+            "authorization decision fields do not match contract"
+        )
+    target = _console_sha(
+        payload.get("target_inference_receipt_sha256"),
+        "target inference receipt",
+    )
+    request = _console_sha(
+        payload.get("expected_authority_request_sha256"),
+        "expected AuthorityRequest",
+    )
+    previous_raw = payload.get("expected_previous_decision_sha256")
+    previous = (
+        None
+        if previous_raw is None
+        else _console_sha(
+            previous_raw,
+            "expected previous AuthorizationDecision",
+        )
+    )
+    raw_decision = payload.get("decision")
+    if not isinstance(raw_decision, str):
+        raise GhostWalkControlBridgeError(
+            "authorization decision must be a string"
+        )
+    try:
+        decision = GhostWalkAuthorizationDecisionKind(raw_decision)
+    except ValueError as exc:
+        raise GhostWalkControlBridgeError(
+            "authorization decision is unsupported"
+        ) from exc
+    note = payload.get("decision_note")
+    if note is not None and (
+        not isinstance(note, str)
+        or len(note) > 2048
+        or "\x00" in note
+    ):
+        raise GhostWalkControlBridgeError(
+            "authorization decision note is invalid"
+        )
+    return target, request, previous, decision, note
+
+
+def parse_authorization_console_binding_payload(
+    payload: object,
+) -> tuple[str, str, str, str]:
+    if not isinstance(payload, Mapping):
+        raise GhostWalkControlBridgeError(
+            "capability binding body must be an object"
+        )
+    keys = (
+        "target_inference_receipt_sha256",
+        "expected_authorization_decision_sha256",
+        "expected_mapping_sha256",
+        "expected_mapping_set_sha256",
+    )
+    if set(payload) != set(keys):
+        raise GhostWalkControlBridgeError(
+            "capability binding fields do not match contract"
+        )
+    return tuple(
+        _console_sha(payload.get(key), key)
+        for key in keys
+    )  # type: ignore[return-value]
+
+
+def parse_authorization_console_lease_payload(
+    payload: object,
+) -> tuple[str, str, str, str, str, str]:
+    if not isinstance(payload, Mapping):
+        raise GhostWalkControlBridgeError(
+            "ActionLease issuance body must be an object"
+        )
+    keys = (
+        "target_inference_receipt_sha256",
+        "expected_executable_binding_sha256",
+        "expected_policy_sha256",
+        "expected_policy_set_sha256",
+        "expected_enforcement_profile_sha256",
+        "expected_authority_epoch_sha256",
+    )
+    if set(payload) != set(keys):
+        raise GhostWalkControlBridgeError(
+            "ActionLease issuance fields do not match contract"
+        )
+    return tuple(
+        _console_sha(payload.get(key), key)
+        for key in keys
+    )  # type: ignore[return-value]
+
+
 def _phivessel_transport_base(
     *,
     bridge_mutation: bool = False,
@@ -1098,6 +1408,15 @@ class GhostWalkControlHandler(BaseHTTPRequestHandler):
         body.update({"error": code, "servedAt": _utc_now()})
         self._json(status, body)
 
+    def _authorization_console_error(
+        self,
+        status: HTTPStatus,
+        code: str,
+    ) -> None:
+        body = _authorization_console_transport_base()
+        body.update({"error": code, "servedAt": _utc_now()})
+        self._json(status, body)
+
     def _phivessel_error(
         self,
         status: HTTPStatus,
@@ -1141,6 +1460,48 @@ class GhostWalkControlHandler(BaseHTTPRequestHandler):
 
     def do_GET(self) -> None:
         parsed = urlsplit(self.path)
+
+        if parsed.path == "/api/v1/ghostwalk/authorization-console":
+            if self.server.authorization_console is None:
+                self._authorization_console_error(
+                    HTTPStatus.SERVICE_UNAVAILABLE,
+                    "ghostwalk_authorization_console_unavailable",
+                )
+                return
+            try:
+                query = parse_qs(
+                    parsed.query,
+                    keep_blank_values=True,
+                    strict_parsing=True,
+                )
+            except ValueError:
+                query = {}
+            targets = query.get("target")
+            if (
+                parsed.fragment
+                or set(query) != {"target"}
+                or targets is None
+                or len(targets) != 1
+                or re.fullmatch(r"[0-9a-f]{64}", targets[0]) is None
+            ):
+                self._authorization_console_error(
+                    HTTPStatus.BAD_REQUEST,
+                    "invalid_ghostwalk_authorization_console_request",
+                )
+                return
+            try:
+                envelope = authorization_console_status_envelope(
+                    self.server.authorization_console,
+                    target_inference_receipt_sha256=targets[0],
+                )
+            except GhostWalkAuthorizationConsoleError:
+                self._authorization_console_error(
+                    HTTPStatus.BAD_REQUEST,
+                    "ghostwalk_authorization_console_rejected",
+                )
+                return
+            self._json(HTTPStatus.OK, envelope)
+            return
 
         if parsed.path == "/api/v1/phivessel/observe":
             if self.server.phivessel_bridge is None:
@@ -1393,6 +1754,219 @@ class GhostWalkControlHandler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:
         parsed = urlsplit(self.path)
+
+        if parsed.path == (
+            "/api/v1/ghostwalk/authorization-console/decisions"
+        ):
+            if parsed.query or parsed.fragment:
+                self._authorization_console_error(
+                    HTTPStatus.BAD_REQUEST,
+                    "invalid_ghostwalk_authorization_decision_request",
+                )
+                return
+            if self.server.authorization_console is None:
+                self._authorization_console_error(
+                    HTTPStatus.SERVICE_UNAVAILABLE,
+                    "ghostwalk_authorization_console_unavailable",
+                )
+                return
+            try:
+                (
+                    target,
+                    request_sha,
+                    previous_sha,
+                    decision,
+                    note,
+                ) = parse_authorization_console_decision_payload(
+                    self._read_json(max_bytes=8192)
+                )
+                envelope = authorization_console_decision_envelope(
+                    self.server.authorization_console,
+                    target_inference_receipt_sha256=target,
+                    expected_authority_request_sha256=request_sha,
+                    expected_previous_decision_sha256=previous_sha,
+                    decision=decision,
+                    decision_note=note,
+                )
+            except GhostWalkControlBridgeError:
+                self._authorization_console_error(
+                    HTTPStatus.BAD_REQUEST,
+                    "invalid_ghostwalk_authorization_decision_request",
+                )
+                return
+            except GhostWalkAuthorizationConsoleError as exc:
+                message = str(exc)
+                unavailable = "not mounted" in message
+                conflict = any(
+                    token in message
+                    for token in (
+                        "changed before",
+                        "not ready",
+                        "already",
+                        "stale",
+                    )
+                )
+                self._authorization_console_error(
+                    (
+                        HTTPStatus.SERVICE_UNAVAILABLE
+                        if unavailable
+                        else HTTPStatus.CONFLICT
+                        if conflict
+                        else HTTPStatus.BAD_REQUEST
+                    ),
+                    (
+                        "ghostwalk_authorization_console_unavailable"
+                        if unavailable
+                        else "ghostwalk_authorization_decision_conflict"
+                        if conflict
+                        else "ghostwalk_authorization_decision_rejected"
+                    ),
+                )
+                return
+            self._json(HTTPStatus.OK, envelope)
+            return
+
+        if parsed.path == (
+            "/api/v1/ghostwalk/authorization-console/bindings"
+        ):
+            if parsed.query or parsed.fragment:
+                self._authorization_console_error(
+                    HTTPStatus.BAD_REQUEST,
+                    "invalid_ghostwalk_binding_request",
+                )
+                return
+            if self.server.authorization_console is None:
+                self._authorization_console_error(
+                    HTTPStatus.SERVICE_UNAVAILABLE,
+                    "ghostwalk_authorization_console_unavailable",
+                )
+                return
+            try:
+                (
+                    target,
+                    decision_sha,
+                    mapping_sha,
+                    mapping_set_sha,
+                ) = parse_authorization_console_binding_payload(
+                    self._read_json()
+                )
+                envelope = authorization_console_binding_envelope(
+                    self.server.authorization_console,
+                    target_inference_receipt_sha256=target,
+                    expected_authorization_decision_sha256=decision_sha,
+                    expected_mapping_sha256=mapping_sha,
+                    expected_mapping_set_sha256=mapping_set_sha,
+                )
+            except GhostWalkControlBridgeError:
+                self._authorization_console_error(
+                    HTTPStatus.BAD_REQUEST,
+                    "invalid_ghostwalk_binding_request",
+                )
+                return
+            except GhostWalkAuthorizationConsoleError as exc:
+                message = str(exc)
+                unavailable = "not mounted" in message
+                conflict = any(
+                    token in message
+                    for token in (
+                        "changed before",
+                        "not ready",
+                        "already",
+                        "stale",
+                    )
+                )
+                self._authorization_console_error(
+                    (
+                        HTTPStatus.SERVICE_UNAVAILABLE
+                        if unavailable
+                        else HTTPStatus.CONFLICT
+                        if conflict
+                        else HTTPStatus.BAD_REQUEST
+                    ),
+                    (
+                        "ghostwalk_authorization_console_unavailable"
+                        if unavailable
+                        else "ghostwalk_binding_conflict"
+                        if conflict
+                        else "ghostwalk_binding_rejected"
+                    ),
+                )
+                return
+            self._json(HTTPStatus.OK, envelope)
+            return
+
+        if parsed.path == (
+            "/api/v1/ghostwalk/authorization-console/leases"
+        ):
+            if parsed.query or parsed.fragment:
+                self._authorization_console_error(
+                    HTTPStatus.BAD_REQUEST,
+                    "invalid_ghostwalk_lease_request",
+                )
+                return
+            if self.server.authorization_console is None:
+                self._authorization_console_error(
+                    HTTPStatus.SERVICE_UNAVAILABLE,
+                    "ghostwalk_authorization_console_unavailable",
+                )
+                return
+            try:
+                (
+                    target,
+                    binding_sha,
+                    policy_sha,
+                    policy_set_sha,
+                    profile_sha,
+                    epoch_sha,
+                ) = parse_authorization_console_lease_payload(
+                    self._read_json()
+                )
+                envelope = authorization_console_lease_envelope(
+                    self.server.authorization_console,
+                    target_inference_receipt_sha256=target,
+                    expected_executable_binding_sha256=binding_sha,
+                    expected_policy_sha256=policy_sha,
+                    expected_policy_set_sha256=policy_set_sha,
+                    expected_enforcement_profile_sha256=profile_sha,
+                    expected_authority_epoch_sha256=epoch_sha,
+                )
+            except GhostWalkControlBridgeError:
+                self._authorization_console_error(
+                    HTTPStatus.BAD_REQUEST,
+                    "invalid_ghostwalk_lease_request",
+                )
+                return
+            except GhostWalkAuthorizationConsoleError as exc:
+                message = str(exc)
+                unavailable = "not mounted" in message
+                conflict = any(
+                    token in message
+                    for token in (
+                        "changed before",
+                        "not ready",
+                        "already",
+                        "stale",
+                    )
+                )
+                self._authorization_console_error(
+                    (
+                        HTTPStatus.SERVICE_UNAVAILABLE
+                        if unavailable
+                        else HTTPStatus.CONFLICT
+                        if conflict
+                        else HTTPStatus.BAD_REQUEST
+                    ),
+                    (
+                        "ghostwalk_authorization_console_unavailable"
+                        if unavailable
+                        else "ghostwalk_lease_conflict"
+                        if conflict
+                        else "ghostwalk_lease_rejected"
+                    ),
+                )
+                return
+            self._json(HTTPStatus.OK, envelope)
+            return
 
         if parsed.path == "/api/v1/phivessel/proposals":
             if parsed.query or parsed.fragment:
@@ -1736,6 +2310,9 @@ class GhostWalkControlServer(ThreadingHTTPServer):
         accepted_intents: GhostWalkAcceptedIntentPort | None = None,
         policy_admission: GhostWalkPolicyAdmissionPort | None = None,
         authority_requests: GhostWalkAuthorityRequestPort | None = None,
+        authorization_console: (
+            GhostWalkAuthorizationConsoleService | None
+        ) = None,
         phivessel_bridge: PhiVesselBridgeService | None = None,
         stop_callback: Callable[[], object] | None = None,
     ) -> None:
@@ -1748,6 +2325,7 @@ class GhostWalkControlServer(ThreadingHTTPServer):
         self.accepted_intents = accepted_intents
         self.policy_admission = policy_admission
         self.authority_requests = authority_requests
+        self.authorization_console = authorization_console
         self.phivessel_bridge = phivessel_bridge
         self._stop_callback = stop_callback
         super().__init__(address, GhostWalkControlHandler)
@@ -1871,6 +2449,11 @@ def main() -> None:
         / "ledger"
         / "receipts.jsonl"
     )
+    authorization_decisions = GhostWalkAuthorizationDecisionService(
+        ledger=shared_ledger,
+        authority_requests=authority_requests,
+        authorizer_id=DEFAULT_OPERATOR_AUTHOR_ID,
+    )
     manifest_path = execution_manifest_path(
         state_root=args.state_root,
         environ=os.environ,
@@ -1882,6 +2465,7 @@ def main() -> None:
             authority_requests=authority_requests,
             authorizer_id=DEFAULT_OPERATOR_AUTHOR_ID,
             manifest_path=manifest_path,
+            authorization_decisions=authorization_decisions,
         )
     except PhiVesselLocalExecutionError as exc:
         execution_mount = None
@@ -1891,6 +2475,19 @@ def main() -> None:
             file=sys.stderr,
         )
 
+    authorization_console = GhostWalkAuthorizationConsoleService(
+        authorization_decisions=authorization_decisions,
+        capability_bindings=(
+            None
+            if execution_mount is None
+            else execution_mount.capability_bindings
+        ),
+        action_leases=(
+            None
+            if execution_mount is None
+            else execution_mount.action_leases
+        ),
+    )
     phivessel_bridge = PhiVesselBridgeService(
         ledger=shared_ledger,
         ghostwalk_surface=surface,
@@ -1907,6 +2504,7 @@ def main() -> None:
         accepted_intents=accepted_intents,
         policy_admission=policy_admission,
         authority_requests=authority_requests,
+        authorization_console=authorization_console,
         phivessel_bridge=phivessel_bridge,
         stop_callback=host.stop,
     )

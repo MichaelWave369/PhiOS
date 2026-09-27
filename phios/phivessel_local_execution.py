@@ -569,6 +569,9 @@ def build_local_execution_mount(
     authority_requests: GhostWalkAuthorityRequestService,
     authorizer_id: str,
     manifest_path: Path,
+    authorization_decisions: (
+        GhostWalkAuthorizationDecisionService | None
+    ) = None,
     desktop_executor_factory: (
         Callable[[PhiOSSpine], GovernedDesktopClickExecutor] | None
     ) = None,
@@ -601,10 +604,14 @@ def build_local_execution_mount(
         ),
     )
 
-    authorization_decisions = GhostWalkAuthorizationDecisionService(
-        ledger=ledger,
-        authority_requests=authority_requests,
-        authorizer_id=authorizer_id,
+    authorization_decisions = (
+        authorization_decisions
+        if authorization_decisions is not None
+        else GhostWalkAuthorizationDecisionService(
+            ledger=ledger,
+            authority_requests=authority_requests,
+            authorizer_id=authorizer_id,
+        )
     )
     capability_bindings = GhostWalkCapabilityBindingService(
         ledger=ledger,
