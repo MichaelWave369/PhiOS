@@ -82,6 +82,32 @@ def _canonical_time(value: datetime | str | None = None) -> str:
     return parsed.astimezone(UTC).isoformat()
 
 
+def _parse_time(value: str, field: str) -> datetime:
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError as exc:
+        raise PhiVesselTrustOperatorError(
+            f"{field} must be ISO-8601"
+        ) from exc
+    if parsed.tzinfo is None or parsed.utcoffset() is None:
+        raise PhiVesselTrustOperatorError(
+            f"{field} must be timezone-aware"
+        )
+    return parsed.astimezone(UTC)
+
+
+def _require_not_before(
+    *,
+    candidate: str,
+    floor: str,
+    field: str,
+) -> None:
+    if _parse_time(candidate, field) < _parse_time(floor, "current observed_at"):
+        raise PhiVesselTrustOperatorError(
+            f"{field} cannot move AuthorityEpoch observation backward"
+        )
+
+
 def _require_text(
     value: object,
     field: str,
@@ -871,8 +897,14 @@ class PhiVesselTrustOperator:
                 ),
                 events=events,
             )
+            next_observed = _canonical_time(observed_at)
+            _require_not_before(
+                candidate=next_observed,
+                floor=old_epoch.observed_at,
+                field="bootstrap observed_at",
+            )
             next_epoch = state.epoch(
-                observed_at=_canonical_time(observed_at)
+                observed_at=next_observed
             )
             next_manifest = self._manifest_with_epoch(
                 manifest,
@@ -934,8 +966,14 @@ class PhiVesselTrustOperator:
             self._require_manifest_identity(manifest, expected)
             state = self._read_required_authority_state()
             self._validate_state_against_manifest(state, manifest)
+            next_observed = _canonical_time(observed_at)
+            _require_not_before(
+                candidate=next_observed,
+                floor=manifest.authority_epoch.observed_at,
+                field="refresh observed_at",
+            )
             next_epoch = state.epoch(
-                observed_at=_canonical_time(observed_at)
+                observed_at=next_observed
             )
             next_manifest = self._manifest_with_epoch(
                 manifest,
@@ -1066,6 +1104,11 @@ class PhiVesselTrustOperator:
             state = self._read_required_authority_state()
             self._validate_state_against_manifest(state, manifest)
             now = _canonical_time(observed_at)
+            _require_not_before(
+                candidate=now,
+                floor=manifest.authority_epoch.observed_at,
+                field="mutation observed_at",
+            )
             current = state.epoch(observed_at=now)
             if permission not in set(state.ceiling):
                 raise PhiVesselTrustOperatorError(
