@@ -285,3 +285,42 @@ def test_tampered_admission_receipt_fails_closed(
         requests.readiness(
             target_inference_receipt_sha256=TARGET
         )
+
+
+def test_tampered_authority_request_fails_closed(
+    tmp_path: Path,
+) -> None:
+    ledger = _ledger(tmp_path)
+    admission, intent_sha = _seed(ledger)
+    receipt = admission.record(
+        target_inference_receipt_sha256=TARGET,
+        expected_accepted_intent_revision_sha256=intent_sha,
+        expected_policy_profile_sha256=admission.profile.profile_sha256,
+    )
+    requests = GhostWalkAuthorityRequestService(
+        ledger=ledger,
+        policy_admission=admission,
+        requester_id="operator:local",
+    )
+    requests.create(
+        target_inference_receipt_sha256=TARGET,
+        expected_admission_receipt_sha256=(
+            receipt.admission_receipt_sha256
+        ),
+    )
+
+    path = ledger.path.parent / "ghostwalk-authority-requests.jsonl"
+    row = json.loads(path.read_text(encoding="utf-8"))
+    row["requester_id"] = "tampered"
+    path.write_text(
+        json.dumps(row, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(
+        GhostWalkAuthorityRequestError,
+        match="persisted AuthorityRequest is invalid",
+    ):
+        requests.latest(
+            target_inference_receipt_sha256=TARGET
+        )
