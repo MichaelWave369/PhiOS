@@ -777,7 +777,11 @@ class GhostWalkAuthorizationDecisionService:
         request: GhostWalkAuthorityRequest,
     ) -> None:
         expected = (
-            ("authority_request_sha256", item.authority_request_sha256, request.authority_request_sha256),
+            (
+                "authority_request_sha256",
+                item.authority_request_sha256,
+                request.authority_request_sha256,
+            ),
             (
                 "target_inference_receipt_sha256",
                 item.target_inference_receipt_sha256,
