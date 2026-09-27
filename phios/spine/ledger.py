@@ -915,6 +915,22 @@ class RealityLedger:
         lines = path.read_text(encoding="utf-8").splitlines()
         return [json.loads(line) for line in lines[-limit:]]
 
+    def transition_inference_receipt(
+        self,
+        *,
+        receipt_sha256: str,
+    ) -> dict[str, object] | None:
+        """Return one transition inference receipt by its claimed hash."""
+
+        path = self.path.parent / "transition-inference-receipts.jsonl"
+        if not path.exists():
+            return None
+        for line in reversed(path.read_text(encoding="utf-8").splitlines()):
+            row = json.loads(line)
+            if row.get("receipt_sha256") == receipt_sha256:
+                return row
+        return None
+
     def append_uia_state_observation_receipt(
         self,
         receipt: "UiaStateObservationReceipt",
