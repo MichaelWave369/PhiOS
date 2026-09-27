@@ -36,6 +36,7 @@ def _ledger(tmp_path: Path) -> RealityLedger:
 
 
 def _seed(ledger: RealityLedger) -> str:
+    ledger.path.parent.mkdir(parents=True, exist_ok=True)
     path = ledger.path.parent / "transition-inference-receipts.jsonl"
     path.write_text(
         json.dumps(
