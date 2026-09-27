@@ -59,6 +59,24 @@ class ExecutionProvenance:
         return asdict(self)
 
 
+@dataclass(frozen=True)
+class GhostWalkExecutionProvenance:
+    """Exact non-plan provenance for one Ghost-Walk leased execution."""
+
+    schema_version: str
+    target_inference_receipt_sha256: str
+    authorization_decision_sha256: str
+    executable_binding_sha256: str
+    lease_record_sha256: str
+    action_lease_sha256: str
+    authority_epoch_sha256: str
+    policy_sha256: str
+    enforcement_profile_sha256: str
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
 @dataclass
 class ExecutionReceipt:
     schema_version: str
@@ -77,7 +95,7 @@ class ExecutionReceipt:
     gate_receipt_id: str | None = None
     action_receipt_id: str | None = None
     mandala_status: str | None = None
-    governed_provenance: ExecutionProvenance | None = None
+    governed_provenance: ExecutionProvenance | GhostWalkExecutionProvenance | None = None
     executor_entered: bool = False
     reconciliation_status: str = "not_required"
     effect_confirmed: bool | None = None

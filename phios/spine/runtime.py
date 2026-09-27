@@ -69,7 +69,12 @@ from .effects import EffectBoundaryPolicy
 from .executor import ExecutorRegistry, OutcomeUnknownError, text_artifact_handler
 from .gate import PermissionGate
 from .ledger import RealityLedger
-from .models import Capability, ExecutionProvenance, ExecutionReceipt
+from .models import (
+    Capability,
+    ExecutionProvenance,
+    ExecutionReceipt,
+    GhostWalkExecutionProvenance,
+)
 from .registry import CapabilityRegistry
 
 if TYPE_CHECKING:
@@ -511,7 +516,7 @@ class PhiOSSpine:
         capability_id: str,
         payload: dict[str, Any],
         *,
-        governed_provenance: ExecutionProvenance | None = None,
+        governed_provenance: ExecutionProvenance | GhostWalkExecutionProvenance | None = None,
     ) -> ExecutionReceipt:
         plan = self.vessel.plan(capability_id=capability_id, payload=payload)
         capability = self.registry.get(plan.capability_id)

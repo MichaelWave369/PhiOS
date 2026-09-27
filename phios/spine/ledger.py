@@ -36,6 +36,7 @@ if TYPE_CHECKING:
     from phios.macro_authorization_decision import GhostWalkAuthorizationDecision
     from phios.macro_capability_binding import GhostWalkExecutableBinding
     from phios.macro_action_lease_service import GhostWalkActionLeaseRecord
+    from phios.macro_lease_execution_handoff import GhostWalkLeaseExecutionReceipt
     from phios.macro_post_action_verification import (
         PostActionVerificationReceipt,
     )
@@ -703,6 +704,7 @@ class RealityLedger:
         *,
         target_inference_receipt_sha256: str | None = None,
         executable_binding_sha256: str | None = None,
+        action_lease_sha256: str | None = None,
     ) -> list[dict[str, object]]:
         """Return append-order Ghost-Walk ActionLease custody records."""
 
@@ -727,7 +729,50 @@ class RealityLedger:
                 if row.get("executable_binding_sha256")
                 == executable_binding_sha256
             ]
+        if action_lease_sha256 is not None:
+            rows = [
+                row
+                for row in rows
+                if isinstance(row.get("action_lease"), dict)
+                and row["action_lease"].get("action_lease_sha256")
+                == action_lease_sha256
+            ]
         return rows
+
+    def append_ghostwalk_lease_execution_receipt(
+        self,
+        receipt: "GhostWalkLeaseExecutionReceipt",
+    ) -> None:
+        """Append one immutable Ghost-Walk leased execution receipt."""
+
+        path = self.path.parent / "ghostwalk-lease-execution-receipts.jsonl"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("a", encoding="utf-8") as handle:
+            handle.write(
+                json.dumps(receipt.to_dict(), sort_keys=True) + "\n"
+            )
+
+    def ghostwalk_lease_execution_receipts(
+        self,
+        *,
+        action_lease_sha256: str | None = None,
+    ) -> list[dict[str, object]]:
+        """Return append-order Ghost-Walk leased execution receipts."""
+
+        path = self.path.parent / "ghostwalk-lease-execution-receipts.jsonl"
+        if not path.exists():
+            return []
+        rows = [
+            json.loads(line)
+            for line in path.read_text(encoding="utf-8").splitlines()
+        ]
+        if action_lease_sha256 is None:
+            return rows
+        return [
+            row
+            for row in rows
+            if row.get("action_lease_sha256") == action_lease_sha256
+        ]
 
     def append_interaction_guard_receipt(
         self,
