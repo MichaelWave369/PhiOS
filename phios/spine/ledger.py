@@ -29,6 +29,10 @@ if TYPE_CHECKING:
     from phios.macro_post_action_verification import (
         PostActionVerificationReceipt,
     )
+    from phios.macro_transition_inference import (
+        GhostWalkUiStateSnapshot,
+        TransitionInferenceReceipt,
+    )
     from phios.macro_schedule_service import (
         ScheduleServicePollReceipt,
         ScheduleServiceStateEntry,
@@ -834,6 +838,71 @@ class RealityLedger:
                 "recent post-action verification limit must be non-negative"
             )
         path = self.path.parent / "post-action-verification-receipts.jsonl"
+        if limit == 0 or not path.exists():
+            return []
+        lines = path.read_text(encoding="utf-8").splitlines()
+        return [json.loads(line) for line in lines[-limit:]]
+
+    def append_ghostwalk_state_snapshot(
+        self,
+        snapshot: "GhostWalkUiStateSnapshot",
+    ) -> None:
+        """Append one immutable before/after Ghost-Walk UI state snapshot."""
+
+        path = self.path.parent / "ghostwalk-ui-state-snapshots.jsonl"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps(snapshot.to_dict(), sort_keys=True) + "\n")
+
+    def ghostwalk_state_snapshots(
+        self,
+        *,
+        action_observation_sha256: str | None = None,
+    ) -> list[dict[str, object]]:
+        """Return append-order Ghost-Walk UI state snapshots."""
+
+        path = self.path.parent / "ghostwalk-ui-state-snapshots.jsonl"
+        if not path.exists():
+            return []
+        rows = [
+            json.loads(line)
+            for line in path.read_text(encoding="utf-8").splitlines()
+        ]
+        if action_observation_sha256 is None:
+            return rows
+        return [
+            row
+            for row in rows
+            if row.get("action_observation_sha256")
+            == action_observation_sha256
+        ]
+
+    def append_transition_inference_receipt(
+        self,
+        receipt: "TransitionInferenceReceipt",
+    ) -> None:
+        """Append one immutable Ghost-Walk transition inference receipt."""
+
+        path = self.path.parent / "transition-inference-receipts.jsonl"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps(receipt.to_dict(), sort_keys=True) + "\n")
+
+    def recent_transition_inference_receipts(
+        self,
+        limit: int = 10,
+    ) -> list[dict[str, object]]:
+        """Return newest Ghost-Walk transition inference receipts."""
+
+        if isinstance(limit, bool) or not isinstance(limit, int):
+            raise TypeError(
+                "recent transition inference limit must be an integer"
+            )
+        if limit < 0:
+            raise ValueError(
+                "recent transition inference limit must be non-negative"
+            )
+        path = self.path.parent / "transition-inference-receipts.jsonl"
         if limit == 0 or not path.exists():
             return []
         lines = path.read_text(encoding="utf-8").splitlines()
