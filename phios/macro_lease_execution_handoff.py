@@ -979,3 +979,126 @@ class GhostWalkLeaseExecutionHandoff:
             replay_blocked=False,
             effect_performed=effect_performed,
         )
+
+    def _held(
+        self,
+        *,
+        lease_sha: str,
+        attempted_at: str,
+        reason: str,
+        record: GhostWalkActionLeaseRecord | None = None,
+        binding: GhostWalkExecutableBinding | None = None,
+        policy: GhostWalkLeasePolicy | None = None,
+        profile: EnforcementProfile | None = None,
+        authority_epoch_sha256: str | None = None,
+        replay_blocked: bool = False,
+    ) -> GhostWalkLeaseExecutionReceipt:
+        return self._record_receipt(
+            status="HELD",
+            reason=reason,
+            lease_sha=lease_sha,
+            attempted_at=attempted_at,
+            record=record,
+            binding=binding,
+            policy=policy,
+            profile=profile,
+            authority_epoch_sha256=authority_epoch_sha256,
+            spine_receipt_id=None,
+            spine_permission_status=None,
+            spine_execution_status=None,
+            executor_entered=False,
+            lease_claimed=False,
+            lease_consumed=False,
+            replay_blocked=replay_blocked,
+            effect_performed=False,
+        )
+
+    def _record_receipt(
+        self,
+        *,
+        status: str,
+        reason: str,
+        lease_sha: str,
+        attempted_at: str,
+        record: GhostWalkActionLeaseRecord | None,
+        binding: GhostWalkExecutableBinding | None,
+        policy: GhostWalkLeasePolicy | None,
+        profile: EnforcementProfile | None,
+        authority_epoch_sha256: str | None,
+        spine_receipt_id: str | None,
+        spine_permission_status: str | None,
+        spine_execution_status: str | None,
+        executor_entered: bool,
+        lease_claimed: bool,
+        lease_consumed: bool,
+        replay_blocked: bool,
+        effect_performed: bool | None,
+    ) -> GhostWalkLeaseExecutionReceipt:
+        receipt = GhostWalkLeaseExecutionReceipt(
+            status=status,
+            reason=reason,
+            action_lease_sha256=lease_sha,
+            attempted_at=attempted_at,
+            lease_record_sha256=(
+                record.lease_record_sha256
+                if record is not None
+                else None
+            ),
+            target_inference_receipt_sha256=(
+                record.target_inference_receipt_sha256
+                if record is not None
+                else None
+            ),
+            executable_binding_sha256=(
+                binding.executable_binding_sha256
+                if binding is not None
+                else (
+                    record.executable_binding_sha256
+                    if record is not None
+                    else None
+                )
+            ),
+            authority_epoch_sha256=authority_epoch_sha256,
+            policy_sha256=(
+                policy.policy_sha256
+                if policy is not None
+                else (
+                    record.policy_sha256
+                    if record is not None
+                    else None
+                )
+            ),
+            enforcement_profile_sha256=(
+                profile.profile_sha256
+                if profile is not None
+                else (
+                    record.enforcement_profile.profile_sha256
+                    if record is not None
+                    else None
+                )
+            ),
+            spine_receipt_id=spine_receipt_id,
+            spine_permission_status=spine_permission_status,
+            spine_execution_status=spine_execution_status,
+            executor_entered=executor_entered,
+            lease_claimed=lease_claimed,
+            lease_consumed=lease_consumed,
+            replay_blocked=replay_blocked,
+            effect_performed=effect_performed,
+        )
+        self._ledger.append_ghostwalk_lease_execution_receipt(
+            receipt
+        )
+        return receipt
+
+    def _now(self) -> datetime:
+        value = self._clock()
+        if not isinstance(value, datetime):
+            raise GhostWalkLeaseExecutionError(
+                "execution clock must return datetime"
+            )
+        if value.tzinfo is None or value.utcoffset() is None:
+            raise GhostWalkLeaseExecutionError(
+                "execution clock must return timezone-aware datetime"
+            )
+        return value.astimezone(UTC)
