@@ -621,3 +621,193 @@ class GhostWalkActionLeaseService:
         self,
         *,
         target_inference_receipt_sha256: str,
+    ) -> GhostWalkActionLeaseRecord | None:
+        target = _require_sha256(target_inference_receipt_sha256, "target_inference_receipt_sha256")
+        rows = self._ledger.ghostwalk_action_lease_records(
+            target_inference_receipt_sha256=target
+        )
+        records = [self._parse_record(row) for row in rows]
+        return records[-1] if records else None
+
+    def _trusted_state(self, target: str, *, now: datetime) -> dict[str, object]:
+        try:
+            binding = self._capability_bindings.latest(
+                target_inference_receipt_sha256=target
+            )
+        except GhostWalkCapabilityBindingError as exc:
+            raise GhostWalkActionLeaseError(str(exc)) from exc
+        if binding is None:
+            return {"reason": GhostWalkLeaseReadinessReason.EXECUTABLE_BINDING_REQUIRED}
+
+        try:
+            binding_readiness = self._capability_bindings.readiness(
+                target_inference_receipt_sha256=target
+            )
+        except GhostWalkCapabilityBindingError as exc:
+            raise GhostWalkActionLeaseError(str(exc)) from exc
+        binding_reason = getattr(binding_readiness, "reason", None)
+        existing_binding_sha = getattr(binding_readiness, "existing_binding_sha256", None)
+        if not (
+            binding_reason is GhostWalkBindingReadinessReason.BINDING_ALREADY_EXISTS
+            and existing_binding_sha == binding.executable_binding_sha256
+        ):
+            return {
+                "reason": GhostWalkLeaseReadinessReason.EXECUTABLE_BINDING_STALE,
+                "binding": binding,
+                "required_permissions": binding.permissions_required,
+            }
+
+        policy = self.policies.for_binding(binding)
+        if policy is None:
+            return {
+                "reason": GhostWalkLeaseReadinessReason.LEASE_POLICY_MISSING,
+                "binding": binding,
+                "required_permissions": binding.permissions_required,
+            }
+        try:
+            profile = EnforcementProfile.build(
+                intent=binding.effect_intent,
+                rules=policy.enforcement_rules,
+            )
+        except EnforcementProfileContractError as exc:
+            raise GhostWalkActionLeaseError("lease policy cannot form EnforcementProfile") from exc
+        if not profile.mapping_complete:
+            return {
+                "reason": GhostWalkLeaseReadinessReason.ENFORCEMENT_PROFILE_INCOMPLETE,
+                "binding": binding,
+                "policy": policy,
+                "profile": profile,
+                "required_permissions": binding.permissions_required,
+                "unenforced_effects": profile.effects_without_enforced_rule,
+                "accepted_unenforced_effects": policy.accepted_unenforced_effects,
+            }
+        unenforced = profile.effects_without_enforced_rule
+        if policy.accepted_unenforced_effects != unenforced:
+            return {
+                "reason": GhostWalkLeaseReadinessReason.UNENFORCED_EFFECT_ACK_REQUIRED,
+                "binding": binding,
+                "policy": policy,
+                "profile": profile,
+                "required_permissions": binding.permissions_required,
+                "unenforced_effects": unenforced,
+                "accepted_unenforced_effects": policy.accepted_unenforced_effects,
+            }
+
+        try:
+            epoch = self._authority_epochs.current()
+        except AuthorityEpochContractError as exc:
+            raise GhostWalkActionLeaseError("AuthorityEpoch provider failed") from exc
+        if epoch is None:
+            return {
+                "reason": GhostWalkLeaseReadinessReason.AUTHORITY_EPOCH_UNAVAILABLE,
+                "binding": binding,
+                "policy": policy,
+                "profile": profile,
+                "required_permissions": binding.permissions_required,
+                "unenforced_effects": unenforced,
+                "accepted_unenforced_effects": policy.accepted_unenforced_effects,
+            }
+        if epoch.principal_id != policy.principal_id:
+            return {
+                "reason": GhostWalkLeaseReadinessReason.AUTHORITY_PRINCIPAL_MISMATCH,
+                "binding": binding,
+                "policy": policy,
+                "profile": profile,
+                "epoch": epoch,
+                "required_permissions": binding.permissions_required,
+                "unenforced_effects": unenforced,
+                "accepted_unenforced_effects": policy.accepted_unenforced_effects,
+            }
+        if _parse_time(epoch.observed_at, "AuthorityEpoch observed_at") > now:
+            return {
+                "reason": GhostWalkLeaseReadinessReason.AUTHORITY_EPOCH_STALE,
+                "binding": binding,
+                "policy": policy,
+                "profile": profile,
+                "epoch": epoch,
+                "required_permissions": binding.permissions_required,
+                "unenforced_effects": unenforced,
+                "accepted_unenforced_effects": policy.accepted_unenforced_effects,
+            }
+        if epoch.next_known_transition_at is not None and now >= _parse_time(
+            epoch.next_known_transition_at, "AuthorityEpoch next_known_transition_at"
+        ):
+            return {
+                "reason": GhostWalkLeaseReadinessReason.AUTHORITY_EPOCH_STALE,
+                "binding": binding,
+                "policy": policy,
+                "profile": profile,
+                "epoch": epoch,
+                "required_permissions": binding.permissions_required,
+                "unenforced_effects": unenforced,
+                "accepted_unenforced_effects": policy.accepted_unenforced_effects,
+            }
+        missing = tuple(
+            permission
+            for permission in binding.permissions_required
+            if permission not in set(epoch.grants)
+        )
+        if missing:
+            return {
+                "reason": GhostWalkLeaseReadinessReason.AUTHORITY_PERMISSION_MISSING,
+                "binding": binding,
+                "policy": policy,
+                "profile": profile,
+                "epoch": epoch,
+                "required_permissions": binding.permissions_required,
+                "missing_permissions": missing,
+                "unenforced_effects": unenforced,
+                "accepted_unenforced_effects": policy.accepted_unenforced_effects,
+            }
+
+        existing = self._record_for_binding(binding.executable_binding_sha256)
+        if existing is not None:
+            return {
+                "reason": GhostWalkLeaseReadinessReason.LEASE_ALREADY_EXISTS,
+                "binding": binding,
+                "policy": policy,
+                "profile": profile,
+                "epoch": epoch,
+                "existing": existing,
+                "required_permissions": binding.permissions_required,
+                "unenforced_effects": unenforced,
+                "accepted_unenforced_effects": policy.accepted_unenforced_effects,
+            }
+        return {
+            "reason": GhostWalkLeaseReadinessReason.READY,
+            "binding": binding,
+            "policy": policy,
+            "profile": profile,
+            "epoch": epoch,
+            "required_permissions": binding.permissions_required,
+            "missing_permissions": (),
+            "unenforced_effects": unenforced,
+            "accepted_unenforced_effects": policy.accepted_unenforced_effects,
+        }
+
+    def _record_for_binding(self, binding_sha256: str) -> GhostWalkActionLeaseRecord | None:
+        rows = self._ledger.ghostwalk_action_lease_records(
+            executable_binding_sha256=binding_sha256
+        )
+        records = [self._parse_record(row) for row in rows]
+        if len(records) > 1:
+            raise GhostWalkActionLeaseError(
+                "multiple ActionLeases exist for one executable binding"
+            )
+        return records[0] if records else None
+
+    def _parse_record(self, row: Mapping[str, object]) -> GhostWalkActionLeaseRecord:
+        try:
+            return GhostWalkActionLeaseRecord.from_dict(row)
+        except GhostWalkActionLeaseError as exc:
+            raise GhostWalkActionLeaseError(
+                "persisted Ghost-Walk ActionLease record is invalid"
+            ) from exc
+
+    def _now(self) -> datetime:
+        value = self._clock()
+        if not isinstance(value, datetime):
+            raise GhostWalkActionLeaseError("lease clock must return datetime")
+        if value.tzinfo is None or value.utcoffset() is None:
+            raise GhostWalkActionLeaseError("lease clock must return timezone-aware datetime")
+        return value.astimezone(UTC)
