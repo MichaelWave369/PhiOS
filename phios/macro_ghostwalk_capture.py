@@ -151,6 +151,10 @@ class PointerClickEvent:
         _require_text(self.event_id, "event_id", maximum=512)
         _require_int(self.x_px, "x_px")
         _require_int(self.y_px, "y_px")
+        if not isinstance(self.button, PointerButton):
+            raise GhostWalkCaptureContractError(
+                "button must be a PointerButton"
+            )
         if not isinstance(self.injected, bool):
             raise GhostWalkCaptureContractError(
                 "injected must be Boolean"
@@ -383,6 +387,7 @@ class GhostWalkCaptureAdapter:
         session_id: str,
         event: PointerClickEvent,
     ) -> GhostWalkCaptureOutcome:
+        self._recorder.observations(session_id=session_id)
         if event.injected:
             return self._held(
                 session_id=session_id,
