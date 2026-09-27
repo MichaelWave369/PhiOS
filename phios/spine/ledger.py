@@ -15,6 +15,7 @@ if TYPE_CHECKING:
         GhostWalkObservation,
         GhostWalkSession,
     )
+    from phios.macro_ghostwalk_capture import GhostWalkCaptureReceipt
     from phios.macro_interaction_guard import InteractionGuardReceipt
     from phios.macro_journal import MacroRunJournalEntry, MacroRunResumeReceipt
     from phios.macro_operator_log import OperatorLogRevision
@@ -576,6 +577,37 @@ class RealityLedger:
                 "recent ghost-walk draft receipt limit must be non-negative"
             )
         path = self.path.parent / "ghostwalk-draft-receipts.jsonl"
+        if limit == 0 or not path.exists():
+            return []
+        lines = path.read_text(encoding="utf-8").splitlines()
+        return [json.loads(line) for line in lines[-limit:]]
+
+    def append_ghostwalk_capture_receipt(
+        self,
+        receipt: "GhostWalkCaptureReceipt",
+    ) -> None:
+        """Append one immutable ghost-walk OS capture receipt."""
+
+        path = self.path.parent / "ghostwalk-capture-receipts.jsonl"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps(receipt.to_dict(), sort_keys=True) + "\n")
+
+    def recent_ghostwalk_capture_receipts(
+        self,
+        limit: int = 10,
+    ) -> list[dict[str, object]]:
+        """Return newest ghost-walk OS capture receipts."""
+
+        if isinstance(limit, bool) or not isinstance(limit, int):
+            raise TypeError(
+                "recent ghost-walk capture receipt limit must be an integer"
+            )
+        if limit < 0:
+            raise ValueError(
+                "recent ghost-walk capture receipt limit must be non-negative"
+            )
+        path = self.path.parent / "ghostwalk-capture-receipts.jsonl"
         if limit == 0 or not path.exists():
             return []
         lines = path.read_text(encoding="utf-8").splitlines()
