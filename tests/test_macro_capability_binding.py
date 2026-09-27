@@ -405,7 +405,7 @@ def test_tampered_transition_receipt_fails_closed(
     )
     with pytest.raises(
         GhostWalkCapabilityBindingError,
-        match="transition inference receipt is invalid",
+        match="transition inference receipt (is invalid|hash mismatch)",
     ):
         service.readiness(
             target_inference_receipt_sha256=target
