@@ -350,3 +350,26 @@ def test_expiring_grant_disappears_after_epoch_refresh(
     )
     assert refreshed.authority_epoch.grants == ("ui.interact",)
     assert refreshed.authority_epoch.next_known_transition_at is None
+
+
+def test_epoch_refresh_cannot_move_observation_backward(
+    tmp_path: Path,
+) -> None:
+    manifest = _manifest()
+    operator = _operator(tmp_path, manifest)
+    operator.bootstrap_authority(
+        expected_manifest_sha256=manifest.manifest_sha256,
+        observed_at="2026-09-27T20:11:00+00:00",
+    )
+    current = PhiVesselLocalExecutionManifest.read(
+        operator.manifest_path
+    )
+
+    with pytest.raises(
+        PhiVesselTrustOperatorError,
+        match="cannot move AuthorityEpoch observation backward",
+    ):
+        operator.refresh_epoch(
+            expected_manifest_sha256=current.manifest_sha256,
+            observed_at="2026-09-27T20:10:30+00:00",
+        )
