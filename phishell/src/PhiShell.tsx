@@ -593,14 +593,14 @@ function PhiVessel() {
       </div>
       <div className="vessel-body">
         <small className="mode-label">{mode.toUpperCase()} MODE · ADVISORY</small>
-        <h2>Canonical history comparison online.</h2>
-        <p>PhiShell can compare two governed canonical state receipts without turning the comparison into persistence, cause, or authority.</p>
+        <h2>Governed runtime context online.</h2>
+        <p>PhiVessel can read a stripped Ghost Walk explanation projection without receiving its lifecycle controls or execution primitives.</p>
         <p className="muted">
           The intelligence layer may propose an action. Proposal is still not authority.
         </p>
         <GhostWalkVesselContextCard />
         <div className="quick-actions">
-          <button>Analyze active workspace</button>
+          <button>Explain Ghost Walk state</button>
           <button>Search governed memory</button>
           <button>Prepare build proposal</button>
           <button>Explain ledger receipt</button>
