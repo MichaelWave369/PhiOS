@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { HostObservationPanel } from "./components/HostObservationPanel";
 import { GhostWalkControlPanel } from "./components/GhostWalkControlPanel";
+import { GhostWalkVesselContextCard } from "./components/GhostWalkVesselContextCard";
 import { ServiceObservationPanel } from "./components/ServiceObservationPanel";
 import { ProcessObservationPanel } from "./components/ProcessObservationPanel";
 import { PackageObservationPanel } from "./components/PackageObservationPanel";
@@ -597,6 +598,7 @@ function PhiVessel() {
         <p className="muted">
           The intelligence layer may propose an action. Proposal is still not authority.
         </p>
+        <GhostWalkVesselContextCard />
         <div className="quick-actions">
           <button>Analyze active workspace</button>
           <button>Search governed memory</button>
