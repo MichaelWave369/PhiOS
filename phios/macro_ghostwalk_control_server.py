@@ -61,11 +61,17 @@ from phios.macro_policy_admission import (
     GhostWalkPolicyProfile,
 )
 from phios.phivessel_bridge import (
+    PHIVESSEL_BRIDGE_VERSION,
     PhiVesselBridgeError,
     PhiVesselBridgeService,
     PhiVesselBridgeUnavailableError,
     PhiVesselObservationKind,
     PhiVesselProposalType,
+)
+from phios.phivessel_handshake import (
+    PhiVesselHandshakeError,
+    PhiVesselHostHandshakeService,
+    PhiVesselSessionOperation,
 )
 from phios.phivessel_local_execution import (
     PhiVesselLocalExecutionError,
@@ -105,6 +111,14 @@ PHIVESSEL_BRIDGE_TRANSPORT_SCHEMA_VERSION = (
     "phios.phivessel-bridge-transport.v0.1"
 )
 PHIVESSEL_BRIDGE_TRANSPORT_IDENTITY = "phios-phivessel-bridge"
+PHIVESSEL_HANDSHAKE_TRANSPORT_SCHEMA_VERSION = (
+    "phios.phivessel-handshake-transport.v0.38"
+)
+PHIVESSEL_HANDSHAKE_TRANSPORT_IDENTITY = (
+    "phios-phivessel-host-handshake"
+)
+PHIVESSEL_SESSION_ID_HEADER = "X-PhiVessel-Session-Id"
+PHIVESSEL_SESSION_TOKEN_HEADER = "X-PhiVessel-Session-Token"
 DEFAULT_HOST_ID = "ghostwalk-host:local"
 DEFAULT_BASELINE_SERVICE_ID = "ghostwalk-baseline:local"
 DEFAULT_COORDINATOR_ID = "ghostwalk-coordinator:local"
@@ -1042,6 +1056,107 @@ def parse_authorization_console_lease_payload(
     )  # type: ignore[return-value]
 
 
+def parse_phivessel_handshake_payload(
+    payload: object,
+) -> tuple[
+    str,
+    str,
+    tuple[str, ...],
+    tuple[PhiVesselSessionOperation, ...],
+]:
+    if not isinstance(payload, Mapping):
+        raise GhostWalkControlBridgeError(
+            "PhiVessel handshake body must be an object"
+        )
+    expected = {
+        "clientInstanceId",
+        "clientNonce",
+        "supportedBridgeVersions",
+        "requestedOperations",
+    }
+    if set(payload) != expected:
+        raise GhostWalkControlBridgeError(
+            "PhiVessel handshake fields do not match contract"
+        )
+    client_id = payload.get("clientInstanceId")
+    nonce = payload.get("clientNonce")
+    versions = payload.get("supportedBridgeVersions")
+    operations = payload.get("requestedOperations")
+    if (
+        not isinstance(client_id, str)
+        or not client_id
+        or len(client_id) > 256
+        or not isinstance(nonce, str)
+        or len(nonce) < 16
+        or len(nonce) > 128
+        or not isinstance(versions, list)
+        or not versions
+        or len(versions) > 8
+        or any(
+            not isinstance(item, str)
+            or not item
+            or len(item) > 64
+            for item in versions
+        )
+        or not isinstance(operations, list)
+        or not operations
+        or len(operations) > 3
+        or any(not isinstance(item, str) for item in operations)
+    ):
+        raise GhostWalkControlBridgeError(
+            "PhiVessel handshake values are invalid"
+        )
+    try:
+        parsed_operations = tuple(
+            PhiVesselSessionOperation(item)
+            for item in operations
+        )
+    except ValueError as exc:
+        raise GhostWalkControlBridgeError(
+            "PhiVessel requested operation is unsupported"
+        ) from exc
+    return (
+        client_id,
+        nonce,
+        tuple(versions),
+        parsed_operations,
+    )
+
+
+def phivessel_handshake_envelope(
+    service: PhiVesselHostHandshakeService,
+    *,
+    client_instance_id: str,
+    client_nonce: str,
+    supported_bridge_versions: tuple[str, ...],
+    requested_operations: tuple[PhiVesselSessionOperation, ...],
+) -> dict[str, object]:
+    result = service.handshake(
+        client_instance_id=client_instance_id,
+        client_nonce=client_nonce,
+        supported_bridge_versions=supported_bridge_versions,
+        requested_operations=requested_operations,
+    )
+    return {
+        "transportSchemaVersion": (
+            PHIVESSEL_HANDSHAKE_TRANSPORT_SCHEMA_VERSION
+        ),
+        "transport": "loopback-http",
+        "transportIdentity": PHIVESSEL_HANDSHAKE_TRANSPORT_IDENTITY,
+        "localOnly": True,
+        "clientIdentityAuthenticated": False,
+        "transportSessionOnly": True,
+        "actionLeaseStillRequiredForExecution": True,
+        "policyAuthority": False,
+        "operationalAuthority": False,
+        "actionAuthority": False,
+        "executionAuthority": False,
+        "effectPerformed": False,
+        "servedAt": _utc_now(),
+        "handshake": result.to_dict(),
+    }
+
+
 def _phivessel_transport_base(
     *,
     bridge_mutation: bool = False,
@@ -1417,6 +1532,25 @@ class GhostWalkControlHandler(BaseHTTPRequestHandler):
         body.update({"error": code, "servedAt": _utc_now()})
         self._json(status, body)
 
+    def _require_phivessel_session(
+        self,
+        operation: PhiVesselSessionOperation,
+    ) -> None:
+        service = self.server.phivessel_handshake
+        if service is None:
+            return
+        session_id = self.headers.get(PHIVESSEL_SESSION_ID_HEADER)
+        session_token = self.headers.get(PHIVESSEL_SESSION_TOKEN_HEADER)
+        if session_id is None or session_token is None:
+            raise PhiVesselHandshakeError(
+                "PhiVessel transport session is required"
+            )
+        service.validate(
+            session_id=session_id,
+            session_token=session_token,
+            operation=operation,
+        )
+
     def _phivessel_error(
         self,
         status: HTTPStatus,
@@ -1503,6 +1637,13 @@ class GhostWalkControlHandler(BaseHTTPRequestHandler):
             self._json(HTTPStatus.OK, envelope)
             return
 
+        if parsed.path == "/api/v1/phivessel/handshake":
+            self._phivessel_error(
+                HTTPStatus.METHOD_NOT_ALLOWED,
+                "phivessel_handshake_requires_post",
+            )
+            return
+
         if parsed.path == "/api/v1/phivessel/observe":
             if self.server.phivessel_bridge is None:
                 self._phivessel_error(
@@ -1517,6 +1658,9 @@ class GhostWalkControlHandler(BaseHTTPRequestHandler):
                 )
                 return
             try:
+                self._require_phivessel_session(
+                    PhiVesselSessionOperation.OBSERVE
+                )
                 kind, lease_id = parse_phivessel_observe_query(
                     parsed.query
                 )
@@ -1525,10 +1669,28 @@ class GhostWalkControlHandler(BaseHTTPRequestHandler):
                     kind=kind,
                     action_lease_sha256=lease_id,
                 )
+            except PhiVesselHandshakeError:
+                self._phivessel_error(
+                    HTTPStatus.UNAUTHORIZED,
+                    "phivessel_session_required_or_invalid",
+                )
+                return
+            except PhiVesselHandshakeError:
+                self._phivessel_error(
+                    HTTPStatus.UNAUTHORIZED,
+                    "phivessel_session_required_or_invalid",
+                )
+                return
             except PhiVesselBridgeUnavailableError:
                 self._phivessel_error(
                     HTTPStatus.SERVICE_UNAVAILABLE,
                     "phivessel_observation_unavailable",
+                )
+                return
+            except PhiVesselHandshakeError:
+                self._phivessel_error(
+                    HTTPStatus.UNAUTHORIZED,
+                    "phivessel_session_required_or_invalid",
                 )
                 return
             except (GhostWalkControlBridgeError, PhiVesselBridgeError):
@@ -1968,6 +2130,47 @@ class GhostWalkControlHandler(BaseHTTPRequestHandler):
             self._json(HTTPStatus.OK, envelope)
             return
 
+        if parsed.path == "/api/v1/phivessel/handshake":
+            if parsed.query or parsed.fragment:
+                self._phivessel_error(
+                    HTTPStatus.BAD_REQUEST,
+                    "invalid_phivessel_handshake_request",
+                )
+                return
+            if self.server.phivessel_handshake is None:
+                self._phivessel_error(
+                    HTTPStatus.SERVICE_UNAVAILABLE,
+                    "phivessel_handshake_unavailable",
+                )
+                return
+            try:
+                (
+                    client_id,
+                    client_nonce,
+                    versions,
+                    requested_operations,
+                ) = parse_phivessel_handshake_payload(
+                    self._read_json()
+                )
+                envelope = phivessel_handshake_envelope(
+                    self.server.phivessel_handshake,
+                    client_instance_id=client_id,
+                    client_nonce=client_nonce,
+                    supported_bridge_versions=versions,
+                    requested_operations=requested_operations,
+                )
+            except (
+                GhostWalkControlBridgeError,
+                PhiVesselHandshakeError,
+            ):
+                self._phivessel_error(
+                    HTTPStatus.BAD_REQUEST,
+                    "invalid_phivessel_handshake_request",
+                )
+                return
+            self._json(HTTPStatus.OK, envelope)
+            return
+
         if parsed.path == "/api/v1/phivessel/proposals":
             if parsed.query or parsed.fragment:
                 self._phivessel_error(
@@ -1982,6 +2185,9 @@ class GhostWalkControlHandler(BaseHTTPRequestHandler):
                 )
                 return
             try:
+                self._require_phivessel_session(
+                    PhiVesselSessionOperation.PROPOSE
+                )
                 work_id, packet_refs, proposal_type = (
                     parse_phivessel_proposal_payload(
                         self._read_json(max_bytes=32768)
@@ -2016,6 +2222,9 @@ class GhostWalkControlHandler(BaseHTTPRequestHandler):
                 )
                 return
             try:
+                self._require_phivessel_session(
+                    PhiVesselSessionOperation.EXECUTE
+                )
                 lease_id = parse_phivessel_execute_payload(
                     self._read_json()
                 )
@@ -2314,6 +2523,7 @@ class GhostWalkControlServer(ThreadingHTTPServer):
             GhostWalkAuthorizationConsoleService | None
         ) = None,
         phivessel_bridge: PhiVesselBridgeService | None = None,
+        phivessel_handshake: PhiVesselHostHandshakeService | None = None,
         stop_callback: Callable[[], object] | None = None,
     ) -> None:
         if address[0] != LOOPBACK_HOST:
@@ -2327,6 +2537,7 @@ class GhostWalkControlServer(ThreadingHTTPServer):
         self.authority_requests = authority_requests
         self.authorization_console = authorization_console
         self.phivessel_bridge = phivessel_bridge
+        self.phivessel_handshake = phivessel_handshake
         self._stop_callback = stop_callback
         super().__init__(address, GhostWalkControlHandler)
 
@@ -2497,6 +2708,18 @@ def main() -> None:
             else execution_mount.execution_handoff
         ),
     )
+    available_phivessel_operations = (
+        PhiVesselSessionOperation.OBSERVE,
+        PhiVesselSessionOperation.PROPOSE,
+    ) + (
+        (PhiVesselSessionOperation.EXECUTE,)
+        if phivessel_bridge.execution_available
+        else ()
+    )
+    phivessel_handshake = PhiVesselHostHandshakeService(
+        bridge_version=PHIVESSEL_BRIDGE_VERSION,
+        available_operations=available_phivessel_operations,
+    )
     server = GhostWalkControlServer(
         (LOOPBACK_HOST, args.port),
         surface=surface,
@@ -2506,6 +2729,7 @@ def main() -> None:
         authority_requests=authority_requests,
         authorization_console=authorization_console,
         phivessel_bridge=phivessel_bridge,
+        phivessel_handshake=phivessel_handshake,
         stop_callback=host.stop,
     )
 
