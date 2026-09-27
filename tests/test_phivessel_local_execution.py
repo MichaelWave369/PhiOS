@@ -26,6 +26,7 @@ from phios.spine.ledger import RealityLedger
 from phios.spine.runtime import PhiOSSpine
 
 POLICY_SHA = "a" * 64
+ENFORCEMENT_EVIDENCE_SHA = "b" * 64
 
 
 def _epoch(
@@ -72,6 +73,7 @@ def _rule() -> EnforcementRule:
         boundary="process_boundary",
         status="enforced",
         mechanism="PhiVessel local execution manifest + v0.35 handoff",
+        evidence_ref_sha256s=(ENFORCEMENT_EVIDENCE_SHA,),
     )
 
 
