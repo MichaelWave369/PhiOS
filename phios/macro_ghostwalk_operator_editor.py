@@ -349,11 +349,14 @@ class GhostWalkOperatorEditor:
                 "operator note does not exist for transition inference"
             )
 
-        note_ids = {
-            row.get("note_id")
-            for row in rows
-            if isinstance(row.get("note_id"), str)
-        }
+        note_ids: set[str] = set()
+        for row in rows:
+            raw_note_id = row.get("note_id")
+            if not isinstance(raw_note_id, str) or not raw_note_id:
+                raise GhostWalkOperatorEditorError(
+                    "transition inference has malformed operator-note identity"
+                )
+            note_ids.add(raw_note_id)
         if len(note_ids) != 1:
             raise GhostWalkOperatorEditorError(
                 "transition inference has ambiguous operator-note chains"
