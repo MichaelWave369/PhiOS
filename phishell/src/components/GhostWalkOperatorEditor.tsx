@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { GhostWalkAcceptedIntentEditor } from "./GhostWalkAcceptedIntentEditor";
 import {
   ghostWalkOperatorLogClient,
   type GhostWalkOperatorNote,
@@ -132,6 +133,12 @@ export function GhostWalkOperatorEditor({
           <div className="ghostwalk-editor-boundary">
             HUMAN INTERPRETATION != MACHINE INFERENCE · SAVE APPENDS · SOURCE RECEIPT IMMUTABLE · EXECUTION AUTHORITY FALSE
           </div>
+
+          <GhostWalkAcceptedIntentEditor
+            targetSha256={targetSha256}
+            sourceOperatorNoteRevisionSha256={note.revision_sha256}
+            operatorNoteActive={note.status === "ACTIVE"}
+          />
         </>
       ) : (
         <>
