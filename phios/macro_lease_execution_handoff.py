@@ -17,7 +17,7 @@ import re
 import threading
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import Callable, Mapping
+from typing import Callable, Mapping, cast
 
 from phios.action_lease import ActionLeaseContractError, evaluate_action_lease
 from phios.authority_epoch import AuthorityEpoch, AuthorityEpochContractError
@@ -420,13 +420,16 @@ class GhostWalkLeaseExecutionReceipt:
                 "spine_execution_status",
                 maximum=64,
             ),
-            executor_entered=value["executor_entered"],
-            lease_claimed=value["lease_claimed"],
-            lease_consumed=value["lease_consumed"],
-            replay_blocked=value["replay_blocked"],
-            effect_performed=effect,
-            action_authority=value["action_authority"],
-            execution_authority=value["execution_authority"],
+            executor_entered=cast(bool, value["executor_entered"]),
+            lease_claimed=cast(bool, value["lease_claimed"]),
+            lease_consumed=cast(bool, value["lease_consumed"]),
+            replay_blocked=cast(bool, value["replay_blocked"]),
+            effect_performed=cast(bool | None, effect),
+            action_authority=cast(bool, value["action_authority"]),
+            execution_authority=cast(
+                bool,
+                value["execution_authority"],
+            ),
         )
         if value.get("receipt_sha256") != item.receipt_sha256:
             raise GhostWalkLeaseExecutionError(
