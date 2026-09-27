@@ -17,6 +17,7 @@ if TYPE_CHECKING:
     )
     from phios.macro_ghostwalk_capture import GhostWalkCaptureReceipt
     from phios.macro_ghostwalk_listener import GhostWalkListenerReceipt
+    from phios.macro_uia_revalidation import SemanticRevalidationReceipt
     from phios.macro_windows_uia import (
         UiaElementSnapshot,
         UiaLookupReceipt,
@@ -736,6 +737,37 @@ class RealityLedger:
                 "recent UIA lookup receipt limit must be non-negative"
             )
         path = self.path.parent / "uia-lookup-receipts.jsonl"
+        if limit == 0 or not path.exists():
+            return []
+        lines = path.read_text(encoding="utf-8").splitlines()
+        return [json.loads(line) for line in lines[-limit:]]
+
+    def append_semantic_revalidation_receipt(
+        self,
+        receipt: "SemanticRevalidationReceipt",
+    ) -> None:
+        """Append one immutable semantic selector replay receipt."""
+
+        path = self.path.parent / "semantic-revalidation-receipts.jsonl"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps(receipt.to_dict(), sort_keys=True) + "\n")
+
+    def recent_semantic_revalidation_receipts(
+        self,
+        limit: int = 10,
+    ) -> list[dict[str, object]]:
+        """Return newest semantic selector replay receipts."""
+
+        if isinstance(limit, bool) or not isinstance(limit, int):
+            raise TypeError(
+                "recent semantic revalidation limit must be an integer"
+            )
+        if limit < 0:
+            raise ValueError(
+                "recent semantic revalidation limit must be non-negative"
+            )
+        path = self.path.parent / "semantic-revalidation-receipts.jsonl"
         if limit == 0 or not path.exists():
             return []
         lines = path.read_text(encoding="utf-8").splitlines()
