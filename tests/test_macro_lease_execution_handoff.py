@@ -264,3 +264,194 @@ def _spine(
         effects=("display.control", "filesystem.change"),
     )
     return spine, calls
+
+
+def _handoff(
+    tmp_path: Path,
+    *,
+    allow: bool = True,
+    binding_current: bool = True,
+    epoch: AuthorityEpoch | None = None,
+    policy: GhostWalkLeasePolicy | None = None,
+    handler=None,
+):
+    binding = _binding()
+    active_policy = policy or _policy()
+    issued_epoch = _epoch()
+    record = _record(binding, _policy(), issued_epoch)
+    spine, calls = _spine(
+        tmp_path,
+        allow=allow,
+        handler=handler,
+    )
+    spine.ledger.append_ghostwalk_action_lease_record(record)
+    epochs = _Epochs(epoch if epoch is not None else issued_epoch)
+    service = GhostWalkLeaseExecutionHandoff(
+        ledger=spine.ledger,
+        capability_bindings=_Bindings(
+            binding,
+            current=binding_current,
+        ),
+        policies=GhostWalkLeasePolicyRegistry((active_policy,)),
+        authority_epochs=epochs,
+        spine=spine,
+        clock=lambda: NOW,
+    )
+    return service, record, spine, calls, epochs
+
+
+def test_execute_accepts_only_lease_identity_and_replays_exact_custody(
+    tmp_path: Path,
+) -> None:
+    service, record, spine, calls, _ = _handoff(tmp_path)
+
+    receipt = service.execute(
+        action_lease_sha256=(
+            record.action_lease.action_lease_sha256
+        )
+    )
+
+    assert receipt.status == "SUCCEEDED"
+    assert receipt.lease_claimed is True
+    assert receipt.lease_consumed is True
+    assert receipt.effect_performed is True
+    assert receipt.execution_authority is False
+    assert calls == [_payload()]
+    assert spine.ledger.has_consumed_action_lease(
+        record.action_lease.action_lease_sha256
+    ) is True
+
+    execution = spine.ledger.recent(1)[0]
+    provenance = execution["governed_provenance"]
+    assert isinstance(provenance, dict)
+    assert provenance["schema_version"] == (
+        "phios.ghostwalk_execution_provenance.v0.35"
+    )
+    assert provenance["action_lease_sha256"] == (
+        record.action_lease.action_lease_sha256
+    )
+    assert provenance["executable_binding_sha256"] == (
+        record.executable_binding_sha256
+    )
+    assert provenance["lease_record_sha256"] == (
+        record.lease_record_sha256
+    )
+
+
+def test_public_execute_rejects_caller_payload_override(
+    tmp_path: Path,
+) -> None:
+    service, record, _, _, _ = _handoff(tmp_path)
+
+    with pytest.raises(TypeError):
+        service.execute(
+            action_lease_sha256=(
+                record.action_lease.action_lease_sha256
+            ),
+            payload={"trust_me": True},  # type: ignore[call-arg]
+        )
+
+
+def test_consumed_lease_blocks_replay_without_second_executor_entry(
+    tmp_path: Path,
+) -> None:
+    service, record, _, calls, _ = _handoff(tmp_path)
+    lease_sha = record.action_lease.action_lease_sha256
+
+    first = service.execute(action_lease_sha256=lease_sha)
+    replay = service.execute(action_lease_sha256=lease_sha)
+
+    assert first.status == "SUCCEEDED"
+    assert replay.status == "HELD"
+    assert replay.reason == "lease_consumed"
+    assert replay.replay_blocked is True
+    assert calls == [_payload()]
+
+
+def test_permission_denial_releases_lease_for_safe_retry(
+    tmp_path: Path,
+) -> None:
+    denied, record, denied_spine, denied_calls, _ = _handoff(
+        tmp_path,
+        allow=False,
+    )
+    lease_sha = record.action_lease.action_lease_sha256
+
+    receipt = denied.execute(action_lease_sha256=lease_sha)
+
+    assert receipt.status == "DENIED"
+    assert receipt.lease_claimed is True
+    assert receipt.lease_consumed is False
+    assert receipt.executor_entered is False
+    assert denied_calls == []
+    assert denied_spine.ledger.has_consumed_action_lease(
+        lease_sha
+    ) is False
+    assert denied_spine.ledger.claim_action_lease(lease_sha) is True
+    denied_spine.ledger.release_action_lease_claim(lease_sha)
+
+
+def test_changed_authority_epoch_holds_before_claim(
+    tmp_path: Path,
+) -> None:
+    changed = _epoch(policy_sha256="9" * 64)
+    service, record, spine, calls, _ = _handoff(
+        tmp_path,
+        epoch=changed,
+    )
+
+    receipt = service.execute(
+        action_lease_sha256=record.action_lease.action_lease_sha256
+    )
+
+    assert receipt.status == "HELD"
+    assert receipt.reason == "authority_epoch_changed"
+    assert receipt.lease_claimed is False
+    assert calls == []
+    assert spine.ledger.recent(10) == []
+
+
+def test_stale_executable_binding_holds_before_claim(
+    tmp_path: Path,
+) -> None:
+    service, record, _, calls, _ = _handoff(
+        tmp_path,
+        binding_current=False,
+    )
+
+    receipt = service.execute(
+        action_lease_sha256=record.action_lease.action_lease_sha256
+    )
+
+    assert receipt.status == "HELD"
+    assert receipt.reason == "executable_binding_stale"
+    assert calls == []
+
+
+def test_changed_lease_policy_holds_before_claim(
+    tmp_path: Path,
+) -> None:
+    changed_policy = GhostWalkLeasePolicy(
+        policy_id="ghostwalk.desktop-click.local.v2",
+        principal_id="operator:local",
+        issuer_id="phios:ghostwalk-lease-broker",
+        capability_id="desktop.interaction.click",
+        capability_version="0.19.0",
+        permissions_authorized=("ui.interact",),
+        effects_declared=("display.control", "filesystem.change"),
+        enforcement_rules=(_rule(),),
+        accepted_unenforced_effects=(),
+        max_lease_seconds=15,
+    )
+    service, record, _, calls, _ = _handoff(
+        tmp_path,
+        policy=changed_policy,
+    )
+
+    receipt = service.execute(
+        action_lease_sha256=record.action_lease.action_lease_sha256
+    )
+
+    assert receipt.status == "HELD"
+    assert receipt.reason == "lease_policy_or_enforcement_changed"
+    assert calls == []
