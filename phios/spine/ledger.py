@@ -1015,6 +1015,7 @@ class RealityLedger:
         if not rows:
             return 0
         sequences: list[int] = []
+        previous_sha: str | None = None
         for row in rows:
             value = row.get("sequence")
             if isinstance(value, bool) or not isinstance(value, int):
@@ -1022,6 +1023,17 @@ class RealityLedger:
                     "persisted baseline refresh sequence must be integer"
                 )
             sequences.append(value)
+            receipt_sha = row.get("receipt_sha256")
+            if not isinstance(receipt_sha, str) or len(receipt_sha) != 64:
+                raise TypeError(
+                    "persisted baseline refresh receipt hash is invalid"
+                )
+            claimed_previous = row.get("previous_receipt_sha256")
+            if claimed_previous != previous_sha:
+                raise ValueError(
+                    "persisted baseline refresh receipt hash chain mismatch"
+                )
+            previous_sha = receipt_sha
         if sequences != list(range(len(sequences))):
             raise ValueError(
                 "persisted baseline refresh sequences are not contiguous"
