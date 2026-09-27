@@ -116,6 +116,15 @@ class PhiVesselLocalClient:
             raise PhiVesselLocalClientError(
                 "handshake response is missing"
             )
+        if (
+            response.get("transportSchemaVersion")
+            != "phios.phivessel-handshake-transport.v0.38"
+            or response.get("transport") != "loopback-http"
+            or response.get("localOnly") is not True
+        ):
+            raise PhiVesselLocalClientError(
+                "host returned an unsupported handshake transport"
+            )
         if response.get("clientIdentityAuthenticated") is not False:
             raise PhiVesselLocalClientError(
                 "host claimed unsupported client authentication"
@@ -130,6 +139,18 @@ class PhiVesselLocalClient:
         ):
             raise PhiVesselLocalClientError(
                 "host did not preserve ActionLease requirement"
+            )
+        if (
+            handshake.get("client_instance_id") != self.client_instance_id
+            or handshake.get("client_nonce") != client_nonce
+        ):
+            raise PhiVesselLocalClientError(
+                "host handshake did not bind the requested client instance"
+            )
+        selected = handshake.get("selected_bridge_version")
+        if selected not in set(supported_bridge_versions):
+            raise PhiVesselLocalClientError(
+                "host selected an unoffered bridge version"
             )
         raw_operations = handshake.get("granted_operations")
         if not isinstance(raw_operations, list):
@@ -178,6 +199,7 @@ class PhiVesselLocalClient:
         query: dict[str, str] = {"kind": kind.value}
         if lease_id is not None:
             query["leaseId"] = lease_id
+        self._require_operation(PhiVesselSessionOperation.OBSERVE)
         return self._json_request(
             "GET",
             "/api/v1/phivessel/observe?" + urlencode(query),
@@ -190,6 +212,7 @@ class PhiVesselLocalClient:
         packet_refs: tuple[str, ...],
         proposal_type: PhiVesselProposalType,
     ) -> Mapping[str, object]:
+        self._require_operation(PhiVesselSessionOperation.PROPOSE)
         return self._json_request(
             "POST",
             "/api/v1/phivessel/proposals",
@@ -205,11 +228,26 @@ class PhiVesselLocalClient:
         *,
         lease_id: str,
     ) -> Mapping[str, object]:
+        self._require_operation(PhiVesselSessionOperation.EXECUTE)
         return self._json_request(
             "POST",
             "/api/v1/phivessel/execute",
             payload={"leaseId": lease_id},
         )
+
+    def _require_operation(
+        self,
+        operation: PhiVesselSessionOperation,
+    ) -> None:
+        session = self.session
+        if session is None:
+            raise PhiVesselLocalClientError(
+                "handshake is required before bridge calls"
+            )
+        if operation not in set(session.granted_operations):
+            raise PhiVesselLocalClientError(
+                f"{operation.value} was not granted by the host handshake"
+            )
 
     def _json_request(
         self,
