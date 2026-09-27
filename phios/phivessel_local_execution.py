@@ -26,7 +26,6 @@ from phios.enforcement_profile import (
     EnforcementRule,
 )
 from phios.macro_action_lease_service import (
-    GhostWalkActionLeaseError,
     GhostWalkActionLeaseService,
     GhostWalkLeasePolicy,
     GhostWalkLeasePolicyRegistry,
