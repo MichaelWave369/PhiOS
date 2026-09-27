@@ -324,3 +324,300 @@ class GhostWalkLeaseReadiness:
             "executable_binding_sha256": self.executable_binding_sha256,
             "policy_sha256": self.policy_sha256,
             "policy_set_sha256": self.policy_set_sha256,
+            "enforcement_profile_sha256": self.enforcement_profile_sha256,
+            "authority_epoch_sha256": self.authority_epoch_sha256,
+            "required_permissions": list(self.required_permissions),
+            "missing_permissions": list(self.missing_permissions),
+            "unenforced_effects": list(self.unenforced_effects),
+            "accepted_unenforced_effects": list(self.accepted_unenforced_effects),
+            "existing_action_lease_sha256": self.existing_action_lease_sha256,
+            "ready": self.ready,
+            "reason": self.reason.value,
+            "effect_performed": self.effect_performed,
+            "operational_authority": self.operational_authority,
+            "action_authority": self.action_authority,
+            "execution_authority": self.execution_authority,
+        }
+        payload["readiness_sha256"] = _canonical_sha256(payload)
+        return payload
+
+
+@dataclass(frozen=True, slots=True)
+class GhostWalkActionLeaseRecord:
+    """Immutable custody record binding a lease to its exact Ghost-Walk source."""
+
+    target_inference_receipt_sha256: str
+    executable_binding_sha256: str
+    policy_sha256: str
+    enforcement_profile: EnforcementProfile
+    authority_epoch: AuthorityEpoch
+    action_lease: ActionLease
+    recorded_at: str
+    effect_performed: bool = False
+    execution_authority: bool = False
+    schema_version: str = GHOSTWALK_ACTION_LEASE_RECORD_SCHEMA_VERSION
+
+    def __post_init__(self) -> None:
+        if self.schema_version != GHOSTWALK_ACTION_LEASE_RECORD_SCHEMA_VERSION:
+            raise GhostWalkActionLeaseError("unsupported Ghost-Walk ActionLease record schema")
+        _require_sha256(self.target_inference_receipt_sha256, "target_inference_receipt_sha256")
+        _require_sha256(self.executable_binding_sha256, "executable_binding_sha256")
+        _require_sha256(self.policy_sha256, "policy_sha256")
+        recorded = _parse_time(self.recorded_at, "recorded_at")
+        if self.recorded_at != recorded.isoformat():
+            raise GhostWalkActionLeaseError("recorded_at must use canonical UTC ISO-8601 form")
+        if self.enforcement_profile.profile_sha256 != self.action_lease.enforcement_profile_sha256:
+            raise GhostWalkActionLeaseError(
+                "lease record enforcement profile differs from ActionLease"
+            )
+        if self.authority_epoch.authority_epoch_sha256 != self.action_lease.authority_epoch_sha256:
+            raise GhostWalkActionLeaseError("lease record AuthorityEpoch differs from ActionLease")
+        if self.effect_performed is not False or self.execution_authority is not False:
+            raise GhostWalkActionLeaseError(
+                "lease record cannot claim execution or performed effect"
+            )
+
+    def body_dict(self) -> dict[str, object]:
+        return {
+            "schema_version": self.schema_version,
+            "target_inference_receipt_sha256": self.target_inference_receipt_sha256,
+            "executable_binding_sha256": self.executable_binding_sha256,
+            "policy_sha256": self.policy_sha256,
+            "enforcement_profile": self.enforcement_profile.to_dict(),
+            "authority_epoch": self.authority_epoch.to_dict(),
+            "action_lease": self.action_lease.to_dict(),
+            "recorded_at": self.recorded_at,
+            "effect_performed": self.effect_performed,
+            "execution_authority": self.execution_authority,
+        }
+
+    @property
+    def lease_record_sha256(self) -> str:
+        return _canonical_sha256(self.body_dict())
+
+    def to_dict(self) -> dict[str, object]:
+        payload = self.body_dict()
+        payload["lease_record_sha256"] = self.lease_record_sha256
+        return payload
+
+    @classmethod
+    def from_dict(cls, value: Mapping[str, object]) -> "GhostWalkActionLeaseRecord":
+        expected = {
+            "schema_version",
+            "target_inference_receipt_sha256",
+            "executable_binding_sha256",
+            "policy_sha256",
+            "enforcement_profile",
+            "authority_epoch",
+            "action_lease",
+            "recorded_at",
+            "effect_performed",
+            "execution_authority",
+            "lease_record_sha256",
+        }
+        if set(value) != expected:
+            raise GhostWalkActionLeaseError("ActionLease record fields do not match contract")
+        try:
+            profile = EnforcementProfile.from_dict(value.get("enforcement_profile"))
+            epoch = AuthorityEpoch.from_dict(value.get("authority_epoch"))
+            lease = ActionLease.from_dict(value.get("action_lease"))
+        except (
+            EnforcementProfileContractError,
+            AuthorityEpochContractError,
+            ActionLeaseContractError,
+        ) as exc:
+            raise GhostWalkActionLeaseError(
+                "persisted ActionLease record contains invalid trust state"
+            ) from exc
+        effect_performed = value.get("effect_performed")
+        execution_authority = value.get("execution_authority")
+        if not isinstance(effect_performed, bool) or not isinstance(execution_authority, bool):
+            raise GhostWalkActionLeaseError("ActionLease record authority flags must be Boolean")
+        item = cls(
+            target_inference_receipt_sha256=_require_sha256(
+                value.get("target_inference_receipt_sha256"), "target_inference_receipt_sha256"
+            ),
+            executable_binding_sha256=_require_sha256(
+                value.get("executable_binding_sha256"), "executable_binding_sha256"
+            ),
+            policy_sha256=_require_sha256(value.get("policy_sha256"), "policy_sha256"),
+            enforcement_profile=profile,
+            authority_epoch=epoch,
+            action_lease=lease,
+            recorded_at=_require_text(value.get("recorded_at"), "recorded_at", maximum=64),
+            effect_performed=effect_performed,
+            execution_authority=execution_authority,
+            schema_version=_require_text(
+                value.get("schema_version"),
+                "schema_version",
+                maximum=128,
+            ),
+        )
+        if value.get("lease_record_sha256") != item.lease_record_sha256:
+            raise GhostWalkActionLeaseError("ActionLease record hash mismatch")
+        return item
+
+
+class GhostWalkActionLeaseService:
+    """Construct pre-lease trust state and issue one exact ActionLease."""
+
+    def __init__(
+        self,
+        *,
+        ledger: RealityLedger,
+        capability_bindings: GhostWalkBindingPort,
+        policies: GhostWalkLeasePolicyRegistry,
+        authority_epochs: GhostWalkAuthorityEpochProvider,
+        clock: Callable[[], datetime] | None = None,
+    ) -> None:
+        if not isinstance(ledger, RealityLedger):
+            raise GhostWalkActionLeaseError("ledger must be a RealityLedger")
+        self._ledger = ledger
+        self._capability_bindings = capability_bindings
+        self.policies = policies
+        self._authority_epochs = authority_epochs
+        self._clock = clock or (lambda: datetime.now(UTC))
+        self._lock = threading.RLock()
+
+    def readiness(self, *, target_inference_receipt_sha256: str) -> GhostWalkLeaseReadiness:
+        target = _require_sha256(target_inference_receipt_sha256, "target_inference_receipt_sha256")
+        now = self._now()
+        state = self._trusted_state(target, now=now)
+        reason = state["reason"]
+        assert isinstance(reason, GhostWalkLeaseReadinessReason)
+        binding = state.get("binding")
+        policy = state.get("policy")
+        profile = state.get("profile")
+        epoch = state.get("epoch")
+        existing = state.get("existing")
+        required = tuple(state.get("required_permissions", ()))
+        missing = tuple(state.get("missing_permissions", ()))
+        unenforced = tuple(state.get("unenforced_effects", ()))
+        accepted = tuple(state.get("accepted_unenforced_effects", ()))
+        return GhostWalkLeaseReadiness(
+            target_inference_receipt_sha256=target,
+            executable_binding_sha256=(
+                binding.executable_binding_sha256
+                if isinstance(binding, GhostWalkExecutableBinding)
+                else None
+            ),
+            policy_sha256=(
+                policy.policy_sha256
+                if isinstance(policy, GhostWalkLeasePolicy)
+                else None
+            ),
+            policy_set_sha256=self.policies.policy_set_sha256,
+            enforcement_profile_sha256=(
+                profile.profile_sha256 if isinstance(profile, EnforcementProfile) else None
+            ),
+            authority_epoch_sha256=(
+                epoch.authority_epoch_sha256 if isinstance(epoch, AuthorityEpoch) else None
+            ),
+            required_permissions=required,
+            missing_permissions=missing,
+            unenforced_effects=unenforced,
+            accepted_unenforced_effects=accepted,
+            existing_action_lease_sha256=(
+                existing.action_lease.action_lease_sha256
+                if isinstance(existing, GhostWalkActionLeaseRecord)
+                else None
+            ),
+            ready=reason is GhostWalkLeaseReadinessReason.READY,
+            reason=reason,
+        )
+
+    def issue(
+        self,
+        *,
+        target_inference_receipt_sha256: str,
+        expected_executable_binding_sha256: str,
+        expected_policy_sha256: str,
+        expected_policy_set_sha256: str,
+        expected_enforcement_profile_sha256: str,
+        expected_authority_epoch_sha256: str,
+    ) -> GhostWalkActionLeaseRecord:
+        target = _require_sha256(target_inference_receipt_sha256, "target_inference_receipt_sha256")
+        expected_binding = _require_sha256(
+            expected_executable_binding_sha256, "expected_executable_binding_sha256"
+        )
+        expected_policy = _require_sha256(expected_policy_sha256, "expected_policy_sha256")
+        expected_policy_set = _require_sha256(
+            expected_policy_set_sha256, "expected_policy_set_sha256"
+        )
+        expected_profile = _require_sha256(
+            expected_enforcement_profile_sha256, "expected_enforcement_profile_sha256"
+        )
+        expected_epoch = _require_sha256(
+            expected_authority_epoch_sha256, "expected_authority_epoch_sha256"
+        )
+
+        with self._lock:
+            now = self._now()
+            state = self._trusted_state(target, now=now)
+            if state["reason"] is not GhostWalkLeaseReadinessReason.READY:
+                reason = state["reason"]
+                assert isinstance(reason, GhostWalkLeaseReadinessReason)
+                raise GhostWalkActionLeaseError(f"ActionLease not ready: {reason.value}")
+            binding = state["binding"]
+            policy = state["policy"]
+            profile = state["profile"]
+            epoch = state["epoch"]
+            assert isinstance(binding, GhostWalkExecutableBinding)
+            assert isinstance(policy, GhostWalkLeasePolicy)
+            assert isinstance(profile, EnforcementProfile)
+            assert isinstance(epoch, AuthorityEpoch)
+            if binding.executable_binding_sha256 != expected_binding:
+                raise GhostWalkActionLeaseError("executable binding changed before lease issuance")
+            if policy.policy_sha256 != expected_policy:
+                raise GhostWalkActionLeaseError("lease policy changed before lease issuance")
+            if self.policies.policy_set_sha256 != expected_policy_set:
+                raise GhostWalkActionLeaseError(
+                    "lease policy registry changed before lease issuance"
+                )
+            if profile.profile_sha256 != expected_profile:
+                raise GhostWalkActionLeaseError("enforcement profile changed before lease issuance")
+            if epoch.authority_epoch_sha256 != expected_epoch:
+                raise GhostWalkActionLeaseError("AuthorityEpoch changed before lease issuance")
+
+            valid_until = now + timedelta(seconds=policy.max_lease_seconds)
+            if epoch.next_known_transition_at is not None:
+                transition = _parse_time(epoch.next_known_transition_at, "next_known_transition_at")
+                if transition < valid_until:
+                    valid_until = transition
+            if valid_until <= now:
+                raise GhostWalkActionLeaseError(
+                    "current AuthorityEpoch leaves no valid lease window"
+                )
+            issued_at = _canonical_time(now)
+            try:
+                lease = ActionLease.issue(
+                    principal_id=policy.principal_id,
+                    issuer_id=policy.issuer_id,
+                    authorization_receipt_sha256=binding.authorization_decision_sha256,
+                    intent=binding.effect_intent,
+                    enforcement=profile,
+                    authority_epoch=epoch,
+                    permissions_authorized=policy.permissions_authorized,
+                    accepted_unenforced_effects=policy.accepted_unenforced_effects,
+                    issued_at=issued_at,
+                    valid_from=issued_at,
+                    valid_until=_canonical_time(valid_until),
+                )
+            except ActionLeaseContractError as exc:
+                raise GhostWalkActionLeaseError("ActionLease construction failed") from exc
+            record = GhostWalkActionLeaseRecord(
+                target_inference_receipt_sha256=target,
+                executable_binding_sha256=binding.executable_binding_sha256,
+                policy_sha256=policy.policy_sha256,
+                enforcement_profile=profile,
+                authority_epoch=epoch,
+                action_lease=lease,
+                recorded_at=issued_at,
+            )
+            self._ledger.append_ghostwalk_action_lease_record(record)
+            return record
+
+    def latest(
+        self,
+        *,
+        target_inference_receipt_sha256: str,
