@@ -36,9 +36,18 @@ function zeroAuthority(value) {
   );
 }
 
+function zeroSnakeAuthority(value) {
+  return (
+    record(value) &&
+    value.operational_authority === false &&
+    value.action_authority === false &&
+    value.execution_authority === false
+  );
+}
+
 export function validateGhostWalkOperatorNote(value) {
   return (
-    zeroAuthority(value) &&
+    zeroSnakeAuthority(value) &&
     value.schema_version === "phios.ghostwalk_operator_note.v0.28" &&
     sha(value.target_inference_receipt_sha256) &&
     boundedString(value.note_id, 512) &&
