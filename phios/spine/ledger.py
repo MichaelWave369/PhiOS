@@ -15,6 +15,11 @@ if TYPE_CHECKING:
         ScheduleServicePollReceipt,
         ScheduleServiceStateEntry,
     )
+    from phios.macro_schedule_worker import (
+        ScheduleWorkerLease,
+        ScheduleWorkerLeaseEvent,
+        ScheduleWorkerTickReceipt,
+    )
     from phios.macro_spine_bridge import MacroSpineReceipt
     from phios.macro_start import RunStartReceipt
     from phios.reality_reconciliation import RealityBoundReconciliationReceipt
@@ -306,6 +311,113 @@ class RealityLedger:
             return []
         lines = path.read_text(encoding="utf-8").splitlines()
         return [json.loads(line) for line in lines[-limit:]]
+
+    def append_schedule_worker_lease(
+        self,
+        lease: "ScheduleWorkerLease",
+    ) -> None:
+        """Append one immutable schedule-worker lease snapshot."""
+
+        path = self.path.parent / "schedule-worker-leases.jsonl"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps(lease.to_dict(), sort_keys=True) + "\n")
+
+    def latest_schedule_worker_lease(
+        self,
+        *,
+        service_id: str,
+    ) -> dict[str, object] | None:
+        """Return the latest persisted worker lease for one service."""
+
+        path = self.path.parent / "schedule-worker-leases.jsonl"
+        if not path.exists():
+            return None
+        latest: dict[str, object] | None = None
+        for line in path.read_text(encoding="utf-8").splitlines():
+            row = json.loads(line)
+            if row.get("service_id") == service_id:
+                latest = row
+        return latest
+
+    def append_schedule_worker_event(
+        self,
+        event: "ScheduleWorkerLeaseEvent",
+    ) -> None:
+        """Append one immutable worker ownership lifecycle event."""
+
+        path = self.path.parent / "schedule-worker-events.jsonl"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps(event.to_dict(), sort_keys=True) + "\n")
+
+    def schedule_worker_events(
+        self,
+        *,
+        service_id: str | None = None,
+    ) -> list[dict[str, object]]:
+        """Return append-order schedule-worker ownership events."""
+
+        path = self.path.parent / "schedule-worker-events.jsonl"
+        if not path.exists():
+            return []
+        rows = [
+            json.loads(line)
+            for line in path.read_text(encoding="utf-8").splitlines()
+        ]
+        if service_id is None:
+            return rows
+        return [row for row in rows if row.get("service_id") == service_id]
+
+    def append_schedule_worker_tick_receipt(
+        self,
+        receipt: "ScheduleWorkerTickReceipt",
+    ) -> None:
+        """Append one immutable schedule-worker cycle receipt."""
+
+        path = self.path.parent / "schedule-worker-ticks.jsonl"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps(receipt.to_dict(), sort_keys=True) + "\n")
+
+    def schedule_worker_tick_receipts(
+        self,
+        *,
+        service_id: str | None = None,
+    ) -> list[dict[str, object]]:
+        """Return append-order schedule-worker cycle receipts."""
+
+        path = self.path.parent / "schedule-worker-ticks.jsonl"
+        if not path.exists():
+            return []
+        rows = [
+            json.loads(line)
+            for line in path.read_text(encoding="utf-8").splitlines()
+        ]
+        if service_id is None:
+            return rows
+        return [row for row in rows if row.get("service_id") == service_id]
+
+    def next_schedule_worker_cycle_index(
+        self,
+        *,
+        service_id: str,
+    ) -> int:
+        """Derive the next worker cycle index from persisted receipts."""
+
+        rows = self.schedule_worker_tick_receipts(service_id=service_id)
+        if not rows:
+            return 0
+        indices: list[int] = []
+        for row in rows:
+            value = row.get("cycle_index")
+            if isinstance(value, bool) or not isinstance(value, int):
+                raise TypeError("persisted worker cycle_index must be integer")
+            indices.append(value)
+        expected = list(range(len(indices)))
+        if indices != expected:
+            raise ValueError("persisted worker cycle indices are not contiguous")
+        return len(indices)
 
     def append_reconciliation(
         self,
