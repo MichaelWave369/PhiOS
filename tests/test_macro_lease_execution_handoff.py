@@ -455,3 +455,125 @@ def test_changed_lease_policy_holds_before_claim(
     assert receipt.status == "HELD"
     assert receipt.reason == "lease_policy_or_enforcement_changed"
     assert calls == []
+
+
+def test_failed_executor_consumes_lease_and_blocks_blind_retry(
+    tmp_path: Path,
+) -> None:
+    def fail(_payload: dict[str, object]) -> ArtifactResult:
+        raise RuntimeError("simulated executor failure")
+
+    service, record, spine, _, _ = _handoff(
+        tmp_path,
+        handler=fail,
+    )
+    lease_sha = record.action_lease.action_lease_sha256
+
+    failed = service.execute(action_lease_sha256=lease_sha)
+    replay = service.execute(action_lease_sha256=lease_sha)
+
+    assert failed.status == "FAILED"
+    assert failed.lease_consumed is True
+    assert failed.effect_performed is None
+    assert replay.status == "HELD"
+    assert replay.reason == "lease_consumed"
+    assert spine.ledger.has_consumed_action_lease(lease_sha) is True
+
+
+def test_outcome_unknown_consumes_lease_and_blocks_blind_retry(
+    tmp_path: Path,
+) -> None:
+    def uncertain(_payload: dict[str, object]) -> ArtifactResult:
+        raise OutcomeUnknownError(
+            "desktop effect may have committed",
+            external_identifiers={"attempt": "ghostwalk-test"},
+        )
+
+    service, record, _, _, _ = _handoff(
+        tmp_path,
+        handler=uncertain,
+    )
+    lease_sha = record.action_lease.action_lease_sha256
+
+    uncertain_receipt = service.execute(
+        action_lease_sha256=lease_sha
+    )
+    replay = service.execute(action_lease_sha256=lease_sha)
+
+    assert uncertain_receipt.status == "OUTCOME_UNKNOWN"
+    assert uncertain_receipt.lease_consumed is True
+    assert uncertain_receipt.effect_performed is None
+    assert replay.status == "HELD"
+    assert replay.reason == "lease_consumed"
+
+
+def test_existing_atomic_claim_blocks_parallel_execution(
+    tmp_path: Path,
+) -> None:
+    service, record, spine, calls, _ = _handoff(tmp_path)
+    lease_sha = record.action_lease.action_lease_sha256
+    assert spine.ledger.claim_action_lease(lease_sha) is True
+
+    receipt = service.execute(action_lease_sha256=lease_sha)
+
+    assert receipt.status == "HELD"
+    assert receipt.reason == "lease_execution_claim_unavailable"
+    assert receipt.replay_blocked is True
+    assert calls == []
+
+
+def test_unknown_lease_is_held_without_executor_entry(
+    tmp_path: Path,
+) -> None:
+    service, _, _, calls, _ = _handoff(tmp_path)
+
+    receipt = service.execute(action_lease_sha256="f" * 64)
+
+    assert receipt.status == "HELD"
+    assert receipt.reason == "lease_not_found"
+    assert receipt.lease_record_sha256 is None
+    assert calls == []
+
+
+def test_tampered_lease_custody_fails_closed(
+    tmp_path: Path,
+) -> None:
+    service, record, spine, _, _ = _handoff(tmp_path)
+    path = (
+        spine.ledger.path.parent
+        / "ghostwalk-action-lease-records.jsonl"
+    )
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    payload["action_lease"]["issuer_id"] = "phios:tampered"
+    path.write_text(
+        json.dumps(payload, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(
+        GhostWalkLeaseExecutionError,
+        match="ActionLease custody is invalid",
+    ):
+        service.execute(
+            action_lease_sha256=(
+                record.action_lease.action_lease_sha256
+            )
+        )
+
+
+def test_execution_receipt_is_persisted_separately_from_spine_receipt(
+    tmp_path: Path,
+) -> None:
+    service, record, spine, _, _ = _handoff(tmp_path)
+
+    receipt = service.execute(
+        action_lease_sha256=record.action_lease.action_lease_sha256
+    )
+
+    rows = spine.ledger.ghostwalk_lease_execution_receipts(
+        action_lease_sha256=record.action_lease.action_lease_sha256
+    )
+    assert len(rows) == 1
+    assert rows[0]["receipt_sha256"] == receipt.receipt_sha256
+    assert rows[0]["spine_receipt_id"] == receipt.spine_receipt_id
+    assert receipt.spine_receipt_id is not None
