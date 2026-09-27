@@ -17,6 +17,10 @@ if TYPE_CHECKING:
     )
     from phios.macro_ghostwalk_capture import GhostWalkCaptureReceipt
     from phios.macro_ghostwalk_listener import GhostWalkListenerReceipt
+    from phios.macro_windows_uia import (
+        UiaElementSnapshot,
+        UiaLookupReceipt,
+    )
     from phios.macro_interaction_guard import InteractionGuardReceipt
     from phios.macro_journal import MacroRunJournalEntry, MacroRunResumeReceipt
     from phios.macro_operator_log import OperatorLogRevision
@@ -672,6 +676,70 @@ class RealityLedger:
                 "persisted listener sequences are not contiguous"
             )
         return len(indices)
+
+    def append_uia_element_snapshot(
+        self,
+        snapshot: "UiaElementSnapshot",
+    ) -> None:
+        """Append one immutable privacy-bounded UIA element snapshot."""
+
+        path = self.path.parent / "uia-element-snapshots.jsonl"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps(snapshot.to_dict(), sort_keys=True) + "\n")
+
+    def uia_element_snapshots(
+        self,
+        *,
+        snapshot_sha256: str | None = None,
+    ) -> list[dict[str, object]]:
+        """Return persisted UIA element identity snapshots."""
+
+        path = self.path.parent / "uia-element-snapshots.jsonl"
+        if not path.exists():
+            return []
+        rows = [
+            json.loads(line)
+            for line in path.read_text(encoding="utf-8").splitlines()
+        ]
+        if snapshot_sha256 is None:
+            return rows
+        return [
+            row
+            for row in rows
+            if row.get("snapshot_sha256") == snapshot_sha256
+        ]
+
+    def append_uia_lookup_receipt(
+        self,
+        receipt: "UiaLookupReceipt",
+    ) -> None:
+        """Append one immutable Windows UIA semantic lookup receipt."""
+
+        path = self.path.parent / "uia-lookup-receipts.jsonl"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps(receipt.to_dict(), sort_keys=True) + "\n")
+
+    def recent_uia_lookup_receipts(
+        self,
+        limit: int = 10,
+    ) -> list[dict[str, object]]:
+        """Return newest Windows UIA semantic lookup receipts."""
+
+        if isinstance(limit, bool) or not isinstance(limit, int):
+            raise TypeError(
+                "recent UIA lookup receipt limit must be an integer"
+            )
+        if limit < 0:
+            raise ValueError(
+                "recent UIA lookup receipt limit must be non-negative"
+            )
+        path = self.path.parent / "uia-lookup-receipts.jsonl"
+        if limit == 0 or not path.exists():
+            return []
+        lines = path.read_text(encoding="utf-8").splitlines()
+        return [json.loads(line) for line in lines[-limit:]]
 
     def append_reconciliation(
         self,
