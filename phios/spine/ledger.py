@@ -30,6 +30,7 @@ if TYPE_CHECKING:
     from phios.macro_interaction_guard import InteractionGuardReceipt
     from phios.macro_journal import MacroRunJournalEntry, MacroRunResumeReceipt
     from phios.macro_operator_log import OperatorLogRevision
+    from phios.macro_accepted_intent import GhostWalkAcceptedIntentRevision
     from phios.macro_post_action_verification import (
         PostActionVerificationReceipt,
     )
@@ -478,6 +479,48 @@ class RealityLedger:
         if note_id is None:
             return rows
         return [row for row in rows if row.get("note_id") == note_id]
+
+    def append_ghostwalk_accepted_intent_revision(
+        self,
+        revision: "GhostWalkAcceptedIntentRevision",
+    ) -> None:
+        """Append one immutable Ghost-Walk accepted-intent revision."""
+
+        path = (
+            self.path.parent
+            / "ghostwalk-accepted-intent-revisions.jsonl"
+        )
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("a", encoding="utf-8") as handle:
+            handle.write(
+                json.dumps(revision.to_dict(), sort_keys=True) + "\n"
+            )
+
+    def ghostwalk_accepted_intent_revisions(
+        self,
+        *,
+        target_inference_receipt_sha256: str | None = None,
+    ) -> list[dict[str, object]]:
+        """Return append-order Ghost-Walk accepted-intent revisions."""
+
+        path = (
+            self.path.parent
+            / "ghostwalk-accepted-intent-revisions.jsonl"
+        )
+        if not path.exists():
+            return []
+        rows = [
+            json.loads(line)
+            for line in path.read_text(encoding="utf-8").splitlines()
+        ]
+        if target_inference_receipt_sha256 is None:
+            return rows
+        return [
+            row
+            for row in rows
+            if row.get("target_inference_receipt_sha256")
+            == target_inference_receipt_sha256
+        ]
 
     def append_interaction_guard_receipt(
         self,

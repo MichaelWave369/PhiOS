@@ -28,6 +28,11 @@ import {
   validateGhostWalkOperatorEditPayload,
 } from "./ghostWalkOperatorLogProxy.mjs";
 import {
+  applyGhostWalkAcceptedIntentMutation,
+  fetchGhostWalkAcceptedIntent,
+  validateGhostWalkAcceptedIntentMutationPayload,
+} from "./ghostWalkAcceptedIntentProxy.mjs";
+import {
   createPersistRequest,
   fetchBrokerHealth,
   fetchPersistRequest,
@@ -125,6 +130,8 @@ export function createLocalObservationServer({
   ghostWalkActionApplier = applyGhostWalkAction,
   ghostWalkOperatorNoteFetcher = fetchGhostWalkOperatorNote,
   ghostWalkOperatorEditApplier = applyGhostWalkOperatorEdit,
+  ghostWalkAcceptedIntentFetcher = fetchGhostWalkAcceptedIntent,
+  ghostWalkAcceptedIntentMutator = applyGhostWalkAcceptedIntentMutation,
 } = {}) {
   if (!Number.isInteger(port) || port < 0 || port > 65535) {
     throw new Error("local observation port must be an integer between 0 and 65535");
@@ -133,6 +140,65 @@ export function createLocalObservationServer({
   const server = createServer(async (request, response) => {
     try {
       const url = new URL(request.url ?? "/", `http://${LOOPBACK_HOST}`);
+
+      if (
+        request.method === "POST" &&
+        url.pathname === "/api/v1/ghostwalk/accepted-intent/revisions"
+      ) {
+        let payload;
+        try {
+          payload = await readBoundedJsonObject(request, { maxBytes: 8192 });
+        } catch {
+          jsonResponse(response, 400, {
+            error: "invalid_ghostwalk_accepted_intent_body",
+            policyAuthority: false,
+            operationalAuthority: false,
+            actionAuthority: false,
+            executionAuthority: false,
+            effectPerformed: false,
+          });
+          return;
+        }
+
+        if (!validateGhostWalkAcceptedIntentMutationPayload(payload)) {
+          jsonResponse(response, 400, {
+            error: "invalid_ghostwalk_accepted_intent_request",
+            policyAuthority: false,
+            operationalAuthority: false,
+            actionAuthority: false,
+            executionAuthority: false,
+            effectPerformed: false,
+          });
+          return;
+        }
+
+        const result = await ghostWalkAcceptedIntentMutator(payload);
+        if (result?.kind === "conflict") {
+          jsonResponse(response, 409, {
+            error: "ghostwalk_accepted_intent_conflict",
+            policyAuthority: false,
+            operationalAuthority: false,
+            actionAuthority: false,
+            executionAuthority: false,
+            effectPerformed: false,
+          });
+          return;
+        }
+        if (!result || result.kind !== "applied") {
+          jsonResponse(response, 503, {
+            error: "ghostwalk_accepted_intent_unavailable",
+            policyAuthority: false,
+            operationalAuthority: false,
+            actionAuthority: false,
+            executionAuthority: false,
+            effectPerformed: false,
+          });
+          return;
+        }
+
+        jsonResponse(response, 200, result.envelope);
+        return;
+      }
 
       if (
         request.method === "POST" &&
@@ -317,6 +383,54 @@ export function createLocalObservationServer({
           effectPerformed: false,
           status: "ready",
         });
+        return;
+      }
+
+      if (url.pathname === "/api/v1/ghostwalk/accepted-intent") {
+        const keys = [...url.searchParams.keys()];
+        const target = url.searchParams.get("target");
+        if (
+          keys.length !== 1 ||
+          keys[0] !== "target" ||
+          typeof target !== "string" ||
+          !/^[0-9a-f]{64}$/.test(target)
+        ) {
+          jsonResponse(response, 400, {
+            error: "invalid_ghostwalk_accepted_intent_request",
+            policyAuthority: false,
+            operationalAuthority: false,
+            actionAuthority: false,
+            executionAuthority: false,
+            effectPerformed: false,
+          });
+          return;
+        }
+
+        const result = await ghostWalkAcceptedIntentFetcher(target);
+        if (result?.kind === "none") {
+          jsonResponse(response, 404, {
+            error: "ghostwalk_accepted_intent_not_found",
+            policyAuthority: false,
+            operationalAuthority: false,
+            actionAuthority: false,
+            executionAuthority: false,
+            effectPerformed: false,
+          });
+          return;
+        }
+        if (!result || result.kind !== "found") {
+          jsonResponse(response, 503, {
+            error: "ghostwalk_accepted_intent_unavailable",
+            policyAuthority: false,
+            operationalAuthority: false,
+            actionAuthority: false,
+            executionAuthority: false,
+            effectPerformed: false,
+          });
+          return;
+        }
+
+        jsonResponse(response, 200, result.envelope);
         return;
       }
 
