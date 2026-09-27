@@ -266,6 +266,41 @@ class PhiVesselLocalExecutionManifest:
     )
 
     @classmethod
+    def build(
+        cls,
+        *,
+        enabled: bool,
+        desktop_executor_enabled: bool,
+        mappings: tuple[GhostWalkCapabilityMapping, ...],
+        lease_policies: tuple[GhostWalkLeasePolicy, ...],
+        authority_epoch: AuthorityEpoch,
+    ) -> "PhiVesselLocalExecutionManifest":
+        body = {
+            "schema_version": (
+                PHIVESSEL_LOCAL_EXECUTION_MANIFEST_SCHEMA_VERSION
+            ),
+            "enabled": enabled,
+            "desktop_executor_enabled": desktop_executor_enabled,
+            "mappings": [
+                item.to_dict() for item in mappings
+            ],
+            "lease_policies": [
+                item.to_dict() for item in lease_policies
+            ],
+            "authority_epoch": authority_epoch.to_dict(),
+        }
+        item = cls(
+            enabled=enabled,
+            desktop_executor_enabled=desktop_executor_enabled,
+            mappings=mappings,
+            lease_policies=lease_policies,
+            authority_epoch=authority_epoch,
+            manifest_sha256=_canonical_sha256(body),
+        )
+        item._validate_cross_contract()
+        return item
+
+    @classmethod
     def from_dict(
         cls,
         value: object,
@@ -403,7 +438,12 @@ class PhiVesselLocalExecutionManifest:
 
     def to_dict(self) -> dict[str, object]:
         payload = self.body_dict()
-        payload["manifest_sha256"] = _canonical_sha256(payload)
+        actual = _canonical_sha256(payload)
+        if actual != self.manifest_sha256:
+            raise PhiVesselLocalExecutionError(
+                "manifest identity differs from canonical body"
+            )
+        payload["manifest_sha256"] = self.manifest_sha256
         return payload
 
     @property
