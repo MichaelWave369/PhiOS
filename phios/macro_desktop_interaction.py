@@ -1107,7 +1107,7 @@ def install_desktop_click_capability(
             "Perform one revalidated bounded desktop left-click."
         ),
         permissions=("ui.interact",),
-        effects=("display.control",),
+        effects=("display.control", "filesystem.change"),
         risk="high",
         version=DESKTOP_CLICK_CAPABILITY_VERSION,
     )
@@ -1115,7 +1115,7 @@ def install_desktop_click_capability(
     spine.executors.register(
         capability.id,
         executor.execute,
-        effects=("display.control",),
+        effects=("display.control", "filesystem.change"),
     )
     return capability
 
