@@ -424,29 +424,29 @@ class GhostWalkUiaStateObserver:
 
         expected_pid = _parse_pid(frame.process_id)
         scoped: list[UiaElementSnapshot] = []
-        for snapshot in scan.snapshots:
-            if snapshot.process_id != expected_pid:
+        for element_snapshot in scan.snapshots:
+            if element_snapshot.process_id != expected_pid:
                 continue
-            if snapshot.offscreen is True:
+            if element_snapshot.offscreen is True:
                 continue
             if (
-                snapshot.bounding_left is None
-                or snapshot.bounding_top is None
-                or snapshot.bounding_right is None
-                or snapshot.bounding_bottom is None
+                element_snapshot.bounding_left is None
+                or element_snapshot.bounding_top is None
+                or element_snapshot.bounding_right is None
+                or element_snapshot.bounding_bottom is None
             ):
                 continue
             if not (
-                frame.left_px <= snapshot.bounding_left
-                and frame.top_px <= snapshot.bounding_top
-                and snapshot.bounding_right
+                frame.left_px <= element_snapshot.bounding_left
+                and frame.top_px <= element_snapshot.bounding_top
+                and element_snapshot.bounding_right
                 <= frame.left_px + frame.width_px
-                and snapshot.bounding_bottom
+                and element_snapshot.bounding_bottom
                 <= frame.top_px + frame.height_px
             ):
                 continue
-            scoped.append(snapshot)
-            self._ledger.append_uia_element_snapshot(snapshot)
+            scoped.append(element_snapshot)
+            self._ledger.append_uia_element_snapshot(element_snapshot)
 
         candidate_targets: list[SemanticTarget] = []
         excluded_password_names = 0
@@ -526,7 +526,7 @@ class GhostWalkUiaStateObserver:
                 excluded_password_name_count=excluded_password_names,
             )
 
-        snapshot = GhostWalkUiStateSnapshot(
+        state_snapshot = GhostWalkUiStateSnapshot(
             session_id=session_id,
             action_observation_sha256=action_observation_sha256,
             phase=phase,
@@ -556,13 +556,13 @@ class GhostWalkUiaStateObserver:
                 target.target_sha256
                 for target in unique_targets
             ),
-            snapshot_sha256=snapshot.snapshot_sha256,
-            snapshot=snapshot,
+            snapshot_sha256=state_snapshot.snapshot_sha256,
+            snapshot=state_snapshot,
         )
         self._ledger.append_uia_state_observation_receipt(receipt)
         return UiaStateObservationOutcome(
             receipt=receipt,
-            snapshot=snapshot,
+            snapshot=state_snapshot,
         )
 
     def _held(
