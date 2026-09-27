@@ -34,6 +34,9 @@ if TYPE_CHECKING:
         GhostWalkUiStateSnapshot,
         TransitionInferenceReceipt,
     )
+    from phios.macro_transition_coordinator import (
+        TransitionCoordinatorReceipt,
+    )
     from phios.macro_schedule_service import (
         ScheduleServicePollReceipt,
         ScheduleServiceStateEntry,
@@ -935,6 +938,37 @@ class RealityLedger:
                 "recent UIA state-observer limit must be non-negative"
             )
         path = self.path.parent / "uia-state-observer-receipts.jsonl"
+        if limit == 0 or not path.exists():
+            return []
+        lines = path.read_text(encoding="utf-8").splitlines()
+        return [json.loads(line) for line in lines[-limit:]]
+
+    def append_transition_coordinator_receipt(
+        self,
+        receipt: "TransitionCoordinatorReceipt",
+    ) -> None:
+        """Append one immutable Ghost-Walk transition coordinator receipt."""
+
+        path = self.path.parent / "transition-coordinator-receipts.jsonl"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps(receipt.to_dict(), sort_keys=True) + "\n")
+
+    def recent_transition_coordinator_receipts(
+        self,
+        limit: int = 10,
+    ) -> list[dict[str, object]]:
+        """Return newest Ghost-Walk transition coordinator receipts."""
+
+        if isinstance(limit, bool) or not isinstance(limit, int):
+            raise TypeError(
+                "recent transition coordinator limit must be an integer"
+            )
+        if limit < 0:
+            raise ValueError(
+                "recent transition coordinator limit must be non-negative"
+            )
+        path = self.path.parent / "transition-coordinator-receipts.jsonl"
         if limit == 0 or not path.exists():
             return []
         lines = path.read_text(encoding="utf-8").splitlines()

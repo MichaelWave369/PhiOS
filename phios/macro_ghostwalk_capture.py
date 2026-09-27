@@ -360,6 +360,7 @@ class GhostWalkCaptureReceipt:
 class GhostWalkCaptureOutcome:
     receipt: GhostWalkCaptureReceipt
     observation: GhostWalkObservation | None
+    frame: WindowFrame | None = None
 
 
 class GhostWalkCaptureAdapter:
@@ -481,6 +482,7 @@ class GhostWalkCaptureAdapter:
         return GhostWalkCaptureOutcome(
             receipt=receipt,
             observation=observation,
+            frame=frame,
         )
 
     def _held(
@@ -516,6 +518,7 @@ class GhostWalkCaptureAdapter:
         return GhostWalkCaptureOutcome(
             receipt=receipt,
             observation=None,
+            frame=frame,
         )
 
 
