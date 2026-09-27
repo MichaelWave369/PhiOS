@@ -152,6 +152,25 @@ def _utc_now_iso() -> str:
     return datetime.now(UTC).isoformat().replace("+00:00", "Z")
 
 
+def _same_frame_state(
+    first: WindowFrame,
+    second: WindowFrame,
+) -> bool:
+    return (
+        first.process_id == second.process_id
+        and first.window_title_sha256
+        == second.window_title_sha256
+        and first.left_px == second.left_px
+        and first.top_px == second.top_px
+        and first.width_px == second.width_px
+        and first.height_px == second.height_px
+        and first.display_scale_percent
+        == second.display_scale_percent
+        and first.foreground
+        and second.foreground
+    )
+
+
 def _pixel_anchor_from_dict(payload: Mapping[str, object]) -> PixelAnchor:
     claimed = _require_sha256(
         payload.get("anchor_sha256"),
@@ -707,7 +726,7 @@ class GovernedDesktopClickExecutor:
             )
 
         assert frame_final is not None
-        if frame_final.frame_sha256 != frame_before.frame_sha256:
+        if not _same_frame_state(frame_before, frame_final):
             self._held(
                 request=request,
                 before=before,
