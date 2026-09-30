@@ -73,3 +73,6 @@ echo PHIOS_SESSION_RESTART_OK
 python -c 'import phios, phios.mcp.server, phios.ghostwalk_operator; print("Installed Python runtime:",phios.__version__)'
 phi version
 printf 'PHIOS_BOOT_OK:%s:%s\n' "$(cat /usr/share/phios/source-commit)" "$(tr -d '-' < /proc/sys/kernel/random/boot_id)"
+if [[ -b /dev/vda ]]; then
+    python /usr/local/bin/phios-live-install-smoke.py
+fi

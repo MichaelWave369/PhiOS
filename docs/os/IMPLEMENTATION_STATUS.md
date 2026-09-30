@@ -13,7 +13,7 @@ proof that PhiOS is a completed OS. Preserve the repository AGENTS.md rules.
 | R4: Real non-root graphical login and supervised services | Candidate Wayfire session and user service target | Live/VM qualification pending; no privileged browser or agent auto-start |
 | R5: Produce and UEFI boot exact live ISO | Candidate isolated Archiso/QEMU workflow | Exact ISO/source/hash/serial/screenshot evidence required; no ready claim until observed |
 | R6: Recover durable private state | Candidate locking/sync, transactional outbox and data-only recovery | Contention, interruption, backup/restore and schema refusal tests; installed reboot/power-loss evidence still required |
-| R7: Explicit blank-disk installation | Pending | Disposable VM install, boot without ISO, persistence |
+| R7: Explicit blank-disk installation | Experimental root-owned offline CLI and disposable qualification lane | 20 local refusal/cancellation/identity tests; actual installation, no-ISO boot, data restoration and abrupt virtual restart remain pending |
 | R8: Whole-OS update and recovery | Pending | Signed artifacts, failed update recovery; app rollback is insufficient |
 | R9: Qualify hardware and one Linux governed workflow | Pending | Named hardware matrix and observed effect verification |
 | R10: Sign and publish the exact qualified artifact | Held | Proven preceding gates, hashes, SBOM, signatures, source/license notices and maintainer release decision |
