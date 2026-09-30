@@ -1,11 +1,21 @@
 #!/usr/bin/env bash
 # This fixture is included only when PHIOS_CI_SMOKE=1; it performs no disk writes.
 set -euo pipefail
-trap 'journalctl -b -u greetd --no-pager; runuser -u phios -- env XDG_RUNTIME_DIR=/run/user/1000 journalctl --user -b --no-pager; echo PHIOS_BOOT_FAILED' ERR
+dump_failure() {
+    journalctl -b -u greetd --no-pager
+    runuser -u phios -- env XDG_RUNTIME_DIR=/run/user/1000 journalctl --user -b --no-pager || true
+    cat /home/phios/.local/state/phios/wayfire.log || true
+    echo PHIOS_BOOT_FAILED
+}
+trap dump_failure ERR
 for attempt in {1..420}; do
     if curl -fsS http://127.0.0.1:3969/api/v1/health >/dev/null &&
        pgrep -u phios -x wayfire >/dev/null && pgrep -u phios -x chromium >/dev/null; then
         break
+    fi
+    if (( attempt % 60 == 0 )); then
+        journalctl -b -u greetd --no-pager
+        cat /home/phios/.local/state/phios/wayfire.log || true
     fi
     sleep 1
 done

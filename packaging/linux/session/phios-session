@@ -8,6 +8,7 @@ umask 077
 export XDG_CURRENT_DESKTOP=Wayfire
 export XDG_SESSION_DESKTOP=phios
 export XDG_SESSION_TYPE=wayland
+export WLR_RENDERER_ALLOW_SOFTWARE=1
 export PHIOS_STATE_ROOT="$HOME/.local/state/phios"
 export PHIOS_CURIOSITY_ROOT="$PHIOS_STATE_ROOT/curiosity"
 mkdir -p "$PHIOS_STATE_ROOT"
@@ -15,4 +16,4 @@ systemctl --user import-environment PHIOS_STATE_ROOT PHIOS_CURIOSITY_ROOT XDG_CU
 cleanup() { systemctl --user stop phios-session.target; }
 trap cleanup EXIT HUP INT TERM
 # Autostart starts the user services only after WAYLAND_DISPLAY exists.
-wayfire -c /etc/xdg/phios/wayfire.ini
+wayfire -c /etc/xdg/phios/wayfire.ini >> "$PHIOS_STATE_ROOT/wayfire.log" 2>&1

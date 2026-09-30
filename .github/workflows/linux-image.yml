@@ -45,6 +45,10 @@ jobs:
           set -euo pipefail
           sudo apt-get update
           sudo apt-get install -y qemu-system-x86 ovmf python3-pil
+          if [[ -e /dev/kvm ]]; then
+            sudo chgrp "$(id -gn)" /dev/kvm
+            sudo chmod g+rw /dev/kvm
+          fi
           python3 packaging/linux/tests/qemu_boot.py \
             --iso dist/linux/phios-linux-0.1.0-alpha.1-x86_64.iso \
             --source "$(cat dist/linux/source-commit.txt)" \

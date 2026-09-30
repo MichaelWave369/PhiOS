@@ -132,6 +132,9 @@ file_permissions=(["/usr/local/bin/phios-live-setup"]="0:0:755")
     (root / "etc/systemd/system/default.target").symlink_to("/usr/lib/systemd/system/graphical.target")
     (root / "etc/resolv.conf").symlink_to("/run/systemd/resolve/stub-resolv.conf")
     if smoke:
+        # The qualification fixture owns this console; an interactive getty
+        # must not reset/consume its serial evidence.
+        (root / "etc/systemd/system/serial-getty@ttyS0.service").symlink_to("/dev/null")
         write("usr/local/bin/phios-live-smoke", (repo / "packaging/linux/tests/live-smoke.sh").read_text())
         write("etc/systemd/system/phios-live-smoke.service", "[Unit]\nDescription=CI live-image qualification fixture\n"
               "After=greetd.service\n[Service]\nType=oneshot\nExecStart=/usr/local/bin/phios-live-smoke\n"

@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import re
 import shutil
 import socket
@@ -46,7 +47,11 @@ def boot(iso: Path, source: str, output: Path, *, timeout: int = 600) -> None:
     shutil.copyfile(variables, variables_copy)
     serial = output / "serial.log"
     qmp_path = output / "qmp.sock"
-    command = [qemu, "-machine", "q35,accel=tcg", "-cpu", "max", "-m", "4096", "-smp", "2",
+    accelerated = os.access("/dev/kvm", os.R_OK | os.W_OK)
+    accelerator = "kvm" if accelerated else "tcg"
+    if not accelerated:
+        timeout = max(timeout, 1800)
+    command = [qemu, "-machine", f"q35,accel={accelerator}", "-cpu", "host" if accelerated else "max", "-m", "4096", "-smp", "2",
                "-drive", f"if=pflash,format=raw,readonly=on,file={code}",
                "-drive", f"if=pflash,format=raw,file={variables_copy}",
                "-cdrom", str(iso.resolve()), "-boot", "d", "-nic", "none", "-vga", "none",
@@ -58,6 +63,7 @@ def boot(iso: Path, source: str, output: Path, *, timeout: int = 600) -> None:
             digest.update(block)
     receipt = {"schema_version": "phios.live-boot-evidence.v1", "source_commit": source,
                "iso_sha256": digest.hexdigest(), "command": command,
+               "accelerator": accelerator, "timeout_seconds": timeout,
                "boot_passed": False, "hardware_qualified": False, "release_ready": False}
     with (output / "qemu.log").open("w") as log:
         process = subprocess.Popen(command, stdout=log, stderr=subprocess.STDOUT)

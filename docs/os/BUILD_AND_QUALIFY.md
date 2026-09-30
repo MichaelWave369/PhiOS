@@ -47,7 +47,11 @@ package inventories, complete builder/Archiso logs, license history and SHA256SU
 qualification fixture waits for the non-root compositor and browser, checks the
 built page, native package observation and unified system state, verifies private state permissions,
 and confirms all three approval HTTP routes return 403. QEMU runs with no
-network and no target disk, using x64 UEFI firmware. The exact source marker,
+network and no target disk, using x64 UEFI firmware. The harness uses KVM when
+the runner exposes it and records the selected accelerator; software TCG has
+a longer explicit deadline. Wayfire permits software GLES rendering for this
+virtual display, and its startup log remains in the private state directory.
+The exact source marker,
 ISO hash, VM command, serial log and screen capture are preserved, including a
 display capture on failed qualification when QEMU is still running. This fixture
 is omitted from normal locally built previews.
