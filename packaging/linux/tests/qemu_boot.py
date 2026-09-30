@@ -36,6 +36,19 @@ def capture_display(qmp_path: Path, output: Path, *, name: str = "screen") -> No
         "filename": str((output / f"{name}.ppm").resolve())}})
 
 
+def enter_live_login(qmp_path: Path) -> None:
+    """Exercise greetd/PAM with the documented public volatile credentials."""
+    qmp_request(qmp_path, {"execute": "send-key", "arguments": {
+        "keys": [{"type": "qcode", "data": key} for key in ["ctrl", "alt", "f1"]]}})
+    time.sleep(1)
+    for field in ["phios", "phios"]:
+        for key in [*field, "ret"]:
+            qmp_request(qmp_path, {"execute": "send-key", "arguments": {
+                "keys": [{"type": "qcode", "data": key}], "hold-time": 80}})
+            time.sleep(0.12)
+        time.sleep(1)
+
+
 def boot(iso: Path, source: str, output: Path, *, timeout: int = 600) -> None:
     if re.fullmatch(r"[0-9a-f]{40}", source) is None or not iso.is_file():
         raise ValueError("an existing ISO and exact source commit are required")
@@ -78,10 +91,15 @@ def boot(iso: Path, source: str, output: Path, *, timeout: int = 600) -> None:
             deadline = time.monotonic() + timeout
             marker = f"PHIOS_BOOT_OK:{source}"
             reset_sent = False
+            login_ids_sent: set[str] = set()
             while time.monotonic() < deadline:
                 text = serial.read_text(errors="replace") if serial.exists() else ""
                 if "PHIOS_BOOT_FAILED" in text:
                     raise RuntimeError("live-image qualification fixture failed")
+                for login_id in re.findall(r"PHIOS_LOGIN_REQUIRED:([0-9a-f]{32})", text):
+                    if login_id not in login_ids_sent:
+                        enter_live_login(qmp_path)
+                        login_ids_sent.add(login_id)
                 boot_ids = list(dict.fromkeys(re.findall(re.escape(marker) + r":([0-9a-f]{32})", text)))
                 receipt["boot_ids"] = boot_ids
                 if len(boot_ids) >= 2 and reset_sent:
