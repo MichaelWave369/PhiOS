@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-import json
 import os
 from pathlib import Path
 from typing import TYPE_CHECKING
+
+from phios.state_io import append_jsonl, read_jsonl, sync_directory
 
 from .models import ExecutionReceipt
 
@@ -69,9 +70,7 @@ class RealityLedger:
         self.path = path.expanduser()
 
     def append(self, receipt: ExecutionReceipt) -> None:
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-        with self.path.open("a", encoding="utf-8") as handle:
-            handle.write(json.dumps(receipt.to_dict(), sort_keys=True) + "\n")
+        append_jsonl(self.path, receipt.to_dict())
 
     def recent(self, limit: int = 10) -> list[dict[str, object]]:
         if isinstance(limit, bool) or not isinstance(limit, int):
@@ -80,16 +79,13 @@ class RealityLedger:
             raise ValueError("recent limit must be non-negative")
         if limit == 0 or not self.path.exists():
             return []
-        lines = self.path.read_text(encoding="utf-8").splitlines()
-        return [json.loads(line) for line in lines[-limit:]]
+        return read_jsonl(self.path)[-limit:]
 
     def append_macro_receipt(self, receipt: "MacroSpineReceipt") -> None:
         """Append one immutable macro-to-Spine execution receipt."""
 
         path = self.path.parent / "macro-receipts.jsonl"
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with path.open("a", encoding="utf-8") as handle:
-            handle.write(json.dumps(receipt.to_dict(), sort_keys=True) + "\n")
+        append_jsonl(path, receipt.to_dict())
 
     def recent_macro_receipts(
         self,
@@ -104,8 +100,7 @@ class RealityLedger:
         path = self.path.parent / "macro-receipts.jsonl"
         if limit == 0 or not path.exists():
             return []
-        lines = path.read_text(encoding="utf-8").splitlines()
-        return [json.loads(line) for line in lines[-limit:]]
+        return read_jsonl(path)[-limit:]
 
     def append_macro_dispatch_receipt(
         self,
@@ -114,9 +109,7 @@ class RealityLedger:
         """Append one immutable governed DO dispatch receipt."""
 
         path = self.path.parent / "macro-dispatch-receipts.jsonl"
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with path.open("a", encoding="utf-8") as handle:
-            handle.write(json.dumps(receipt.to_dict(), sort_keys=True) + "\n")
+        append_jsonl(path, receipt.to_dict())
 
     def recent_macro_dispatch_receipts(
         self,
@@ -135,8 +128,7 @@ class RealityLedger:
         path = self.path.parent / "macro-dispatch-receipts.jsonl"
         if limit == 0 or not path.exists():
             return []
-        lines = path.read_text(encoding="utf-8").splitlines()
-        return [json.loads(line) for line in lines[-limit:]]
+        return read_jsonl(path)[-limit:]
 
     def append_macro_run_journal_entry(
         self,
@@ -145,9 +137,7 @@ class RealityLedger:
         """Append one immutable MacroRunState journal entry."""
 
         path = self.path.parent / "macro-run-journal.jsonl"
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with path.open("a", encoding="utf-8") as handle:
-            handle.write(json.dumps(entry.to_dict(), sort_keys=True) + "\n")
+        append_jsonl(path, entry.to_dict())
 
     def macro_run_journal_entries(
         self,
@@ -160,8 +150,8 @@ class RealityLedger:
         if not path.exists():
             return []
         rows = [
-            json.loads(line)
-            for line in path.read_text(encoding="utf-8").splitlines()
+            row
+            for row in read_jsonl(path)
         ]
         if run_id is None:
             return rows
@@ -174,9 +164,7 @@ class RealityLedger:
         """Append evidence for one validated MacroRun reconstruction."""
 
         path = self.path.parent / "macro-run-resume-receipts.jsonl"
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with path.open("a", encoding="utf-8") as handle:
-            handle.write(json.dumps(receipt.to_dict(), sort_keys=True) + "\n")
+        append_jsonl(path, receipt.to_dict())
 
     def recent_macro_run_resume_receipts(
         self,
@@ -195,8 +183,7 @@ class RealityLedger:
         path = self.path.parent / "macro-run-resume-receipts.jsonl"
         if limit == 0 or not path.exists():
             return []
-        lines = path.read_text(encoding="utf-8").splitlines()
-        return [json.loads(line) for line in lines[-limit:]]
+        return read_jsonl(path)[-limit:]
 
     def append_macro_run_start_receipt(
         self,
@@ -205,9 +192,7 @@ class RealityLedger:
         """Append one immutable macro run-start admission receipt."""
 
         path = self.path.parent / "macro-run-start-receipts.jsonl"
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with path.open("a", encoding="utf-8") as handle:
-            handle.write(json.dumps(receipt.to_dict(), sort_keys=True) + "\n")
+        append_jsonl(path, receipt.to_dict())
 
     def recent_macro_run_start_receipts(
         self,
@@ -226,15 +211,14 @@ class RealityLedger:
         path = self.path.parent / "macro-run-start-receipts.jsonl"
         if limit == 0 or not path.exists():
             return []
-        lines = path.read_text(encoding="utf-8").splitlines()
-        return [json.loads(line) for line in lines[-limit:]]
+        return read_jsonl(path)[-limit:]
 
     def claim_macro_start_dedupe(self, dedupe_sha256: str) -> bool:
         """Atomically reserve one trigger/macro admission identity."""
 
         self._validate_sha256(dedupe_sha256, "dedupe_sha256")
         claim_dir = self.path.parent / "macro-start-dedupe-claims"
-        claim_dir.mkdir(parents=True, exist_ok=True)
+        claim_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
         claim_path = claim_dir / f"{dedupe_sha256}.claim"
         try:
             fd = os.open(
@@ -246,6 +230,9 @@ class RealityLedger:
             return False
         with os.fdopen(fd, "w", encoding="utf-8") as handle:
             handle.write(dedupe_sha256 + "\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        sync_directory(claim_dir)
         return True
 
     def release_macro_start_dedupe_claim(self, dedupe_sha256: str) -> None:
@@ -258,13 +245,15 @@ class RealityLedger:
             / f"{dedupe_sha256}.claim"
         )
         claim_path.unlink(missing_ok=True)
+        if claim_path.parent.exists():
+            sync_directory(claim_path.parent)
 
     def claim_macro_run_id(self, run_id_sha256: str) -> bool:
         """Atomically reserve one requested macro run identity."""
 
         self._validate_sha256(run_id_sha256, "run_id_sha256")
         claim_dir = self.path.parent / "macro-run-id-claims"
-        claim_dir.mkdir(parents=True, exist_ok=True)
+        claim_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
         claim_path = claim_dir / f"{run_id_sha256}.claim"
         try:
             fd = os.open(
@@ -276,6 +265,9 @@ class RealityLedger:
             return False
         with os.fdopen(fd, "w", encoding="utf-8") as handle:
             handle.write(run_id_sha256 + "\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        sync_directory(claim_dir)
         return True
 
     def release_macro_run_id_claim(self, run_id_sha256: str) -> None:
@@ -288,6 +280,8 @@ class RealityLedger:
             / f"{run_id_sha256}.claim"
         )
         claim_path.unlink(missing_ok=True)
+        if claim_path.parent.exists():
+            sync_directory(claim_path.parent)
 
     def append_schedule_service_state(
         self,
@@ -296,9 +290,7 @@ class RealityLedger:
         """Append one immutable schedule-service cursor/state entry."""
 
         path = self.path.parent / "schedule-service-state.jsonl"
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with path.open("a", encoding="utf-8") as handle:
-            handle.write(json.dumps(entry.to_dict(), sort_keys=True) + "\n")
+        append_jsonl(path, entry.to_dict())
 
     def schedule_service_state_entries(
         self,
@@ -311,8 +303,8 @@ class RealityLedger:
         if not path.exists():
             return []
         rows = [
-            json.loads(line)
-            for line in path.read_text(encoding="utf-8").splitlines()
+            row
+            for row in read_jsonl(path)
         ]
         if service_id is None:
             return rows
@@ -325,9 +317,7 @@ class RealityLedger:
         """Append one immutable schedule-service poll receipt."""
 
         path = self.path.parent / "schedule-service-poll-receipts.jsonl"
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with path.open("a", encoding="utf-8") as handle:
-            handle.write(json.dumps(receipt.to_dict(), sort_keys=True) + "\n")
+        append_jsonl(path, receipt.to_dict())
 
     def recent_schedule_service_poll_receipts(
         self,
@@ -346,8 +336,7 @@ class RealityLedger:
         path = self.path.parent / "schedule-service-poll-receipts.jsonl"
         if limit == 0 or not path.exists():
             return []
-        lines = path.read_text(encoding="utf-8").splitlines()
-        return [json.loads(line) for line in lines[-limit:]]
+        return read_jsonl(path)[-limit:]
 
     def append_schedule_worker_lease(
         self,
@@ -356,9 +345,7 @@ class RealityLedger:
         """Append one immutable schedule-worker lease snapshot."""
 
         path = self.path.parent / "schedule-worker-leases.jsonl"
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with path.open("a", encoding="utf-8") as handle:
-            handle.write(json.dumps(lease.to_dict(), sort_keys=True) + "\n")
+        append_jsonl(path, lease.to_dict())
 
     def latest_schedule_worker_lease(
         self,
@@ -371,8 +358,7 @@ class RealityLedger:
         if not path.exists():
             return None
         latest: dict[str, object] | None = None
-        for line in path.read_text(encoding="utf-8").splitlines():
-            row = json.loads(line)
+        for row in read_jsonl(path):
             if row.get("service_id") == service_id:
                 latest = row
         return latest
@@ -384,9 +370,7 @@ class RealityLedger:
         """Append one immutable worker ownership lifecycle event."""
 
         path = self.path.parent / "schedule-worker-events.jsonl"
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with path.open("a", encoding="utf-8") as handle:
-            handle.write(json.dumps(event.to_dict(), sort_keys=True) + "\n")
+        append_jsonl(path, event.to_dict())
 
     def schedule_worker_events(
         self,
@@ -399,8 +383,8 @@ class RealityLedger:
         if not path.exists():
             return []
         rows = [
-            json.loads(line)
-            for line in path.read_text(encoding="utf-8").splitlines()
+            row
+            for row in read_jsonl(path)
         ]
         if service_id is None:
             return rows
@@ -413,9 +397,7 @@ class RealityLedger:
         """Append one immutable schedule-worker cycle receipt."""
 
         path = self.path.parent / "schedule-worker-ticks.jsonl"
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with path.open("a", encoding="utf-8") as handle:
-            handle.write(json.dumps(receipt.to_dict(), sort_keys=True) + "\n")
+        append_jsonl(path, receipt.to_dict())
 
     def schedule_worker_tick_receipts(
         self,
@@ -428,8 +410,8 @@ class RealityLedger:
         if not path.exists():
             return []
         rows = [
-            json.loads(line)
-            for line in path.read_text(encoding="utf-8").splitlines()
+            row
+            for row in read_jsonl(path)
         ]
         if service_id is None:
             return rows
@@ -463,11 +445,7 @@ class RealityLedger:
         """Append one immutable operator-log revision."""
 
         path = self.path.parent / "operator-log-revisions.jsonl"
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with path.open("a", encoding="utf-8") as handle:
-            handle.write(
-                json.dumps(revision.to_dict(), sort_keys=True) + "\n"
-            )
+        append_jsonl(path, revision.to_dict())
 
     def operator_log_revisions(
         self,
@@ -480,8 +458,8 @@ class RealityLedger:
         if not path.exists():
             return []
         rows = [
-            json.loads(line)
-            for line in path.read_text(encoding="utf-8").splitlines()
+            row
+            for row in read_jsonl(path)
         ]
         if note_id is None:
             return rows
@@ -497,11 +475,7 @@ class RealityLedger:
             self.path.parent
             / "ghostwalk-accepted-intent-revisions.jsonl"
         )
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with path.open("a", encoding="utf-8") as handle:
-            handle.write(
-                json.dumps(revision.to_dict(), sort_keys=True) + "\n"
-            )
+        append_jsonl(path, revision.to_dict())
 
     def ghostwalk_accepted_intent_revisions(
         self,
@@ -517,8 +491,8 @@ class RealityLedger:
         if not path.exists():
             return []
         rows = [
-            json.loads(line)
-            for line in path.read_text(encoding="utf-8").splitlines()
+            row
+            for row in read_jsonl(path)
         ]
         if target_inference_receipt_sha256 is None:
             return rows
@@ -539,11 +513,7 @@ class RealityLedger:
             self.path.parent
             / "ghostwalk-policy-admission-receipts.jsonl"
         )
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with path.open("a", encoding="utf-8") as handle:
-            handle.write(
-                json.dumps(receipt.to_dict(), sort_keys=True) + "\n"
-            )
+        append_jsonl(path, receipt.to_dict())
 
     def ghostwalk_policy_admission_receipts(
         self,
@@ -559,8 +529,8 @@ class RealityLedger:
         if not path.exists():
             return []
         rows = [
-            json.loads(line)
-            for line in path.read_text(encoding="utf-8").splitlines()
+            row
+            for row in read_jsonl(path)
         ]
         if target_inference_receipt_sha256 is None:
             return rows
@@ -578,11 +548,7 @@ class RealityLedger:
         """Append one immutable Ghost-Walk authority request."""
 
         path = self.path.parent / "ghostwalk-authority-requests.jsonl"
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with path.open("a", encoding="utf-8") as handle:
-            handle.write(
-                json.dumps(request.to_dict(), sort_keys=True) + "\n"
-            )
+        append_jsonl(path, request.to_dict())
 
     def ghostwalk_authority_requests(
         self,
@@ -595,8 +561,8 @@ class RealityLedger:
         if not path.exists():
             return []
         rows = [
-            json.loads(line)
-            for line in path.read_text(encoding="utf-8").splitlines()
+            row
+            for row in read_jsonl(path)
         ]
         if target_inference_receipt_sha256 is None:
             return rows
@@ -614,11 +580,7 @@ class RealityLedger:
         """Append one immutable Ghost-Walk authorization decision."""
 
         path = self.path.parent / "ghostwalk-authorization-decisions.jsonl"
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with path.open("a", encoding="utf-8") as handle:
-            handle.write(
-                json.dumps(decision.to_dict(), sort_keys=True) + "\n"
-            )
+        append_jsonl(path, decision.to_dict())
 
     def ghostwalk_authorization_decisions(
         self,
@@ -631,8 +593,8 @@ class RealityLedger:
         if not path.exists():
             return []
         rows = [
-            json.loads(line)
-            for line in path.read_text(encoding="utf-8").splitlines()
+            row
+            for row in read_jsonl(path)
         ]
         if authority_request_sha256 is None:
             return rows
@@ -650,11 +612,7 @@ class RealityLedger:
         """Append one immutable Ghost-Walk executable binding."""
 
         path = self.path.parent / "ghostwalk-executable-bindings.jsonl"
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with path.open("a", encoding="utf-8") as handle:
-            handle.write(
-                json.dumps(binding.to_dict(), sort_keys=True) + "\n"
-            )
+        append_jsonl(path, binding.to_dict())
 
     def ghostwalk_executable_bindings(
         self,
@@ -668,8 +626,8 @@ class RealityLedger:
         if not path.exists():
             return []
         rows = [
-            json.loads(line)
-            for line in path.read_text(encoding="utf-8").splitlines()
+            row
+            for row in read_jsonl(path)
         ]
         if target_inference_receipt_sha256 is not None:
             rows = [
@@ -694,11 +652,7 @@ class RealityLedger:
         """Append one immutable Ghost-Walk ActionLease custody record."""
 
         path = self.path.parent / "ghostwalk-action-lease-records.jsonl"
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with path.open("a", encoding="utf-8") as handle:
-            handle.write(
-                json.dumps(record.to_dict(), sort_keys=True) + "\n"
-            )
+        append_jsonl(path, record.to_dict())
 
     def ghostwalk_action_lease_records(
         self,
@@ -713,8 +667,8 @@ class RealityLedger:
         if not path.exists():
             return []
         rows = [
-            json.loads(line)
-            for line in path.read_text(encoding="utf-8").splitlines()
+            row
+            for row in read_jsonl(path)
         ]
         if target_inference_receipt_sha256 is not None:
             rows = [
@@ -747,11 +701,7 @@ class RealityLedger:
         """Append one immutable Ghost-Walk leased execution receipt."""
 
         path = self.path.parent / "ghostwalk-lease-execution-receipts.jsonl"
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with path.open("a", encoding="utf-8") as handle:
-            handle.write(
-                json.dumps(receipt.to_dict(), sort_keys=True) + "\n"
-            )
+        append_jsonl(path, receipt.to_dict())
 
     def ghostwalk_lease_execution_receipts(
         self,
@@ -764,8 +714,8 @@ class RealityLedger:
         if not path.exists():
             return []
         rows = [
-            json.loads(line)
-            for line in path.read_text(encoding="utf-8").splitlines()
+            row
+            for row in read_jsonl(path)
         ]
         if action_lease_sha256 is None:
             return rows
@@ -782,11 +732,7 @@ class RealityLedger:
         """Append one zero-authority PhiVessel proposal record."""
 
         path = self.path.parent / "phivessel-proposals.jsonl"
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with path.open("a", encoding="utf-8") as handle:
-            handle.write(
-                json.dumps(proposal.to_dict(), sort_keys=True) + "\n"
-            )
+        append_jsonl(path, proposal.to_dict())
 
     def phivessel_proposals(
         self,
@@ -799,8 +745,8 @@ class RealityLedger:
         if not path.exists():
             return []
         rows = [
-            json.loads(line)
-            for line in path.read_text(encoding="utf-8").splitlines()
+            row
+            for row in read_jsonl(path)
         ]
         if work_id is None:
             return rows
@@ -817,11 +763,7 @@ class RealityLedger:
         """Append one immutable GUI interaction guard receipt."""
 
         path = self.path.parent / "interaction-guard-receipts.jsonl"
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with path.open("a", encoding="utf-8") as handle:
-            handle.write(
-                json.dumps(receipt.to_dict(), sort_keys=True) + "\n"
-            )
+        append_jsonl(path, receipt.to_dict())
 
     def recent_interaction_guard_receipts(
         self,
@@ -840,8 +782,7 @@ class RealityLedger:
         path = self.path.parent / "interaction-guard-receipts.jsonl"
         if limit == 0 or not path.exists():
             return []
-        lines = path.read_text(encoding="utf-8").splitlines()
-        return [json.loads(line) for line in lines[-limit:]]
+        return read_jsonl(path)[-limit:]
 
     def append_ghostwalk_session(
         self,
@@ -850,9 +791,7 @@ class RealityLedger:
         """Append one immutable ghost-walk demonstration session."""
 
         path = self.path.parent / "ghostwalk-sessions.jsonl"
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with path.open("a", encoding="utf-8") as handle:
-            handle.write(json.dumps(session.to_dict(), sort_keys=True) + "\n")
+        append_jsonl(path, session.to_dict())
 
     def ghostwalk_sessions(
         self,
@@ -865,8 +804,8 @@ class RealityLedger:
         if not path.exists():
             return []
         rows = [
-            json.loads(line)
-            for line in path.read_text(encoding="utf-8").splitlines()
+            row
+            for row in read_jsonl(path)
         ]
         if session_id is None:
             return rows
@@ -879,11 +818,7 @@ class RealityLedger:
         """Append one immutable ghost-walk observation."""
 
         path = self.path.parent / "ghostwalk-observations.jsonl"
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with path.open("a", encoding="utf-8") as handle:
-            handle.write(
-                json.dumps(observation.to_dict(), sort_keys=True) + "\n"
-            )
+        append_jsonl(path, observation.to_dict())
 
     def ghostwalk_observations(
         self,
@@ -896,8 +831,8 @@ class RealityLedger:
         if not path.exists():
             return []
         rows = [
-            json.loads(line)
-            for line in path.read_text(encoding="utf-8").splitlines()
+            row
+            for row in read_jsonl(path)
         ]
         if session_id is None:
             return rows
@@ -910,9 +845,7 @@ class RealityLedger:
         """Append one immutable ghost-walk draft compilation receipt."""
 
         path = self.path.parent / "ghostwalk-draft-receipts.jsonl"
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with path.open("a", encoding="utf-8") as handle:
-            handle.write(json.dumps(receipt.to_dict(), sort_keys=True) + "\n")
+        append_jsonl(path, receipt.to_dict())
 
     def recent_ghostwalk_draft_receipts(
         self,
@@ -931,8 +864,7 @@ class RealityLedger:
         path = self.path.parent / "ghostwalk-draft-receipts.jsonl"
         if limit == 0 or not path.exists():
             return []
-        lines = path.read_text(encoding="utf-8").splitlines()
-        return [json.loads(line) for line in lines[-limit:]]
+        return read_jsonl(path)[-limit:]
 
     def append_ghostwalk_capture_receipt(
         self,
@@ -941,9 +873,7 @@ class RealityLedger:
         """Append one immutable ghost-walk OS capture receipt."""
 
         path = self.path.parent / "ghostwalk-capture-receipts.jsonl"
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with path.open("a", encoding="utf-8") as handle:
-            handle.write(json.dumps(receipt.to_dict(), sort_keys=True) + "\n")
+        append_jsonl(path, receipt.to_dict())
 
     def recent_ghostwalk_capture_receipts(
         self,
@@ -962,8 +892,7 @@ class RealityLedger:
         path = self.path.parent / "ghostwalk-capture-receipts.jsonl"
         if limit == 0 or not path.exists():
             return []
-        lines = path.read_text(encoding="utf-8").splitlines()
-        return [json.loads(line) for line in lines[-limit:]]
+        return read_jsonl(path)[-limit:]
 
     def append_ghostwalk_listener_receipt(
         self,
@@ -972,9 +901,7 @@ class RealityLedger:
         """Append one immutable Windows ghost-walk listener receipt."""
 
         path = self.path.parent / "ghostwalk-listener-receipts.jsonl"
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with path.open("a", encoding="utf-8") as handle:
-            handle.write(json.dumps(receipt.to_dict(), sort_keys=True) + "\n")
+        append_jsonl(path, receipt.to_dict())
 
     def ghostwalk_listener_receipts(
         self,
@@ -987,8 +914,8 @@ class RealityLedger:
         if not path.exists():
             return []
         rows = [
-            json.loads(line)
-            for line in path.read_text(encoding="utf-8").splitlines()
+            row
+            for row in read_jsonl(path)
         ]
         if listener_id is None:
             return rows
@@ -1031,9 +958,7 @@ class RealityLedger:
         """Append one immutable privacy-bounded UIA element snapshot."""
 
         path = self.path.parent / "uia-element-snapshots.jsonl"
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with path.open("a", encoding="utf-8") as handle:
-            handle.write(json.dumps(snapshot.to_dict(), sort_keys=True) + "\n")
+        append_jsonl(path, snapshot.to_dict())
 
     def uia_element_snapshots(
         self,
@@ -1046,8 +971,8 @@ class RealityLedger:
         if not path.exists():
             return []
         rows = [
-            json.loads(line)
-            for line in path.read_text(encoding="utf-8").splitlines()
+            row
+            for row in read_jsonl(path)
         ]
         if snapshot_sha256 is None:
             return rows
@@ -1064,9 +989,7 @@ class RealityLedger:
         """Append one immutable Windows UIA semantic lookup receipt."""
 
         path = self.path.parent / "uia-lookup-receipts.jsonl"
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with path.open("a", encoding="utf-8") as handle:
-            handle.write(json.dumps(receipt.to_dict(), sort_keys=True) + "\n")
+        append_jsonl(path, receipt.to_dict())
 
     def recent_uia_lookup_receipts(
         self,
@@ -1085,8 +1008,7 @@ class RealityLedger:
         path = self.path.parent / "uia-lookup-receipts.jsonl"
         if limit == 0 or not path.exists():
             return []
-        lines = path.read_text(encoding="utf-8").splitlines()
-        return [json.loads(line) for line in lines[-limit:]]
+        return read_jsonl(path)[-limit:]
 
     def append_semantic_revalidation_receipt(
         self,
@@ -1095,9 +1017,7 @@ class RealityLedger:
         """Append one immutable semantic selector replay receipt."""
 
         path = self.path.parent / "semantic-revalidation-receipts.jsonl"
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with path.open("a", encoding="utf-8") as handle:
-            handle.write(json.dumps(receipt.to_dict(), sort_keys=True) + "\n")
+        append_jsonl(path, receipt.to_dict())
 
     def recent_semantic_revalidation_receipts(
         self,
@@ -1116,8 +1036,7 @@ class RealityLedger:
         path = self.path.parent / "semantic-revalidation-receipts.jsonl"
         if limit == 0 or not path.exists():
             return []
-        lines = path.read_text(encoding="utf-8").splitlines()
-        return [json.loads(line) for line in lines[-limit:]]
+        return read_jsonl(path)[-limit:]
 
     def append_desktop_interaction_receipt(
         self,
@@ -1126,9 +1045,7 @@ class RealityLedger:
         """Append one immutable governed desktop interaction receipt."""
 
         path = self.path.parent / "desktop-interaction-receipts.jsonl"
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with path.open("a", encoding="utf-8") as handle:
-            handle.write(json.dumps(receipt.to_dict(), sort_keys=True) + "\n")
+        append_jsonl(path, receipt.to_dict())
 
     def recent_desktop_interaction_receipts(
         self,
@@ -1147,8 +1064,7 @@ class RealityLedger:
         path = self.path.parent / "desktop-interaction-receipts.jsonl"
         if limit == 0 or not path.exists():
             return []
-        lines = path.read_text(encoding="utf-8").splitlines()
-        return [json.loads(line) for line in lines[-limit:]]
+        return read_jsonl(path)[-limit:]
 
     def append_post_action_verification_receipt(
         self,
@@ -1157,9 +1073,7 @@ class RealityLedger:
         """Append one immutable post-action verification receipt."""
 
         path = self.path.parent / "post-action-verification-receipts.jsonl"
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with path.open("a", encoding="utf-8") as handle:
-            handle.write(json.dumps(receipt.to_dict(), sort_keys=True) + "\n")
+        append_jsonl(path, receipt.to_dict())
 
     def recent_post_action_verification_receipts(
         self,
@@ -1178,8 +1092,7 @@ class RealityLedger:
         path = self.path.parent / "post-action-verification-receipts.jsonl"
         if limit == 0 or not path.exists():
             return []
-        lines = path.read_text(encoding="utf-8").splitlines()
-        return [json.loads(line) for line in lines[-limit:]]
+        return read_jsonl(path)[-limit:]
 
     def append_ghostwalk_state_snapshot(
         self,
@@ -1188,9 +1101,7 @@ class RealityLedger:
         """Append one immutable before/after Ghost-Walk UI state snapshot."""
 
         path = self.path.parent / "ghostwalk-ui-state-snapshots.jsonl"
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with path.open("a", encoding="utf-8") as handle:
-            handle.write(json.dumps(snapshot.to_dict(), sort_keys=True) + "\n")
+        append_jsonl(path, snapshot.to_dict())
 
     def ghostwalk_state_snapshots(
         self,
@@ -1203,8 +1114,8 @@ class RealityLedger:
         if not path.exists():
             return []
         rows = [
-            json.loads(line)
-            for line in path.read_text(encoding="utf-8").splitlines()
+            row
+            for row in read_jsonl(path)
         ]
         if action_observation_sha256 is None:
             return rows
@@ -1222,9 +1133,7 @@ class RealityLedger:
         """Append one immutable Ghost-Walk transition inference receipt."""
 
         path = self.path.parent / "transition-inference-receipts.jsonl"
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with path.open("a", encoding="utf-8") as handle:
-            handle.write(json.dumps(receipt.to_dict(), sort_keys=True) + "\n")
+        append_jsonl(path, receipt.to_dict())
 
     def recent_transition_inference_receipts(
         self,
@@ -1243,8 +1152,7 @@ class RealityLedger:
         path = self.path.parent / "transition-inference-receipts.jsonl"
         if limit == 0 or not path.exists():
             return []
-        lines = path.read_text(encoding="utf-8").splitlines()
-        return [json.loads(line) for line in lines[-limit:]]
+        return read_jsonl(path)[-limit:]
 
     def transition_inference_receipt(
         self,
@@ -1256,8 +1164,7 @@ class RealityLedger:
         path = self.path.parent / "transition-inference-receipts.jsonl"
         if not path.exists():
             return None
-        for line in reversed(path.read_text(encoding="utf-8").splitlines()):
-            row = json.loads(line)
+        for row in reversed(read_jsonl(path)):
             if row.get("receipt_sha256") == receipt_sha256:
                 return row
         return None
@@ -1269,9 +1176,7 @@ class RealityLedger:
         """Append one immutable bounded UIA state-observer receipt."""
 
         path = self.path.parent / "uia-state-observer-receipts.jsonl"
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with path.open("a", encoding="utf-8") as handle:
-            handle.write(json.dumps(receipt.to_dict(), sort_keys=True) + "\n")
+        append_jsonl(path, receipt.to_dict())
 
     def recent_uia_state_observation_receipts(
         self,
@@ -1290,8 +1195,7 @@ class RealityLedger:
         path = self.path.parent / "uia-state-observer-receipts.jsonl"
         if limit == 0 or not path.exists():
             return []
-        lines = path.read_text(encoding="utf-8").splitlines()
-        return [json.loads(line) for line in lines[-limit:]]
+        return read_jsonl(path)[-limit:]
 
     def append_transition_coordinator_receipt(
         self,
@@ -1300,9 +1204,7 @@ class RealityLedger:
         """Append one immutable Ghost-Walk transition coordinator receipt."""
 
         path = self.path.parent / "transition-coordinator-receipts.jsonl"
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with path.open("a", encoding="utf-8") as handle:
-            handle.write(json.dumps(receipt.to_dict(), sort_keys=True) + "\n")
+        append_jsonl(path, receipt.to_dict())
 
     def recent_transition_coordinator_receipts(
         self,
@@ -1321,8 +1223,7 @@ class RealityLedger:
         path = self.path.parent / "transition-coordinator-receipts.jsonl"
         if limit == 0 or not path.exists():
             return []
-        lines = path.read_text(encoding="utf-8").splitlines()
-        return [json.loads(line) for line in lines[-limit:]]
+        return read_jsonl(path)[-limit:]
 
     def append_baseline_refresh_receipt(
         self,
@@ -1331,9 +1232,7 @@ class RealityLedger:
         """Append one immutable Ghost-Walk baseline refresh receipt."""
 
         path = self.path.parent / "baseline-refresh-receipts.jsonl"
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with path.open("a", encoding="utf-8") as handle:
-            handle.write(json.dumps(receipt.to_dict(), sort_keys=True) + "\n")
+        append_jsonl(path, receipt.to_dict())
 
     def baseline_refresh_receipts(
         self,
@@ -1346,8 +1245,8 @@ class RealityLedger:
         if not path.exists():
             return []
         rows = [
-            json.loads(line)
-            for line in path.read_text(encoding="utf-8").splitlines()
+            row
+            for row in read_jsonl(path)
         ]
         if service_id is None:
             return rows
@@ -1413,9 +1312,7 @@ class RealityLedger:
         """Append one immutable Ghost-Walk host lifecycle receipt."""
 
         path = self.path.parent / "ghostwalk-host-receipts.jsonl"
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with path.open("a", encoding="utf-8") as handle:
-            handle.write(json.dumps(receipt.to_dict(), sort_keys=True) + "\n")
+        append_jsonl(path, receipt.to_dict())
 
     def ghostwalk_host_receipts(
         self,
@@ -1428,8 +1325,8 @@ class RealityLedger:
         if not path.exists():
             return []
         rows = [
-            json.loads(line)
-            for line in path.read_text(encoding="utf-8").splitlines()
+            row
+            for row in read_jsonl(path)
         ]
         if host_id is None:
             return rows
@@ -1495,9 +1392,7 @@ class RealityLedger:
         """Append one immutable Ghost-Walk control-surface receipt."""
 
         path = self.path.parent / "ghostwalk-control-receipts.jsonl"
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with path.open("a", encoding="utf-8") as handle:
-            handle.write(json.dumps(receipt.to_dict(), sort_keys=True) + "\n")
+        append_jsonl(path, receipt.to_dict())
 
     def ghostwalk_control_receipts(
         self,
@@ -1510,8 +1405,8 @@ class RealityLedger:
         if not path.exists():
             return []
         rows = [
-            json.loads(line)
-            for line in path.read_text(encoding="utf-8").splitlines()
+            row
+            for row in read_jsonl(path)
         ]
         if surface_id is None:
             return rows
@@ -1581,9 +1476,7 @@ class RealityLedger:
         """Append one immutable reconciliation receipt beside execution history."""
 
         path = self.path.parent / "execution-reconciliations.jsonl"
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with path.open("a", encoding="utf-8") as handle:
-            handle.write(json.dumps(receipt.to_dict(), sort_keys=True) + "\n")
+        append_jsonl(path, receipt.to_dict())
 
     def recent_reconciliations(
         self,
@@ -1598,15 +1491,14 @@ class RealityLedger:
         path = self.path.parent / "execution-reconciliations.jsonl"
         if limit == 0 or not path.exists():
             return []
-        lines = path.read_text(encoding="utf-8").splitlines()
-        return [json.loads(line) for line in lines[-limit:]]
+        return read_jsonl(path)[-limit:]
 
     def claim_binding(self, binding_sha256: str) -> bool:
         """Atomically reserve one governed binding for an execution attempt."""
 
         self._validate_binding_sha256(binding_sha256)
         claim_dir = self.path.parent / "binding-claims"
-        claim_dir.mkdir(parents=True, exist_ok=True)
+        claim_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
         claim_path = claim_dir / f"{binding_sha256}.claim"
         try:
             fd = os.open(
@@ -1618,6 +1510,9 @@ class RealityLedger:
             return False
         with os.fdopen(fd, "w", encoding="utf-8") as handle:
             handle.write(binding_sha256 + "\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        sync_directory(claim_dir)
         return True
 
     def release_binding_claim(self, binding_sha256: str) -> None:
@@ -1630,14 +1525,15 @@ class RealityLedger:
             / f"{binding_sha256}.claim"
         )
         claim_path.unlink(missing_ok=True)
+        if claim_path.parent.exists():
+            sync_directory(claim_path.parent)
 
     def has_consumed_binding(self, binding_sha256: str) -> bool:
         """Return true once a bound action reached an allowed executor attempt."""
 
         if not self.path.exists():
             return False
-        for line in self.path.read_text(encoding="utf-8").splitlines():
-            entry = json.loads(line)
+        for entry in read_jsonl(self.path):
             provenance = entry.get("governed_provenance")
             if not isinstance(provenance, dict):
                 continue
@@ -1654,7 +1550,7 @@ class RealityLedger:
 
         self._validate_sha256(lease_sha256, "lease_sha256")
         claim_dir = self.path.parent / "action-lease-claims"
-        claim_dir.mkdir(parents=True, exist_ok=True)
+        claim_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
         claim_path = claim_dir / f"{lease_sha256}.claim"
         try:
             fd = os.open(
@@ -1666,6 +1562,9 @@ class RealityLedger:
             return False
         with os.fdopen(fd, "w", encoding="utf-8") as handle:
             handle.write(lease_sha256 + "\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        sync_directory(claim_dir)
         return True
 
     def release_action_lease_claim(self, lease_sha256: str) -> None:
@@ -1678,6 +1577,8 @@ class RealityLedger:
             / f"{lease_sha256}.claim"
         )
         claim_path.unlink(missing_ok=True)
+        if claim_path.parent.exists():
+            sync_directory(claim_path.parent)
 
     def has_consumed_action_lease(self, lease_sha256: str) -> bool:
         """Return true once an ActionLease reached an allowed executor attempt."""
@@ -1685,8 +1586,7 @@ class RealityLedger:
         self._validate_sha256(lease_sha256, "lease_sha256")
         if not self.path.exists():
             return False
-        for line in self.path.read_text(encoding="utf-8").splitlines():
-            entry = json.loads(line)
+        for entry in read_jsonl(self.path):
             provenance = entry.get("governed_provenance")
             if not isinstance(provenance, dict):
                 continue

@@ -62,6 +62,7 @@ from phios.soma import (
     SomaPerceptionService,
     TesseractOcrProvider,
 )
+from phios.state_paths import configured_state_root
 
 from .api_keys import ApiKeyBoundary
 from .collaborator import PhiVesselAdapter
@@ -94,7 +95,7 @@ class PhiOSSpine:
         allowed_permissions: Iterable[str] = (),
         task_id: str | None = None,
     ) -> None:
-        self.state_root = (state_root or Path.home() / ".phios" / "spine-v0.1").expanduser()
+        self.state_root = (state_root or configured_state_root() / "spine-v0.1").expanduser()
         allowed = tuple(dict.fromkeys(allowed_permissions))
         self.registry = CapabilityRegistry()
         self.api_keys = ApiKeyBoundary()
