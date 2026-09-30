@@ -18,8 +18,7 @@ class MemoryReceiptPublisher:
         published = 0
         for payload in self.store.pending_receipts():
             receipt = _receipt_from_payload(payload)
-            if not self.ledger.has_receipt(receipt.receipt_id):
-                self.ledger.append(receipt)
+            self.ledger.append_if_absent(receipt)
             self.store.mark_receipt_published(receipt.operation_id)
             published += 1
         return published

@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from phios.mandala import OriginKind
+from phios.state_paths import configured_state_root, memory_config_path
 
 from .config import MemoryRuntimeConfig, write_disabled_template
 from .legacy import plan_legacy_agent_memory_import
@@ -15,8 +16,8 @@ from .models import MemoryRecord
 from .operator import MemoryOperatorRuntime
 from .system_history import SystemHistoryPersistenceBridge
 
-DEFAULT_CONFIG = Path.home() / ".phios" / "memory" / "config.json"
-DEFAULT_STATE_ROOT = Path.home() / ".phios" / "memory"
+DEFAULT_CONFIG = memory_config_path()
+DEFAULT_STATE_ROOT = configured_state_root() / "memory"
 
 
 def build_parser() -> argparse.ArgumentParser:
