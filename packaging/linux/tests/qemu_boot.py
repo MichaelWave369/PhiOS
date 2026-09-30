@@ -11,17 +11,16 @@ import socket
 import subprocess
 import time
 from pathlib import Path
+from typing import Any
 
 
-def capture_display(qmp_path: Path, output: Path) -> None:
+def qmp_request(qmp_path: Path, request: dict[str, Any]) -> None:
     with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as client:
         client.settimeout(15)
         client.connect(str(qmp_path))
         stream = client.makefile("rwb")
         json.loads(stream.readline())
-        for request in [{"execute": "qmp_capabilities"},
-                        {"execute": "screendump", "arguments": {
-                            "filename": str((output / "screen.ppm").resolve())}}]:
+        for request in [{"execute": "qmp_capabilities"}, request]:
             stream.write(json.dumps(request).encode() + b"\n")
             stream.flush()
             while True:
@@ -32,9 +31,16 @@ def capture_display(qmp_path: Path, output: Path) -> None:
                     break
 
 
+def capture_display(qmp_path: Path, output: Path, *, name: str = "screen") -> None:
+    qmp_request(qmp_path, {"execute": "screendump", "arguments": {
+        "filename": str((output / f"{name}.ppm").resolve())}})
+
+
 def boot(iso: Path, source: str, output: Path, *, timeout: int = 600) -> None:
     if re.fullmatch(r"[0-9a-f]{40}", source) is None or not iso.is_file():
         raise ValueError("an existing ISO and exact source commit are required")
+    if output.exists() and any(output.iterdir()):
+        raise ValueError("boot evidence destination must be fresh")
     output.mkdir(parents=True, exist_ok=True)
     code = Path("/usr/share/OVMF/OVMF_CODE_4M.fd")
     variables = Path("/usr/share/OVMF/OVMF_VARS_4M.fd")
@@ -64,18 +70,27 @@ def boot(iso: Path, source: str, output: Path, *, timeout: int = 600) -> None:
     receipt = {"schema_version": "phios.live-boot-evidence.v1", "source_commit": source,
                "iso_sha256": digest.hexdigest(), "command": command,
                "accelerator": accelerator, "timeout_seconds": timeout,
-               "boot_passed": False, "hardware_qualified": False, "release_ready": False}
+               "boot_passed": False, "reboot_passed": False, "boot_ids": [],
+               "hardware_qualified": False, "release_ready": False}
     with (output / "qemu.log").open("w") as log:
         process = subprocess.Popen(command, stdout=log, stderr=subprocess.STDOUT)
         try:
             deadline = time.monotonic() + timeout
             marker = f"PHIOS_BOOT_OK:{source}"
+            reset_sent = False
             while time.monotonic() < deadline:
                 text = serial.read_text(errors="replace") if serial.exists() else ""
                 if "PHIOS_BOOT_FAILED" in text:
                     raise RuntimeError("live-image qualification fixture failed")
-                if marker in text:
+                boot_ids = list(dict.fromkeys(re.findall(re.escape(marker) + r":([0-9a-f]{32})", text)))
+                receipt["boot_ids"] = boot_ids
+                if len(boot_ids) >= 2 and reset_sent:
                     break
+                if boot_ids and not reset_sent:
+                    capture_display(qmp_path, output, name="screen-first")
+                    qmp_request(qmp_path, {"execute": "system_reset"})
+                    reset_sent = True
+                    deadline = time.monotonic() + timeout
                 if process.poll() is not None:
                     raise RuntimeError(f"QEMU exited before qualification (exit {process.returncode})")
                 time.sleep(1)
@@ -83,7 +98,8 @@ def boot(iso: Path, source: str, output: Path, *, timeout: int = 600) -> None:
                 raise RuntimeError("UEFI boot/session qualification timed out")
             capture_display(qmp_path, output)
             receipt["boot_passed"] = True
-            print(f"UEFI live boot and non-root session passed for ISO {receipt['iso_sha256']}")
+            receipt["reboot_passed"] = True
+            print(f"UEFI boot, session restart and second boot passed for ISO {receipt['iso_sha256']}")
         finally:
             if not (output / "screen.ppm").exists() and process.poll() is None:
                 try:

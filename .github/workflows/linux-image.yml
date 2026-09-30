@@ -57,7 +57,7 @@ jobs:
         if: always()
         run: |
           if [[ -f "$RUNNER_TEMP/phios-boot/screen.ppm" ]]; then
-            /usr/bin/python3 -c 'from PIL import Image; import os; Image.open(os.environ["RUNNER_TEMP"] + "/phios-boot/screen.ppm").save(os.environ["RUNNER_TEMP"] + "/phios-boot/screen.png")'
+            /usr/bin/python3 -c 'from PIL import Image; from pathlib import Path; import os; [Image.open(p).save(p.with_suffix(".png")) for p in Path(os.environ["RUNNER_TEMP"] + "/phios-boot").glob("*.ppm")]'
           fi
       - name: Preserve candidate and qualification evidence
         if: always()

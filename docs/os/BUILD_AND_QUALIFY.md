@@ -53,7 +53,11 @@ a longer explicit deadline. Wayfire permits software GLES rendering for this
 virtual display, and its startup log remains in the private state directory.
 The exact source marker,
 ISO hash, VM command, serial log and screen capture are preserved, including a
-display capture on failed qualification when QEMU is still running. This fixture
+display capture on failed qualification when QEMU is still running. The fixture
+also kills the observer to verify supervised restart, ends the compositor to
+verify service cleanup, and restarts greetd to prove a fresh graphical login.
+The harness then resets the VM and requires the complete fixture on a second,
+distinct kernel boot ID. Both desktop captures are preserved. This fixture
 is omitted from normal locally built previews.
 
 A fixture pass is evidence for the checks it performs. Review the screenshot

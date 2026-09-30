@@ -35,6 +35,36 @@ for endpoint in decisions bindings leases; do
     test "$status" = 403
 done
 runuser -u phios -- env XDG_RUNTIME_DIR=/run/user/1000 systemctl --user is-active phios-observer.service phios-browser.service phios-curiosity-reader.service
+userctl() { runuser -u phios -- env XDG_RUNTIME_DIR=/run/user/1000 systemctl --user "$@"; }
+old_pid=$(userctl show phios-observer.service --property=MainPID --value)
+userctl kill --signal=KILL phios-observer.service
+for attempt in {1..60}; do
+    new_pid=$(userctl show phios-observer.service --property=MainPID --value)
+    if [[ $new_pid != 0 && $new_pid != "$old_pid" ]] && curl -fsS http://127.0.0.1:3969/api/v1/health >/dev/null; then
+        break
+    fi
+    sleep 1
+done
+test "$new_pid" != "$old_pid"
+curl -fsS http://127.0.0.1:3969/api/v1/health >/dev/null
+# A compositor exit must stop every PartOf session service. Restarting greetd
+# opens a fresh configured live login; no terminal workaround launches the UI.
+pkill -TERM -u phios -x wayfire
+for attempt in {1..30}; do
+    if ! userctl is-active --quiet phios-session.target; then break; fi
+    sleep 1
+done
+! userctl is-active --quiet phios-session.target
+! curl -fsS http://127.0.0.1:3969/api/v1/health >/dev/null
+systemctl restart greetd
+for attempt in {1..90}; do
+    if curl -fsS http://127.0.0.1:3969/api/v1/health >/dev/null &&
+       pgrep -u phios -x wayfire >/dev/null && pgrep -u phios -x chromium >/dev/null; then break; fi
+    sleep 1
+done
+userctl is-active phios-observer.service phios-browser.service phios-curiosity-reader.service
+curl -fsS http://127.0.0.1:3969/api/v1/health >/dev/null
+echo PHIOS_SESSION_RESTART_OK
 python -c 'import phios, phios.mcp.server, phios.ghostwalk_operator; print("Installed Python runtime:",phios.__version__)'
 phi version
-printf 'PHIOS_BOOT_OK:%s\n' "$(cat /usr/share/phios/source-commit)"
+printf 'PHIOS_BOOT_OK:%s:%s\n' "$(cat /usr/share/phios/source-commit)" "$(tr -d '-' < /proc/sys/kernel/random/boot_id)"

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useReducer, useRef, useState } from "react";
+import packageMetadata from "../package.json";
 import { HostObservationPanel } from "./components/HostObservationPanel";
 import { GhostWalkControlPanel } from "./components/GhostWalkControlPanel";
 import { GhostWalkVesselContextCard } from "./components/GhostWalkVesselContextCard";
@@ -230,13 +231,13 @@ function Home() {
       </section>
 
       <section className="panel status">
-        <div className="panel-title">SYSTEM STATUS</div>
+        <div className="panel-title">CAPABILITY OBSERVATIONS</div>
         {[
-          ["PhiVessel", "Online"],
-          ["Models", "Ready"],
-          ["Memory", "Nominal"],
-          ["SOMA", "Active"],
-          ["Ledger", "Recording"],
+          ["PhiVessel", "Advisory"],
+          ["Models", "Not observed"],
+          ["Memory", "Not observed"],
+          ["SOMA", "Not observed"],
+          ["Ledger", "Read only"],
           ["Linux Effects", "Blocked"],
         ].map(([a, b]) => (
           <div className="status-row" key={a}>
@@ -247,7 +248,7 @@ function Home() {
       </section>
 
       <section className="panel recent">
-        <div className="panel-title">RECENT PROJECTS</div>
+        <div className="panel-title">EXAMPLE PROJECTS</div>
         {projects.map(([name, type, when]) => (
           <div className="project" key={name}>
             <div className="project-dot" />
@@ -593,7 +594,7 @@ function PhiVessel() {
       </div>
       <div className="vessel-body">
         <small className="mode-label">{mode.toUpperCase()} MODE · ADVISORY</small>
-        <h2>Governed runtime context online.</h2>
+        <h2>Runtime context · advisory.</h2>
         <p>PhiVessel can read a stripped Ghost Walk explanation projection without receiving its lifecycle controls or execution primitives.</p>
         <p className="muted">
           The intelligence layer may propose an action. Proposal is still not authority.
@@ -855,7 +856,7 @@ export function PhiShell() {
       <main className="field">
         <div className="field-title">
           <span>{title}</span>
-          <small>PhiShell v0.13 · canonical history comparison · execution authority false</small>
+          <small>PhiShell v{packageMetadata.version} · canonical history comparison · execution authority false</small>
         </div>
         <Center view={state.view} />
         <DesktopLayer windows={state.windows} dispatch={dispatch} />
