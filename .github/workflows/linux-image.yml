@@ -49,7 +49,12 @@ jobs:
             --iso dist/linux/phios-linux-0.1.0-alpha.1-x86_64.iso \
             --source "$(cat dist/linux/source-commit.txt)" \
             --output "$RUNNER_TEMP/phios-boot"
-          /usr/bin/python3 -c 'from PIL import Image; import os; Image.open(os.environ["RUNNER_TEMP"] + "/phios-boot/screen.ppm").save(os.environ["RUNNER_TEMP"] + "/phios-boot/screen.png")'
+      - name: Convert display evidence even when qualification fails
+        if: always()
+        run: |
+          if [[ -f "$RUNNER_TEMP/phios-boot/screen.ppm" ]]; then
+            /usr/bin/python3 -c 'from PIL import Image; import os; Image.open(os.environ["RUNNER_TEMP"] + "/phios-boot/screen.ppm").save(os.environ["RUNNER_TEMP"] + "/phios-boot/screen.png")'
+          fi
       - name: Preserve candidate and qualification evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02

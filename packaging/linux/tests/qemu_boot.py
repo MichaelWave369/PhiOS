@@ -12,6 +12,25 @@ import time
 from pathlib import Path
 
 
+def capture_display(qmp_path: Path, output: Path) -> None:
+    with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as client:
+        client.settimeout(15)
+        client.connect(str(qmp_path))
+        stream = client.makefile("rwb")
+        json.loads(stream.readline())
+        for request in [{"execute": "qmp_capabilities"},
+                        {"execute": "screendump", "arguments": {
+                            "filename": str((output / "screen.ppm").resolve())}}]:
+            stream.write(json.dumps(request).encode() + b"\n")
+            stream.flush()
+            while True:
+                response = json.loads(stream.readline())
+                if "error" in response:
+                    raise RuntimeError(f"QMP evidence capture failed: {response['error']}")
+                if "return" in response:
+                    break
+
+
 def boot(iso: Path, source: str, output: Path, *, timeout: int = 600) -> None:
     if re.fullmatch(r"[0-9a-f]{40}", source) is None or not iso.is_file():
         raise ValueError("an existing ISO and exact source commit are required")
@@ -56,25 +75,15 @@ def boot(iso: Path, source: str, output: Path, *, timeout: int = 600) -> None:
                 time.sleep(1)
             else:
                 raise RuntimeError("UEFI boot/session qualification timed out")
-            with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as client:
-                client.settimeout(15)
-                client.connect(str(qmp_path))
-                stream = client.makefile("rwb")
-                json.loads(stream.readline())
-                for request in [{"execute": "qmp_capabilities"},
-                                {"execute": "screendump", "arguments": {
-                                    "filename": str((output / "screen.ppm").resolve())}}]:
-                    stream.write(json.dumps(request).encode() + b"\n")
-                    stream.flush()
-                    while True:
-                        response = json.loads(stream.readline())
-                        if "error" in response:
-                            raise RuntimeError(f"QMP evidence capture failed: {response['error']}")
-                        if "return" in response:
-                            break
+            capture_display(qmp_path, output)
             receipt["boot_passed"] = True
             print(f"UEFI live boot and non-root session passed for ISO {receipt['iso_sha256']}")
         finally:
+            if not (output / "screen.ppm").exists() and process.poll() is None:
+                try:
+                    capture_display(qmp_path, output)
+                except (OSError, ValueError, RuntimeError) as exc:
+                    receipt["display_capture_error"] = str(exc)
             process.terminate()
             try:
                 process.wait(timeout=15)

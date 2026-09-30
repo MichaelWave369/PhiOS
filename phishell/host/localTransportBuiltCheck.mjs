@@ -126,8 +126,12 @@ try {
   assert.equal(packageEnvelope.readOnly, true);
   assert.equal(packageEnvelope.executionAuthority, false);
   assert.equal(packageEnvelope.effectPerformed, false);
-  assert.equal(packageEnvelope.observation.source, "dpkg-status-file");
-  assert.equal(packageEnvelope.observation.adapter, "debian-dpkg-status");
+  assert.ok(
+    (packageEnvelope.observation.source === "dpkg-status-file" &&
+      packageEnvelope.observation.adapter === "debian-dpkg-status") ||
+    (packageEnvelope.observation.source === "pacman-local-desc" &&
+      packageEnvelope.observation.adapter === "arch-pacman-local"),
+  );
   assert.ok(packageEnvelope.observation.packages.length <= 64);
 
   const deviceObservation = await fetch(`${base}/api/v1/device-observation`);

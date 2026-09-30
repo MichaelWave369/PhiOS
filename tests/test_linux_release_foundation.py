@@ -42,6 +42,9 @@ def test_profile_drops_root_autologin_and_keeps_required_boot_inputs(tmp_path: P
     assert not (destination / "airootfs/etc/systemd/system/getty@tty1.service.d/autologin.conf").exists()
     assert not (destination / "airootfs/usr/local/bin/phios-live-smoke").exists()
     assert "user = \"phios\"" in (destination / "airootfs/etc/greetd/config.toml").read_text()
+    assert (destination / "airootfs/etc/systemd/system/systemd-firstboot.service").readlink() == Path("/dev/null")
+    assert (destination / "airootfs/etc/localtime").readlink() == Path("/usr/share/zoneinfo/UTC")
+    assert (destination / "airootfs/etc/vconsole.conf").read_text() == "KEYMAP=us\n"
     for name, text in inputs.items():
         assert (upstream / name).read_text() == text
     with pytest.raises(ValueError, match="refusing to overwrite"):

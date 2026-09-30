@@ -92,6 +92,13 @@ file_permissions=(["/usr/local/bin/phios-live-setup"]="0:0:755")
     (destination / "efiboot/loader/loader.conf").write_text("default 01-archiso-linux.conf\ntimeout 1\n")
     write("etc/hostname", "phios-live\n")
     write("etc/locale.conf", "LANG=C.UTF-8\n")
+    write("etc/vconsole.conf", "KEYMAP=us\n")
+    (root / "etc/localtime").symlink_to("/usr/share/zoneinfo/UTC")
+    # Releng masks this interactive first-boot wizard. Keep that behavior for
+    # a configured volatile live session rather than blocking graphical.target.
+    firstboot = root / "etc/systemd/system/systemd-firstboot.service"
+    firstboot.parent.mkdir(parents=True, exist_ok=True)
+    firstboot.symlink_to("/dev/null")
     write("etc/sysusers.d/phios-live.conf", 'u phios 1000 "PhiOS Live" /home/phios /bin/bash\n'
           'u phios-agent 1001 "Reserved isolated agent" /var/lib/phios-agent /usr/bin/nologin\n'
           'u phios-greeter - "PhiOS Greeter" /var/lib/phios-greeter /usr/bin/nologin\n')

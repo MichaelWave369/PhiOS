@@ -43,12 +43,13 @@ it is the internal root-container entrypoint and rewrites its builder environmen
 
 The Actions artifact includes the ISO, local packages, source archive/hash,
 source commit, fixed release inputs, builder image identity, builder and image
-package inventories, pacman log, license history and SHA256SUMS. The CI-only
+package inventories, complete builder/Archiso logs, license history and SHA256SUMS. The CI-only
 qualification fixture waits for the non-root compositor and browser, checks the
-built page and native package observation, verifies private state permissions,
+built page, native package observation and unified system state, verifies private state permissions,
 and confirms all three approval HTTP routes return 403. QEMU runs with no
 network and no target disk, using x64 UEFI firmware. The exact source marker,
-ISO hash, VM command, serial log and screen capture are preserved. This fixture
+ISO hash, VM command, serial log and screen capture are preserved, including a
+display capture on failed qualification when QEMU is still running. This fixture
 is omitted from normal locally built previews.
 
 A fixture pass is evidence for the checks it performs. Review the screenshot

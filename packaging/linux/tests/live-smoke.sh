@@ -11,6 +11,7 @@ for attempt in {1..420}; do
 done
 curl -fsS http://127.0.0.1:3969/ | grep -q '<div id="root">'
 curl -fsS http://127.0.0.1:3969/api/v1/package-observation | python -c 'import json,sys; p=json.load(sys.stdin)["observation"]; assert p["adapter"]=="arch-pacman-local" and p["availability"]=="available" and not p["executionAuthority"] and not p["effectPerformed"]'
+curl -fsS http://127.0.0.1:3969/api/v1/system-state | python -c 'import json,sys; r=json.load(sys.stdin)["receipt"]; p=next(c for c in r["components"] if c["id"]=="packages"); assert p["source"]=="pacman-local-desc" and p["availability"]=="available" and r["readOnly"] and not r["executionAuthority"] and not r["effectPerformed"]'
 test "$(id -u phios)" = 1000
 test "$(stat -c %a /home/phios/.local/state/phios)" = 700
 ! id -nG phios | grep -qw wheel
