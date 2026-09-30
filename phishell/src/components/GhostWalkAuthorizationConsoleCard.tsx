@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   ghostWalkAuthorizationConsoleClient,
-  type AuthorizationDecisionKind,
   type GhostWalkAuthorizationConsoleSnapshot,
 } from "../ghostwalk/authorizationConsole";
 
@@ -18,10 +17,6 @@ export function GhostWalkAuthorizationConsoleCard({
 }) {
   const [snapshot, setSnapshot] =
     useState<GhostWalkAuthorizationConsoleSnapshot | null>(null);
-  const [note, setNote] = useState("");
-  const [busy, setBusy] = useState<
-    "DECISION" | "BINDING" | "LEASE" | null
-  >(null);
   const [message, setMessage] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -42,141 +37,6 @@ export function GhostWalkAuthorizationConsoleCard({
   useEffect(() => {
     void load();
   }, [load]);
-
-  const recordDecision = useCallback(
-    async (decision: AuthorizationDecisionKind) => {
-      if (
-        !snapshot?.authorization_readiness.ready ||
-        !snapshot.authorization_readiness.authority_request_sha256
-      ) {
-        return;
-      }
-      setBusy("DECISION");
-      setMessage(null);
-      try {
-        const result =
-          await ghostWalkAuthorizationConsoleClient.recordDecision({
-            targetSha256,
-            expectedAuthorityRequestSha256:
-              snapshot.authorization_readiness.authority_request_sha256,
-            expectedPreviousDecisionSha256:
-              snapshot.authorization_readiness.latest_decision_sha256,
-            decision,
-            decisionNote: note.trim() || null,
-          });
-        if (result.kind === "conflict") {
-          setMessage(
-            "Authorization conflict: the request or decision history " +
-              "changed. Reload before deciding again.",
-          );
-          return;
-        }
-        if (result.kind === "unavailable") {
-          setMessage(
-            "Authorization decision was rejected or could not be validated.",
-          );
-          return;
-        }
-        setSnapshot(result.snapshot);
-        setNote("");
-        setMessage(
-          `${decision} recorded. This decision did not create an ActionLease or execute an effect.`,
-        );
-      } finally {
-        setBusy(null);
-      }
-    },
-    [note, snapshot, targetSha256],
-  );
-
-  const createBinding = useCallback(async () => {
-    const readiness = snapshot?.binding_readiness;
-    if (
-      !readiness?.ready ||
-      !readiness.authorization_decision_sha256 ||
-      !readiness.selected_mapping_sha256
-    ) {
-      return;
-    }
-    setBusy("BINDING");
-    setMessage(null);
-    try {
-      const result =
-        await ghostWalkAuthorizationConsoleClient.createBinding({
-          targetSha256,
-          expectedAuthorizationDecisionSha256:
-            readiness.authorization_decision_sha256,
-          expectedMappingSha256: readiness.selected_mapping_sha256,
-          expectedMappingSetSha256: readiness.mapping_set_sha256,
-        });
-      if (result.kind === "conflict") {
-        setMessage(
-          "Binding conflict: authorization or trusted mapping state changed. Reload first.",
-        );
-        return;
-      }
-      if (result.kind === "unavailable") {
-        setMessage(
-          "Executable binding is unavailable. Trusted local execution " +
-            "configuration may be absent or invalid.",
-        );
-        return;
-      }
-      setSnapshot(result.snapshot);
-      setMessage(
-        "Exact executable binding created. It still carries zero action and execution authority.",
-      );
-    } finally {
-      setBusy(null);
-    }
-  }, [snapshot, targetSha256]);
-
-  const issueLease = useCallback(async () => {
-    const readiness = snapshot?.lease_readiness;
-    if (
-      !readiness?.ready ||
-      !readiness.executable_binding_sha256 ||
-      !readiness.policy_sha256 ||
-      !readiness.enforcement_profile_sha256 ||
-      !readiness.authority_epoch_sha256
-    ) {
-      return;
-    }
-    setBusy("LEASE");
-    setMessage(null);
-    try {
-      const result = await ghostWalkAuthorizationConsoleClient.issueLease({
-        targetSha256,
-        expectedExecutableBindingSha256:
-          readiness.executable_binding_sha256,
-        expectedPolicySha256: readiness.policy_sha256,
-        expectedPolicySetSha256: readiness.policy_set_sha256,
-        expectedEnforcementProfileSha256:
-          readiness.enforcement_profile_sha256,
-        expectedAuthorityEpochSha256:
-          readiness.authority_epoch_sha256,
-      });
-      if (result.kind === "conflict") {
-        setMessage(
-          "Lease conflict: binding, policy, enforcement, or authority state changed. Reload first.",
-        );
-        return;
-      }
-      if (result.kind === "unavailable") {
-        setMessage(
-          "ActionLease issuance is unavailable or failed current authority checks.",
-        );
-        return;
-      }
-      setSnapshot(result.snapshot);
-      setMessage(
-        "Single-use ActionLease issued. The lease carries bounded action " +
-          "authority; this console still cannot execute it.",
-      );
-    } finally {
-      setBusy(null);
-    }
-  }, [snapshot, targetSha256]);
 
   if (!snapshot) {
     return (
@@ -235,39 +95,9 @@ export function GhostWalkAuthorizationConsoleCard({
           </div>
         )}
 
-        {auth.ready && (
-          <>
-            <textarea
-              value={note}
-              maxLength={2048}
-              disabled={busy !== null}
-              onChange={(event) => setNote(event.target.value)}
-              placeholder="Optional human decision note"
-            />
-            <div className="ghostwalk-auth-actions">
-              <button
-                disabled={busy !== null}
-                onClick={() => void recordDecision("APPROVE")}
-              >
-                APPROVE
-              </button>
-              <button
-                className="hold"
-                disabled={busy !== null}
-                onClick={() => void recordDecision("HOLD")}
-              >
-                HOLD
-              </button>
-              <button
-                className="deny"
-                disabled={busy !== null}
-                onClick={() => void recordDecision("DENY")}
-              >
-                DENY
-              </button>
-            </div>
-          </>
-        )}
+        <p>Review and decide in your local operator terminal:</p>
+        <code>phi-operator --target {targetSha256} decide APPROVE</code>
+        <p>The terminal also supports HOLD and DENY. HTTP cannot record a decision.</p>
       </div>
 
       <div className="ghostwalk-auth-stage">
@@ -298,15 +128,7 @@ export function GhostWalkAuthorizationConsoleCard({
           </div>
         )}
 
-        {binding?.ready && !snapshot.binding && (
-          <button
-            className="ghostwalk-auth-primary"
-            disabled={busy !== null}
-            onClick={() => void createBinding()}
-          >
-            CREATE EXACT BINDING
-          </button>
-        )}
+        <code>phi-operator --target {targetSha256} bind</code>
       </div>
 
       <div className="ghostwalk-auth-stage lease">
@@ -359,20 +181,14 @@ export function GhostWalkAuthorizationConsoleCard({
           </div>
         )}
 
-        {lease?.ready && !snapshot.lease && (
-          <button
-            className="ghostwalk-auth-primary lease"
-            disabled={busy !== null}
-            onClick={() => void issueLease()}
-          >
-            ISSUE SINGLE-USE ACTION LEASE
-          </button>
-        )}
+        <code>phi-operator --target {targetSha256} lease</code>
       </div>
 
       {message && (
         <div className="ghostwalk-auth-console-message">{message}</div>
       )}
+
+      <button onClick={() => void load()}>REFRESH OPERATOR STATUS</button>
 
       <div className="ghostwalk-auth-console-boundary">
         HUMAN DECISION != BINDING · BINDING != LEASE · LEASE != EXECUTION ·
