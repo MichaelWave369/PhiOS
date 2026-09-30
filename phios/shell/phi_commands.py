@@ -2212,7 +2212,7 @@ def cmd_version(_: list[str], session: object | None = None) -> str:
             "PhiOS v0.1.0 (compat)",
             "PHI369 Labs / Parallax",
             "Sovereign. Coherent. Local. Free.",
-            "License: GPL-3.0",
+            "License: MIT (PhiOS source; bundled packages retain their own licenses)",
         ]
     )
 

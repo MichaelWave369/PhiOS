@@ -157,7 +157,7 @@ export async function collectPackageObservation({
       if (!Array.isArray(entries) || entries.length > DATABASE_ENTRY_LIMIT) throw new Error("database entry limit exceeded");
       installed = [];
       for (const entry of entries.sort()) {
-        if (typeof entry !== "string" || !/^[a-zA-Z0-9@+_.-]{1,300}$/.test(entry) || [".", ".."].includes(entry)) {
+        if (typeof entry !== "string" || !/^[a-zA-Z0-9@+_.:~-]{1,512}$/.test(entry) || [".", ".."].includes(entry)) {
           throw new Error("invalid database entry");
         }
         const pkg = parsePacmanDescription(await readPacmanText(`${PACMAN_LOCAL_PATH}/${entry}/desc`));

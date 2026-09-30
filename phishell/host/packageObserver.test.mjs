@@ -39,6 +39,19 @@ test("Arch corrupt or changing database never reports a partial inventory as ava
   assert.equal(parsePacmanDescription("x".repeat(8193)), null);
 });
 
+test("Arch epoch versions use colons in the local database directory", async () => {
+  const result = await collectPackageObservation({
+    readText: async () => "ID=arch\n",
+    listPacmanEntries: async () => ["python-setuptools-1:84.0.0-1"],
+    readPacmanText: async path => {
+      assert.equal(path, "/var/lib/pacman/local/python-setuptools-1:84.0.0-1/desc");
+      return "%NAME%\npython-setuptools\n\n%VERSION%\n1:84.0.0-1\n\n%ARCH%\nany\n";
+    },
+  });
+  assert.equal(result.availability, "available");
+  assert.equal(result.packages[0].version, "1:84.0.0-1");
+});
+
 test("dpkg parser keeps installed package identity only", () => {
   const parsed = parseDpkgStatus(`
 Package: alpha
