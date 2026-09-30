@@ -25,5 +25,5 @@ for endpoint in decisions bindings leases; do
 done
 runuser -u phios -- env XDG_RUNTIME_DIR=/run/user/1000 systemctl --user is-active phios-observer.service phios-browser.service phios-curiosity-reader.service
 python -c 'import phios, phios.mcp.server, phios.ghostwalk_operator; print("Installed Python runtime:",phios.__version__)'
-phi --version
+phi version
 printf 'PHIOS_BOOT_OK:%s\n' "$(cat /usr/share/phios/source-commit)"

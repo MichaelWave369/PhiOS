@@ -39,7 +39,7 @@ jobs:
             -w "$GITHUB_WORKSPACE" \
             -e PHIOS_SOURCE_COMMIT="$(git rev-parse HEAD)" \
             -e PHIOS_OUTPUT_DIR=/artifacts -e PHIOS_CI_SMOKE=1 \
-            "$builder_image" bash packaging/linux/build-linux.sh
+            "$builder_image" bash packaging/linux/build-linux.sh 2>&1 | tee dist/linux/build.log
       - name: Qualify the exact ISO in a disposable UEFI VM
         run: |
           set -euo pipefail
@@ -57,6 +57,21 @@ jobs:
           name: phios-linux-development-${{ github.run_id }}
           path: |
             dist/linux/
+            ${{ runner.temp }}/phios-boot/*.log
+            ${{ runner.temp }}/phios-boot/*.json
+            ${{ runner.temp }}/phios-boot/*.png
+          if-no-files-found: warn
+          retention-days: 7
+      - name: Preserve reviewable logs and screenshot separately
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: phios-linux-evidence-${{ github.run_id }}
+          path: |
+            dist/linux/*.json
+            dist/linux/*.txt
+            dist/linux/*.log
+            dist/linux/SHA256SUMS
             ${{ runner.temp }}/phios-boot/*.log
             ${{ runner.temp }}/phios-boot/*.json
             ${{ runner.temp }}/phios-boot/*.png

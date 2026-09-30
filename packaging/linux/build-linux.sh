@@ -37,7 +37,7 @@ for package in phios phishell; do
     cp "$work/$package/"*.pkg.tar.zst "$work/packages/"
     pacman -U --noconfirm "$work/$package/"*.pkg.tar.zst
 done
-(cd /tmp; python -c 'import phios, phios.mcp.server, phios.ghostwalk_operator; assert phios.__file__.startswith("/usr/lib/"); print(phios.__version__)'; phi --version; phi-operator --help)
+(cd /tmp; python -c 'import phios, phios.mcp.server, phios.ghostwalk_operator; assert phios.__file__.startswith("/usr/lib/"); print(phios.__version__)'; phi version; phi-operator --help)
 node "$repo/phishell/host/packageObserver.mjs" --require-native
 repo-add "$work/packages/phios-local.db.tar.gz" "$work/packages/"*.pkg.tar.zst
 smoke_args=()
