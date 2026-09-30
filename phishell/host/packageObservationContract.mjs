@@ -13,8 +13,7 @@ export function validatePackageObservation(o){
   const errors=[];
   if(!exactKeys(o,TOP_LEVEL_KEYS)) return {ok:false,errors:["top-level package fields invalid"]};
   if(o.schemaVersion!=="phios.package-observation.v1") errors.push("schemaVersion");
-  if(o.source!=="dpkg-status-file") errors.push("source");
-  if(o.adapter!=="debian-dpkg-status") errors.push("adapter");
+  if(!((o.source==="dpkg-status-file"&&o.adapter==="debian-dpkg-status")||(o.source==="pacman-local-desc"&&o.adapter==="arch-pacman-local"))) errors.push("source/adapter");
   if(!bounded(o.capturedAt,64)||Number.isNaN(Date.parse(o.capturedAt))) errors.push("capturedAt");
   if(!["available","unavailable"].includes(o.availability)) errors.push("availability");
   if(o.reason!==null&&!["non-linux-host","os-release-unavailable","unsupported-package-database","package-database-unavailable"].includes(o.reason)) errors.push("reason");

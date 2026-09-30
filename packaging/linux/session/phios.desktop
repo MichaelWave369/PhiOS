@@ -1,0 +1,6 @@
+[Desktop Entry]
+Name=PhiOS (Wayfire)
+Comment=PhiShell local observation desktop preview
+Exec=/usr/bin/phios-session
+Type=Application
+DesktopNames=Wayfire;

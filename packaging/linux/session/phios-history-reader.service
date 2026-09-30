@@ -1,0 +1,19 @@
+[Unit]
+Description=PhiOS governed history projection (operator configured)
+PartOf=phios-session.target
+ConditionPathExists=%h/.config/phios/memory.json
+
+[Service]
+ExecStart=/usr/bin/phi-memory --config %h/.config/phios/memory.json --state-root %h/.local/state/phios --allow memory.read serve-system-history
+Restart=on-failure
+RestartSec=5
+UMask=0077
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=read-only
+PrivateTmp=yes
+ReadWritePaths=%h/.local/state/phios
+RestrictAddressFamilies=AF_UNIX AF_INET
+
+[Install]
+WantedBy=phios-session.target

@@ -20,8 +20,10 @@ No API token is needed.
 
 ## 3) Triggering releases
 
-- Automatic: push/merge to `main` (per workflow).
+- Automatic: push a `v*` tag matching the Python package version (per workflow).
 - Manual: use `workflow_dispatch` from Actions tab.
+
+This workflow publishes Python wheels and source distributions, not an OS image. OS candidate tags use the separate `phios-linux-v` prefix and must not trigger PyPI publishing.
 
 The pipeline runs tests, builds packages, publishes to PyPI via OIDC, generates release notes from `CHANGELOG.md`, and creates a GitHub Release.
 

@@ -1,0 +1,26 @@
+# Build only from the local, hashed archive made by build-linux.sh.
+pkgname=phios
+pkgver=1.0.0
+pkgrel=1
+pkgdesc='PhiOS operator shell, verification spine and governed local runtime'
+arch=('any')
+url='https://github.com/MichaelWave369/PhiOS'
+license=('MIT')
+depends=('python' 'python-psutil' 'python-mcp>=1.26' 'python-mcp<2')
+makedepends=('python-build' 'python-installer' 'python-setuptools' 'python-wheel')
+source=('phios-source.tar.gz')
+sha256sums=("${PHIOS_SOURCE_SHA256:?hashed source archive required}")
+
+build() {
+    cd "$srcdir/phios-source"
+    python -m build --wheel --no-isolation
+}
+
+package() {
+    cd "$srcdir/phios-source"
+    python -m installer --destdir="$pkgdir" dist/*.whl
+    install -Dm644 LICENSE "$pkgdir/usr/share/licenses/phios/LICENSE"
+    install -Dm644 LICENSE_HISTORY.md "$pkgdir/usr/share/doc/phios/LICENSE_HISTORY.md"
+    install -Dm644 packaging/linux/release.json "$pkgdir/usr/share/phios/linux-release.json"
+    install -Dm644 PHIOS_SOURCE_COMMIT "$pkgdir/usr/share/phios/source-commit"
+}

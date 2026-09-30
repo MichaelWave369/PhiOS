@@ -11,6 +11,8 @@ platform, memory/ledger system, and constrained agent runtime built around one r
 
 The project is under active development and should be treated as **alpha software**.
 
+The Python package release is separate from the Linux OS effort. The Linux target is an x86_64 UEFI Arch-based Wayfire/PhiShell development preview. Installation, whole-OS recovery, Secure Boot, hardware support and Linux desktop effects are not yet qualified. See [the OS release contract](docs/os/RELEASE_CONTRACT.md) and [implementation status](docs/os/IMPLEMENTATION_STATUS.md).
+
 ## What PhiOS is
 
 PhiOS is designed for systems that can observe, reason, retrieve, plan, and act without

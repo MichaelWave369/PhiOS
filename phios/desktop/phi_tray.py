@@ -50,7 +50,7 @@ class PhiTray:
                     f"Coherence: {float(components.get('A_stability', 0.5)):.3f}",
                     f"Boundary: {1.0 - float(components.get('G_load', 0.5)):.3f}",
                     f"Cadence: {float(components.get('C_variance', 0.5)):.3f}",
-                    "Sovereignty: ON (placeholder)",
+                    "Sovereignty: unverified",
                     "Session: best-effort",
                     f"BrainC: {'Active' if ollama_available() else 'Inactive'}",
                     f"TBRC: {tbrc_info}",
@@ -65,7 +65,7 @@ class PhiTray:
         except Exception:
             return {
                 "text": "φ 0.500",
-                "tooltip": "L(t): unavailable\nSovereignty: ON (placeholder)",
+                "tooltip": "L(t): unavailable\nSovereignty: unverified",
                 "class": "degraded",
                 "percentage": 50,
             }

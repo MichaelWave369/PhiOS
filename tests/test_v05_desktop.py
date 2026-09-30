@@ -44,15 +44,17 @@ def test_color_palette_all_hex_valid():
 
 def test_wayfire_config_contains_phi_keybindings(tmp_path):
     p = Path(WayfireConfigGenerator().generate(str(tmp_path / "wayfire.ini"))).read_text(encoding="utf-8")
-    assert "super_return = phi" in p
-    assert "super_l = phi coherence live" in p
+    assert "binding_terminal = <super> KEY_ENTER" in p
+    assert "command_terminal = foot phi" in p
+    assert "command_coherence = foot phi coherence live" in p
 
 
 def test_wayfire_config_contains_3x3_workspaces(tmp_path):
     p = Path(WayfireConfigGenerator().generate(str(tmp_path / "wayfire.ini"))).read_text(encoding="utf-8")
-    assert "rows = 3" in p
-    assert "columns = 3" in p
-    assert "workspace_9 = 9" in p
+    assert "vheight = 3" in p
+    assert "vwidth = 3" in p
+    assert "[command]" in p
+    assert "waybar wofi" not in p
 
 
 def test_installer_detects_package_manager(monkeypatch):

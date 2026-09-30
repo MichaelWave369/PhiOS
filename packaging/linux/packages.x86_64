@@ -1,0 +1,14 @@
+base
+linux
+linux-firmware
+mkinitcpio
+mkinitcpio-archiso
+systemd
+systemd-sysvcompat
+mesa
+greetd
+greetd-tuigreet
+iwd
+curl
+phios
+phishell

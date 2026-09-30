@@ -3971,18 +3971,22 @@ def _iso_status() -> dict[str, object]:
     dist_dir = Path("dist")
     latest = None
     if dist_dir.exists():
-        isos = sorted(dist_dir.glob("phios-v*-x86_64.iso"))
+        isos = sorted([*dist_dir.glob("phios-v*-x86_64.iso"), *(dist_dir / "linux").glob("phios-linux-*-x86_64.iso")], key=lambda path: path.stat().st_mtime)
         if isos:
             latest = isos[-1]
     if latest is None:
         return {"exists": False, "path": None, "size": None, "sha256": None}
 
-    data = latest.read_bytes()
+    digest = hashlib.sha256()
+    with latest.open("rb") as handle:
+        for block in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(block)
     return {
+        "release_ready": False,
         "exists": True,
         "path": str(latest),
         "size": latest.stat().st_size,
-        "sha256": hashlib.sha256(data).hexdigest(),
+        "sha256": digest.hexdigest(),
     }
 
 
@@ -4146,10 +4150,13 @@ def cmd_build(args: list[str], session: object | None = None) -> str:
         confirmed = len(args) > 1 and args[1] == "--yes"
         if not confirmed:
             return "Refusing to build ISO without explicit confirmation. Re-run: phi build iso --yes"
-        proc = subprocess.run(["bash", "build/build_iso.sh"], capture_output=True, text=True, check=False)
+        script = Path(__file__).resolve().parents[2] / "build" / "build_iso.sh"
+        if not script.is_file():
+            raise RuntimeError("OS image building requires a source checkout with build/build_iso.sh")
+        proc = subprocess.run(["bash", str(script)], capture_output=True, text=True, check=False)
         output = (proc.stdout or "") + (proc.stderr or "")
         if proc.returncode != 0:
-            return f"ISO build failed\n{output}"
+            raise RuntimeError(f"ISO build failed (exit {proc.returncode})\n{output}")
         return f"ISO build completed\n{output}"
     return "Usage: build [iso|status|clean]"
 

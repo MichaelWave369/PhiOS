@@ -1,4 +1,4 @@
-import { readFile } from "node:fs/promises";
+import { readFile, readdir, open } from "node:fs/promises";
 import { pathToFileURL } from "node:url";
 
 const DPKG_STATUS_PATH = "/var/lib/dpkg/status";
@@ -88,128 +88,100 @@ export function parseDpkgStatus(text) {
   return packages;
 }
 
+const PACMAN_LOCAL_PATH = "/var/lib/pacman/local";
+const DATABASE_ENTRY_LIMIT = 20000;
+
+export function parsePacmanDescription(text) {
+  if (typeof text !== "string" || Buffer.byteLength(text) > 8192) return null;
+  const fields = new Map();
+  const lines = text.split("\n");
+  for (let i = 0; i < lines.length; i++) {
+    if (!["%NAME%", "%VERSION%", "%ARCH%"].includes(lines[i])) continue;
+    if (fields.has(lines[i])) return null;
+    fields.set(lines[i], lines[i + 1] ?? "");
+  }
+  const name = fields.get("%NAME%");
+  const version = fields.get("%VERSION%");
+  const architecture = fields.get("%ARCH%");
+  if (!name || !/^[a-z0-9@+_.-]+$/.test(name) || name.length > MAX_NAME ||
+      !version || version.length > MAX_VERSION || /[\x00-\x1f\x7f]/.test(version) ||
+      !architecture || architecture.length > MAX_ARCH || !/^[a-z0-9_]+$/.test(architecture)) return null;
+  // Pacman has no Debian Essential flag. Never infer importance from a name.
+  return { name, version, architecture, essential: false };
+}
+
+async function readBoundedDescription(path) {
+  const file = await open(path, "r");
+  try {
+    const buffer = Buffer.alloc(8193);
+    const { bytesRead } = await file.read(buffer, 0, buffer.length, 0);
+    if (bytesRead > 8192) throw new Error("package description too large");
+    return buffer.subarray(0, bytesRead).toString("utf8");
+  } finally { await file.close(); }
+}
+
 export async function collectPackageObservation({
   readText = async (path) => readFile(path, "utf8"),
+  listPacmanEntries = async () => (await readdir(PACMAN_LOCAL_PATH, { withFileTypes: true }))
+    .filter(entry => entry.isDirectory()).map(entry => entry.name),
+  readPacmanText = readBoundedDescription,
 } = {}) {
-  const capturedAt = new Date().toISOString();
-
-  if (process.platform !== "linux") {
-    return {
-      schemaVersion: "phios.package-observation.v1",
-      source: "dpkg-status-file",
-      capturedAt,
-      availability: "unavailable",
-      reason: "non-linux-host",
-      adapter: "debian-dpkg-status",
-      packageLimit: PACKAGE_LIMIT,
-      readOnly: true,
-      executionAuthority: false,
-      effectPerformed: false,
-      distro: null,
-      totalInstalledPackageCount: 0,
-      packages: [],
-    };
-  }
-
-  let osReleaseText;
-  try {
-    osReleaseText = await readText(OS_RELEASE_PATH);
-  } catch {
-    return {
-      schemaVersion: "phios.package-observation.v1",
-      source: "dpkg-status-file",
-      capturedAt,
-      availability: "unavailable",
-      reason: "os-release-unavailable",
-      adapter: "debian-dpkg-status",
-      packageLimit: PACKAGE_LIMIT,
-      readOnly: true,
-      executionAuthority: false,
-      effectPerformed: false,
-      distro: null,
-      totalInstalledPackageCount: 0,
-      packages: [],
-    };
-  }
-
-  const osRelease = parseOsRelease(osReleaseText);
-  const distro = {
-    id: boundedText(String(osRelease.ID ?? "unknown"), 64) || "unknown",
-    name:
-      boundedText(String(osRelease.PRETTY_NAME ?? osRelease.NAME ?? osRelease.ID ?? "Linux"), 160) ||
-      "Linux",
-  };
-
-  if (!distroSupportsDpkg(osRelease)) {
-    return {
-      schemaVersion: "phios.package-observation.v1",
-      source: "dpkg-status-file",
-      capturedAt,
-      availability: "unavailable",
-      reason: "unsupported-package-database",
-      adapter: "debian-dpkg-status",
-      packageLimit: PACKAGE_LIMIT,
-      readOnly: true,
-      executionAuthority: false,
-      effectPerformed: false,
-      distro,
-      totalInstalledPackageCount: 0,
-      packages: [],
-    };
-  }
-
-  let statusText;
-  try {
-    statusText = await readText(DPKG_STATUS_PATH);
-  } catch {
-    return {
-      schemaVersion: "phios.package-observation.v1",
-      source: "dpkg-status-file",
-      capturedAt,
-      availability: "unavailable",
-      reason: "package-database-unavailable",
-      adapter: "debian-dpkg-status",
-      packageLimit: PACKAGE_LIMIT,
-      readOnly: true,
-      executionAuthority: false,
-      effectPerformed: false,
-      distro,
-      totalInstalledPackageCount: 0,
-      packages: [],
-    };
-  }
-
-  const installed = parseDpkgStatus(statusText).sort(
-    (a, b) =>
-      Number(b.essential) - Number(a.essential) ||
-      a.name.localeCompare(b.name) ||
-      a.architecture.localeCompare(b.architecture),
-  );
-
-  return {
+  const observation = {
     schemaVersion: "phios.package-observation.v1",
-    source: "dpkg-status-file",
-    capturedAt: new Date().toISOString(),
-    availability: "available",
-    reason: null,
-    adapter: "debian-dpkg-status",
-    packageLimit: PACKAGE_LIMIT,
-    readOnly: true,
-    executionAuthority: false,
-    effectPerformed: false,
-    distro,
-    totalInstalledPackageCount: installed.length,
-    packages: installed.slice(0, PACKAGE_LIMIT),
+    source: "dpkg-status-file", capturedAt: new Date().toISOString(),
+    availability: "unavailable", reason: "non-linux-host", adapter: "debian-dpkg-status",
+    packageLimit: PACKAGE_LIMIT, readOnly: true, executionAuthority: false,
+    effectPerformed: false, distro: null, totalInstalledPackageCount: 0, packages: [],
   };
+  if (process.platform !== "linux") return observation;
+  let osRelease;
+  try { osRelease = parseOsRelease(await readText(OS_RELEASE_PATH)); }
+  catch { return { ...observation, reason: "os-release-unavailable" }; }
+  observation.distro = {
+    id: boundedText(String(osRelease.ID ?? "unknown"), 64) || "unknown",
+    name: boundedText(String(osRelease.PRETTY_NAME ?? osRelease.NAME ?? osRelease.ID ?? "Linux"), 160) || "Linux",
+  };
+  const family = [osRelease.ID, ...String(osRelease.ID_LIKE ?? "").split(/\s+/)];
+  const usePacman = family.includes("arch");
+  if (!usePacman && !distroSupportsDpkg(osRelease)) {
+    return { ...observation, reason: "unsupported-package-database" };
+  }
+  if (usePacman) {
+    observation.source = "pacman-local-desc";
+    observation.adapter = "arch-pacman-local";
+  }
+  let installed;
+  try {
+    if (usePacman) {
+      const entries = await listPacmanEntries();
+      if (!Array.isArray(entries) || entries.length > DATABASE_ENTRY_LIMIT) throw new Error("database entry limit exceeded");
+      installed = [];
+      for (const entry of entries.sort()) {
+        if (typeof entry !== "string" || !/^[a-zA-Z0-9@+_.-]{1,300}$/.test(entry) || [".", ".."].includes(entry)) {
+          throw new Error("invalid database entry");
+        }
+        const pkg = parsePacmanDescription(await readPacmanText(`${PACMAN_LOCAL_PATH}/${entry}/desc`));
+        if (!pkg) throw new Error("invalid package description");
+        installed.push(pkg);
+      }
+    } else {
+      installed = parseDpkgStatus(await readText(DPKG_STATUS_PATH));
+    }
+  } catch { return { ...observation, reason: "package-database-unavailable" }; }
+  installed.sort((a, b) => Number(b.essential) - Number(a.essential) ||
+    a.name.localeCompare(b.name) || a.architecture.localeCompare(b.architecture));
+  return { ...observation, availability: "available", reason: null,
+    capturedAt: new Date().toISOString(), totalInstalledPackageCount: installed.length,
+    packages: installed.slice(0, PACKAGE_LIMIT) };
 }
 
 async function main() {
   const observation = await collectPackageObservation();
 
-  if (process.argv.includes("--require-debian") && observation.availability !== "available") {
+  if ((process.argv.includes("--require-debian") || process.argv.includes("--require-native")) && observation.availability !== "available") {
     throw new Error(`package observation unavailable: ${observation.reason}`);
   }
-  if (process.argv.includes("--check") || process.argv.includes("--require-debian")) {
+  if (process.argv.includes("--check") || process.argv.includes("--require-debian") || process.argv.includes("--require-native")) {
     return;
   }
 

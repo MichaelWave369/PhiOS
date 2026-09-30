@@ -10,7 +10,7 @@ from phios import __version__
 class LaunchArtifactGenerator:
     def _traction_line(self) -> str:
         test_files = sorted(Path("tests").glob("test_v*.py"))
-        return f"{len(test_files)} release generations, full CI-aligned test coverage through {test_files[-1].stem if test_files else 'test_v00'}"
+        return f"{len(test_files)} historical version test files in this checkout. File counts do not prove passing checks or OS readiness."
 
     def generate_distrowatch_submission(self) -> str:
         text = (
@@ -20,30 +20,30 @@ class LaunchArtifactGenerator:
             "Desktop: Wayfire\n"
             "Category: Sovereign Computing Shell\n"
             "Release model: Fixed\n"
-            "License: GPLv3\n"
+            "License: MIT (PhiOS source); bundled OS packages retain their own licenses\n"
             "Homepage: https://enterthefield.org/phios\n"
-            "Download: <operator-add-release-url>\n\n"
+            "Download: OS image qualification pending; no qualified OS download yet\n\n"
             "Description:\n"
             "PhiOS is a local-first sovereign shell operating layer built by PHI369 Labs. "
             "It couples coherence tracking L(t), secure snapshot workflows, optional TBRC/PHB bridges, and a Wayfire desktop path tuned for auditable local operation. "
-            "Version 1.0.0 marks the public declaration release with living specification sealing, founding charter exports, and reproducible launch artifacts. "
+            "The Python package and a future Linux OS image have separate release tracks. The OS is a development preview requiring boot, installation and recovery qualification. "
             "No cloud dependency is required for core operation.\n"
         )
         return text
 
     def generate_announcement_kit(self) -> dict[str, str]:
         x_post = (
-            "PhiOS v1.0 is public. Sovereign. Coherent. Local. Free. "
-            "pip install phios==1.0.0 · https://enterthefield.org/phios · "
+            "PhiOS Python shell is available; Linux OS qualification is in progress. "
+            "pip install phios · https://enterthefield.org/phios · "
             "Hemavit attribution preserved. #PhiOS #Parallax #PHI369"
         )
         extended = (
-            "# PhiOS v1.0 Public Launch\n\n"
-            "Nine versions forged into one declaration. PhiOS now ships with a sealed living specification, "
-            "Parallax founding document exports, and reproducible public launch artifacts for operators.\n"
+            "# PhiOS Development Update\n\n"
+            "PhiOS provides an alpha operator shell, "
+            "Parallax founding document exports, and draft public artifacts for operators. A qualified Linux OS release is pending.\n"
         )
         technical = (
-            "# PhiOS v1.0 Technical Launch Notes\n\n"
+            "# PhiOS Python Package Notes\n\n"
             f"- Version: {__version__}\n"
             "- Living spec seal workflow: phi spec generate --yes\n"
             "- Founding export workflow: phi founding export --yes\n"
