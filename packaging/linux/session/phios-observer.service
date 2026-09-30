@@ -1,0 +1,19 @@
+[Unit]
+Description=PhiShell local observation transport
+PartOf=phios-session.target
+
+[Service]
+ExecStart=/usr/bin/node /usr/lib/phishell/host/localTransport.mjs
+Restart=on-failure
+RestartSec=2
+UMask=0077
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=read-only
+PrivateTmp=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK
+ReadWritePaths=%h/.local/state/phios
+Environment=PHIOS_STATE_ROOT=%h/.local/state/phios
+
+[Install]
+WantedBy=phios-session.target

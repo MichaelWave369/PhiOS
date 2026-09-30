@@ -242,6 +242,39 @@ def test_comparison_derives_bounded_nonpersistent_differences(tmp_path: Path) ->
     assert ledger_after == ledger_before
 
 
+@pytest.mark.parametrize("package_source", ["pacman-local-desc", "unknown-package-source"])
+def test_native_arch_package_history_preserves_source_contract(
+    tmp_path: Path, package_source: str,
+) -> None:
+    runtime = _runtime(tmp_path / "memory")
+    previous = _state("2026-09-23T04:00:00+00:00", digest_char="a", cpu=8, process_count=100)
+    current = _state("2026-09-23T04:05:00+00:00", digest_char="b", cpu=8, process_count=101)
+    components = current["components"]
+    assert isinstance(components, list)
+    components[3]["source"] = package_source
+    current["receiptDigest"] = _body_digest(current, "receiptDigest")
+    persisted = SystemHistoryPersistenceBridge(runtime).persist_transition(
+        previous_state=previous,
+        current_state=current,
+        change_receipt=_change(previous, current, "2026-09-23T04:05:01+00:00"),
+        task_id="native-package-history",
+    )
+    service = SystemHistoryComparisonService(runtime)
+    if package_source == "pacman-local-desc":
+        comparison = service.compare(
+            from_record_id=persisted.state_record_ids[0],
+            to_record_id=persisted.state_record_ids[1],
+        ).to_dict()
+        assert comparison["executionAuthority"] is False
+        assert comparison["effectPerformed"] is False
+    else:
+        with pytest.raises(ValueError, match="component packages source is not canonical"):
+            service.compare(
+                from_record_id=persisted.state_record_ids[0],
+                to_record_id=persisted.state_record_ids[1],
+            )
+
+
 def test_comparison_requires_explicit_compare_read_and_memory_grants(tmp_path: Path) -> None:
     no_compare = _runtime(
         tmp_path / "no-compare",

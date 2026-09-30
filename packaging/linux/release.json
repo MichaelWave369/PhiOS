@@ -1,0 +1,20 @@
+{
+  "schema_version": "phios.linux-release.v1",
+  "os_version": "0.1.0-alpha.1",
+  "stage": "development-preview",
+  "architecture": "x86_64",
+  "firmware": "UEFI x64",
+  "secure_boot": false,
+  "base": "Arch Linux",
+  "arch_snapshot": "2026/09/30",
+  "archiso_version": "91-1",
+  "archiso_source_commit": "723da192226e1c9d5def9168f13332793c82a85e",
+  "desktop": "Wayfire",
+  "interface": "PhiShell",
+  "installer_available": false,
+  "whole_os_rollback_available": false,
+  "linux_desktop_effects_available": false,
+  "ai_required": false,
+  "release_tag_prefix": "phios-linux-v",
+  "builder_image": "archlinux:base@sha256:b21322c663be387c0ed9cbc7bbbfe18e41633ad4e7b7c77cfad45f128be20040"
+}

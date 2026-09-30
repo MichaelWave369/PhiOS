@@ -1,0 +1,9 @@
+{
+  "layer": "top",
+  "position": "top",
+  "modules-left": ["custom/phi-logo"],
+  "modules-center": ["custom/preview"],
+  "modules-right": ["network", "memory", "cpu", "clock"],
+  "custom/phi-logo": {"format": "φ PhiOS"},
+  "custom/preview": {"format": "DEVELOPMENT PREVIEW", "tooltip-format": "Installation, whole-OS recovery and Linux desktop effects are not qualified."}
+}

@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+set -euo pipefail
+systemctl --user import-environment WAYLAND_DISPLAY DISPLAY XDG_CURRENT_DESKTOP
+dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP
+systemctl --user start phios-session.target

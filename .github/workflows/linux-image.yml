@@ -1,0 +1,88 @@
+name: Linux development image
+
+on:
+  pull_request:
+    paths:
+      - 'packaging/**'
+      - 'build/build_iso.sh'
+      - 'phishell/**'
+      - 'phios/**'
+      - 'pyproject.toml'
+      - '.github/workflows/linux-image.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: linux-image-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  live-image:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Build an unsigned development image in isolated Arch Linux
+        run: |
+          set -euo pipefail
+          mkdir -p dist/linux
+          builder_image=$(python3 -c 'import json; print(json.load(open("packaging/linux/release.json"))["builder_image"])')
+          docker pull "$builder_image"
+          docker image inspect "$builder_image" > dist/linux/builder-image.json
+          docker run --rm --privileged \
+            -v "$GITHUB_WORKSPACE:$GITHUB_WORKSPACE:ro" \
+            -v "$GITHUB_WORKSPACE/dist/linux:/artifacts" \
+            -w "$GITHUB_WORKSPACE" \
+            -e PHIOS_SOURCE_COMMIT="$(git rev-parse HEAD)" \
+            -e PHIOS_OUTPUT_DIR=/artifacts -e PHIOS_CI_SMOKE=1 \
+            "$builder_image" bash packaging/linux/build-linux.sh 2>&1 | tee dist/linux/build.log
+      - name: Qualify the exact ISO in a disposable UEFI VM
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y qemu-system-x86 ovmf python3-pil
+          if [[ -e /dev/kvm ]]; then
+            sudo chgrp "$(id -gn)" /dev/kvm
+            sudo chmod g+rw /dev/kvm
+          fi
+          python3 packaging/linux/tests/qemu_boot.py \
+            --iso dist/linux/phios-linux-0.1.0-alpha.1-x86_64.iso \
+            --source "$(cat dist/linux/source-commit.txt)" \
+            --output "$RUNNER_TEMP/phios-boot"
+      - name: Convert display evidence even when qualification fails
+        if: always()
+        run: |
+          if [[ -f "$RUNNER_TEMP/phios-boot/screen.ppm" ]]; then
+            /usr/bin/python3 -c 'from PIL import Image; from pathlib import Path; import os; [Image.open(p).save(p.with_suffix(".png")) for p in Path(os.environ["RUNNER_TEMP"] + "/phios-boot").glob("*.ppm")]'
+          fi
+      - name: Preserve candidate and qualification evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: phios-linux-development-${{ github.run_id }}
+          path: |
+            dist/linux/
+            ${{ runner.temp }}/phios-boot/*.log
+            ${{ runner.temp }}/phios-boot/*.json
+            ${{ runner.temp }}/phios-boot/*.png
+          if-no-files-found: warn
+          retention-days: 7
+      - name: Preserve reviewable logs and screenshot separately
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: phios-linux-evidence-${{ github.run_id }}
+          path: |
+            dist/linux/*.json
+            dist/linux/*.txt
+            dist/linux/*.log
+            dist/linux/SHA256SUMS
+            ${{ runner.temp }}/phios-boot/*.log
+            ${{ runner.temp }}/phios-boot/*.json
+            ${{ runner.temp }}/phios-boot/*.png
+          if-no-files-found: warn
+          retention-days: 7

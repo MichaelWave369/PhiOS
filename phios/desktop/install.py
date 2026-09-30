@@ -34,7 +34,7 @@ class PhiDesktopInstaller:
     def install_packages(self, pkg_manager: str) -> bool:
         if pkg_manager not in PACKAGES:
             return False
-        return True
+        return all(shutil.which(name) for name in ("wayfire", "waybar", "wofi", "foot", "node", "chromium", "phios-open-shell"))
 
     def backup_existing_configs(self) -> list[str]:
         backups: list[str] = []
@@ -68,13 +68,19 @@ class PhiDesktopInstaller:
             "would_write_files": [str(self.wayfire_ini), str(self.waybar_dir / "config.jsonc"), str(self.waybar_dir / "style.css")],
             "backups_made": [],
             "success": True,
+            "dry_run": dry_run,
+            "applied": False,
             "warnings": [],
         }
         if dry_run:
             return report
 
+        if not self.install_packages(pkg):
+            report["success"] = False
+            report["warnings"] = ["Desktop dependencies are missing. Install the phishell Arch package before applying this configuration; no packages were installed."]
+            return report
         backups = self.backup_existing_configs()
         report["backups_made"] = backups
-        self.install_packages(pkg)
         self.apply_phios_config()
+        report["applied"] = True
         return report

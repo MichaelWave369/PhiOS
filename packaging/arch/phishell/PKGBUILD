@@ -1,0 +1,35 @@
+pkgname=phishell
+pkgver=0.16.0
+pkgrel=1
+pkgdesc='PhiShell browser interface and local observation transport'
+arch=('any')
+url='https://github.com/MichaelWave369/PhiOS'
+license=('MIT')
+depends=('nodejs' 'phios' 'wayfire' 'waybar' 'wofi' 'foot' 'chromium' 'ttf-dejavu')
+makedepends=('npm')
+source=('phios-source.tar.gz')
+sha256sums=("${PHIOS_SOURCE_SHA256:?hashed source archive required}")
+
+build() {
+    cd "$srcdir/phios-source/phishell"
+    npm ci --no-audit --no-fund
+    npm run build
+    npm prune --omit=dev --no-audit --no-fund
+}
+
+package() {
+    cd "$srcdir/phios-source"
+    install -dm755 "$pkgdir/usr/lib/phishell"
+    cp -a phishell/dist phishell/host phishell/node_modules phishell/package.json "$pkgdir/usr/lib/phishell/"
+    find "$pkgdir/usr/lib/phishell" -name '*.test.mjs' -delete
+    install -Dm644 LICENSE "$pkgdir/usr/share/licenses/phishell/LICENSE"
+    install -Dm755 packaging/linux/session/phios-session "$pkgdir/usr/bin/phios-session"
+    install -Dm755 packaging/linux/session/phios-open-shell "$pkgdir/usr/bin/phios-open-shell"
+    install -Dm755 packaging/linux/session/phios-session-ready "$pkgdir/usr/lib/phishell/session-ready"
+    install -Dm644 packaging/linux/session/phios.desktop "$pkgdir/usr/share/wayland-sessions/phios.desktop"
+    for unit in packaging/linux/session/*.service packaging/linux/session/*.target; do
+        install -Dm644 "$unit" "$pkgdir/usr/lib/systemd/user/${unit##*/}"
+    done
+    install -Dm644 packaging/linux/session/wayfire.ini "$pkgdir/etc/xdg/phios/wayfire.ini"
+    install -Dm644 packaging/linux/session/waybar.json "$pkgdir/etc/xdg/phios/waybar.json"
+}
