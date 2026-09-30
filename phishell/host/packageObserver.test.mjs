@@ -36,7 +36,8 @@ test("Arch corrupt or changing database never reports a partial inventory as ava
     assert.equal(result.reason, "package-database-unavailable");
     assert.deepEqual(result.packages, []);
   }
-  assert.equal(parsePacmanDescription("x".repeat(8193)), null);
+  assert.equal(parsePacmanDescription("x".repeat(65537)), null);
+  assert.equal(parsePacmanDescription("%NAME%\nlarge\n%VERSION%\n1.0\n%ARCH%\nany\n%DESC%\n" + "x".repeat(31000)).name, "large");
 });
 
 test("Arch epoch versions use colons in the local database directory", async () => {

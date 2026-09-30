@@ -43,7 +43,13 @@ repo-add "$work/packages/phios-local.db.tar.gz" "$work/packages/"*.pkg.tar.zst
 smoke_args=()
 [[ ${PHIOS_CI_SMOKE:-0} == 1 ]] && smoke_args+=(--smoke)
 python "$repo/packaging/linux/prepare_profile.py" --upstream /usr/share/archiso/configs/releng --destination "$work/profile" --repo "$repo" --package-repo "$work/packages" "${smoke_args[@]}"
-mkarchiso -v -w "$work/archiso-work" -o "$output" "$work/profile"
+mkarchiso -v -w "$work/archiso-work" -o "$output" "$work/profile" 2>&1 | tee "$output/mkarchiso.log"
+# Pacman hooks can print an initramfs error while the package transaction and
+# mkarchiso still return zero. Preserve it and hold the candidate explicitly.
+if grep -Eq '==> ERROR:|error: command failed to execute correctly' "$output/mkarchiso.log"; then
+    echo 'Image contains a failed build hook; candidate qualification is held.' >&2
+    exit 1
+fi
 cp "$work/packages/"*.pkg.tar.zst "$output/"
 cp "$work/phios-source.tar.gz" "$output/"
 cp "$repo/packaging/linux/release.json" "$output/"
@@ -51,7 +57,6 @@ pacman -Q > "$output/builder-packages.txt"
 pacman --root "$work/archiso-work/x86_64/airootfs" -Q > "$output/image-packages.txt"
 printf '%s\n' "$PHIOS_SOURCE_COMMIT" > "$output/source-commit.txt"
 printf '%s\n' "$PHIOS_SOURCE_SHA256" > "$output/source-archive-sha256.txt"
-cp "$work/archiso-work/x86_64/airootfs/var/log/pacman.log" "$output/image-pacman.log"
 cp "$repo/LICENSE_HISTORY.md" "$output/LICENSE_HISTORY.md"
 (cd "$output"; sha256sum ./*.iso ./*.pkg.tar.zst ./*.tar.gz > SHA256SUMS)
 echo "Unsigned development candidate and provenance: $output"

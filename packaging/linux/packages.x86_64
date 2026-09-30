@@ -3,6 +3,10 @@ linux
 linux-firmware
 mkinitcpio
 mkinitcpio-archiso
+mkinitcpio-nfs-utils
+nbd
+syslinux
+pv
 systemd
 systemd-sysvcompat
 mesa

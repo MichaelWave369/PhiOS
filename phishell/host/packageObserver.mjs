@@ -7,6 +7,7 @@ const PACKAGE_LIMIT = 64;
 const MAX_NAME = 128;
 const MAX_VERSION = 256;
 const MAX_ARCH = 64;
+const MAX_DESC_BYTES = 64 * 1024;
 
 function boundedText(value, max) {
   if (typeof value !== "string") return "";
@@ -92,7 +93,7 @@ const PACMAN_LOCAL_PATH = "/var/lib/pacman/local";
 const DATABASE_ENTRY_LIMIT = 20000;
 
 export function parsePacmanDescription(text) {
-  if (typeof text !== "string" || Buffer.byteLength(text) > 8192) return null;
+  if (typeof text !== "string" || Buffer.byteLength(text) > MAX_DESC_BYTES) return null;
   const fields = new Map();
   const lines = text.split("\n");
   for (let i = 0; i < lines.length; i++) {
@@ -113,9 +114,9 @@ export function parsePacmanDescription(text) {
 async function readBoundedDescription(path) {
   const file = await open(path, "r");
   try {
-    const buffer = Buffer.alloc(8193);
+    const buffer = Buffer.alloc(MAX_DESC_BYTES + 1);
     const { bytesRead } = await file.read(buffer, 0, buffer.length, 0);
-    if (bytesRead > 8192) throw new Error("package description too large");
+    if (bytesRead > MAX_DESC_BYTES) throw new Error("package description too large");
     return buffer.subarray(0, bytesRead).toString("utf8");
   } finally { await file.close(); }
 }
