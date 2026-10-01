@@ -214,6 +214,13 @@ Those test packages and credentials are excluded from normal images and
 installations. A successful fixture qualifies that bounded transition only;
 it does not qualify arbitrary kernel upgrades, real hardware or a release key.
 
-Current status: verification, offline root/EFI recovery and staged package
-application are implemented as candidates. End-to-end VM evidence is pending. `whole_os_rollback_available` remains false. Do not substitute the
-application platform's rollback receipt for these OS gates.
+Current status: the bounded end-to-end VM qualification passed in run
+[36805999628](https://github.com/MichaelWave369/PhiOS/actions/runs/36805999628),
+including enrollment, successful signed addition, refusal cases, actual
+interrupted installation, a kernel boot failure, matched live recovery and
+three authenticated disk-only desktop boots. Exact source/ISO hashes and
+evidence digests are in `docs/os/evidence/recovery-29def30a.json`. The QA image
+contains disposable fixtures and ephemeral signing identity; this evidence
+does not qualify another artifact, arbitrary upgrades or hardware.
+`whole_os_rollback_available` remains false for the supported product.
+See IMPLEMENTATION_STATUS.md and RELEASE_CONTRACT.md for remaining gates.
