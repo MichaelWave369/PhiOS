@@ -148,7 +148,7 @@ def qualify(iso: Path, source: str, output: Path) -> None:
                             transcript.write(data)
                             transcript.flush()
                             text += data.decode(errors='replace')
-                            if '\nTraceback (most recent call last):' in text:
+                            if 'Traceback (most recent call last)' in text:
                                 # Preserve the actual guest exception before shutting down.
                                 drain_until = time.monotonic() + 3
                                 while time.monotonic() < drain_until:
@@ -164,7 +164,9 @@ def qualify(iso: Path, source: str, output: Path) -> None:
                         raise RuntimeError('normal PAM/desktop qualification timed out')
 
                     def program(value: str) -> None:
-                        channel.sendall(("python - <<'PHIOS_NORMAL_PROBE'\n" + value + '\nPHIOS_NORMAL_PROBE\n').encode())
+                        if max(map(len, value.splitlines()), default=0) >= 4096:
+                            raise ValueError('guest program exceeds canonical terminal line bound')
+                        channel.sendall(("PYTHON_COLORS=0 python -u - <<'PHIOS_NORMAL_PROBE'\n" + value + '\nPHIOS_NORMAL_PROBE\n').encode())
 
                     for boot in [1, 2]:
                         wait(r'login: ')

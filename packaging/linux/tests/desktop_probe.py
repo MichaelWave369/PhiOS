@@ -53,18 +53,29 @@ def desktop_services(source: str, *, wired: bool = False) -> dict:
                 'host_audio_attached': False, 'wired_dhcp_observed': False,
                 'wifi_radio_qualified': False, 'physical_audio_qualified': False, 'release_ready': False}
     if wired:
+        network = {}
         for _ in range(60):
             rows = subprocess.check_output(['nmcli', '-t', '-f', 'DEVICE,TYPE,STATE', 'device'], text=True).splitlines()
-            ethernet = [row.split(':')[0] for row in rows if ':ethernet:connected' in row]
+            ethernet = [row.split(':')[0] for row in rows if row.split(':')[1:] == ['ethernet', 'connected']]
             if len(ethernet) == 1:
-                values = subprocess.check_output(['nmcli', '-g', 'IP4.ADDRESS,IP4.GATEWAY,IP4.DNS',
-                                                 'device', 'show', ethernet[0]], text=True).splitlines()
-                if values == ['192.0.2.15/24', '192.0.2.2', '192.0.2.3']:
+                network = {field: subprocess.check_output(['nmcli', '-g', field, 'device', 'show', ethernet[0]],
+                                                         text=True).strip().splitlines()
+                           for field in ['IP4.ADDRESS', 'IP4.GATEWAY', 'IP4.DNS', 'DHCP4.OPTION']}
+                # libslirp's restricted BOOTP/DHCP server intentionally omits
+                # RFC1533_GATEWAY and RFC1533_DNS. Require that isolation and
+                # the actual lease/server, rather than expecting NAT settings.
+                if (network['IP4.ADDRESS'] == ['192.0.2.15/24'] and not network['IP4.GATEWAY']
+                        and not network['IP4.DNS']
+                        and network['DHCP4.OPTION'].count('dhcp_server_identifier = 192.0.2.2') == 1):
                     break
             time.sleep(1)
         else:
-            raise RuntimeError('restricted virtual Ethernet did not receive exact DHCP address/gateway/DNS configuration')
+            raise RuntimeError('restricted virtual Ethernet lease/isolation mismatch: ' + json.dumps(network))
         observed['wired_dhcp_observed'] = True
+        observed['restricted_dhcp_address'] = network['IP4.ADDRESS'][0]
+        observed['restricted_dhcp_server'] = '192.0.2.2'
+        observed['restricted_ipv4_default_route'] = False
+        observed['restricted_ipv4_dns_advertised'] = False
         observed['virtual_network_scope'] = 'QEMU restricted user network 192.0.2.0/24; no forwarding'
     print('PHIOS_DESKTOP_SERVICES_OK:' + json.dumps(observed), flush=True)
     return observed

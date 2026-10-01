@@ -17,7 +17,8 @@ its UID separation remain described in LINUX_PROOF_WORKFLOW.md.
 | PhiShell window | Super+P |
 | Lock current Wayfire session | Super+L or the `Lock PhiOS session` launcher entry |
 | Network settings | Super+N or the `Network settings` launcher entry |
-| Logout | Close/end Wayfire; the supervised session target stops |
+| Logout | From the ordinary desktop terminal, `loginctl terminate-session "$XDG_SESSION_ID"`; the supervised session target stops |
+| Restart / shutdown | `systemctl reboot` / `systemctl poweroff`, under ordinary logind/PolicyKit permission |
 
 `phios-lock` runs the packaged swaylock under the current non-root Wayfire
 session. Wayfire's session-lock plugin supplies the protocol; swaylock waits for
@@ -25,7 +26,9 @@ the compositor's locked acknowledgement before its daemonizing caller returns.
 Unlock uses the current account's ordinary PAM password. The volatile live
 password is public `phios`; installed users keep the fresh password they chose.
 Root/headless invocation is refused. Automatic idle/suspend locking is not
-enabled by this candidate; lock explicitly before a suspend test. No protection
+enabled by this candidate; lock explicitly before a suspend test with
+`phios-lock && systemctl suspend`, then observe the actual resume/unlock.
+Suspend remains a physical hardware gate. No protection
 against arbitrary root or malicious same-UID administrator code is inferred.
 
 For deliberate ordinary administration, use the terminal's normal
@@ -80,8 +83,9 @@ machine are separate hardware tests.
 
 The new exact normal live gate attaches only a restricted QEMU user-network
 Ethernet device on the documentation range `192.0.2.0/24`, without port forwarding,
-and an emulated HDA device with a null audio backend. It checks actual DHCP
-address/gateway/DNS configuration, non-root service/process ownership and actual
+and an emulated HDA device with a null audio backend. It checks the actual DHCP
+address/server and the absence of an IPv4 gateway/DNS advertisement in this
+restricted network, non-root service/process ownership and actual
 PCM playback through the emulated ALSA sink. This does not test Internet DNS,
 Wi-Fi association, physical speakers/microphones or a GPU driver.
 
@@ -92,7 +96,14 @@ fresh test password. Tests preserve lock/refusal/unlock screenshots, exact
 source/ISO and serial evidence. The installed/update/recovery VM retains no NIC,
 host disk, host audio device or shared folders.
 
-This added qualification is pending actual CI. Earlier passed ISO hashes remain
+The first normal attempt rejected the probe's incorrect expectation of gateway
+and DNS DHCP options. libslirp deliberately omits both in restricted mode; the
+corrected probe requires their absence and the actual lease/server. The failed
+image/source, serial log and screenshot hashes are retained in
+`evidence/desktop-attempts.json`. The installed signed QA lane passed its added
+audio and PAM lock checks, but that does not qualify the failed normal image.
+
+The complete added qualification is pending actual CI. Earlier passed ISO hashes remain
 valid only for their recorded earlier scope; do not claim these new features
 qualified until their actual new artifact receipt passes. Physical hardware,
 final signed transition and distribution delivery remain open.
@@ -100,4 +111,5 @@ final signed transition and distribution delivery remain open.
 Upstream references: [Wayfire configuration](https://github.com/WayfireWM/wayfire/blob/master/wayfire.ini),
 [swaylock](https://github.com/swaywm/swaylock),
 [NetworkManager/nmcli](https://www.networkmanager.dev/docs/api/latest/nmcli.html),
-[WirePlumber](https://pipewire.pages.freedesktop.org/wireplumber/daemon/running.html).
+[WirePlumber](https://pipewire.pages.freedesktop.org/wireplumber/daemon/running.html),
+[libslirp DHCP implementation](https://qemu.googlesource.com/libslirp/+/refs/heads/master/src/bootp.c).

@@ -43,9 +43,15 @@ Review and merge only in stack order after assessing each stated boundary:
 | [275](https://github.com/MichaelWave369/PhiOS/pull/275) | Exact inventories, notices, SBOM/provenance and normal live-image gate |
 | [276](https://github.com/MichaelWave369/PhiOS/pull/276) | Restricted Linux proof broker, hardware handoff and bundled frontend inventory |
 | [277](https://github.com/MichaelWave369/PhiOS/pull/277) | Exact normal-image installed/recovery gate and explicit serial password login |
+| [278](https://github.com/MichaelWave369/PhiOS/pull/278) | Always-reported same-source `release-gate` and reusable qualification jobs |
+| [279](https://github.com/MichaelWave369/PhiOS/pull/279) | NetworkManager, user audio, manual PAM locking and their actual desktop probes |
 
-Review the follow-on always-reported qualification gate after this stack; its
-normal and QA jobs reuse the existing exact-image procedures. See
+The aggregate gate passed all nine jobs in run 36816117488 for source
+`5a1431f4758029a9c04abfb5471351e9abf88a3f`, with 2,279 Python tests passed and
+six existing optional skips. Its actual normal and signed QA scopes and exact
+hashes are in `evidence/qualification-gate-5a1431f4.json`. The later desktop
+candidate has a different source/artifact and its own pending qualification.
+The aggregate normal and QA jobs reuse the existing exact-image procedures. See
 BUILD_AND_QUALIFY.md for the `release-gate` required-status handoff.
 Review source and tests, not just a green check. Main and OS release-tag protection
 still require maintainer configuration. Keep publication separate from the
