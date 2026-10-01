@@ -35,6 +35,19 @@ def fixture(root: Path, output: Path) -> None:
         'node_modules/react': {'version': '19.0.0', 'integrity': 'disposable'}}}))
     put(root, 'usr/lib/phishell/node_modules/react/package.json', json.dumps({'name': 'react', 'version': '19.0.0', 'license': 'MIT'}))
     put(root, 'usr/lib/phishell/node_modules/react/LICENSE', 'disposable MIT notice\n')
+    chunk = b'disposable compiled frontend helper'
+    notice = b'disposable bundled supplier notice\n'
+    notice_sha = hashlib.sha256(notice).hexdigest()
+    put(root, 'usr/lib/phishell/dist/assets/main.js', chunk)
+    put(root, 'usr/lib/phishell/dist/bundled-notices/' + notice_sha + '.txt', notice)
+    put(root, 'usr/lib/phishell/dist/bundled-js-inventory.json', json.dumps({
+        'schema_version': 'phios.phishell-bundle.v1', 'license_compliance_reviewed': False,
+        'chunks': [{'filename': 'assets/main.js', 'sha256': hashlib.sha256(chunk).hexdigest(), 'size': len(chunk)}],
+        'packages': [{'name': 'vite', 'version': '7.1.5', 'license': 'MIT', 'package_json_sha256': 'd'*64,
+            'package_path': 'node_modules/vite', 'modules': [{'id': 'vite/modulepreload-polyfill.js',
+                'chunk': 'assets/main.js', 'role': 'injected-runtime-helper'}],
+            'notices': [{'filename': 'bundled-notices/' + notice_sha + '.txt', 'sha256': notice_sha,
+                         'size': len(notice), 'original_name': 'LICENSE'}]}]}))
     put(output, 'release.json', json.dumps({'os_version': '0.1.0-alpha.1', 'arch_snapshot': '2026/09/30',
         'archiso_version': '91-1', 'builder_image': 'archlinux@sha256:' + 'b' * 64}))
     put(output, 'image-packages.txt', 'a z-1\na-b z-1\n')
@@ -52,19 +65,20 @@ def test_inventory_tracks_actual_bytes_without_concluding_compliance(tmp_path: P
     assert provenance['release_ready'] is False
     assert provenance['license_source_compliance_reviewed'] is False
     bom = json.loads((output / 'sbom.cdx.json').read_text())
-    assert len(bom['components']) == 4
-    assert len({row['bom-ref'] for row in bom['components']}) == 4
+    assert len(bom['components']) == 5
+    assert len({row['bom-ref'] for row in bom['components']}) == 5
     assert all(row['licenses'][0]['license']['acknowledgement'] == 'declared' for row in bom['components'])
     notices = json.loads((output / 'third-party-notices.json').read_text())
     assert {row['path'] for row in notices['files']} == {
-        'usr/share/licenses/shared/LICENSE', 'usr/lib/phishell/node_modules/react/LICENSE'}
+        'usr/share/licenses/shared/LICENSE', 'usr/lib/phishell/node_modules/react/LICENSE',
+        'usr/lib/phishell/dist/bundled-notices/' + hashlib.sha256(b'disposable bundled supplier notice\n').hexdigest() + '.txt'}
     assert json.loads((output / 'source-review.json').read_text())['third_party_source_compliance_reviewed'] is False
     for line in (output / 'SHA256SUMS').read_text().splitlines():
         digest, filename = line.split('  ')
         assert hashlib.sha256((output / filename).read_bytes()).hexdigest() == digest
 
 
-@pytest.mark.parametrize('case', ['source', 'inventory', 'npm', 'archive', 'fixture', 'trust'])
+@pytest.mark.parametrize('case', ['source', 'inventory', 'npm', 'archive', 'fixture', 'trust', 'bundled-chunk', 'bundled-notice', 'bundled-reference'])
 def test_inconsistent_image_or_artifact_cannot_get_provenance(tmp_path: Path, case: str) -> None:
     root, output = tmp_path / 'root', tmp_path / 'output'
     fixture(root, output)
@@ -78,8 +92,17 @@ def test_inconsistent_image_or_artifact_cannot_get_provenance(tmp_path: Path, ca
         put(output, 'phios-source.tar.gz', b'changed archive')
     elif case == 'fixture':
         put(root, inventory.FIXTURES[0], 'test fixture')
-    else:
+    elif case == 'trust':
         put(root, 'etc/phios/os-update-keyring.gpg', b'unrequested trust')
+    elif case == 'bundled-chunk':
+        put(root, 'usr/lib/phishell/dist/assets/main.js', b'changed compiled code')
+    elif case == 'bundled-notice':
+        next((root / 'usr/lib/phishell/dist/bundled-notices').iterdir()).write_bytes(b'changed notice')
+    else:
+        p = root / 'usr/lib/phishell/dist/bundled-js-inventory.json'
+        value = json.loads(p.read_text())
+        value['packages'][0]['modules'][0]['chunk'] = 'unobserved.js'
+        p.write_text(json.dumps(value))
     with pytest.raises(ValueError):
         inventory.record(root, output, 'a' * 40, ci_fixtures=False, epoch=1)
     assert not (output / 'provenance.json').exists()

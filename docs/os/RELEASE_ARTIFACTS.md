@@ -69,3 +69,9 @@ All generated reports remain `release_ready: false`; they do not grant
 execution, signing, adapter-promotion or publication authority. Main/release
 branch protection and required-check settings have not been changed by this
 candidate workflow. Protecting them remains a maintainer repository setting.
+
+The builder also captures actual Rollup chunk participants before npm pruning,
+including Vite-generated runtime helpers. Bundled supplier metadata and license
+notices are retained in the installed dist tree; the collector checks final
+chunk and notice hashes and emits a separate javascript-bundled inventory.
+A pruned runtime package list alone cannot describe all generated frontend code.

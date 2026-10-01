@@ -115,11 +115,17 @@ def proof_workflow(source: str) -> dict[str, object]:
         'agent_broker_denied': True, 'cancel_passed': True, 'replay_refused': True, 'expiry_refused': True,
         'hardware_qualified': False, 'release_ready': False}
     target = Path.home() / '.local/state/phios/qa/linux-proof.json'
+    target.parent.mkdir(mode=0o700, exist_ok=True)
     fd = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
     with os.fdopen(fd, 'w') as handle:
         json.dump(result, handle, sort_keys=True)
         handle.flush()
         os.fsync(handle.fileno())
+    directory = os.open(target.parent, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+    try:
+        os.fsync(directory)
+    finally:
+        os.close(directory)
     print('PHIOS_LINUX_PROOF_OK:' + json.dumps(result), flush=True)
     return result
 
