@@ -26,9 +26,11 @@ cannot mint operator approvals; see OPERATOR_AUTHORIZATION.md.
 
 This preview is a volatile live image. Its experimental blank-disk installer
 passed the named disposable VM gate (see INSTALLATION.md); it has no supported
-hardware installer, whole-OS rollback, Secure Boot or BIOS support. Installed
-data backup/restoration and abrupt VM restart passed; physical power-loss and
-whole-system update recovery remain separate gates. No hardware compatibility claim follows from a VM boot. Agent
+hardware installer, supported whole-OS rollback, Secure Boot or BIOS support.
+Installed data backup/restoration, abrupt VM restart and a bounded signed
+package/update plus matched root/EFI recovery passed in disposable VMs
+(see IMPLEMENTATION_STATUS.md). Physical power loss, actual future release
+transitions and fixture-free installed-artifact qualification remain separate gates. No hardware compatibility claim follows from a VM boot. Agent
 isolation requires separate OS principals and a verified restricted broker;
 an operator-owned shell or pseudo-TTY is not human authentication.
 

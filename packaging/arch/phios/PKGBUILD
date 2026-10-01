@@ -6,7 +6,7 @@ pkgdesc='PhiOS operator shell, verification spine and governed local runtime'
 arch=('any')
 url='https://github.com/MichaelWave369/PhiOS'
 license=('MIT')
-depends=('python' 'python-psutil' 'python-mcp>=1.26' 'python-mcp<2')
+depends=('python' 'python-psutil' 'python-mcp>=1.26' 'python-mcp<2' 'gnupg')
 makedepends=('python-build' 'python-installer' 'python-setuptools' 'python-wheel')
 source=('phios-source.tar.gz')
 sha256sums=("${PHIOS_SOURCE_SHA256:?hashed source archive required}")
@@ -25,4 +25,12 @@ package() {
     install -Dm644 PHIOS_SOURCE_COMMIT "$pkgdir/usr/share/phios/source-commit"
     install -Dm644 packaging/linux/installer/install.py "$pkgdir/usr/lib/phios-installer/install.py"
     install -Dm755 packaging/linux/installer/phios-install "$pkgdir/usr/bin/phios-install"
+    install -Dm644 packaging/linux/updates/verify.py "$pkgdir/usr/lib/phios-updates/verify.py"
+    install -Dm755 packaging/linux/updates/phios-update-verify "$pkgdir/usr/bin/phios-update-verify"
+    install -Dm644 packaging/linux/updates/recover.py "$pkgdir/usr/lib/phios-updates/recover.py"
+    install -Dm755 packaging/linux/updates/phios-os-recover "$pkgdir/usr/bin/phios-os-recover"
+    install -Dm644 packaging/linux/updates/apply.py "$pkgdir/usr/lib/phios-updates/apply.py"
+    install -Dm755 packaging/linux/updates/phios-os-update "$pkgdir/usr/bin/phios-os-update"
+    install -Dm644 packaging/linux/updates/enroll.py "$pkgdir/usr/lib/phios-updates/enroll.py"
+    install -Dm755 packaging/linux/updates/phios-update-enroll "$pkgdir/usr/bin/phios-update-enroll"
 }

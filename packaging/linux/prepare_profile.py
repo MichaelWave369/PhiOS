@@ -44,6 +44,9 @@ Server = file://{package_repo.resolve()}
 """
     (destination / "pacman.conf").write_text(pacman)
     shutil.copyfile(repo / "packaging/linux/packages.x86_64", destination / "packages.x86_64")
+    if smoke:
+        with (destination / 'packages.x86_64').open('a') as packages:
+            packages.write('\nfakeroot\n')
     version = release["os_version"]
     (destination / "profiledef.sh").write_text(f"""#!/usr/bin/env bash
 # Built on the signed Archiso {release['archiso_version']} releng template.
@@ -108,9 +111,9 @@ file_permissions=(["/usr/local/bin/phios-live-setup"]="0:0:755" ["/etc/sudoers.d
           "d /home/phios/.local/state 0700 phios phios -\n"
           "d /home/phios/.local/state/phios 0700 phios phios -\n"
           "d /var/lib/phios-agent 0700 phios-agent phios-agent -\n")
-    # The volatile public account can invoke this one root-owned interactive
-    # installer; it receives no unrestricted sudo shell.
-    write("etc/sudoers.d/phios-live-installer", "phios ALL=(root) NOPASSWD: /usr/bin/phios-install\n")
+    # The volatile account can invoke only these root-owned interactive
+    # maintenance commands; it receives no unrestricted sudo shell.
+    write("etc/sudoers.d/phios-live-installer", "phios ALL=(root) NOPASSWD: /usr/bin/phios-install, /usr/bin/phios-os-recover, /usr/bin/phios-os-update, /usr/bin/phios-update-enroll\n")
     write("etc/greetd/config.toml", '[terminal]\nvt = 1\n[default_session]\n'
           'command = "tuigreet --cmd phios-session"\nuser = "phios-greeter"\n'
           '[initial_session]\ncommand = "phios-session"\nuser = "phios"\n')
@@ -141,6 +144,7 @@ file_permissions=(["/usr/local/bin/phios-live-setup"]="0:0:755" ["/etc/sudoers.d
         (root / "etc/systemd/system/serial-getty@ttyS0.service").symlink_to("/dev/null")
         write("usr/local/bin/phios-live-smoke", (repo / "packaging/linux/tests/live-smoke.sh").read_text())
         write("usr/local/bin/phios-live-install-smoke.py", (repo / "packaging/linux/tests/install_smoke.py").read_text())
+        write("usr/local/bin/phios-live-update-smoke.py", (repo / "packaging/linux/tests/update_smoke.py").read_text())
         write("etc/systemd/system/phios-live-smoke.service", "[Unit]\nDescription=CI live-image qualification fixture\n"
               "After=greetd.service\n[Service]\nType=oneshot\nExecStart=/usr/local/bin/phios-live-smoke\n"
               "TimeoutStartSec=1800\nStandardOutput=tty\nStandardError=tty\nTTYPath=/dev/ttyS0\n")
