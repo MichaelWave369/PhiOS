@@ -12,7 +12,7 @@ cat > /etc/pacman.d/mirrorlist <<MIRRORS
 Server = https://archive.archlinux.org/repos/$snapshot/\$repo/os/\$arch
 MIRRORS
 pacman -Syyuu --noconfirm
-pacman -S --needed --noconfirm archiso base-devel python python-build python-installer python-setuptools python-wheel python-psutil python-mcp nodejs npm git wayfire waybar wofi foot chromium ttf-dejavu mesa
+pacman -S --needed --noconfirm archiso base-devel python python-build python-installer python-setuptools python-wheel python-psutil python-mcp nodejs npm git wayfire waybar wofi foot chromium ttf-dejavu mesa pipewire pipewire-audio pipewire-pulse pipewire-alsa wireplumber swaylock lxqt-policykit qt6-wayland
 [[ $(pacman -Q archiso) == "archiso $expected_archiso" ]] || { echo 'Archiso version differs from locked release input.' >&2; exit 1; }
 [[ -n ${PHIOS_SOURCE_COMMIT:-} ]] || { echo 'PHIOS_SOURCE_COMMIT is required.' >&2; exit 1; }
 [[ $(git -c safe.directory="$repo" -C "$repo" rev-parse HEAD) == "$PHIOS_SOURCE_COMMIT" ]] || { echo 'Source commit mismatch.' >&2; exit 1; }

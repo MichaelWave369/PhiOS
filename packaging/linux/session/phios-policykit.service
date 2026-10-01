@@ -1,0 +1,13 @@
+[Unit]
+Description=PhiOS graphical Linux administration authentication agent
+PartOf=phios-session.target
+StartLimitIntervalSec=60
+StartLimitBurst=3
+
+[Service]
+Type=exec
+ExecStart=/usr/bin/lxqt-policykit-agent
+Environment=QT_QPA_PLATFORM=wayland
+Restart=on-failure
+RestartSec=2
+UMask=0077

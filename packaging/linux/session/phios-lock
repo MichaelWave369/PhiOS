@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+set -euo pipefail
+if [[ $EUID -eq 0 || -z ${WAYLAND_DISPLAY:-} || -z ${XDG_RUNTIME_DIR:-} ]]; then
+    echo 'Open screen locking from the non-root Wayfire session.' >&2
+    exit 1
+fi
+# Daemonization returns only after the compositor reports that it is locked.
+# PAM requests the current user's password on the lock screen, never via argv.
+exec /usr/bin/swaylock --daemonize --ignore-empty-password --color 111318

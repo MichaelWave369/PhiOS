@@ -12,7 +12,7 @@ systemd-sysvcompat
 mesa
 greetd
 greetd-tuigreet
-iwd
+networkmanager
 curl
 gptfdisk
 dosfstools
