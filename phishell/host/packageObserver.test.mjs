@@ -5,7 +5,53 @@ import {
   collectPackageObservation,
   parseDpkgStatus,
   parseOsRelease,
+  parsePacmanDescription,
 } from "./packageObserver.mjs";
+import { validatePackageObservation } from "./packageObservationContract.mjs";
+
+test("Arch inventory reads exact installed identities with a bounded projection", async () => {
+  const observation = await collectPackageObservation({
+    readText: async () => 'ID=phios\nID_LIKE=arch\nPRETTY_NAME="PhiOS Preview"\n',
+    listPacmanEntries: async () => Array.from({length: 70}, (_, i) => `pkg${i}-1.0-1`),
+    readPacmanText: async path => `%NAME%\n${path.split("/").at(-2).split("-")[0]}\n\n%VERSION%\n1.0-1\n\n%ARCH%\nx86_64\n\n%DESC%\nPrivate description\n`,
+  });
+  assert.equal(observation.adapter, "arch-pacman-local");
+  assert.equal(observation.availability, "available");
+  assert.equal(observation.totalInstalledPackageCount, 70);
+  assert.equal(observation.packages.length, 64);
+  assert.equal(observation.packages[0].essential, false);
+  assert.equal(JSON.stringify(observation).includes("Private description"), false);
+  assert.equal(validatePackageObservation(observation).ok, true);
+  assert.equal(validatePackageObservation({...observation, source: "dpkg-status-file"}).ok, false);
+});
+
+test("Arch corrupt or changing database never reports a partial inventory as available", async () => {
+  for (const entry of ["../escape", "bad-1-1"]) {
+    const result = await collectPackageObservation({
+      readText: async () => "ID=arch\n",
+      listPacmanEntries: async () => [entry],
+      readPacmanText: async () => "%NAME%\nbad\n%NAME%\nother\n",
+    });
+    assert.equal(result.availability, "unavailable");
+    assert.equal(result.reason, "package-database-unavailable");
+    assert.deepEqual(result.packages, []);
+  }
+  assert.equal(parsePacmanDescription("x".repeat(65537)), null);
+  assert.equal(parsePacmanDescription("%NAME%\nlarge\n%VERSION%\n1.0\n%ARCH%\nany\n%DESC%\n" + "x".repeat(31000)).name, "large");
+});
+
+test("Arch epoch versions use colons in the local database directory", async () => {
+  const result = await collectPackageObservation({
+    readText: async () => "ID=arch\n",
+    listPacmanEntries: async () => ["python-setuptools-1:84.0.0-1"],
+    readPacmanText: async path => {
+      assert.equal(path, "/var/lib/pacman/local/python-setuptools-1:84.0.0-1/desc");
+      return "%NAME%\npython-setuptools\n\n%VERSION%\n1:84.0.0-1\n\n%ARCH%\nany\n";
+    },
+  });
+  assert.equal(result.availability, "available");
+  assert.equal(result.packages[0].version, "1:84.0.0-1");
+});
 
 test("dpkg parser keeps installed package identity only", () => {
   const parsed = parseDpkgStatus(`

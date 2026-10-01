@@ -7,10 +7,10 @@ import json
 
 def indicator_payload() -> dict[str, object]:
     return {
-        "text": "SOV ON",
-        "tooltip": "Sovereignty: ON\nMode: local-first",
-        "class": "coherent",
-        "percentage": 100,
+        "text": "UNVERIFIED",
+        "tooltip": "Sovereignty: unverified\nLocal-first is a design goal, not an attested security state.",
+        "class": "unverified",
+        "percentage": 0,
     }
 
 

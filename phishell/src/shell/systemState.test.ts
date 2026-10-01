@@ -80,6 +80,25 @@ async function envelope() {
 }
 
 describe("unified system state provider", () => {
+  it.each(["pacman-local-desc", "unknown-package-source"])(
+    "validates the package source %s through the unified state contract",
+    async (source) => {
+      const payload = await envelope();
+      const components = payload.receipt.components as Array<Record<string, unknown>>;
+      components[3].source = source;
+      payload.receipt.receiptDigest = await digestBody(payload.receipt);
+      const provider = createSystemStateProvider({
+        fetcher: async () => new Response(JSON.stringify(payload), { status: 200 }),
+      });
+      const observed = await provider.observe();
+      if (source === "pacman-local-desc") {
+        expect(observed?.components[3].source).toBe(source);
+        expect(observed?.executionAuthority).toBe(false);
+      } else {
+        expect(observed).toBeNull();
+      }
+    },
+  );
   it("accepts a coherent digest-valid receipt", async () => {
     const payload = await envelope();
     const provider = createSystemStateProvider({

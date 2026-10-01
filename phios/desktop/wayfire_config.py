@@ -33,58 +33,32 @@ class WayfireConfigGenerator:
         return FIBONACCI[level]
 
     def _config_text(self) -> str:
-        return f"""# PhiOS Wayfire Config
-# Sacred geometry workspace map: 3x3 with 3/6/9 coherence anchors
-
+        return """# PhiOS Wayfire 0.11 configuration
 [core]
-plugins = grid move resize animate waybar wofi
-# custom phi-tray module is integrated through Waybar custom/phi-tray
-background_color = {PHIOS_COLORS['deep']}
+plugins = autostart command decoration move resize place grid vswitch wm-actions
+vwidth = 3
+vheight = 3
+close_top_view = <super> KEY_Q | <alt> KEY_F4
 
-[decoration]
-border_color = {PHIOS_COLORS['gold']}
-border_size = 1
-gap_size = {self.fibonacci_gaps(0)}
+[autostart]
+autostart_wf_shell = false
+phios = /usr/lib/phishell/session-ready
 
-[grid]
-# Golden ratio guidance for primary layout: 61.8 / 38.2
-primary_split = 61.8
-secondary_split = 38.2
+[command]
+binding_terminal = <super> KEY_ENTER
+command_terminal = foot phi
+binding_launcher = <super> KEY_SPACE
+command_launcher = wofi --show drun
+binding_coherence = <super> KEY_L
+command_coherence = foot phi coherence live
+binding_shell = <super> KEY_P
+command_shell = phios-open-shell
 
-[workspaces]
-rows = 3
-columns = 3
-workspace_1 = 1
-workspace_2 = 2
-workspace_3 = 3  # 3 anchor
-workspace_4 = 4
-workspace_5 = 5
-workspace_6 = 6  # 6 anchor
-workspace_7 = 7
-workspace_8 = 8
-workspace_9 = 9  # 9 anchor
+[move]
+activate = <super> BTN_LEFT
 
-[keybindings]
-super_return = phi
-super_space = phi launcher
-super_l = phi coherence live
-super_s = phi sovereign export ./phi_snapshot_toggle.json
-super_shift_q = close
-super_1 = workspace 1
-super_2 = workspace 2
-super_3 = workspace 3
-super_4 = workspace 4
-super_5 = workspace 5
-super_6 = workspace 6
-super_7 = workspace 7
-super_8 = workspace 8
-super_9 = workspace 9
-
-[animate]
-open_animation = fade scale_center
-close_animation = fade scale_center
-workspace_switch_animation = smooth_slide
-duration = 200
+[resize]
+activate = <super> BTN_RIGHT
 """
 
     def generate(self, output_path: str = "~/.config/wayfire.ini") -> str:

@@ -1,0 +1,65 @@
+name: PhiOS qualification
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+    tags: ['phios-linux-v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: phios-qualification-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      image: ${{ steps.scope.outputs.image }}
+      ui: ${{ steps.scope.outputs.ui }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - id: scope
+        name: Determine required qualification from the complete local diff
+        run: python3 scripts/os_ci_gate.py plan
+
+  python-tests:
+    needs: changes
+    uses: ./.github/workflows/ci.yml
+
+  phishell:
+    needs: changes
+    if: ${{ needs.changes.outputs.ui == 'true' }}
+    uses: ./.github/workflows/phishell.yml
+
+  normal-image:
+    needs: changes
+    if: ${{ needs.changes.outputs.image == 'true' }}
+    uses: ./.github/workflows/os-release-candidate.yml
+
+  qa-image:
+    needs: changes
+    if: ${{ needs.changes.outputs.image == 'true' }}
+    uses: ./.github/workflows/linux-image.yml
+
+  release-gate:
+    name: release-gate
+    if: ${{ always() }}
+    needs: [changes, python-tests, phishell, normal-image, qa-image]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Require actual success for every requested job
+        env:
+          PHIOS_CI_NEEDS: ${{ toJSON(needs) }}
+        run: python3 scripts/os_ci_gate.py check

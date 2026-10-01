@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import json
 import threading
+
+import pytest
 from http.client import HTTPConnection
 
 from phios.macro_authorization_console import (
@@ -139,6 +141,7 @@ def _request(
     method: str,
     path: str,
     body: dict[str, object] | None = None,
+    extra_headers: dict[str, str] | None = None,
 ) -> tuple[int, dict[str, object]]:
     connection = HTTPConnection(
         LOOPBACK_HOST,
@@ -151,6 +154,7 @@ def _request(
         encoded = json.dumps(body).encode("utf-8")
         headers["content-type"] = "application/json"
         headers["content-length"] = str(len(encoded))
+    headers.update(extra_headers or {})
     connection.request(method, path, body=encoded, headers=headers)
     response = connection.getresponse()
     payload = json.loads(response.read().decode("utf-8"))
@@ -180,57 +184,31 @@ def test_authorization_console_status_is_zero_authority() -> None:
         thread.join(timeout=2)
 
 
-def test_human_decision_is_explicit_and_does_not_mint_lease() -> None:
+@pytest.mark.parametrize("endpoint", ["decisions", "bindings", "leases"])
+@pytest.mark.parametrize("headers", [
+    {},
+    {"origin": "https://attacker.invalid", "content-type": "text/plain",
+     "sec-fetch-site": "cross-site"},
+    {"host": "attacker.invalid", "authorization": "Bearer agent-session"},
+])
+def test_http_never_reaches_operator_services(endpoint: str, headers: dict[str, str]) -> None:
     console = FakeConsole()
     server, thread = _server(console)
     try:
         status, payload = _request(
-            server,
-            "POST",
-            "/api/v1/ghostwalk/authorization-console/decisions",
-            {
-                "target_inference_receipt_sha256": TARGET,
-                "expected_authority_request_sha256": REQUEST,
-                "expected_previous_decision_sha256": None,
-                "decision": "APPROVE",
-                "decision_note": "approved locally",
-            },
+            server, "POST", "/api/v1/ghostwalk/authorization-console/" + endpoint,
+            {"target_inference_receipt_sha256": TARGET,
+             "expected_authority_request_sha256": REQUEST,
+             "expected_previous_decision_sha256": None,
+             "decision": "APPROVE", "decision_note": "forged human approval"},
+            headers,
         )
-        assert status == 200
-        assert payload["decisionRecorded"] is True
-        assert payload["bindingCreated"] is False
-        assert payload["actionLeaseCreated"] is False
+        assert status == 403
+        assert payload["error"] == "operator_channel_required"
         assert payload["actionAuthority"] is False
         assert payload["executionAuthority"] is False
-        assert payload["decision"]["authorization_granted"] is True
-        assert len(console.decision_calls) == 1
-    finally:
-        server.shutdown()
-        server.server_close()
-        thread.join(timeout=2)
-
-
-def test_browser_cannot_smuggle_payload_or_duration_into_lease_request() -> None:
-    console = FakeConsole()
-    server, thread = _server(console)
-    try:
-        status, _ = _request(
-            server,
-            "POST",
-            "/api/v1/ghostwalk/authorization-console/leases",
-            {
-                "target_inference_receipt_sha256": TARGET,
-                "expected_executable_binding_sha256": BINDING,
-                "expected_policy_sha256": "6" * 64,
-                "expected_policy_set_sha256": "7" * 64,
-                "expected_enforcement_profile_sha256": "8" * 64,
-                "expected_authority_epoch_sha256": "9" * 64,
-                "payload": {"x": 999},
-                "lease_seconds": 300,
-            },
-        )
-        assert status == 400
-        assert console.lease_calls == []
+        assert payload["effectPerformed"] is False
+        assert console.decision_calls == console.binding_calls == console.lease_calls == []
     finally:
         server.shutdown()
         server.server_close()

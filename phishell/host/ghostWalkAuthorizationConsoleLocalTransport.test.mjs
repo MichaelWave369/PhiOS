@@ -1,75 +1,49 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-
 import { createLocalObservationServer } from "./localTransport.mjs";
 
-const SHA = (char) => char.repeat(64);
+for (const endpoint of ["decisions", "bindings", "leases"]) {
+  for (const [label, headers] of [
+    ["local agent", { "content-type": "application/json" }],
+    ["foreign webpage", { "origin": "https://attacker.invalid", "content-type": "text/plain", "sec-fetch-site": "cross-site" }],
+    ["foreign Host and agent session", { "host": "attacker.invalid", "authorization": "Bearer agent-session", "content-type": "application/json" }],
+  ]) {
+    test(`${label} cannot use HTTP ${endpoint}`, async () => {
+      const transport = createLocalObservationServer({ port: 0, serveShell: false });
+      const address = await transport.listen();
+      try {
+        const response = await fetch(`http://${address.host}:${address.port}/api/v1/ghostwalk/authorization-console/${endpoint}`, {
+          method: "POST", headers,
+          body: JSON.stringify({
+            target_inference_receipt_sha256: "a".repeat(64),
+            expected_authority_request_sha256: "b".repeat(64),
+            expected_previous_decision_sha256: null,
+            decision: "APPROVE", decision_note: "forged human approval",
+          }),
+        });
+        assert.equal(response.status, 403);
+        const result = await response.json();
+        assert.equal(result.error, "operator_channel_required");
+        assert.equal(result.actionAuthority, false);
+        assert.equal(result.executionAuthority, false);
+        assert.equal(result.effectPerformed, false);
+      } finally { await transport.close(); }
+    });
+  }
+}
 
-test("local transport forwards human decision without widening it", async () => {
-  const seen = [];
-  const transport = createLocalObservationServer({
-    port: 0,
-    serveShell: false,
-    ghostWalkAuthorizationDecisionRecorder: async (payload) => {
-      seen.push(payload);
-      return { kind: "conflict" };
-    },
+test("foreign browser write is refused before proposal dispatch", async () => {
+  let dispatched = false;
+  const transport = createLocalObservationServer({ port: 0, serveShell: false,
+    ghostWalkAuthorityRequestCreator: async () => { dispatched = true; return { kind: "conflict" }; },
   });
   const address = await transport.listen();
   try {
-    const body = {
-      target_inference_receipt_sha256: SHA("a"),
-      expected_authority_request_sha256: SHA("b"),
-      expected_previous_decision_sha256: null,
-      decision: "APPROVE",
-      decision_note: "human approval",
-    };
-    const response = await fetch(
-      `http://${address.host}:${address.port}/api/v1/ghostwalk/authorization-console/decisions`,
-      {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(body),
-      },
-    );
-    assert.equal(response.status, 409);
-    assert.deepEqual(seen, [body]);
-  } finally {
-    await transport.close();
-  }
-});
-
-test("local transport rejects browser-supplied lease duration", async () => {
-  const seen = [];
-  const transport = createLocalObservationServer({
-    port: 0,
-    serveShell: false,
-    ghostWalkActionLeaseIssuer: async (payload) => {
-      seen.push(payload);
-      return { kind: "conflict" };
-    },
-  });
-  const address = await transport.listen();
-  try {
-    const response = await fetch(
-      `http://${address.host}:${address.port}/api/v1/ghostwalk/authorization-console/leases`,
-      {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          target_inference_receipt_sha256: SHA("a"),
-          expected_executable_binding_sha256: SHA("b"),
-          expected_policy_sha256: SHA("c"),
-          expected_policy_set_sha256: SHA("d"),
-          expected_enforcement_profile_sha256: SHA("e"),
-          expected_authority_epoch_sha256: SHA("f"),
-          lease_seconds: 300,
-        }),
-      },
-    );
-    assert.equal(response.status, 400);
-    assert.deepEqual(seen, []);
-  } finally {
-    await transport.close();
-  }
+    const response = await fetch(`http://${address.host}:${address.port}/api/v1/ghostwalk/authority-request/requests`, {
+      method: "POST", headers: { origin: "https://attacker.invalid", "content-type": "text/plain" },
+      body: JSON.stringify({target_inference_receipt_sha256: "a".repeat(64), expected_admission_receipt_sha256: "b".repeat(64)}),
+    });
+    assert.equal(response.status, 403);
+    assert.equal(dispatched, false);
+  } finally { await transport.close(); }
 });

@@ -1,0 +1,21 @@
+[Unit]
+Description=Propose one harmless Linux proof note as the isolated agent principal
+
+[Service]
+Type=oneshot
+User=phios-agent
+Group=phios-agent
+ExecStart=/usr/bin/python -I /usr/lib/phios-proof/propose.py
+UMask=0077
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+ProtectSystem=strict
+ProtectHome=yes
+PrivateNetwork=yes
+PrivateTmp=yes
+RestrictNamespaces=yes
+RestrictAddressFamilies=AF_UNIX
+LockPersonality=yes
+ReadWritePaths=/var/lib/phios-agent
+InaccessiblePaths=/.snapshots /var/lib/phios
+TimeoutStartSec=20

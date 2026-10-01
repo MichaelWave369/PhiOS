@@ -1,0 +1,18 @@
+[Unit]
+Description=PhiOS read-only curiosity projection
+PartOf=phios-session.target
+
+[Service]
+ExecStart=/usr/bin/python -m phios.curiosity_projection_server --store-root %h/.local/state/phios/curiosity
+Restart=on-failure
+RestartSec=2
+UMask=0077
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=read-only
+PrivateTmp=yes
+ReadWritePaths=%h/.local/state/phios
+RestrictAddressFamilies=AF_UNIX AF_INET
+
+[Install]
+WantedBy=phios-session.target

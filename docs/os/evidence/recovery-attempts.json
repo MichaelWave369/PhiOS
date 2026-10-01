@@ -1,0 +1,107 @@
+{
+  "schema_version": "phios.recovery-attempt-evidence.v1",
+  "scope": "isolated UEFI KVM; fresh named 32-GiB disk; no network, host disks or shared folders",
+  "attempts": [
+    {
+      "run_id": 36800067643,
+      "job_id": 110172173242,
+      "evidence_artifact_id": 11135382068,
+      "source_commit": "960bd3261b6b52df3335cdc9bec6a31980036d92",
+      "iso_sha256": "3e92086a8fad705e0edb9e6075a51d7a357830aae010e985af9c933113139817",
+      "checkpoint_created": false,
+      "whole_os_recovery_passed": false,
+      "release_ready": false,
+      "cause": "partition sysfs has no slaves directory",
+      "guest_error": "OS maintenance held: [Errno 2] No such file or directory: '/sys/dev/block/254:1/slaves'",
+      "files": {
+        "installed-evidence.json": {
+          "sha256": "84a2f5a6b02a765a237f10f2d5200251308acba6cd419014c6a94ff05edbf7bb",
+          "size": 1915
+        },
+        "install-live-serial.log": {
+          "sha256": "3e5d07c6e03c82f5d0010eb730a0bc13a702b7d21ec5ac4d90f45758c28ec6df",
+          "size": 57478
+        }
+      },
+      "evidence_url": "https://github.com/MichaelWave369/PhiOS/actions/runs/36800067643/artifacts/11135382068"
+    },
+    {
+      "run_id": 36801548013,
+      "job_id": 110176775131,
+      "evidence_artifact_id": 11135933656,
+      "source_commit": "344667c3df6b0c2d5d223a5cf24a5ccb8760da8d",
+      "iso_sha256": "6e42c980e2f2fb81c0f396efd1c2384def52e5cc017e424003b393a51d4cc73b",
+      "checkpoint_created": false,
+      "whole_os_recovery_passed": false,
+      "release_ready": false,
+      "cause": "kernel rejected standalone nologreplay; use rescue=nologreplay",
+      "guest_error": "OS maintenance held: mount failed (exit 32): mount: /run/phios-recovery-r5kj676i/top: fsconfig() failed: btrfs: Unknown parameter 'nologreplay'.",
+      "files": {
+        "installed-evidence.json": {
+          "sha256": "4288acb8787d190ffbd181d79c6f6acf09593c55bcfd107b800848db3686a126",
+          "size": 1915
+        },
+        "install-live-serial.log": {
+          "sha256": "7493a51c566db4200dba78f93775962f3cb019a4a2330c424cdab7c94b17446d",
+          "size": 62870
+        }
+      },
+      "evidence_url": "https://github.com/MichaelWave369/PhiOS/actions/runs/36801548013/artifacts/11135933656"
+    },
+    {
+      "run_id": 36802991205,
+      "job_id": 110181227245,
+      "evidence_artifact_id": 11136259045,
+      "source_commit": "1067477a6a389f364fc178f38e04a8847b046a2d",
+      "iso_sha256": "54c3cffa72ca4ab155e27952f3a99cab01f3a93626d130adb0d2b6001e19a02d",
+      "checkpoint_created": true,
+      "signature_refusals_observed": [],
+      "whole_os_recovery_passed": false,
+      "release_ready": false,
+      "cause": "makepkg fixture omitted source-file declarations; package() lacked data",
+      "guest_error": "see preserved package-builder traceback",
+      "files": {
+        "installed-evidence.json": {
+          "sha256": "17ca79b71182175e398e4f0fc3cfe26e5487218641e2d89c5eaf71ab7e14cc1b",
+          "size": 2199
+        },
+        "install-live-serial.log": {
+          "sha256": "a81a31bb7dafda38979895d25ed593afe5a377b7cedea7140bc035996d87f941",
+          "size": 62458
+        }
+      },
+      "evidence_url": "https://github.com/MichaelWave369/PhiOS/actions/runs/36802991205/artifacts/11136259045"
+    },
+    {
+      "run_id": 36804253734,
+      "job_id": 110185006892,
+      "evidence_artifact_id": 11137416163,
+      "source_commit": "91f5ed68d1134add6b2bee025ec62ef967c01126",
+      "iso_sha256": "50fac795aae54942a4f0eb0a95a8df6e9604d6bc630b7db579409270fa9c12a1",
+      "checkpoint_created": true,
+      "signature_refusals_observed": [
+        "missing-signature",
+        "wrong-key",
+        "tampered",
+        "expired"
+      ],
+      "whole_os_recovery_passed": false,
+      "release_ready": false,
+      "cause": "staged subvolume was not a mountpoint; mkinitcpio root detection error correctly held activation",
+      "guest_error": "OS update held: arch-chroot failed (exit 0): ==> Building image from preset: /etc/mkinitcpio.d/linux.preset: 'default'",
+      "files": {
+        "installed-evidence.json": {
+          "sha256": "db14179be3170434eaf7a2d6cfe035a147dbef255ba12871328ff036ffbdb0fb",
+          "size": 2199
+        },
+        "install-live-serial.log": {
+          "sha256": "ace627dfa8e1d1834581a47f4d748ba7474fd35269e2fd27cc98bff9062dc287",
+          "size": 274612
+        }
+      },
+      "evidence_url": "https://github.com/MichaelWave369/PhiOS/actions/runs/36804253734/artifacts/11137416163"
+    }
+  ],
+  "hardware_qualified": false,
+  "release_ready": false
+}

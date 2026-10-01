@@ -1,13 +1,17 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import sqlite3
+from contextlib import contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterator
+
+from phios.state_io import StateIntegrityError, prepare_state_file
 
 from .models import MemoryRecord
-from .validation import strict_canonical_json
+from .validation import sha256_json, strict_canonical_json
 
 SCHEMA_VERSION = 1
 
@@ -17,19 +21,36 @@ class MemoryStore:
 
     def __init__(self, path: Path) -> None:
         self.path = path.expanduser()
-        self.path.parent.mkdir(parents=True, exist_ok=True)
+        prepare_state_file(self.path)
         self._initialize()
 
-    def _connect(self) -> sqlite3.Connection:
-        conn = sqlite3.connect(self.path)
-        conn.row_factory = sqlite3.Row
-        conn.execute("PRAGMA foreign_keys = ON")
-        return conn
+    @contextmanager
+    def _connect(self) -> Iterator[sqlite3.Connection]:
+        conn = sqlite3.connect(self.path, timeout=30, isolation_level=None)
+        try:
+            conn.row_factory = sqlite3.Row
+            conn.execute("PRAGMA foreign_keys = ON")
+            conn.execute("PRAGMA synchronous = FULL")
+            # Acquire the writer reservation before reading an idempotency key
+            # or revision head, not after another writer can change it.
+            conn.execute("BEGIN IMMEDIATE")
+            yield conn
+            conn.commit()
+        except BaseException:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
 
     def _initialize(self) -> None:
         with self._connect() as conn:
-            conn.executescript(
-                """
+            if conn.execute("SELECT 1 FROM sqlite_master WHERE name='store_metadata'").fetchone():
+                prior = conn.execute(
+                    "SELECT value FROM store_metadata WHERE key='schema_version'"
+                ).fetchone()
+                if prior is not None and int(prior["value"]) != SCHEMA_VERSION:
+                    raise RuntimeError("unsupported governed-memory schema version")
+            schema = """
                 CREATE TABLE IF NOT EXISTS store_metadata (
                     key TEXT PRIMARY KEY,
                     value TEXT NOT NULL
@@ -71,7 +92,11 @@ class MemoryStore:
                     status TEXT NOT NULL DEFAULT 'pending'
                 );
                 """
-            )
+            # executescript implicitly commits in Python's legacy transaction
+            # mode. Execute this fixed DDL within the same held transaction.
+            for statement in schema.split(";"):
+                if statement.strip():
+                    conn.execute(statement)
             row = conn.execute(
                 "SELECT value FROM store_metadata WHERE key='schema_version'"
             ).fetchone()
@@ -196,8 +221,8 @@ class MemoryStore:
             if payload.get("operation") in {"put", "revise"}:
                 record_id = payload["record_versions"][0]["record_id"]
                 conn.execute(
-                    "UPDATE record_heads SET published=1 WHERE record_id=?",
-                    (record_id,),
+                    "UPDATE record_heads SET published=1 WHERE record_id=? AND revision=?",
+                    (record_id, payload["record_versions"][0]["revision"]),
                 )
 
     def pending_receipts(self) -> list[dict[str, object]]:
@@ -479,7 +504,7 @@ class MemoryStore:
 
     @staticmethod
     def _record_from_payload(payload: dict[str, Any]) -> MemoryRecord:
-        return MemoryRecord(
+        record = MemoryRecord(
             record_id=str(payload["record_id"]),
             revision=int(payload["revision"]),
             source_id=str(payload["source_id"]),
@@ -507,3 +532,10 @@ class MemoryStore:
             content_sha256=str(payload["content_sha256"]),
             record_sha256=str(payload["record_sha256"]),
         )
+        body = record.to_dict()
+        body.pop("record_sha256")
+        if (record.to_dict() != payload or
+            hashlib.sha256(record.text.encode("utf-8")).hexdigest() != record.content_sha256 or
+            sha256_json(body) != record.record_sha256):
+            raise StateIntegrityError("canonical memory record integrity check failed")
+        return record

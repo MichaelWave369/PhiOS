@@ -161,7 +161,8 @@ function isSystemStateReceipt(value: unknown): value is SystemStateReceipt {
       !exactKeys(component, componentKeys) ||
       component.id !== expected.id ||
       component.schemaVersion !== expected.schemaVersion ||
-      component.source !== expected.source ||
+      (component.source !== expected.source &&
+        !(expected.id === "packages" && component.source === "pacman-local-desc")) ||
       !isTimestamp(component.capturedAt) ||
       !["available", "unavailable"].includes(String(component.availability)) ||
       !isSha256(component.digest) ||

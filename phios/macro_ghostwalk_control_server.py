@@ -1905,217 +1905,29 @@ class GhostWalkControlHandler(BaseHTTPRequestHandler):
     def do_POST(self) -> None:
         parsed = urlsplit(self.path)
 
-        if parsed.path == (
-            "/api/v1/ghostwalk/authorization-console/decisions"
-        ):
-            if parsed.query or parsed.fragment:
-                self._authorization_console_error(
-                    HTTPStatus.BAD_REQUEST,
-                    "invalid_ghostwalk_authorization_decision_request",
-                )
-                return
-            if self.server.authorization_console is None:
-                self._authorization_console_error(
-                    HTTPStatus.SERVICE_UNAVAILABLE,
-                    "ghostwalk_authorization_console_unavailable",
-                )
-                return
-            try:
-                (
-                    target,
-                    request_sha,
-                    previous_sha,
-                    decision,
-                    note,
-                ) = parse_authorization_console_decision_payload(
-                    self._read_json(max_bytes=8192)
-                )
-                envelope = authorization_console_decision_envelope(
-                    self.server.authorization_console,
-                    target_inference_receipt_sha256=target,
-                    expected_authority_request_sha256=request_sha,
-                    expected_previous_decision_sha256=previous_sha,
-                    decision=decision,
-                    decision_note=note,
-                )
-            except GhostWalkControlBridgeError:
-                self._authorization_console_error(
-                    HTTPStatus.BAD_REQUEST,
-                    "invalid_ghostwalk_authorization_decision_request",
-                )
-                return
-            except GhostWalkAuthorizationConsoleError as exc:
-                message = str(exc)
-                unavailable = "not mounted" in message
-                conflict = any(
-                    token in message
-                    for token in (
-                        "changed before",
-                        "not ready",
-                        "already",
-                        "stale",
-                    )
-                )
-                self._authorization_console_error(
-                    (
-                        HTTPStatus.SERVICE_UNAVAILABLE
-                        if unavailable
-                        else HTTPStatus.CONFLICT
-                        if conflict
-                        else HTTPStatus.BAD_REQUEST
-                    ),
-                    (
-                        "ghostwalk_authorization_console_unavailable"
-                        if unavailable
-                        else "ghostwalk_authorization_decision_conflict"
-                        if conflict
-                        else "ghostwalk_authorization_decision_rejected"
-                    ),
-                )
-                return
-            self._json(HTTPStatus.OK, envelope)
+        if parsed.path in {
+            "/api/v1/ghostwalk/authorization-console/decisions",
+            "/api/v1/ghostwalk/authorization-console/bindings",
+            "/api/v1/ghostwalk/authorization-console/leases",
+        }:
+            # Loopback connectivity and agent sessions are not operator approval.
+            self._authorization_console_error(
+                HTTPStatus.FORBIDDEN, "operator_channel_required"
+            )
             return
 
-        if parsed.path == (
-            "/api/v1/ghostwalk/authorization-console/bindings"
+        expected_host = f"{LOOPBACK_HOST}:{self.server.server_address[1]}"
+        origin = self.headers.get("Origin")
+        fetch_site = self.headers.get("Sec-Fetch-Site")
+        mime = self.headers.get("Content-Type", "")
+        if (
+            self.headers.get("Host") != expected_host
+            or parsed.netloc not in {"", expected_host}
+            or (origin is not None and origin != f"http://{expected_host}")
+            or (fetch_site is not None and fetch_site not in {"same-origin", "none"})
+            or re.fullmatch(r"application/json(?:\s*;\s*charset=utf-8)?", mime, re.I) is None
         ):
-            if parsed.query or parsed.fragment:
-                self._authorization_console_error(
-                    HTTPStatus.BAD_REQUEST,
-                    "invalid_ghostwalk_binding_request",
-                )
-                return
-            if self.server.authorization_console is None:
-                self._authorization_console_error(
-                    HTTPStatus.SERVICE_UNAVAILABLE,
-                    "ghostwalk_authorization_console_unavailable",
-                )
-                return
-            try:
-                (
-                    target,
-                    decision_sha,
-                    mapping_sha,
-                    mapping_set_sha,
-                ) = parse_authorization_console_binding_payload(
-                    self._read_json()
-                )
-                envelope = authorization_console_binding_envelope(
-                    self.server.authorization_console,
-                    target_inference_receipt_sha256=target,
-                    expected_authorization_decision_sha256=decision_sha,
-                    expected_mapping_sha256=mapping_sha,
-                    expected_mapping_set_sha256=mapping_set_sha,
-                )
-            except GhostWalkControlBridgeError:
-                self._authorization_console_error(
-                    HTTPStatus.BAD_REQUEST,
-                    "invalid_ghostwalk_binding_request",
-                )
-                return
-            except GhostWalkAuthorizationConsoleError as exc:
-                message = str(exc)
-                unavailable = "not mounted" in message
-                conflict = any(
-                    token in message
-                    for token in (
-                        "changed before",
-                        "not ready",
-                        "already",
-                        "stale",
-                    )
-                )
-                self._authorization_console_error(
-                    (
-                        HTTPStatus.SERVICE_UNAVAILABLE
-                        if unavailable
-                        else HTTPStatus.CONFLICT
-                        if conflict
-                        else HTTPStatus.BAD_REQUEST
-                    ),
-                    (
-                        "ghostwalk_authorization_console_unavailable"
-                        if unavailable
-                        else "ghostwalk_binding_conflict"
-                        if conflict
-                        else "ghostwalk_binding_rejected"
-                    ),
-                )
-                return
-            self._json(HTTPStatus.OK, envelope)
-            return
-
-        if parsed.path == (
-            "/api/v1/ghostwalk/authorization-console/leases"
-        ):
-            if parsed.query or parsed.fragment:
-                self._authorization_console_error(
-                    HTTPStatus.BAD_REQUEST,
-                    "invalid_ghostwalk_lease_request",
-                )
-                return
-            if self.server.authorization_console is None:
-                self._authorization_console_error(
-                    HTTPStatus.SERVICE_UNAVAILABLE,
-                    "ghostwalk_authorization_console_unavailable",
-                )
-                return
-            try:
-                (
-                    target,
-                    binding_sha,
-                    policy_sha,
-                    policy_set_sha,
-                    profile_sha,
-                    epoch_sha,
-                ) = parse_authorization_console_lease_payload(
-                    self._read_json()
-                )
-                envelope = authorization_console_lease_envelope(
-                    self.server.authorization_console,
-                    target_inference_receipt_sha256=target,
-                    expected_executable_binding_sha256=binding_sha,
-                    expected_policy_sha256=policy_sha,
-                    expected_policy_set_sha256=policy_set_sha,
-                    expected_enforcement_profile_sha256=profile_sha,
-                    expected_authority_epoch_sha256=epoch_sha,
-                )
-            except GhostWalkControlBridgeError:
-                self._authorization_console_error(
-                    HTTPStatus.BAD_REQUEST,
-                    "invalid_ghostwalk_lease_request",
-                )
-                return
-            except GhostWalkAuthorizationConsoleError as exc:
-                message = str(exc)
-                unavailable = "not mounted" in message
-                conflict = any(
-                    token in message
-                    for token in (
-                        "changed before",
-                        "not ready",
-                        "already",
-                        "stale",
-                    )
-                )
-                self._authorization_console_error(
-                    (
-                        HTTPStatus.SERVICE_UNAVAILABLE
-                        if unavailable
-                        else HTTPStatus.CONFLICT
-                        if conflict
-                        else HTTPStatus.BAD_REQUEST
-                    ),
-                    (
-                        "ghostwalk_authorization_console_unavailable"
-                        if unavailable
-                        else "ghostwalk_lease_conflict"
-                        if conflict
-                        else "ghostwalk_lease_rejected"
-                    ),
-                )
-                return
-            self._json(HTTPStatus.OK, envelope)
+            self._authorization_console_error(HTTPStatus.FORBIDDEN, "invalid_local_write_origin")
             return
 
         if parsed.path == "/api/v1/phivessel/handshake":

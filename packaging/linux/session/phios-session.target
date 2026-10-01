@@ -1,0 +1,3 @@
+[Unit]
+Description=PhiOS graphical session services
+Wants=phios-observer.service phios-curiosity-reader.service phios-history-reader.service phios-browser.service phios-waybar.service phios-audio.target phios-policykit.service

@@ -1,18 +1,7 @@
 name: PhiShell
 
 on:
-  pull_request:
-    paths:
-      - "phishell/**"
-      - "docs/PHISHELL_*.md"
-      - ".github/workflows/phishell.yml"
-  push:
-    branches:
-      - main
-    paths:
-      - "phishell/**"
-      - "docs/PHISHELL_*.md"
-      - ".github/workflows/phishell.yml"
+  workflow_call:
   workflow_dispatch:
 
 permissions:
@@ -31,7 +20,7 @@ jobs:
           node-version: "22"
           package-manager-cache: false
       - name: Install PhiShell dependencies
-        run: npm install --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
       - name: Test PhiShell contracts
         run: npm test
       - name: Exercise read-only Linux host probe

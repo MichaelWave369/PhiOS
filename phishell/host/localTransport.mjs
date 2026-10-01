@@ -42,15 +42,7 @@ import {
   fetchGhostWalkAuthorityRequestStatus,
   validateGhostWalkAuthorityRequestCreatePayload,
 } from "./ghostWalkAuthorityRequestProxy.mjs";
-import {
-  createGhostWalkExecutableBinding,
-  fetchGhostWalkAuthorizationConsole,
-  issueGhostWalkActionLease,
-  recordGhostWalkAuthorizationDecision,
-  validateAuthorizationDecisionPayload,
-  validateBindingCreatePayload,
-  validateLeaseIssuePayload,
-} from "./ghostWalkAuthorizationConsoleProxy.mjs";
+import { fetchGhostWalkAuthorizationConsole } from "./ghostWalkAuthorizationConsoleProxy.mjs";
 import {
   createPersistRequest,
   fetchBrokerHealth,
@@ -157,11 +149,6 @@ export function createLocalObservationServer({
   ghostWalkAuthorityRequestCreator = createGhostWalkAuthorityRequest,
   ghostWalkAuthorizationConsoleFetcher =
     fetchGhostWalkAuthorizationConsole,
-  ghostWalkAuthorizationDecisionRecorder =
-    recordGhostWalkAuthorizationDecision,
-  ghostWalkExecutableBindingCreator =
-    createGhostWalkExecutableBinding,
-  ghostWalkActionLeaseIssuer = issueGhostWalkActionLease,
 } = {}) {
   if (!Number.isInteger(port) || port < 0 || port > 65535) {
     throw new Error("local observation port must be an integer between 0 and 65535");
@@ -171,172 +158,49 @@ export function createLocalObservationServer({
     try {
       const url = new URL(request.url ?? "/", `http://${LOOPBACK_HOST}`);
 
-      if (
-        request.method === "POST" &&
-        url.pathname === "/api/v1/ghostwalk/authorization-console/decisions"
-      ) {
-        let payload;
-        try {
-          payload = await readBoundedJsonObject(request, { maxBytes: 8192 });
-        } catch {
-          jsonResponse(response, 400, {
-            error: "invalid_ghostwalk_authorization_decision_body",
-            policyAuthority: false,
-            operationalAuthority: false,
-            actionAuthority: false,
-            executionAuthority: false,
-            effectPerformed: false,
-          });
-          return;
-        }
-        if (!validateAuthorizationDecisionPayload(payload)) {
-          jsonResponse(response, 400, {
-            error: "invalid_ghostwalk_authorization_decision_request",
-            policyAuthority: false,
-            operationalAuthority: false,
-            actionAuthority: false,
-            executionAuthority: false,
-            effectPerformed: false,
-          });
-          return;
-        }
-        const result = await ghostWalkAuthorizationDecisionRecorder(payload);
-        if (result?.kind === "conflict") {
-          jsonResponse(response, 409, {
-            error: "ghostwalk_authorization_decision_conflict",
-            policyAuthority: false,
-            operationalAuthority: false,
-            actionAuthority: false,
-            executionAuthority: false,
-            effectPerformed: false,
-          });
-          return;
-        }
-        if (!result || result.kind !== "applied") {
-          jsonResponse(response, 503, {
-            error: "ghostwalk_authorization_console_unavailable",
-            policyAuthority: false,
-            operationalAuthority: false,
-            actionAuthority: false,
-            executionAuthority: false,
-            effectPerformed: false,
-          });
-          return;
-        }
-        jsonResponse(response, 200, result.envelope);
+      // Observation/agent HTTP callers never become the operator channel.
+      if (request.method === "POST" && [
+        "/api/v1/ghostwalk/authorization-console/decisions",
+        "/api/v1/ghostwalk/authorization-console/bindings",
+        "/api/v1/ghostwalk/authorization-console/leases",
+      ].includes(url.pathname)) {
+        jsonResponse(response, 403, {
+          error: "operator_channel_required",
+          operatorChannel: "local-terminal",
+          policyAuthority: false,
+          operationalAuthority: false,
+          actionAuthority: false,
+          executionAuthority: false,
+          effectPerformed: false,
+        });
         return;
       }
 
-      if (
-        request.method === "POST" &&
-        url.pathname === "/api/v1/ghostwalk/authorization-console/bindings"
-      ) {
-        let payload;
-        try {
-          payload = await readBoundedJsonObject(request, { maxBytes: 8192 });
-        } catch {
-          jsonResponse(response, 400, {
-            error: "invalid_ghostwalk_binding_body",
-            policyAuthority: false,
-            operationalAuthority: false,
-            actionAuthority: false,
-            executionAuthority: false,
-            effectPerformed: false,
-          });
-          return;
-        }
-        if (!validateBindingCreatePayload(payload)) {
-          jsonResponse(response, 400, {
-            error: "invalid_ghostwalk_binding_request",
-            policyAuthority: false,
-            operationalAuthority: false,
-            actionAuthority: false,
-            executionAuthority: false,
-            effectPerformed: false,
-          });
-          return;
-        }
-        const result = await ghostWalkExecutableBindingCreator(payload);
-        if (result?.kind === "conflict") {
-          jsonResponse(response, 409, {
-            error: "ghostwalk_binding_conflict",
-            policyAuthority: false,
-            operationalAuthority: false,
-            actionAuthority: false,
-            executionAuthority: false,
-            effectPerformed: false,
-          });
-          return;
-        }
-        if (!result || result.kind !== "applied") {
-          jsonResponse(response, 503, {
-            error: "ghostwalk_authorization_console_unavailable",
-            policyAuthority: false,
-            operationalAuthority: false,
-            actionAuthority: false,
-            executionAuthority: false,
-            effectPerformed: false,
-          });
-          return;
-        }
-        jsonResponse(response, 200, result.envelope);
+      const expectedHost = `${LOOPBACK_HOST}:${request.socket.localPort}`;
+      const expectedOrigin = `http://${expectedHost}`;
+      if (request.headers.host !== expectedHost ||
+          (url.origin !== `http://${LOOPBACK_HOST}` && url.origin !== expectedOrigin)) {
+        jsonResponse(response, 403, { error: "invalid_local_host", effectPerformed: false });
         return;
       }
-
-      if (
-        request.method === "POST" &&
-        url.pathname === "/api/v1/ghostwalk/authorization-console/leases"
-      ) {
-        let payload;
-        try {
-          payload = await readBoundedJsonObject(request, { maxBytes: 8192 });
-        } catch {
-          jsonResponse(response, 400, {
-            error: "invalid_ghostwalk_lease_body",
-            policyAuthority: false,
-            operationalAuthority: false,
-            actionAuthority: false,
-            executionAuthority: false,
-            effectPerformed: false,
-          });
+      if (request.method === "POST" && [
+        "/api/v1/ghostwalk/authority-request/requests",
+        "/api/v1/ghostwalk/policy-admission/evaluations",
+        "/api/v1/ghostwalk/accepted-intent/revisions",
+        "/api/v1/ghostwalk/operator-log/revisions",
+        "/api/v1/ghostwalk/actions",
+        "/api/v1/curiosity/persist-requests",
+        "/api/v1/curiosity/artifacts",
+      ].includes(url.pathname)) {
+        const origin = request.headers.origin;
+        const fetchSite = request.headers["sec-fetch-site"];
+        const mime = request.headers["content-type"] ?? "";
+        if ((origin !== undefined && origin !== expectedOrigin) ||
+            (fetchSite !== undefined && !["same-origin", "none"].includes(fetchSite)) ||
+            !/^application\/json(?:\s*;\s*charset=utf-8)?$/i.test(mime)) {
+          jsonResponse(response, 403, { error: "invalid_local_write_origin", effectPerformed: false });
           return;
         }
-        if (!validateLeaseIssuePayload(payload)) {
-          jsonResponse(response, 400, {
-            error: "invalid_ghostwalk_lease_request",
-            policyAuthority: false,
-            operationalAuthority: false,
-            actionAuthority: false,
-            executionAuthority: false,
-            effectPerformed: false,
-          });
-          return;
-        }
-        const result = await ghostWalkActionLeaseIssuer(payload);
-        if (result?.kind === "conflict") {
-          jsonResponse(response, 409, {
-            error: "ghostwalk_lease_conflict",
-            policyAuthority: false,
-            operationalAuthority: false,
-            actionAuthority: false,
-            executionAuthority: false,
-            effectPerformed: false,
-          });
-          return;
-        }
-        if (!result || result.kind !== "applied") {
-          jsonResponse(response, 503, {
-            error: "ghostwalk_authorization_console_unavailable",
-            policyAuthority: false,
-            operationalAuthority: false,
-            actionAuthority: false,
-            executionAuthority: false,
-            effectPerformed: false,
-          });
-          return;
-        }
-        jsonResponse(response, 200, result.envelope);
-        return;
       }
 
       if (

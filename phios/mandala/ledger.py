@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-import json
 from pathlib import Path
+
+from phios.state_io import append_jsonl, read_jsonl
 
 from .receipts import ReceiptEnvelope
 
@@ -13,44 +14,30 @@ class MandalaReceiptLedger:
         self.path = path.expanduser()
 
     def append(self, receipt: ReceiptEnvelope) -> None:
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-        with self.path.open("a", encoding="utf-8") as handle:
-            handle.write(json.dumps(receipt.to_dict(), sort_keys=True) + "\n")
+        append_jsonl(self.path, receipt.to_dict())
+
+    def append_if_absent(self, receipt: ReceiptEnvelope) -> bool:
+        """Publish exactly once across processes, refusing identity collisions."""
+        return append_jsonl(self.path, receipt.to_dict(), identity_field="receipt_id")
 
     def recent(self, limit: int = 10) -> list[dict[str, object]]:
         if isinstance(limit, bool) or not isinstance(limit, int):
             raise TypeError("recent limit must be an integer")
         if limit < 0:
             raise ValueError("recent limit must be non-negative")
-        if limit == 0 or not self.path.exists():
+        if limit == 0:
             return []
-        lines = self.path.read_text(encoding="utf-8").splitlines()
-        return [json.loads(line) for line in lines[-limit:]]
+        return read_jsonl(self.path)[-limit:]
 
     def has_receipt(self, receipt_id: str) -> bool:
         """Return whether an exact receipt ID already exists in the append-only ledger."""
 
-        if not self.path.exists():
-            return False
-        for line in self.path.read_text(encoding="utf-8").splitlines():
-            try:
-                payload = json.loads(line)
-            except json.JSONDecodeError:
-                continue
-            if isinstance(payload, dict) and payload.get("receipt_id") == receipt_id:
-                return True
-        return False
+        return self.get_receipt(receipt_id) is not None
 
     def get_receipt(self, receipt_id: str) -> dict[str, object] | None:
         """Return the persisted receipt row for an exact receipt ID."""
 
-        if not self.path.exists():
-            return None
-        for line in self.path.read_text(encoding="utf-8").splitlines():
-            try:
-                payload = json.loads(line)
-            except json.JSONDecodeError:
-                continue
-            if isinstance(payload, dict) and payload.get("receipt_id") == receipt_id:
+        for payload in read_jsonl(self.path):
+            if payload.get("receipt_id") == receipt_id:
                 return payload
         return None

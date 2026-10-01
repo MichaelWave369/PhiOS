@@ -1,0 +1,3 @@
+#!/usr/bin/bash
+set -euo pipefail
+exec /usr/bin/python -I /usr/lib/phios-updates/enroll.py "$@"

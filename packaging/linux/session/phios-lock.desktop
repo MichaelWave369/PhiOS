@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Lock PhiOS session
+Comment=Lock the current Wayfire session using its normal PAM password
+Exec=phios-lock
+Icon=system-lock-screen
+Terminal=false
+Categories=System;

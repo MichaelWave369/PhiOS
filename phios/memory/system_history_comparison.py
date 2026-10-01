@@ -111,7 +111,9 @@ def _comparable_state_payload(
         expected_schema, expected_source = COMPONENT_CONTRACTS[expected_id]
         if component.get("schemaVersion") != expected_schema:
             raise ValueError(f"component {expected_id} schema is not canonical")
-        if component.get("source") != expected_source:
+        if component.get("source") != expected_source and not (
+            expected_id == "packages" and component.get("source") == "pacman-local-desc"
+        ):
             raise ValueError(f"component {expected_id} source is not canonical")
         _timestamp(component.get("capturedAt"), f"component {expected_id} capturedAt")
         if component.get("readOnly") is not True:
