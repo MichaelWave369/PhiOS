@@ -9,7 +9,39 @@ hardware, the final signed transition and distribution delivery remain open.
 This is not a supported beta or OS 1.0. Nothing has been merged or published by
 this handoff; no private PhiKernel/TIEKAT implementation is needed to boot it.
 
-## Exact candidate for physical observation
+## Exact qualified compatibility candidate
+
+| Identity | Value |
+| --- | --- |
+| Reviewed code PR/head | [283](https://github.com/MichaelWave369/PhiOS/pull/283), `d1a4a2bc515907d1011b6aa1c2a203acc200cad8` |
+| Tested prospective merge source | `9510024d06d822729bd98579fefb6644ca0498c0` |
+| Identical source tree | `0dd0e998671105174b4bf2918a00ca06ac68f44a` |
+| Normal ISO SHA-256 | `33bfb34251d7f65abe7f8a9d600c21794d051640a305d50c1bca9b21364c2c68` |
+| Exact-source qualification | [36916494462](https://github.com/MichaelWave369/PhiOS/actions/runs/36916494462), attempt 1 |
+| Download normal ISO and payloads | [11191052839](https://github.com/MichaelWave369/PhiOS/actions/runs/36916494462/artifacts/11191052839) |
+| Normal compact evidence | [11191232645](https://github.com/MichaelWave369/PhiOS/actions/runs/36916494462/artifacts/11191232645), ZIP SHA-256 `1fd270906735df097194500dc13d01047a98529f3278c05858731b23bb8cd2d6` |
+| Separate QA compact evidence | [11190712079](https://github.com/MichaelWave369/PhiOS/actions/runs/36916494462/artifacts/11190712079), ZIP SHA-256 `a2df96771ec0af3825ee49ef2be2701948bcd8923184f3cdc38d6fc9db04cb5a` |
+| Owner-supplied VirtualBox field receipt | [virtualbox-field-9510024d.json](evidence/virtualbox-field-9510024d.json) |
+
+These unsigned review artifacts expire **2026-10-08**. The exact normal ISO passed
+the existing automated live/install/recovery qualification plus the new active
+Wayland session rebinding probes. The owner subsequently supplied a local
+VirtualBox report recording the before-boot full ISO hash match, automatic
+cursor/session startup and a full cold power cycle without manual exports or
+target restarts. This review hashed the report text and checked its source/ISO
+binding against retained normal provenance; it did not operate the owner's VM,
+independently hash that local ISO or acquire its raw logs/screenshots.
+
+The reported Super+L blank-screen observation remains unresolved: VirtualBox
+wrong-password refusal and PAM unlock were not tested. ACPI shutdown succeeded;
+the reported refused `sudo poweroff` did not test the documented guest logind
+path. Exact VirtualBox version, VirtualBox installation, physical Skytech/RTX
+5070, actual maintainer signing and source/license delivery remain separate.
+The field evidence is bounded compatibility evidence, not release authorization.
+This documentation continuation is a different source identity and qualifies
+no replacement ISO. Preserve #283's qualified head, source and artifact bytes.
+
+## Preceding source-delivery candidate (identity retained)
 
 | Identity | Value |
 | --- | --- |
@@ -23,7 +55,7 @@ this handoff; no private PhiKernel/TIEKAT implementation is needed to boot it.
 | Compact evidence | [11147969308](https://github.com/MichaelWave369/PhiOS/actions/runs/36832501182/artifacts/11147969308) |
 | Persisted receipt | [delivery-normal-1c16c473.json](evidence/delivery-normal-1c16c473.json) |
 
-These unsigned review downloads expire **2026-10-08**. A later build, branch
+These preceding unsigned review downloads expire **2026-10-08**. A later build, branch
 update, final merge or tag has a separate identity. Download the normal payload,
 verify its complete ISO/source/artifact hashes against SHA256SUMS and provenance,
 and retain the receipts with that exact build. The separate QA image contains
@@ -35,10 +67,10 @@ The owner also tested this exact candidate in Windows 11 Home / VirtualBox on
 target. Initial renderer/cursor failures and the full supplied configuration
 remain in [VIRTUALBOX_COMPATIBILITY.md](VIRTUALBOX_COMPATIBILITY.md) and
 `evidence/virtualbox-field-1c16c473.json`. The narrow automatic startup correction
-is a separate candidate stacked after this handoff; its new bytes need their
-own qualification and local VirtualBox retest. The table above and existing
-receipts retain their original tested identities. Skytech/RTX 5070 remains
-physically untested.
+is the separately qualified #283 candidate recorded above. The new local report
+supports its automatic startup case while preserving the original failures and
+manual recipe. The preceding table and existing receipts retain their original
+tested identities. Skytech/RTX 5070 remains physically untested.
 
 ## Ordered code review
 
@@ -57,6 +89,8 @@ Review the component PRs in dependency order after assessing each boundary:
 | [278](https://github.com/MichaelWave369/PhiOS/pull/278) | Always-reported same-source `release-gate` and reusable qualification jobs |
 | [279](https://github.com/MichaelWave369/PhiOS/pull/279) | NetworkManager, user audio, manual PAM locking and their actual desktop probes |
 | [281](https://github.com/MichaelWave369/PhiOS/pull/281) | Offline exact component source/notice delivery records and packet verification, stacked on integration #280 |
+| [282](https://github.com/MichaelWave369/PhiOS/pull/282) | Documentation-only source-delivery qualification and original hardware handoff |
+| [283](https://github.com/MichaelWave369/PhiOS/pull/283) | Scoped VirtualBox/VMSVGA cursor behavior and active Wayland service rebinding, independently qualified after #282 |
 
 Use the complete main-targeted integration PR as the merge vehicle after its
 own exact-source qualification passes. It contains the candidate and aggregate
@@ -66,6 +100,28 @@ integration. The component PRs above remain focused review references. Requiring
 they predate that controller. Keep every merge and release under maintainer review.
 
 The latest code continuation's aggregate gate passed all nine jobs in
+[run 36916494462](https://github.com/MichaelWave369/PhiOS/actions/runs/36916494462)
+for source `9510024d06d822729bd98579fefb6644ca0498c0`, with 2,358 Python tests
+passed and six existing optional skips. The normal ISO passed two live boots,
+manual PAM locking/refusal/unlock, complete logout/reauthentication and two new
+active-session rebinding observations; production installation, three disk-only
+boots, durable data/proof and matched root/EFI recovery passed on the same bytes.
+The separate QA artifact repeated its ephemeral signed-package, refusal,
+interruption and recovery cases. Both compact ZIP digests, 57 normal / 51 QA
+metadata file hashes/sizes, 15 available checksum payloads per archive and the
+source/ISO bindings were independently checked. Normal recovery/wrong-password
+screenshots were visually inspected. Large ISO/package/source/notice archives
+were not redownloaded here; their digests remain producer identities. The
+owner-supplied local report separately records the normal ISO's full hash match
+and VirtualBox automatic startup/cold-cycle results, with its exceptions intact.
+
+The first #283 normal attempt failed the newly added rebinding observation in
+run 36913191826; its install/recovery phase was skipped. Its source/ISO, serial
+exception, screenshot and compact-archive hashes remain in
+`evidence/virtualbox-compatibility-attempts.json`. Passing the later exact source
+or its local VirtualBox retest does not replace this failed attempt.
+
+The preceding source-delivery code continuation's aggregate gate passed all nine jobs in
 [run 36832501182](https://github.com/MichaelWave369/PhiOS/actions/runs/36832501182)
 for source `1c16c4732442d69d2c7b5763212f1977860a15ae`, with 2,324 Python tests
 passed and six existing optional skips. Both exact normal and separate ephemeral

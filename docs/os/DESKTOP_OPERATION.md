@@ -89,6 +89,13 @@ ready hook validates the compositor socket, imports its environment, then
 stops/starts session services so active processes cannot retain an old display.
 This does not add physical GPU support or change operator authority.
 
+The owner-supplied #283 retest report records automatic PhiShell/Waybar/cursor
+startup and a cold power cycle on the exact new normal ISO without manual
+exports or target restarts. Its blank Super+L screen remains an unresolved
+VirtualBox observation; the subsequent greeter login after session termination
+does not test wrong-password refusal or unlock. See VIRTUALBOX_COMPATIBILITY.md
+for the retained report digest, exact identities and bounded remaining lock test.
+
 The new exact normal live gate attaches only a restricted QEMU user-network
 Ethernet device on the documentation range `192.0.2.0/24`, without port forwarding,
 and an emulated HDA device with a null audio backend. It checks the actual DHCP

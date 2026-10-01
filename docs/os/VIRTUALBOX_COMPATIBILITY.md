@@ -114,10 +114,11 @@ DISPLAY on both live boots. This verifies rebinding under QEMU;
 it does not emulate a Windows VirtualBox 3D driver or prove the new automatic
 cursor branch in VirtualBox.
 
-Changed source and ISO bytes require their own complete qualification and a
+Each changed source and ISO requires its own complete qualification and a
 fresh local VirtualBox test of automatic startup without manual exports/target
-restart. Keep the original candidate hashes/receipts intact. Do not merge, tag,
-sign, publish or infer physical support from this observation.
+restart. The follow-up #283 result is recorded below; it does not change the
+original candidate hashes/receipts. Do not merge, tag, sign, publish or infer
+physical support from this observation.
 
 The first follow-up normal-image attempt rendered PhiShell/Waybar but failed
 the new probe while it tried to obtain a service process's display environment
@@ -130,6 +131,85 @@ exception, screenshot and independently checked compact-archive hashes remain
 in [virtualbox-compatibility-attempts.json](evidence/virtualbox-compatibility-attempts.json).
 The failed gate is not replaced by its screenshot or a separate QA result.
 
+## Automatic startup field retest on #283
+
+On 2026-10-01 the owner supplied `PhiOS-PR283-test-report.md`, produced by a
+local Windows desktop Codex GPT-5.6 test. Its 3,096 uploaded bytes were hashed by
+this review: `f242dc804437395a576e740d36c6201c2eb75d19e3fa341d1f9154791443b7fc`.
+The normalized receipt is
+[virtualbox-field-9510024d.json](evidence/virtualbox-field-9510024d.json).
+The observations below are **reported results**: this review did not operate
+the VM, independently hash its local ISO, or acquire screenshots, raw guest logs
+or command transcripts. The exact VirtualBox version remains unspecified.
+
+| Tested identity | Value |
+| --- | --- |
+| Reviewed code PR/head | [283](https://github.com/MichaelWave369/PhiOS/pull/283), `d1a4a2bc515907d1011b6aa1c2a203acc200cad8` |
+| Qualified prospective source / identical tree | `9510024d06d822729bd98579fefb6644ca0498c0` / `0dd0e998671105174b4bf2918a00ca06ac68f44a` |
+| Normal ISO expected and reported observed SHA-256 | `33bfb34251d7f65abe7f8a9d600c21794d051640a305d50c1bca9b21364c2c68` |
+| Exact-source qualification | [36916494462](https://github.com/MichaelWave369/PhiOS/actions/runs/36916494462), attempt 1, all nine jobs passed |
+| Normal ISO/payloads | [11191052839](https://github.com/MichaelWave369/PhiOS/actions/runs/36916494462/artifacts/11191052839), expires 2026-10-08 |
+
+The reported before-boot ISO hash matches the previously independently reviewed
+normal-image provenance for the qualified source above. The source identity is
+bound through that provenance/run; the field report itself supplies the ISO
+digest and PR, not a Git commit. An older extracted ISO `376fd601...` was found
+but was not attached or booted in this test. Its original field evidence remains
+separate and unchanged.
+
+The new `PhiOS-PR283` VM was separate from the existing `PhiOS` VM: Arch Linux
+(64-bit), EFI, no enrolled Secure Boot platform key, 8192 MB RAM, four vCPUs,
+new 64 GB VDI, VMSVGA/128 MB with 3D acceleration on, NAT, no shared folders,
+and disabled clipboard/drag-and-drop. Windows 11 Home is the owner's preceding
+host context; the new report does not independently establish the edition/build.
+
+| Observation | Reported result |
+| --- | --- |
+| Initial live boot and Wayland session | PASS |
+| Graphical greeter and `phios` / `phios` login | PASS; greeter tested after terminating the current session and returning to tty1 |
+| PhiShell / Waybar | PASS; interactive shell and populated panel visible |
+| Cursor visibility and movement | PASS; guest-rendered cursor moved by VirtualBox absolute pointer injection, including after cold boot |
+| Automatic cursor/session startup | PASS; Wayfire environment already contained `WLR_NO_HARDWARE_CURSORS=1`, with no manual export or target restart |
+| System-manager failed units | None reported by `systemctl --failed`; user-manager failed-unit output not supplied |
+| Full shutdown and cold power-on | PASS via VM ACPI power button; `VMState=poweroff` observed before a cold start returned to PhiShell, Waybar and working cursor |
+
+This establishes reported compatibility evidence for the automatic startup case
+on these exact live ISO bytes. It does not qualify VirtualBox installation,
+network connectivity, audio, suspend, physical hardware, another VirtualBox
+version or every supported desktop operation.
+
+### Preserved observations and the remaining lock check
+
+The report records three additional observations without converting them into
+passes:
+
+1. **Super+L produced a blank screen rather than a visible lock UI.** The test
+   then terminated the session and verified a fresh greeter login. It did not
+   test wrong-password refusal or PAM unlock from the locked session. The
+   packaged `phios-lock` requests a solid dark `111318` background and does not
+   request an idle-visible indicator; upstream swaylock separately provides
+   `--indicator-idle-visible`. This is consistent with a blank idle lock screen,
+   but is an inference, not evidence that locking succeeded in this VM. Keep the
+   observation unresolved until the actual lock/refusal/unlock sequence passes.
+2. **`sudo poweroff` was refused by the live account.** ACPI shutdown/cold restart
+   succeeded. The live user retains its narrow sudo authority; no permission
+   was expanded. The documented guest `systemctl poweroff`/logind/PolicyKit path
+   was not tested by this command.
+3. **Explicit Secure Boot disable reported no enrolled platform key.** The VM
+   recovered to its graphical desktop. Effective Secure Boot off is reported;
+   Secure Boot support or key enrollment is not established.
+
+For the bounded remaining VirtualBox lock check, retain this exact ISO and VM
+configuration. Invoke Super+L, observe whether typing produces an indicator,
+enter an incorrect disposable password and verify the desktop stays locked,
+then enter the public live password `phios` followed by Enter. Verify the same
+session returns with PhiShell, Waybar and a functional cursor. Preserve the
+appearance, refusal and unlock results; terminating the session or restarting
+the compositor is not a successful unlock. Record the exact VirtualBox version
+and retain relevant screenshots/logs separately. This check requires no new
+runtime, sudo policy or global cursor changes.
+
 Detection references: [systemd virtualization identifiers](https://github.com/systemd/systemd/blob/main/src/basic/virt.c),
 [Oracle VMSVGA PCI definitions](https://github.com/VirtualBox/virtualbox/blob/main/src/VBox/Devices/Graphics/DevVGA-SVGA.h),
-and [systemd PartOf lifecycle semantics](https://www.freedesktop.org/software/systemd/man/systemd.unit.html).
+[systemd PartOf lifecycle semantics](https://www.freedesktop.org/software/systemd/man/systemd.unit.html),
+and [swaylock appearance options](https://github.com/swaywm/swaylock/blob/master/swaylock.1.scd).
