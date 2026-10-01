@@ -100,3 +100,12 @@ namespace as appropriate to the chosen release ownership. Those repository
 settings are not changed by a workflow commit. A green aggregate does not
 replace hardware evidence, authentic signing, final transition qualification,
 source/license delivery or explicit release authorization.
+
+Configure the requirement against the complete integration candidate containing
+this controller after its same-source run passes. Earlier component heads
+predate the controller and cannot emit `release-gate`; they are review references
+for the integration. The complete candidate repeated all nine jobs in run
+36823086807, including exact normal live/install/recovery, restricted virtual
+DHCP/audio and actual PAM locking, plus the separate signed-update QA cases.
+See RELEASE_HANDOFF.md and `evidence/qualification-gate-a7bcd986.json` for exact
+identities, verified compact hashes, preserved failures and remaining gates.

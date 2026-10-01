@@ -7,16 +7,46 @@ proof that PhiOS is a completed OS. Preserve the repository AGENTS.md rules.
 
 | Requirement | Candidate change | Evidence / remaining gate |
 | --- | --- | --- |
-| R1: HTTP callers cannot mint operator authority | Decision, binding and lease POSTs held; explicit terminal review | HTTP rejection, cancellation and stale-review tests; same-user isolation and Windows ACL evidence remain required |
+| R1: HTTP callers cannot mint operator authority | Decision, binding and lease POSTs held; explicit terminal review | HTTP rejection, cancellation and stale-review tests; installed UID-separated fixed proof passed. Arbitrary same-UID administrator isolation is outside this claim; Windows qualification remains separate |
 | R2: Freeze a truthful Linux release contract | Candidate contract and generated metadata corrected | docs/os/RELEASE_CONTRACT.md and packaging/linux/release.json; Python and OS release tracks separate |
-| R3: Install current Python and UI packages | Current-source PKGBUILDs, JS lock and native pacman adapter | Pinned Arch image package/install smoke passed in runs 36786368318 and 36798467774; signed upstream inputs; local development packages unsigned |
-| R4: Real non-root graphical login and supervised services | Wayfire session and user service target | Run 36798467774 passed real live/installed login, observer/browser readiness, sidecar restart and logout; no privileged browser or agent auto-start |
-| R5: Produce and UEFI boot exact live ISO | Isolated Archiso/QEMU workflow | Exact source 0253b6e0fb27251fe2da37b6d8c1e31245a64290 and ISO SHA-256 recorded below; live lifecycle and two distinct boots passed |
+| R3: Install current Python and UI packages | Current-source PKGBUILDs, JS lock, native pacman adapter, NetworkManager and user audio/PAM lock stack | Exact normal and QA image package/install gates passed in 36823086807; signed pinned upstream inputs; local development packages remain unsigned |
+| R4: Real non-root graphical login and supervised services | Wayfire and user services, audio/session cleanup, manual PAM lock and ordinary PolicyKit agent | 36823086807 passed live/installed PAM desktop, sidecar restart, all 13 units inactive at logout, service/audio/network reauthentication and lock/wrong/correct-password cases; physical and specific graphical administration tests remain separate |
+| R5: Produce and UEFI boot exact live ISO | Isolated Archiso/QEMU workflow | Exact normal source/tree/ISO hashes in desktop-normal-a7bcd986.json; two distinct live boots and three no-ISO installed boots passed; no physical support inference |
 | R6: Recover durable private state | Locking/sync, transactional outbox and data-only recovery | Contention, interruption, backup/restore and schema refusal tests; installed acknowledged state survived abrupt VM restart in 36798467774; physical power-loss qualification pending |
 | R7: Explicit blank-disk installation | Experimental root-owned offline CLI and disposable qualification lane | 20 local refusal/cancellation/identity tests; cancellation, actual installation, no-ISO desktop boot and fresh data restoration passed on the named disposable VM; hardware beta pending |
 | R8: Whole-OS update and recovery | Explicit public-key enrollment, signed verifier, staged package application and matched root/EFI checkpoints | Full 2,218-test CI and bounded end-to-end VM run 36805999628 passed: valid update, invalid/cancelled/replayed/dependency refusal, abrupt termination during a real package hook, unchanged active system, deliberate kernel boot failure, matched live recovery and three password-authenticated disk-only boots; arbitrary transitions and hardware remain unqualified |
 | R9: Qualify hardware and one Linux governed workflow | UID-separated installed-only proof-note broker, canonical bound single-use lease, independent protected ledger and read-only hardware collector/protocol | 21 focused tests and actual sudo/PAM/UID 1001 proof, cancellation, denial, replay, expiry and historical-authority refusal after restart/recovery passed on the exact normal ISO in run 36812104386; supplied Skytech target remains physically unqualified |
 | R10: Sign and publish the exact qualified artifact | Actual native/Python/npm and bundled frontend inventory, supplier notices, CycloneDX SBOM and exact source/ISO/artifact provenance | 11 focused inventory/refusal tests, pinned CycloneDX schema validation and exact fixture-free live/install/state/recovery VM qualification passed in run 36812104386; final signed transition, hardware, source/license delivery, release identity and publication remain held |
+
+## Latest desktop and aggregate qualification
+
+[Run 36823086807](https://github.com/MichaelWave369/PhiOS/actions/runs/36823086807)
+passed all nine jobs for source `a7bcd9863eea12a87c1a9ef1fcbd26211542cd91`,
+the same tree as reviewed code head `9c98475274442595c59370113b9c1e0dee595ec9`.
+Full Python CI passed 2,287 tests with six existing optional skips, Ruff and
+mypy (304 source files); wheel/vector/ledger/PhiShell jobs passed. The normal
+ISO repeated installed data/proof/recovery and added restricted DHCP, synthetic
+HDA/user PCM, non-root PolicyKit startup, actual Super+L and PAM password
+refusal/unlock, complete session shutdown and audio/network reauthentication.
+The separate QA artifact repeated signed-package/refusal/interruption/recovery
+with an ephemeral test signer and its own different ISO.
+
+`evidence/qualification-gate-a7bcd986.json` links the normal and signed receipts
+and their hashes. The normal inventory has 501 components and 746 captured
+notice files; the QA inventory has 502 components. Both compact archive hashes,
+15 checksum payloads per archive and available provenance sidecars were checked.
+Actual lock/refusal, restored desktop and failed-kernel-boot screenshots were
+inspected. Large payload hashes remain the producer's hashes; the ISO/source/
+package/notice archives were not redownloaded into the review host. The earlier
+failed DHCP expectations, captured nmcli parsing regression, Arch download
+failure and aggregate holds remain in `evidence/desktop-attempts.json`.
+
+Later integration/documentation/main/tag identities require their own checks.
+The complete main-targeted integration includes the qualification controller;
+earlier component heads predate that status and remain focused review references.
+Physical hardware, the actual authenticated maintainer-signed transition,
+source/license delivery, repository protection and publication remain open.
+`release_ready` and publication authority remain false.
 
 ## First builder handoff
 

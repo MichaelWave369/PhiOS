@@ -110,10 +110,22 @@ configurations. Service checks require each named unit individually; the live
 lifecycle requires all session/audio/socket units inactive at logout and repeats
 actual service/audio/network checks after graphical reauthentication.
 
-The complete added qualification is pending actual CI. Earlier passed ISO hashes remain
-valid only for their recorded earlier scope; do not claim these new features
-qualified until their actual new artifact receipt passes. Physical hardware,
-final signed transition and distribution delivery remain open.
+The complete added VM qualification passed in
+[run 36823086807](https://github.com/MichaelWave369/PhiOS/actions/runs/36823086807)
+for source `a7bcd9863eea12a87c1a9ef1fcbd26211542cd91`. The exact normal ISO passed
+two distinct live boots with four service/audio/DHCP observations, 13 inactive
+units at each logout, two real live PAM lock/refusal/unlock checks, and three
+installed no-ISO boots with audio, installed PAM locking, data/proof and matched
+recovery. The separate QA artifact repeated installed audio/locking and its
+ephemeral signed-package/refusal/interruption/recovery cases. The aggregate gate
+and all nine jobs passed, with 2,287 Python tests and six existing optional skips.
+The exact file/image/source/archive hashes and bounds are in
+`evidence/desktop-normal-a7bcd986.json`, `desktop-signed-a7bcd986.json` and
+`qualification-gate-a7bcd986.json`. Wrong-password and recovered/failed-boot
+screenshots were inspected. Earlier artifacts retain their earlier scopes;
+later integration or publication bytes require their own qualification.
+Physical hardware, the actual final signed transition and distribution delivery
+remain open. A PolicyKit agent's startup is not a specific GUI administrator test.
 
 Upstream references: [Wayfire configuration](https://github.com/WayfireWM/wayfire/blob/master/wayfire.ini),
 [swaylock](https://github.com/swaywm/swaylock),

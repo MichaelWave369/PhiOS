@@ -96,3 +96,13 @@ with 441 actual SBOM components and 620 captured supplier notice files. See
 `docs/os/evidence/normal-installed-5145b4da.json` and RELEASE_HANDOFF.md for exact
 identities and remaining gates. The real final signed package transition and
 physical hardware remain separate gates.
+
+The later desktop/aggregate [run 36823086807](https://github.com/MichaelWave369/PhiOS/actions/runs/36823086807)
+passed all nine same-source jobs. Its exact normal ISO repeated live/install/
+state/proof/recovery and added the bounded network/audio/PAM-lock qualification;
+it contains 501 components and 746 supplier notice files. The separate signed
+QA artifact has 502 components. The two compact archives and 15 checksum payloads
+per archive were independently checked against hashes/provenance; the large
+ISO/package/source/notice archives were not redownloaded into the review host.
+See `evidence/qualification-gate-a7bcd986.json` and its two linked receipts.
+Source delivery, maintainer signing and physical support remain open.

@@ -1,0 +1,123 @@
+{
+  "actual_jobs": [
+    {
+      "id": 110242688984,
+      "name": "changes",
+      "result": "success",
+      "status": "completed"
+    },
+    {
+      "id": 110242720066,
+      "name": "python-tests / ledger-reports",
+      "result": "success",
+      "status": "completed"
+    },
+    {
+      "id": 110242720134,
+      "name": "phishell / build",
+      "result": "success",
+      "status": "completed"
+    },
+    {
+      "id": 110242720138,
+      "name": "python-tests / installed-artifact",
+      "result": "success",
+      "status": "completed"
+    },
+    {
+      "id": 110242720145,
+      "name": "python-tests / test",
+      "result": "success",
+      "status": "completed"
+    },
+    {
+      "id": 110242720167,
+      "name": "python-tests / memory-vector",
+      "result": "success",
+      "status": "completed"
+    },
+    {
+      "id": 110242720431,
+      "name": "normal-image / fixture-free-candidate",
+      "result": "success",
+      "status": "completed"
+    },
+    {
+      "id": 110242720445,
+      "name": "qa-image / live-image",
+      "result": "success",
+      "status": "completed"
+    },
+    {
+      "id": 110247102777,
+      "name": "release-gate",
+      "result": "success",
+      "status": "completed"
+    }
+  ],
+  "actual_maintainer_signed_transition_qualified": false,
+  "artifact_metadata": [
+    {
+      "digest": "sha256:f1aaa1e361e0e0016cfd67dd86e34a6abf88662810a340e28cf75a5a2e9f0e62",
+      "expires_at": "2026-10-08T06:23:26Z",
+      "id": 11144925813,
+      "name": "phios-linux-evidence-36823086807",
+      "size_in_bytes": 4187659
+    },
+    {
+      "digest": "sha256:eeeded3d7dbf207ec6c085cfa708d5d8f5ff1dd0338e63cd37b9b9fd37549b53",
+      "expires_at": "2026-10-08T06:22:32Z",
+      "id": 11144596210,
+      "name": "phios-linux-development-36823086807",
+      "size_in_bytes": 1803543533
+    },
+    {
+      "digest": "sha256:bf9998e13cd8c156ec0e3bad2673acd05edd213a6d711f2b01a4f1eed85d936a",
+      "expires_at": "2026-10-08T06:19:19Z",
+      "id": 11144167873,
+      "name": "phios-fixture-free-evidence-36823086807",
+      "size_in_bytes": 6723600
+    },
+    {
+      "digest": "sha256:876b3b01d61069b3603c9ae96cbb6902135c516f3fe2c9103ede0f14090c3616",
+      "expires_at": "2026-10-08T06:18:32Z",
+      "id": 11144157950,
+      "name": "phios-fixture-free-candidate-36823086807",
+      "size_in_bytes": 1805985935
+    }
+  ],
+  "hardware_qualified": false,
+  "license_source_compliance_reviewed": false,
+  "ordinary_ci_existing_skips": 6,
+  "ordinary_ci_passed": 2287,
+  "publication_authority": false,
+  "receipts": {
+    "desktop-normal-a7bcd986.json": {
+      "evidence_archive_sha256": "bf9998e13cd8c156ec0e3bad2673acd05edd213a6d711f2b01a4f1eed85d936a",
+      "evidence_artifact_id": 11144167873,
+      "iso_sha256": "3b26a7334b36254b4e686843e84924ee14cdb6ef2d6748fd771e09a02e5f79a2",
+      "sha256": "0647a24449e8315ca38409f9d3c2a0eea42d69741156167f074649717ab9f92b"
+    },
+    "desktop-signed-a7bcd986.json": {
+      "evidence_archive_sha256": "f1aaa1e361e0e0016cfd67dd86e34a6abf88662810a340e28cf75a5a2e9f0e62",
+      "evidence_artifact_id": 11144925813,
+      "iso_sha256": "c0dd9a93ceeda3897f7c5d5b16785f4cf418935e1c5d3ec312ec3130d8446f2e",
+      "sha256": "2cc32ae78c23e0361730c2752a8ad8a32add6144d028ef6693ae1ca809459a48"
+    }
+  },
+  "release_gate_job_id": 110247102777,
+  "release_ready": false,
+  "repository_protection_configured": false,
+  "required_jobs_skipped": false,
+  "required_scope": {
+    "normal_image": true,
+    "python": true,
+    "qa_image": true,
+    "ui": true
+  },
+  "reviewed_branch_head": "9c98475274442595c59370113b9c1e0dee595ec9",
+  "schema_version": "phios.ci-qualification-summary.v1",
+  "source_commit": "a7bcd9863eea12a87c1a9ef1fcbd26211542cd91",
+  "tested_source_tree": "a85700b2c08e54a066a77a2f4a4db7494b7579ff",
+  "workflow_run": 36823086807
+}

@@ -8,7 +8,7 @@ this GPU, motherboard firmware, audio, network radios or physical power loss.
 
 | Target | Current evidence | Gate |
 | --- | --- | --- |
-| Disposable x64 UEFI/KVM VM, 2 CPUs, 4 GiB RAM, 32-GiB disk | Exact normal live/install/data/recovery/Linux proof passed in 36812104386; separate ephemeral signed-update/interruption QA passed in 36812104411 | Future final artifact and actual signed release transition must be qualified separately |
+| Disposable x64 UEFI/KVM VM, 2 CPUs, 4 GiB RAM, 32-GiB disk | Exact normal live/install/data/recovery/Linux proof, virtual DHCP/audio and manual PAM locking passed in 36823086807; separate ephemeral signed-update/interruption QA passed in the same source run | Future final artifact and actual signed release transition must be qualified separately |
 | Supplied Skytech/Core Ultra 9/RTX 5070 machine | No boot or driver observations | Live boot, GPU/input/network/audio/firmware tests first |
 | Dedicated empty physical test disk | No selected disk or test | Exact installer identity/blankness/confirmation, no-media boot, persistence, update and recovery |
 
@@ -22,7 +22,7 @@ ISO against its exact `SHA256SUMS`, provenance and recorded qualification
 receipt before preparing removable media. On Windows:
 
 ```powershell
-Get-FileHash .\phios-linux-0.1.0-alpha.1-x86_64.iso -Algorithm SHA256
+(Get-FileHash .\phios-linux-0.1.0-alpha.1-x86_64.iso -Algorithm SHA256).Hash.ToLowerInvariant()
 ```
 
 Compare the complete digest, not a filename or another build's successful test.
@@ -48,10 +48,14 @@ serial, MAC/IP address, Wi-Fi SSID or user-state content. It marks the supplied
 ISO hash as supplied, because it does not independently read the downloaded
 ISO bytes. Absence of virtualization detection does not prove physical hardware.
 All compatibility results remain `not tested` until actual observations exist.
+The live home is temporary; retain this report and the manual results separately
+before rebooting. The collector expects the full lowercase ISO digest displayed
+by the PowerShell command above.
 
 Record pass/fail/not available with evidence for resolution/rendering and
 multiple displays; keyboard/mouse/keymap; wired networking and Wi-Fi association,
-DHCP/DNS; audio playback/recording; sleep/resume; shutdown/restart; and storage
+DHCP/DNS; audio playback/recording; manual locking, wrong-password hold and PAM
+unlock; sleep/resume; shutdown/restart; and storage
 visibility. Record missing drivers and services honestly. The later desktop
 candidate adds NetworkManager, user audio and manual PAM locking; its new
 software/VM scope is recorded in DESKTOP_OPERATION.md. Physical audio and Wi-Fi

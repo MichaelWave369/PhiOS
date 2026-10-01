@@ -13,15 +13,15 @@ this handoff; no private PhiKernel/TIEKAT implementation is needed to boot it.
 
 | Identity | Value |
 | --- | --- |
-| Reviewed branch head | `0ea1fced470abf75701a4cad8f806551078b1b76` |
-| Tested prospective merge source | `5145b4dabd0e70d4b8d35691041a4d9f797affe9` |
-| Identical source tree | `59ec972739f5293bb3de57d7369892b98b68c4b3` |
-| Normal ISO SHA-256 | `e60b64623a0008b27439f98eacd22cc9d4e0ce714d4b7b8684276f425988349b` |
-| First-party source archive SHA-256 | `19a5f6e6a51242d9d7e989b7e6579c95b3cbe5778ac39b643380876240eb5911` |
-| Normal image qualification | [36812104386](https://github.com/MichaelWave369/PhiOS/actions/runs/36812104386) |
-| Download normal ISO and payloads | [11140626238](https://github.com/MichaelWave369/PhiOS/actions/runs/36812104386/artifacts/11140626238) |
-| Compact evidence | [11140895800](https://github.com/MichaelWave369/PhiOS/actions/runs/36812104386/artifacts/11140895800) |
-| Persisted receipt | [normal-installed-5145b4da.json](evidence/normal-installed-5145b4da.json) |
+| Reviewed branch head | `9c98475274442595c59370113b9c1e0dee595ec9` |
+| Tested prospective merge source | `a7bcd9863eea12a87c1a9ef1fcbd26211542cd91` |
+| Identical source tree | `a85700b2c08e54a066a77a2f4a4db7494b7579ff` |
+| Normal ISO SHA-256 | `3b26a7334b36254b4e686843e84924ee14cdb6ef2d6748fd771e09a02e5f79a2` |
+| First-party source archive SHA-256 | `41ed0a19a811f7ac6c22edbb555adbc4b55d5421f8ea6b9e73481cd58116d8b7` |
+| Normal image qualification | [36823086807](https://github.com/MichaelWave369/PhiOS/actions/runs/36823086807) |
+| Download normal ISO and payloads | [11144157950](https://github.com/MichaelWave369/PhiOS/actions/runs/36823086807/artifacts/11144157950) |
+| Compact evidence | [11144167873](https://github.com/MichaelWave369/PhiOS/actions/runs/36823086807/artifacts/11144167873) |
+| Persisted receipt | [desktop-normal-a7bcd986.json](evidence/desktop-normal-a7bcd986.json) |
 
 These unsigned review downloads expire **2026-10-08**. A later build, branch
 update, final merge or tag has a separate identity. Download the normal payload,
@@ -31,7 +31,7 @@ test fixtures and is not the physical observation candidate.
 
 ## Ordered code review
 
-Review and merge only in stack order after assessing each stated boundary:
+Review the component PRs in dependency order after assessing each boundary:
 
 | PR | Scope |
 | --- | --- |
@@ -46,11 +46,28 @@ Review and merge only in stack order after assessing each stated boundary:
 | [278](https://github.com/MichaelWave369/PhiOS/pull/278) | Always-reported same-source `release-gate` and reusable qualification jobs |
 | [279](https://github.com/MichaelWave369/PhiOS/pull/279) | NetworkManager, user audio, manual PAM locking and their actual desktop probes |
 
-The aggregate gate passed all nine jobs in run 36816117488 for source
+Use the complete main-targeted integration PR as the merge vehicle after its
+own exact-source qualification passes. It contains the candidate and aggregate
+controller together, so main can require its observed `release-gate` before
+integration. The component PRs above remain focused review references. Requiring
+`release-gate` on the earlier component heads would leave them pending because
+they predate that controller. Keep every merge and release under maintainer review.
+
+The latest aggregate gate passed all nine jobs in
+[run 36823086807](https://github.com/MichaelWave369/PhiOS/actions/runs/36823086807)
+for source `a7bcd9863eea12a87c1a9ef1fcbd26211542cd91`, with 2,287 Python tests
+passed and six existing optional skips. `evidence/qualification-gate-a7bcd986.json`
+links the independently hash-checked normal and signed QA receipts. The normal
+image has 501 inventoried components and 746 captured supplier notice files.
+Virtual DHCP/audio, actual Super+L/PAM lock/refusal/unlock, complete session
+shutdown/reauthentication and installed recovery/proof passed. Physical network,
+audio, Wi-Fi, GPU and suspend remain unqualified.
+
+The earlier aggregate gate passed all nine jobs in run 36816117488 for source
 `5a1431f4758029a9c04abfb5471351e9abf88a3f`, with 2,279 Python tests passed and
 six existing optional skips. Its actual normal and signed QA scopes and exact
-hashes are in `evidence/qualification-gate-5a1431f4.json`. The later desktop
-candidate has a different source/artifact and its own pending qualification.
+hashes are in `evidence/qualification-gate-5a1431f4.json`. Each later integration,
+documentation commit, main merge or tag has a separate source/artifact identity.
 The aggregate normal and QA jobs reuse the existing exact-image procedures. See
 BUILD_AND_QUALIFY.md for the `release-gate` required-status handoff.
 Review source and tests, not just a green check. Main and OS release-tag protection
@@ -72,9 +89,9 @@ does not claim those settings were applied.
    HARDWARE_QUALIFICATION.md, initially without installation. Save the read-only
    hardware report plus actual GPU/display/input, network, audio, firmware,
    suspend and shutdown/restart results. RTX 5070 support is not inferred from
-   software rendering in QEMU. Audio/session locking/Wi-Fi configuration are
-   presently unqualified features; resolve observations and requalify changed
-   artifacts before promising them. Preserve Windows and its independent backup.
+   software rendering in QEMU. Virtual audio, restricted DHCP and manual PAM locking passed on this
+   candidate; physical audio/network/radio/lock/suspend behavior still requires
+   observation. Resolve blockers and requalify changed artifacts before promising them. Preserve Windows and its independent backup.
 2. **Qualify installation on a separately identified dedicated empty disk.**
    Review the entire blank target and exact installer phrase. The installer
    supports no dual boot or partition reuse. Prove no-media logins, persistent
