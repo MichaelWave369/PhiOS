@@ -53,12 +53,16 @@ jobs:
             --iso dist/linux/phios-linux-0.1.0-alpha.1-x86_64.iso \
             --source "$(cat dist/linux/source-commit.txt)" \
             --output "$RUNNER_TEMP/phios-boot"
+      - name: Install only to a disposable virtual disk and qualify no-ISO recovery
+        run: |
+          python3 packaging/linux/tests/qemu_install.py \
+            --iso dist/linux/phios-linux-0.1.0-alpha.1-x86_64.iso \
+            --source "$(cat dist/linux/source-commit.txt)" \
+            --output "$RUNNER_TEMP/phios-installed"
       - name: Convert display evidence even when qualification fails
         if: always()
         run: |
-          if [[ -f "$RUNNER_TEMP/phios-boot/screen.ppm" ]]; then
-            /usr/bin/python3 -c 'from PIL import Image; from pathlib import Path; import os; [Image.open(p).save(p.with_suffix(".png")) for p in Path(os.environ["RUNNER_TEMP"] + "/phios-boot").glob("*.ppm")]'
-          fi
+          /usr/bin/python3 -c 'from PIL import Image; from pathlib import Path; import os; [Image.open(p).save(p.with_suffix(".png")) for directory in ["phios-boot", "phios-installed"] for p in Path(os.environ["RUNNER_TEMP"], directory).glob("*.ppm")]'
       - name: Preserve candidate and qualification evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -69,6 +73,9 @@ jobs:
             ${{ runner.temp }}/phios-boot/*.log
             ${{ runner.temp }}/phios-boot/*.json
             ${{ runner.temp }}/phios-boot/*.png
+            ${{ runner.temp }}/phios-installed/*.log
+            ${{ runner.temp }}/phios-installed/*.json
+            ${{ runner.temp }}/phios-installed/*.png
           if-no-files-found: warn
           retention-days: 7
       - name: Preserve reviewable logs and screenshot separately
@@ -84,5 +91,8 @@ jobs:
             ${{ runner.temp }}/phios-boot/*.log
             ${{ runner.temp }}/phios-boot/*.json
             ${{ runner.temp }}/phios-boot/*.png
+            ${{ runner.temp }}/phios-installed/*.log
+            ${{ runner.temp }}/phios-installed/*.json
+            ${{ runner.temp }}/phios-installed/*.png
           if-no-files-found: warn
           retention-days: 7

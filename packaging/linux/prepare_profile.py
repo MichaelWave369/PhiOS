@@ -60,6 +60,7 @@ pacman_conf="pacman.conf"
 airootfs_image_type="squashfs"
 airootfs_image_tool_options=('-comp' 'zstd' '-b' '1M')
 file_permissions=(
+  ["/etc/sudoers.d/phios-live-installer"]="0:0:440"
   ["/usr/local/bin/phios-live-setup"]="0:0:755"
   ["/usr/local/bin/phios-live-smoke"]="0:0:755"
 )
@@ -76,7 +77,7 @@ bootmodes=('uefi.systemd-boot')
 pacman_conf="pacman.conf"
 airootfs_image_type="squashfs"
 airootfs_image_tool_options=('-comp' 'zstd' '-b' '1M')
-file_permissions=(["/usr/local/bin/phios-live-setup"]="0:0:755")
+file_permissions=(["/usr/local/bin/phios-live-setup"]="0:0:755" ["/etc/sudoers.d/phios-live-installer"]="0:0:440")
 """)
     entries = destination / "efiboot/loader/entries"
     for path in entries.iterdir():
@@ -107,6 +108,9 @@ file_permissions=(["/usr/local/bin/phios-live-setup"]="0:0:755")
           "d /home/phios/.local/state 0700 phios phios -\n"
           "d /home/phios/.local/state/phios 0700 phios phios -\n"
           "d /var/lib/phios-agent 0700 phios-agent phios-agent -\n")
+    # The volatile public account can invoke this one root-owned interactive
+    # installer; it receives no unrestricted sudo shell.
+    write("etc/sudoers.d/phios-live-installer", "phios ALL=(root) NOPASSWD: /usr/bin/phios-install\n")
     write("etc/greetd/config.toml", '[terminal]\nvt = 1\n[default_session]\n'
           'command = "tuigreet --cmd phios-session"\nuser = "phios-greeter"\n'
           '[initial_session]\ncommand = "phios-session"\nuser = "phios"\n')
@@ -136,9 +140,10 @@ file_permissions=(["/usr/local/bin/phios-live-setup"]="0:0:755")
         # must not reset/consume its serial evidence.
         (root / "etc/systemd/system/serial-getty@ttyS0.service").symlink_to("/dev/null")
         write("usr/local/bin/phios-live-smoke", (repo / "packaging/linux/tests/live-smoke.sh").read_text())
+        write("usr/local/bin/phios-live-install-smoke.py", (repo / "packaging/linux/tests/install_smoke.py").read_text())
         write("etc/systemd/system/phios-live-smoke.service", "[Unit]\nDescription=CI live-image qualification fixture\n"
               "After=greetd.service\n[Service]\nType=oneshot\nExecStart=/usr/local/bin/phios-live-smoke\n"
-              "TimeoutStartSec=480\nStandardOutput=tty\nStandardError=tty\nTTYPath=/dev/ttyS0\n")
+              "TimeoutStartSec=1800\nStandardOutput=tty\nStandardError=tty\nTTYPath=/dev/ttyS0\n")
         (wants / "phios-live-smoke.service").symlink_to("/etc/systemd/system/phios-live-smoke.service")
 
 

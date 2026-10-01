@@ -23,4 +23,6 @@ package() {
     install -Dm644 LICENSE_HISTORY.md "$pkgdir/usr/share/doc/phios/LICENSE_HISTORY.md"
     install -Dm644 packaging/linux/release.json "$pkgdir/usr/share/phios/linux-release.json"
     install -Dm644 PHIOS_SOURCE_COMMIT "$pkgdir/usr/share/phios/source-commit"
+    install -Dm644 packaging/linux/installer/install.py "$pkgdir/usr/lib/phios-installer/install.py"
+    install -Dm755 packaging/linux/installer/phios-install "$pkgdir/usr/bin/phios-install"
 }

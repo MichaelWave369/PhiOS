@@ -14,5 +14,11 @@ greetd
 greetd-tuigreet
 iwd
 curl
+gptfdisk
+dosfstools
+btrfs-progs
+rsync
+arch-install-scripts
+sudo
 phios
 phishell
