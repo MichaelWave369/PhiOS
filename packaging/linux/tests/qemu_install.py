@@ -281,6 +281,10 @@ def qualify(iso: Path, source: str, output: Path, *, recovery: bool = False, sig
                             send_text(qmp, PASSWORD)
                             program = Path(__file__).with_name("installed_probe.py").read_text() + \
                                 f"\nprobe({source!r}, {phase}, signed_update={signed_update!r})\n"
+                            if Path(__file__).with_name('proof_smoke.py').exists():
+                                program = Path(__file__).with_name('proof_smoke.py').read_text() + \
+                                    (f'\nproof_workflow({source!r})\n' if phase == 1 else f'\nhistorical_proof({source!r})\n') + \
+                                    program.replace('from __future__ import annotations\n', '')
                             # Keep each input line below the terminal's canonical
                             # line bound; a growing base64 -c command can exceed it.
                             channel.sendall(("python - <<'PHIOS_INSTALLED_PROBE'\n" + program +
@@ -289,6 +293,21 @@ def qualify(iso: Path, source: str, output: Path, *, recovery: bool = False, sig
                             details = json.loads(result[1])
                             if details["source_commit"] != source or details["phase"] != phase:
                                 raise RuntimeError("installed receipt identity mismatch")
+                            if Path(__file__).with_name('proof_smoke.py').exists():
+                                if phase == 1:
+                                    proof_match = re.search(r'PHIOS_LINUX_PROOF_OK:(\{[^\r\n]+\})', text)
+                                    if proof_match is None:
+                                        raise RuntimeError('actual governed proof receipt missing')
+                                    proof = json.loads(proof_match[1])
+                                    if proof['source_commit'] != source or not all(proof[k] is True for k in
+                                        ['sudo_password_authentication', 'agent_store_denied', 'agent_broker_denied',
+                                         'cancel_passed', 'replay_refused', 'expiry_refused']):
+                                        raise RuntimeError('governed proof refusal/identity evidence missing')
+                                    receipt['linux_governed_workflow'] = proof
+                                elif 'PHIOS_LINUX_PROOF_HISTORY_INACTIVE:' not in text:
+                                    raise RuntimeError('old-boot proof authority refusal missing')
+                                if phase == (3 if recovery else 2):
+                                    receipt['linux_governed_workflow_qualified'] = True
                             receipt["boot_ids"].append(details["boot_id"])
                             receipt["record_sha256"] = details["record_sha256"]
                             capture_display(qmp, output, name=f"screen-installed-{phase}")
