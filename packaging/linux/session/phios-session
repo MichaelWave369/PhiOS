@@ -9,6 +9,8 @@ export XDG_CURRENT_DESKTOP=Wayfire
 export XDG_SESSION_DESKTOP=phios
 export XDG_SESSION_TYPE=wayland
 export WLR_RENDERER_ALLOW_SOFTWARE=1
+source /usr/lib/phishell/virtualbox-compat.sh
+phios_virtualbox_cursor_compat
 export PHIOS_STATE_ROOT="$HOME/.local/state/phios"
 export PHIOS_CURIOSITY_ROOT="$PHIOS_STATE_ROOT/curiosity"
 mkdir -p "$PHIOS_STATE_ROOT"
