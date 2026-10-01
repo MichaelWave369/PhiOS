@@ -1,18 +1,7 @@
 name: PhiShell
 
 on:
-  pull_request:
-    paths:
-      - "phishell/**"
-      - "docs/PHISHELL_*.md"
-      - ".github/workflows/phishell.yml"
-  push:
-    branches:
-      - main
-    paths:
-      - "phishell/**"
-      - "docs/PHISHELL_*.md"
-      - ".github/workflows/phishell.yml"
+  workflow_call:
   workflow_dispatch:
 
 permissions:

@@ -1,14 +1,7 @@
 name: Linux development image
 
 on:
-  pull_request:
-    paths:
-      - 'packaging/**'
-      - 'build/build_iso.sh'
-      - 'phishell/**'
-      - 'phios/**'
-      - 'pyproject.toml'
-      - '.github/workflows/linux-image.yml'
+  workflow_call:
   workflow_dispatch:
 
 permissions:

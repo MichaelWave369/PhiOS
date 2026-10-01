@@ -44,6 +44,9 @@ Review and merge only in stack order after assessing each stated boundary:
 | [276](https://github.com/MichaelWave369/PhiOS/pull/276) | Restricted Linux proof broker, hardware handoff and bundled frontend inventory |
 | [277](https://github.com/MichaelWave369/PhiOS/pull/277) | Exact normal-image installed/recovery gate and explicit serial password login |
 
+Review the follow-on always-reported qualification gate after this stack; its
+normal and QA jobs reuse the existing exact-image procedures. See
+BUILD_AND_QUALIFY.md for the `release-gate` required-status handoff.
 Review source and tests, not just a green check. Main and OS release-tag protection
 still require maintainer configuration. Keep publication separate from the
 existing Python `v*`/PyPI workflow. Evidence never promotes an adapter, enrolls a

@@ -1,14 +1,7 @@
 name: Fixture-free OS candidate (unpublished)
 
 on:
-  pull_request:
-    paths:
-      - 'packaging/**'
-      - 'phios/**'
-      - 'phishell/**'
-      - 'pyproject.toml'
-      - 'build/build_iso.sh'
-      - '.github/workflows/os-release-candidate.yml'
+  workflow_call:
   workflow_dispatch:
 
 permissions:
