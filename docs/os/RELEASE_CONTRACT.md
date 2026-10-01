@@ -19,7 +19,9 @@ Python package versions and OS versions are independent. OS tags start with
 The default preview does not run an AI model or an autonomous agent. Ollama,
 vector memory, OCR, Windows UI Automation/GhostWalk and hardware bridges are
 optional or platform-specific. Missing capabilities must show unavailable.
-No Linux desktop effect executor or lease issuance is advertised. The browser
+No general Linux desktop effect executor or lease issuance is advertised. A
+separate installed-only, explicitly invoked proof-note candidate is described
+in LINUX_PROOF_WORKFLOW.md; its untrusted agent proposal grants no authority. The browser
 cannot mint operator approvals; see OPERATOR_AUTHORIZATION.md.
 
 ## Deliberately unqualified capabilities

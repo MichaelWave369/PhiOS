@@ -112,7 +112,7 @@ def component(kind: str, name: str, version: str, *, path: str, labels: list[str
 
 def collect(root: Path) -> tuple[list[dict[str, Any]], dict[str, list[dict[str, Any]]], set[str]]:
     components: list[dict[str, Any]] = []
-    inventory: dict[str, list[dict[str, Any]]] = {'native': [], 'python': [], 'javascript': []}
+    inventory: dict[str, list[dict[str, Any]]] = {'native': [], 'python': [], 'javascript': [], 'javascript-bundled': []}
     notices: set[str] = set()
     database = image_path(root, 'var/lib/pacman/local')
     rows = sorted(database.glob('*/desc'))
@@ -183,6 +183,42 @@ def collect(root: Path) -> tuple[list[dict[str, Any]], dict[str, list[dict[str, 
         for notice in directory.iterdir():
             if notice.is_file() and re.search(r'license|copying|notice|copyright', notice.name, re.I):
                 notices.add(notice.relative_to(root).as_posix())
+    bundled = json.loads(bounded(image_path(root, 'usr/lib/phishell/dist/bundled-js-inventory.json')))
+    if (not isinstance(bundled, dict) or set(bundled) != {'schema_version', 'packages', 'chunks', 'license_compliance_reviewed'}
+            or bundled['schema_version'] != 'phios.phishell-bundle.v1' or bundled['license_compliance_reviewed'] is not False
+            or not isinstance(bundled['packages'], list) or not 1 <= len(bundled['packages']) <= 2000
+            or not isinstance(bundled['chunks'], list) or not 1 <= len(bundled['chunks']) <= 512):
+        raise ValueError('bounded actual frontend bundle inventory required')
+    chunk_names: set[str] = set()
+    for chunk in bundled['chunks']:
+        if set(chunk) != {'filename', 'sha256', 'size'} or chunk['filename'] in chunk_names:
+            raise ValueError('exact unique frontend chunk records required')
+        if digest(image_path(root, 'usr/lib/phishell/dist/' + chunk['filename'])) != {key: chunk[key] for key in ['sha256', 'size']}:
+            raise ValueError('actual frontend chunk differs from build inventory')
+        chunk_names.add(chunk['filename'])
+    origins: set[str] = set()
+    for row in bundled['packages']:
+        if (set(row) != {'name', 'version', 'license', 'package_json_sha256', 'package_path', 'modules', 'notices'}
+                or not isinstance(row['name'], str) or not row['name'] or not isinstance(row['version'], str) or not row['version']
+                or row['package_path'] in origins or not isinstance(row['modules'], list) or not row['modules']
+                or not isinstance(row['notices'], list) or len(row['notices']) > 64):
+            raise ValueError('exact unique bundled supplier records required')
+        origins.add(row['package_path'])
+        for module in row['modules']:
+            if set(module) != {'id', 'chunk', 'role'} or module['chunk'] not in chunk_names or module['role'] not in ['chunk-module', 'injected-runtime-helper']:
+                raise ValueError('bundled module refers to an unknown chunk/role')
+        for notice in row['notices']:
+            if (set(notice) != {'filename', 'original_name', 'sha256', 'size'} or
+                    re.fullmatch(r'bundled-notices/[0-9a-f]{64}\.txt', notice['filename']) is None):
+                raise ValueError('exact bounded bundled notice record required')
+            relative = 'usr/lib/phishell/dist/' + notice['filename']
+            if digest(image_path(root, relative)) != {key: notice[key] for key in ['sha256', 'size']}:
+                raise ValueError('bundled notice differs from captured build input')
+            notices.add(relative)
+        path = 'usr/lib/phishell/dist/bundled-js-inventory.json#' + row['package_path']
+        labels = [row['license']] if isinstance(row['license'], str) and row['license'] else []
+        inventory['javascript-bundled'].append(row)
+        components.append(component('npm', row['name'], row['version'], path=path, labels=labels))
     inventory['native'].sort(key=lambda row: row['name'])
     return sorted(components, key=lambda row: row['bom-ref']), inventory, notices
 

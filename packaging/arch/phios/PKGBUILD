@@ -33,4 +33,9 @@ package() {
     install -Dm755 packaging/linux/updates/phios-os-update "$pkgdir/usr/bin/phios-os-update"
     install -Dm644 packaging/linux/updates/enroll.py "$pkgdir/usr/lib/phios-updates/enroll.py"
     install -Dm755 packaging/linux/updates/phios-update-enroll "$pkgdir/usr/bin/phios-update-enroll"
+    install -Dm644 packaging/linux/proof/broker.py "$pkgdir/usr/lib/phios-proof/broker.py"
+    install -Dm644 packaging/linux/proof/propose.py "$pkgdir/usr/lib/phios-proof/propose.py"
+    install -Dm755 packaging/linux/proof/phios-linux-proof "$pkgdir/usr/bin/phios-linux-proof"
+    install -Dm644 packaging/linux/proof/phios-proof-proposer.service "$pkgdir/usr/lib/systemd/system/phios-proof-proposer.service"
+    install -Dm755 packaging/linux/hardware_report.py "$pkgdir/usr/bin/phios-hardware-report"
 }

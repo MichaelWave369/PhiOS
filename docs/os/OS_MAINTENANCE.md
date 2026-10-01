@@ -224,3 +224,10 @@ contains disposable fixtures and ephemeral signing identity; this evidence
 does not qualify another artifact, arbitrary upgrades or hardware.
 `whole_os_rollback_available` remains false for the supported product.
 See IMPLEMENTATION_STATUS.md and RELEASE_CONTRACT.md for remaining gates.
+
+The bounded Linux proof broker stores its protected history in the independent
+`@snapshots/phios-linux-proof` directory. Its single-use approvals are bound to
+the current boot and source, and expire by both wall clock and CLOCK_BOOTTIME.
+Root/EFI recovery preserves that ledger and cannot make an old-boot approval
+active. See LINUX_PROOF_WORKFLOW.md; custom authority stores remain outside
+this fixed procedure.
