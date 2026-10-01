@@ -1,6 +1,7 @@
 # Build and qualify the Linux development preview
 
-Use the `Linux development image` pull-request workflow. It builds in a pinned
+Use the always-triggered `PhiOS qualification` workflow. Its reusable
+`Linux development image` job builds the separate QA artifact in a pinned
 x86_64 Arch container, downgrades/synchronizes to the fixed Arch repository
 snapshot in `packaging/linux/release.json`, checks the Archiso package version,
 and builds the Python and UI packages from a hashed archive of the exact source
@@ -64,4 +65,38 @@ A fixture pass is evidence for the checks it performs. Review the screenshot
 and session behavior. It does not prove installation, persisted receipts,
 crash recovery, whole-OS updates, hardware compatibility or a Linux effect
 executor. Those remain explicit gates in RELEASE_CONTRACT.md. CI never tags,
-signs, publishes or automatically promotes this candidate.
+signs, publishes or automatically promotes this candidate. The later installed
+and normal-image gates have their own scopes and receipts in IMPLEMENTATION_STATUS.md.
+
+## Always-reported qualification gate
+
+`release-qualification.yml` runs for every pull request, every main push,
+OS `phios-linux-v*` tag and manual invocation. It calls the existing Python,
+PhiShell, normal image and QA image workflows from the same source revision;
+it does not poll or borrow another commit's successful runs. The called
+workflows retain independent manual entrypoints and their existing tests and
+artifact retention. Automatic calls are centralized to avoid duplicate builds.
+
+Python tests, installed wheel, native vector and ledger-report checks always
+run. Only a complete observed documentation-only PR may omit the expensive
+image jobs. PhiShell contract docs still request UI checks. Unknown files,
+deleted runtime files, build/test/workflow inputs, unreadable diff, main pushes,
+OS tags and manual runs require both images and UI. The classifier uses the
+complete local Git trees, including deletions, without an API pagination or
+300-file workflow-path cutoff.
+
+The final job is named **`release-gate`**, with `if: always()`. It fails when
+scope determination fails, any required result is missing/failed/cancelled/
+skipped, or scope outputs disagree. A skipped image is acceptable only when
+explicitly unrequested for that documentation-only PR; this is not a new image
+qualification. The job reports `release_ready: false` and no publication authority.
+All jobs have read-only contents permissions and inherit no release secrets.
+
+After reviewing this change and observing a successful run, the maintainer
+should configure **`release-gate`** from GitHub Actions as the required status
+on protected main and the applicable release rules. Require current-branch
+checks and review, restrict bypass/force push/deletion and protect the OS tag
+namespace as appropriate to the chosen release ownership. Those repository
+settings are not changed by a workflow commit. A green aggregate does not
+replace hardware evidence, authentic signing, final transition qualification,
+source/license delivery or explicit release authorization.

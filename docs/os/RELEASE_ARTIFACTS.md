@@ -71,6 +71,9 @@ All generated reports remain `release_ready: false`; they do not grant
 execution, signing, adapter-promotion or publication authority. Main/release
 branch protection and required-check settings have not been changed by this
 candidate workflow. Protecting them remains a maintainer repository setting.
+The always-reported `release-gate` aggregates the same-source Python/UI/normal/
+QA jobs; see BUILD_AND_QUALIFY.md for its required-status configuration and
+explicit documentation-only scope. It cannot attest to hardware or sign/publish.
 
 The builder also captures actual Rollup chunk participants before npm pruning,
 including Vite-generated runtime helpers. Bundled supplier metadata and license
