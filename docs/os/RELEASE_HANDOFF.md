@@ -13,15 +13,15 @@ this handoff; no private PhiKernel/TIEKAT implementation is needed to boot it.
 
 | Identity | Value |
 | --- | --- |
-| Reviewed branch head | `9c98475274442595c59370113b9c1e0dee595ec9` |
-| Tested prospective merge source | `a7bcd9863eea12a87c1a9ef1fcbd26211542cd91` |
-| Identical source tree | `a85700b2c08e54a066a77a2f4a4db7494b7579ff` |
-| Normal ISO SHA-256 | `3b26a7334b36254b4e686843e84924ee14cdb6ef2d6748fd771e09a02e5f79a2` |
-| First-party source archive SHA-256 | `41ed0a19a811f7ac6c22edbb555adbc4b55d5421f8ea6b9e73481cd58116d8b7` |
-| Normal image qualification | [36823086807](https://github.com/MichaelWave369/PhiOS/actions/runs/36823086807) |
-| Download normal ISO and payloads | [11144157950](https://github.com/MichaelWave369/PhiOS/actions/runs/36823086807/artifacts/11144157950) |
-| Compact evidence | [11144167873](https://github.com/MichaelWave369/PhiOS/actions/runs/36823086807/artifacts/11144167873) |
-| Persisted receipt | [desktop-normal-a7bcd986.json](evidence/desktop-normal-a7bcd986.json) |
+| Reviewed integration PR/head | [280](https://github.com/MichaelWave369/PhiOS/pull/280), `41f0c8b2f7b268d046bfd8aa1bef8d24c712c9d1` |
+| Tested prospective merge source | `a3572a9bac7051b70af2ef66e75bc021f4214b31` |
+| Identical source tree | `6d328cf55777a5fda0737f043e0f263208dfc3b4` |
+| Normal ISO SHA-256 | `8199e2abad0e7699747876bd95e734e3168758b1bb59f20a232339eb61ef614d` |
+| First-party source archive SHA-256 | `090f6ee53f5db5dca1cbae17b80580de467b0daeec804082f4a629609bd736ec` |
+| Normal image qualification | [36827706986](https://github.com/MichaelWave369/PhiOS/actions/runs/36827706986) |
+| Download normal ISO and payloads | [11146755842](https://github.com/MichaelWave369/PhiOS/actions/runs/36827706986/artifacts/11146755842) |
+| Compact evidence | [11146641362](https://github.com/MichaelWave369/PhiOS/actions/runs/36827706986/artifacts/11146641362) |
+| Persisted receipt | [integration-normal-a3572a9b.json](evidence/integration-normal-a3572a9b.json) |
 
 These unsigned review downloads expire **2026-10-08**. A later build, branch
 update, final merge or tag has a separate identity. Download the normal payload,
@@ -53,7 +53,27 @@ integration. The component PRs above remain focused review references. Requiring
 `release-gate` on the earlier component heads would leave them pending because
 they predate that controller. Keep every merge and release under maintainer review.
 
-The latest aggregate gate passed all nine jobs in
+The main-targeted integration's aggregate gate passed all nine jobs in
+[run 36827706986](https://github.com/MichaelWave369/PhiOS/actions/runs/36827706986)
+for source `a3572a9bac7051b70af2ef66e75bc021f4214b31`, with 2,287 Python tests
+passed and six existing optional skips. The two compact archives were downloaded
+and independently matched to GitHub's archive digests; 15 available checksum
+payloads per archive and their available provenance records were checked. Normal
+live/install/data/proof/recovery/desktop and the separate ephemeral signed QA
+scope passed on their own exact ISO bytes. The normal inventory has 501 component
+origins and 746 captured supplier notice files. Installed recovery and actual
+wrong-password screen-lock screenshots were visually inspected. Large ISO,
+package, source and notice archives were not redownloaded to the review host;
+their hashes remain the producer's recorded identities. See
+`evidence/qualification-gate-a3572a9b.json` and its two linked receipts.
+
+The preceding integration attempt 36825649652 held the aggregate gate after
+signed Arch downloads timed out before a normal image existed; its screenshot
+preservation also failed because PIL had not yet been installed. The successful
+later code guards that step and keeps attempt-specific artifacts. The failed run
+remains recorded; its passed QA image never qualified the missing normal image.
+
+The preceding desktop aggregate gate passed all nine jobs in
 [run 36823086807](https://github.com/MichaelWave369/PhiOS/actions/runs/36823086807)
 for source `a7bcd9863eea12a87c1a9ef1fcbd26211542cd91`, with 2,287 Python tests
 passed and six existing optional skips. `evidence/qualification-gate-a7bcd986.json`
@@ -113,6 +133,12 @@ does not claim those settings were applied.
    with the required materials and notices. Have the release owner review the
    result. Supplier labels, an Arch binary archive link, captured license files
    and valid CycloneDX syntax alone do not complete this gate.
+   SOURCE_DELIVERY.md documents the offline `init` / `check` / `bundle` tool for
+   exact component coverage, declared reviews and retained local source/build/
+   notice bytes. Its check of the integration metadata finds all 501 component
+   reviews pending. Packaging is held until reviews and exact material bytes
+   are supplied; complete delivery records do not authenticate a reviewer or
+   prove the content/legal review is correct.
 5. **Freeze support scope and qualify final bytes before publication.**
    Record supported machines/features, known issues, maintenance/security update
    and recovery procedures, support contact/owner and the retained evidence.

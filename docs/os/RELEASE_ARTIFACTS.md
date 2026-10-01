@@ -52,6 +52,15 @@ The exact source material, delivery terms and required notices for each
 component must receive a maintainer review under its applicable license.
 Arch binary archive URLs alone are not recorded as delivered source code.
 
+SOURCE_DELIVERY.md describes the separate offline manifest/check/bundle tool.
+It requires exact normal candidate metadata and all component origins, records
+explicit reviewer declarations, checks supplied local source/build/notice bytes
+and seals a deterministic packet only after all records/material are present.
+It refuses the QA image, mismatched versions/origins, symlink/traversal/special
+files and binary Arch/wheel/ISO substitutions for source. Its reports preserve
+the separate unauthenticated-review, content/license and release gates; completed
+byte records do not independently establish compliance or publication authority.
+
 ## Remaining publication gates
 
 1. Preserve the passed exact normal-image live/install/state/recovery/fixed
@@ -106,3 +115,14 @@ per archive were independently checked against hashes/provenance; the large
 ISO/package/source/notice archives were not redownloaded into the review host.
 See `evidence/qualification-gate-a7bcd986.json` and its two linked receipts.
 Source delivery, maintainer signing and physical support remain open.
+
+The main-targeted integration [run 36827706986](https://github.com/MichaelWave369/PhiOS/actions/runs/36827706986)
+passed all nine jobs on source `a3572a9bac7051b70af2ef66e75bc021f4214b31`,
+matching PR #280 head's tree. Its two compact archives were independently
+matched to GitHub digests; 15 available checksum payloads each and their available
+provenance records were checked. The exact normal and separate QA scopes passed;
+the normal inventory has 501 components / 746 supplier notice files. The large
+ISO/source/package/notice archives were not redownloaded on the review host.
+`evidence/qualification-gate-a3572a9b.json` retains exact receipts and the earlier
+failed integration; RELEASE_HANDOFF.md points to this normal candidate. New
+continuation/final source bytes require separate qualification.

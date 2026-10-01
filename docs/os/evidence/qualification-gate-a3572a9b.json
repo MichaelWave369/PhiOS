@@ -1,0 +1,137 @@
+{
+  "actual_jobs": [
+    {
+      "id": 110257015446,
+      "name": "changes",
+      "result": "success",
+      "status": "completed"
+    },
+    {
+      "id": 110257061712,
+      "name": "phishell / build",
+      "result": "success",
+      "status": "completed"
+    },
+    {
+      "id": 110257061718,
+      "name": "python-tests / test",
+      "result": "success",
+      "status": "completed"
+    },
+    {
+      "id": 110257061774,
+      "name": "python-tests / ledger-reports",
+      "result": "success",
+      "status": "completed"
+    },
+    {
+      "id": 110257061795,
+      "name": "python-tests / installed-artifact",
+      "result": "success",
+      "status": "completed"
+    },
+    {
+      "id": 110257061949,
+      "name": "python-tests / memory-vector",
+      "result": "success",
+      "status": "completed"
+    },
+    {
+      "id": 110257062077,
+      "name": "qa-image / live-image",
+      "result": "success",
+      "status": "completed"
+    },
+    {
+      "id": 110257062078,
+      "name": "normal-image / fixture-free-candidate",
+      "result": "success",
+      "status": "completed"
+    },
+    {
+      "id": 110261963874,
+      "name": "release-gate",
+      "result": "success",
+      "status": "completed"
+    }
+  ],
+  "actual_maintainer_signed_transition_qualified": false,
+  "artifact_metadata": [
+    {
+      "digest": "sha256:53871f3c397d4b4110eaaeaf25dc6bf4a9414028a492ff217b6fab40dc56fa9d",
+      "expires_at": "2026-10-08T07:11:41Z",
+      "id": 11146755842,
+      "name": "phios-fixture-free-candidate-36827706986-attempt-1",
+      "size_in_bytes": 1806426957
+    },
+    {
+      "digest": "sha256:a2a97c8c0f7ac62cd27531ee6a3ce451e2f7c4eaf95c3e2cb6782b139b25a6f9",
+      "expires_at": "2026-10-08T07:12:29Z",
+      "id": 11146641362,
+      "name": "phios-fixture-free-evidence-36827706986-attempt-1",
+      "size_in_bytes": 7148074
+    },
+    {
+      "digest": "sha256:aa5f3bf02830121bfb913ff6545e73742d0c0d262075a52ec9e45491eb9d1ac0",
+      "expires_at": "2026-10-08T07:15:29Z",
+      "id": 11146486655,
+      "name": "phios-linux-evidence-36827706986-attempt-1",
+      "size_in_bytes": 4186916
+    },
+    {
+      "digest": "sha256:021549585dd32fd9f39ff36db1d907192946ea65829f7cbaa81344e19fe4aa81",
+      "expires_at": "2026-10-08T07:14:31Z",
+      "id": 11146401812,
+      "name": "phios-linux-development-36827706986-attempt-1",
+      "size_in_bytes": 1803559908
+    }
+  ],
+  "hardware_qualified": false,
+  "license_source_compliance_reviewed": false,
+  "ordinary_ci_existing_skips": 6,
+  "ordinary_ci_passed": 2287,
+  "prior_failed_run": {
+    "aggregate_gate_held": true,
+    "failures": [
+      "Signed pinned Arch package download timed out before a normal image existed.",
+      "Screenshot preservation imported PIL before the prerequisite package had been installed."
+    ],
+    "normal_job": 110250655210,
+    "passed_qa_did_not_qualify_normal_image": true,
+    "repair": "41f0c8b made artifact names attempt-specific, guarded screenshot conversion and emitted bounded exact-source review metadata; the later full run passed.",
+    "reviewed_branch_head": "57a55730b036a11d9e496701336999bf406bdaf5",
+    "workflow_run": 36825649652
+  },
+  "publication_authority": false,
+  "pull_request": 280,
+  "receipts": {
+    "integration-normal-a3572a9b.json": {
+      "evidence_archive_sha256": "a2a97c8c0f7ac62cd27531ee6a3ce451e2f7c4eaf95c3e2cb6782b139b25a6f9",
+      "evidence_artifact_id": 11146641362,
+      "iso_sha256": "8199e2abad0e7699747876bd95e734e3168758b1bb59f20a232339eb61ef614d",
+      "sha256": "c84a9a6285c62c5b5c3836d8a7f427625e42df1dc485997c6a0147f05ae1a4d4"
+    },
+    "integration-signed-a3572a9b.json": {
+      "evidence_archive_sha256": "aa5f3bf02830121bfb913ff6545e73742d0c0d262075a52ec9e45491eb9d1ac0",
+      "evidence_artifact_id": 11146486655,
+      "iso_sha256": "92ca600ef8e84616b425bec61586c3bc89df30c82490896e44b2d182ee2b3960",
+      "sha256": "0a0db16b67b783947e20e05df167adfa66cff0066a94afdc2d84e4a526e65ebe"
+    }
+  },
+  "release_gate_job_id": 110261963874,
+  "release_ready": false,
+  "repository_protection_configured": false,
+  "required_jobs_skipped": false,
+  "required_scope": {
+    "normal_image": true,
+    "python": true,
+    "qa_image": true,
+    "ui": true
+  },
+  "reviewed_branch_head": "41f0c8b2f7b268d046bfd8aa1bef8d24c712c9d1",
+  "run_attempt": 1,
+  "schema_version": "phios.ci-qualification-summary.v1",
+  "source_commit": "a3572a9bac7051b70af2ef66e75bc021f4214b31",
+  "tested_source_tree": "6d328cf55777a5fda0737f043e0f263208dfc3b4",
+  "workflow_run": 36827706986
+}
