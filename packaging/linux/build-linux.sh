@@ -58,5 +58,9 @@ pacman --root "$work/archiso-work/x86_64/airootfs" -Q > "$output/image-packages.
 printf '%s\n' "$PHIOS_SOURCE_COMMIT" > "$output/source-commit.txt"
 printf '%s\n' "$PHIOS_SOURCE_SHA256" > "$output/source-archive-sha256.txt"
 cp "$repo/LICENSE_HISTORY.md" "$output/LICENSE_HISTORY.md"
-(cd "$output"; sha256sum ./*.iso ./*.pkg.tar.zst ./*.tar.gz > SHA256SUMS)
+inventory_args=()
+[[ ${PHIOS_CI_SMOKE:-0} == 1 ]] && inventory_args+=(--ci-fixtures)
+python "$repo/packaging/linux/release_inventory.py" \
+    --root "$work/archiso-work/x86_64/airootfs" --output "$output" \
+    --source "$PHIOS_SOURCE_COMMIT" --epoch "$SOURCE_DATE_EPOCH" "${inventory_args[@]}"
 echo "Unsigned development candidate and provenance: $output"
