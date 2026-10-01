@@ -140,7 +140,10 @@ password/PAM/greetd disk-only boots, abrupt termination, actual boot-file
 corruption and matched recovery through the same normal ISO. The receipt
 records explicit serial login and no privileged serial-console injection.
 
-This new exact-artifact gate is pending CI. The separate QA image still tests
-ephemerally signed package addition/interruption; neither proves a future
-maintainer-signed transition or physical hardware. Every qualification retains
-its own exact source/ISO identity and failure evidence.
+This exact-artifact gate passed in
+[run 36812104386](https://github.com/MichaelWave369/PhiOS/actions/runs/36812104386).
+Its source/ISO identities, three disk-only boot IDs, data/proof hashes and
+matched recovery generation are in `docs/os/evidence/normal-installed-5145b4da.json`.
+The separate QA image also passed ephemeral signed package addition/interruption;
+neither proves a future maintainer-signed transition or physical hardware.
+Every qualification retains its own exact source/ISO identity and failure evidence.

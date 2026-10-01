@@ -32,7 +32,9 @@ hardware installer, supported whole-OS rollback, Secure Boot or BIOS support.
 Installed data backup/restoration, abrupt VM restart and a bounded signed
 package/update plus matched root/EFI recovery passed in disposable VMs
 (see IMPLEMENTATION_STATUS.md). Physical power loss, actual future release
-transitions and fixture-free installed-artifact qualification remain separate gates. No hardware compatibility claim follows from a VM boot. Agent
+transitions remain separate gates. The exact fixture-free live/install/data/
+recovery and fixed Linux proof workflow passed in run 36812104386. No hardware
+compatibility claim follows from a VM boot. Agent
 isolation requires separate OS principals and a verified restricted broker;
 an operator-owned shell or pseudo-TTY is not human authentication.
 

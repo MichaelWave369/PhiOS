@@ -8,7 +8,7 @@ this GPU, motherboard firmware, audio, network radios or physical power loss.
 
 | Target | Current evidence | Gate |
 | --- | --- | --- |
-| Disposable x64 UEFI/KVM VM, 2 CPUs, 4 GiB RAM, 32-GiB disk | Live/installed login, persistent data, bounded signed update/interruption and matched recovery passed | Fixture-free exact final artifact and Linux proof workflow must also pass |
+| Disposable x64 UEFI/KVM VM, 2 CPUs, 4 GiB RAM, 32-GiB disk | Exact normal live/install/data/recovery/Linux proof passed in 36812104386; separate ephemeral signed-update/interruption QA passed in 36812104411 | Future final artifact and actual signed release transition must be qualified separately |
 | Supplied Skytech/Core Ultra 9/RTX 5070 machine | No boot or driver observations | Live boot, GPU/input/network/audio/firmware tests first |
 | Dedicated empty physical test disk | No selected disk or test | Exact installer identity/blankness/confirmation, no-media boot, persistence, update and recovery |
 

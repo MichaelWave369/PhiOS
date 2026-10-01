@@ -76,4 +76,8 @@ failure. The external installed-VM fixture uses ordinary sudo/PAM, the actual
 UID 1001 service and production commands. It must prove agent store/broker
 denial, cancellation, one verified note, replay and real 60-second expiry, then
 historical-authority refusal after restart and matched OS recovery. End-to-end
-VM qualification is pending; this document grants no hardware/release readiness.
+VM qualification passed on both the separate signed-update QA image and the
+exact normal image in runs 36812104411 and 36812104386. The normal receipt is
+`docs/os/evidence/normal-installed-5145b4da.json`; it records actual UID/PAM,
+effect/readback, refusals and three distinct installed boots including matched
+recovery. Physical hardware and final release readiness remain unqualified.

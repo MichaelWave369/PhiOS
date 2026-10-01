@@ -15,8 +15,8 @@ proof that PhiOS is a completed OS. Preserve the repository AGENTS.md rules.
 | R6: Recover durable private state | Locking/sync, transactional outbox and data-only recovery | Contention, interruption, backup/restore and schema refusal tests; installed acknowledged state survived abrupt VM restart in 36798467774; physical power-loss qualification pending |
 | R7: Explicit blank-disk installation | Experimental root-owned offline CLI and disposable qualification lane | 20 local refusal/cancellation/identity tests; cancellation, actual installation, no-ISO desktop boot and fresh data restoration passed on the named disposable VM; hardware beta pending |
 | R8: Whole-OS update and recovery | Explicit public-key enrollment, signed verifier, staged package application and matched root/EFI checkpoints | Full 2,218-test CI and bounded end-to-end VM run 36805999628 passed: valid update, invalid/cancelled/replayed/dependency refusal, abrupt termination during a real package hook, unchanged active system, deliberate kernel boot failure, matched live recovery and three password-authenticated disk-only boots; arbitrary transitions and hardware remain unqualified |
-| R9: Qualify hardware and one Linux governed workflow | Candidate UID-separated installed-only proof-note broker, canonical bound single-use lease, independent protected ledger and read-only hardware collector/protocol | 21 focused denial/cancel/expiry/replay/durability/binding tests passed; actual sudo/PAM/UID 1001 and post-recovery VM qualification pending; supplied Skytech target remains physically unqualified |
-| R10: Sign and publish the exact qualified artifact | Exact native/Python/npm inventory, supplier license notices, CycloneDX SBOM and source/ISO/artifact provenance; fixture-free build/normal PAM qualification workflow | Eight focused inventory/refusal tests and validation against pinned official CycloneDX 1.6 schemas passed locally; actual image/VM CI pending; third-party source/license review, release identity, signatures and maintainer publication remain held |
+| R9: Qualify hardware and one Linux governed workflow | UID-separated installed-only proof-note broker, canonical bound single-use lease, independent protected ledger and read-only hardware collector/protocol | 21 focused tests and actual sudo/PAM/UID 1001 proof, cancellation, denial, replay, expiry and historical-authority refusal after restart/recovery passed on the exact normal ISO in run 36812104386; supplied Skytech target remains physically unqualified |
+| R10: Sign and publish the exact qualified artifact | Actual native/Python/npm and bundled frontend inventory, supplier notices, CycloneDX SBOM and exact source/ISO/artifact provenance | 11 focused inventory/refusal tests, pinned CycloneDX schema validation and exact fixture-free live/install/state/recovery VM qualification passed in run 36812104386; final signed transition, hardware, source/license delivery, release identity and publication remain held |
 
 ## First builder handoff
 
@@ -46,7 +46,7 @@ Image run [36798467774](https://github.com/MichaelWave369/PhiOS/actions/runs/367
 
 Evidence receipt: `docs/os/evidence/installation-0253b6e0.json`. [Reviewable logs and screenshots](https://github.com/MichaelWave369/PhiOS/actions/runs/36798467774/artifacts/11135321615) and [unsigned image/packages](https://github.com/MichaelWave369/PhiOS/actions/runs/36798467774/artifacts/11134958214) expire 2026-10-08 under the seven-day CI retention policy. CI-only serial-console injection and public disposable credentials are recorded; they are excluded from normal installations. The screenshot was visually inspected. Ordinary CI runs 36798467750 and 36798463744 also passed for installer head `f135a24d3d88173f611829317e4ad04ebc22eff3`.
 
-These are bounded VM qualifications. The later bounded update/recovery qualification is recorded below. Physical power loss, Linux governed effects, named hardware support and signed public release remain held. No adapter is promoted and no publication authority follows from the receipts.
+These are bounded VM qualifications. Later update/recovery and Linux proof qualifications are recorded below. Physical power loss, named hardware support and signed public release remain held. No adapter is promoted and no publication authority follows from the receipts.
 
 ## Signed update and matched recovery VM evidence
 
@@ -54,4 +54,60 @@ Image run [36805999628](https://github.com/MichaelWave369/PhiOS/actions/runs/368
 
 Three distinct password/PAM and greetd disk-only desktop boots passed. After deliberate default/fallback initramfs corruption, the kernel actually panicked because it could not mount its root. Explicit live-media recovery restored the matched root/EFI checkpoint, removed the added test package and rolled-back signing trust, advanced the independent generation to two, and preserved the canonical data/acknowledged receipt hash. Root/EFI switching remains non-atomic. The successful added-package fixture does not qualify arbitrary kernel upgrades or an actual future signed release transition.
 
-Receipt: `docs/os/evidence/recovery-29def30a.json`. [Logs/screenshots](https://github.com/MichaelWave369/PhiOS/actions/runs/36805999628/artifacts/11137448503) and [unsigned QA image/packages](https://github.com/MichaelWave369/PhiOS/actions/runs/36805999628/artifacts/11137807998) expire 2026-10-08. The recovered desktop screenshot was visually inspected. Ordinary CI [36805999618](https://github.com/MichaelWave369/PhiOS/actions/runs/36805999618) passed 2,218 tests with six existing optional skips, including eight actual signature/expiry/revocation cases and four actual enrollment cases. All four prior failures remain in `docs/os/evidence/recovery-attempts.json`. Real hardware, fixture-free exact release-artifact qualification, source/license completion and maintainer signing/publication remain held; no adapter or execution authority is promoted.
+Receipt: `docs/os/evidence/recovery-29def30a.json`. [Logs/screenshots](https://github.com/MichaelWave369/PhiOS/actions/runs/36805999628/artifacts/11137448503) and [unsigned QA image/packages](https://github.com/MichaelWave369/PhiOS/actions/runs/36805999628/artifacts/11137807998) expire 2026-10-08. The recovered desktop screenshot was visually inspected. Ordinary CI [36805999618](https://github.com/MichaelWave369/PhiOS/actions/runs/36805999618) passed 2,218 tests with six existing optional skips, including eight actual signature/expiry/revocation cases and four actual enrollment cases. All four prior failures remain in `docs/os/evidence/recovery-attempts.json`. Later exact normal-image evidence is below; physical hardware, the final signed transition, source/license delivery and maintainer signing/publication remain held.
+
+## Exact normal-image and Linux workflow qualification
+
+[Run 36812104386](https://github.com/MichaelWave369/PhiOS/actions/runs/36812104386)
+passed for checked-out source `5145b4dabd0e70d4b8d35691041a4d9f797affe9`,
+ISO SHA-256 `e60b64623a0008b27439f98eacd22cc9d4e0ce714d4b7b8684276f425988349b`.
+This prospective PR merge commit has the same tree as reviewed branch head
+`0ea1fced470abf75701a4cad8f806551078b1b76`. This is the normal image, with no
+image QA fixtures, test package, enrolled PhiOS trust or installed live password.
+The external probes run through ordinary terminals and are excluded from the ISO.
+
+Two distinct live boots passed normal PAM/greetd login, actual non-root desktop
+and observations, sidecar restart, logout cleanup and reauthentication. The same
+ISO then passed cancellation and blank-disk installation through the public live
+user's narrow maintenance sudo. The installer explicitly reviewed its standard
+serial password/PAM option; there was no privileged console injection. Three
+distinct disk-only PAM/greetd desktop boots passed canonical data/backup/fresh
+restore, acknowledged data after abrupt VM termination, deliberate default and
+fallback initramfs failure, actual failed boot and matched root/EFI recovery
+through the same normal live image. Root/EFI recovery remains non-atomic.
+
+The actual installed UID 1001 proposer and password-authenticated UID 1000
+operator passed protected-store/broker permission denial, cancellation, exact
+single-use approval/binding/lease, one fixed 57-byte note and independent readback,
+replay refusal and real expiry. Old approvals remained inactive after reboot and
+matched OS recovery. This qualifies only the fixed broker effect, not generic
+desktop automation, malicious administrator/root isolation or Windows Ghost Walk.
+
+The actual final image inventories contain 386 native, 39 Python, 12 installed
+npm and four bundled frontend origin records: 441 CycloneDX components. Bundled
+React, ReactDOM, Scheduler and Vite's injected helper are included, even when
+already represented by a separate installed origin. There are 620 captured
+supplier notice files. Labels/notices do not establish source/license compliance.
+
+Receipt: `docs/os/evidence/normal-installed-5145b4da.json`.
+[Unsigned exact normal image and payloads](https://github.com/MichaelWave369/PhiOS/actions/runs/36812104386/artifacts/11140626238)
+and [compact logs/screenshots/inventories](https://github.com/MichaelWave369/PhiOS/actions/runs/36812104386/artifacts/11140895800)
+expire 2026-10-08. The recovered desktop screenshot was visually inspected;
+downloaded compact payload hashes were checked against provenance and SHA256SUMS.
+The large ISO/source/package archives were not downloaded again into the review
+host; their hashes are the producer's recorded hashes.
+
+The separate QA [run 36812104411](https://github.com/MichaelWave369/PhiOS/actions/runs/36812104411)
+also passed the signed-package addition/refusals/interruption and matched recovery
+at the same source, with ephemeral test identity and its own different ISO hash.
+Receipt: `docs/os/evidence/signed-proof-5145b4da.json`. Its qualification cannot
+substitute for a real future maintainer-signed transition on the normal artifact.
+Ordinary [CI 36812078517](https://github.com/MichaelWave369/PhiOS/actions/runs/36812078517)
+passed 2,250 tests with six existing optional skips, Ruff and mypy (304 source
+files); PhiShell CI also passed. The previous schema-validator and external
+probe failures remain in `fixture-free-attempts.json` and `linux-proof-attempts.json`.
+
+These receipts identify tested bytes, not every later documentation commit or
+final merge/tag. Requalify the final publication source and signed transition.
+See RELEASE_HANDOFF.md for the ordered review and remaining physical/signing/
+source-delivery work. `release_ready` remains false.
