@@ -1,0 +1,60 @@
+{
+  "schema_version": "phios.virtualbox-compatibility-attempts.v1",
+  "release_ready": false,
+  "publication_authority": false,
+  "attempts": [
+    {
+      "run_id": 36913191826,
+      "run_attempt": 1,
+      "url": "https://github.com/MichaelWave369/PhiOS/actions/runs/36913191826",
+      "reviewed_head": "5825e2cf6ffd5df0888ffa3b64a5c275d7d980f4",
+      "source_commit": "146e470f6d9ee0e5ff8700cf3fab5e779c9ddacd",
+      "source_tree": "e2df371c387b2a6b5ea87fb2177122f29d285679",
+      "normal_iso_producer_sha256": "f544ce35f4ae09ecf67b18f19b079a94489c65f10a8bd8cd74a8f3626c2abab2",
+      "iso_independently_hashed_by_this_review": false,
+      "normal_image_qualification": "failed at added live rebinding probe; installation/recovery skipped",
+      "guest_serial_exception": "RuntimeError: no supervised desktop environment available for rebinding",
+      "missing_process_or_environment_predicate_not_preserved_by_initial_probe": true,
+      "desktop_screenshot_visually_inspected": true,
+      "desktop_screenshot_observed": [
+        "PhiShell rendered",
+        "Waybar rendered"
+      ],
+      "rendered_screenshot_does_not_qualify_failed_gate": true,
+      "compact_archive": {
+        "artifact_id": 11188487889,
+        "url": "https://github.com/MichaelWave369/PhiOS/actions/runs/36913191826/artifacts/11188487889",
+        "sha256": "bc5e43352c47353f48c5b0510c1048ad4833bafb8c769b678c4576c7e11e6999",
+        "size": 623589,
+        "independently_downloaded_and_digest_verified": true
+      },
+      "normal_image_artifact": {
+        "artifact_id": 11188572974,
+        "url": "https://github.com/MichaelWave369/PhiOS/actions/runs/36913191826/artifacts/11188572974",
+        "independently_downloaded": false
+      },
+      "retained_files": {
+        "_temp/phios-preview/preview-evidence.json": {
+          "sha256": "28eccfc72dc1358b3a9a791f296eafd278ae6e724c8bf41169ce3a0a55f9a147",
+          "size": 1677
+        },
+        "_temp/phios-preview/screen.png": {
+          "sha256": "2232616c417afef6a13500cd82e85865fc66556c0244f101b21a0119ec0352e8",
+          "size": 429348
+        },
+        "_temp/phios-preview/serial.log": {
+          "sha256": "7c3c854a31590a63db0d1c25267399c5891e646299c976c6a2c3f4a699db78de",
+          "size": 33815
+        }
+      },
+      "python_tests_passed": 2352,
+      "existing_optional_python_skips": 6,
+      "repair_scope": "qualification probe only: obtain explicit user-manager display environment, require individually active named replacement processes, retain failure diagnostics; production session/cursor correction unchanged",
+      "separate_qa_result_cannot_qualify_failed_normal_image": true,
+      "original_1c16c473_candidate_receipts_preserved": true,
+      "virtualbox_new_automatic_fix_retested": false,
+      "physical_hardware_qualified": false,
+      "release_ready": false
+    }
+  ]
+}

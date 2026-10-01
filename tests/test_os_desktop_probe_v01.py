@@ -46,3 +46,28 @@ def test_static_ambiguous_or_forwarding_configuration_never_qualifies(change):
     else:
         network['DHCP4.OPTION'] = []
     assert not probe.restricted_dhcp_lease(network)
+
+
+def test_manager_display_observation_parses_quoted_values_and_drops_unrelated_keys():
+    wire = "WAYLAND_DISPLAY=wayland-1\nXDG_RUNTIME_DIR='/run/user/1000'\nXDG_CURRENT_DESKTOP=Wayfire\nDISPLAY=\nPRIVATE_UNRELATED_VALUE=discarded\n"
+    assert probe.session_display_environment(wire) == {
+        'WAYLAND_DISPLAY': 'wayland-1', 'XDG_RUNTIME_DIR': '/run/user/1000',
+        'XDG_CURRENT_DESKTOP': 'Wayfire', 'DISPLAY': '',
+    }
+
+
+@pytest.mark.parametrize('change', ['absent_display', 'absent_runtime', 'empty_runtime', 'duplicate_display', 'split_value'])
+def test_incomplete_or_ambiguous_manager_display_environment_never_qualifies(change):
+    wire = "WAYLAND_DISPLAY=wayland-1\nXDG_RUNTIME_DIR=/run/user/1000\nXDG_CURRENT_DESKTOP=Wayfire\nDISPLAY=\n"
+    if change == 'absent_display':
+        wire = wire.replace('WAYLAND_DISPLAY=wayland-1\n', '')
+    elif change == 'absent_runtime':
+        wire = wire.replace('XDG_RUNTIME_DIR=/run/user/1000\n', '')
+    elif change == 'empty_runtime':
+        wire = wire.replace('XDG_RUNTIME_DIR=/run/user/1000', 'XDG_RUNTIME_DIR=')
+    elif change == 'duplicate_display':
+        wire += 'WAYLAND_DISPLAY=wayland-2\n'
+    else:
+        wire = wire.replace('WAYLAND_DISPLAY=wayland-1', 'WAYLAND_DISPLAY=wayland-1 unexpected')
+    with pytest.raises(ValueError):
+        probe.session_display_environment(wire)

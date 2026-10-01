@@ -29,6 +29,17 @@ verify its complete ISO/source/artifact hashes against SHA256SUMS and provenance
 and retain the receipts with that exact build. The separate QA image contains
 test fixtures and is not the physical observation candidate.
 
+The owner also tested this exact candidate in Windows 11 Home / VirtualBox on
+2026-10-01. Live UEFI/PAM and interactive desktop worked after enabling VMSVGA
+3D acceleration, exporting the cursor workaround and rebinding the session
+target. Initial renderer/cursor failures and the full supplied configuration
+remain in [VIRTUALBOX_COMPATIBILITY.md](VIRTUALBOX_COMPATIBILITY.md) and
+`evidence/virtualbox-field-1c16c473.json`. The narrow automatic startup correction
+is a separate candidate stacked after this handoff; its new bytes need their
+own qualification and local VirtualBox retest. The table above and existing
+receipts retain their original tested identities. Skytech/RTX 5070 remains
+physically untested.
+
 ## Ordered code review
 
 Review the component PRs in dependency order after assessing each boundary:

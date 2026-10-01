@@ -18,7 +18,8 @@ for an installed system or place private data in this live image. The reserved
 `phios-agent` account cannot read the operator home and runs no agent by default.
 
 The browser keeps Chromium's sandbox. The compositor's autostart imports its
-Wayland environment before starting `phios-session.target`. Transport, curiosity
+Wayland environment after validating its socket, then stops/starts
+`phios-session.target` to rebind any active services from a previous session. Transport, curiosity
 projection, optional history, browser and Waybar have separate user services.
 Session exit stops the target. Default state is `%h/.local/state/phios` with
 umask 0077. History is not auto-enabled: an operator must create and review
@@ -60,6 +61,15 @@ verify service cleanup, and restarts greetd to prove a fresh graphical login.
 The harness then resets the VM and requires the complete fixture on a second,
 distinct kernel boot ID. Both desktop captures are preserved. This fixture
 is omitted from normal locally built previews.
+
+The follow-up normal-image gate also replaces stale manager display variables
+while Chromium and Waybar are active, calls the packaged ready hook and requires
+new running browser/panel process IDs after the manager imports the connected
+compositor's display environment on both live boots. The
+focused shell tests cover the VirtualBox/VMSVGA cursor selection separately.
+QEMU rebinding does not qualify Windows VirtualBox's driver path; see
+VIRTUALBOX_COMPATIBILITY.md for the supplied field evidence and required new-ISO
+automatic-startup retest.
 
 A fixture pass is evidence for the checks it performs. Review the screenshot
 and session behavior. It does not prove installation, persisted receipts,

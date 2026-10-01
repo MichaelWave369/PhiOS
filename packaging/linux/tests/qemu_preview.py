@@ -180,9 +180,12 @@ def qualify(iso: Path, source: str, output: Path) -> None:
                         time.sleep(2)
                         text = ''
                         desktop = Path(__file__).with_name('desktop_probe.py').read_text().replace('from __future__ import annotations\n', '')
-                        program(f'SOURCE={source!r}\nSTAGE="first"\n' + desktop + f'\ndesktop_services({source!r}, wired=True)\n' + PROBE)
+                        program(f'SOURCE={source!r}\nSTAGE="first"\n' + desktop + f'\nsession_rebind({source!r})\ndesktop_services({source!r}, wired=True)\n' + PROBE)
                         first = json.loads(wait(r'PHIOS_PREVIEW_OK:(\{[^\r\n]+\})')[1])
                         assert first['source_commit'] == source and first['stage'] == 'first'
+                        rebind = json.loads(wait(r'PHIOS_SESSION_REBIND_OK:(\{[^\r\n]+\})')[1])
+                        rebind.update({'boot_id': first['boot_id']})
+                        receipt.setdefault('session_rebind_boots', []).append(rebind)
                         desktop_result = json.loads(wait(r'PHIOS_DESKTOP_SERVICES_OK:(\{[^\r\n]+\})')[1])
                         desktop_result.update({'boot_id': first['boot_id'], 'stage': 'first'})
                         receipt.setdefault('desktop_service_boots', []).append(desktop_result)
