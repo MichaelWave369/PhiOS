@@ -100,8 +100,13 @@ def execute(plan: dict[str, Any], payload: dict[str, Any], private: Path,
         staged, previous = top / ('@update-' + token), top / ('@previous-' + token)
         journal.update(staged_root=staged.name, previous_root=previous.name)
         recover.write_json(folder / 'update-transaction.json', journal)
+        staged_mounted = False
         try:
             recover.run('btrfs', 'subvolume', 'snapshot', str(top / '@root'), str(staged))
+            # arch-chroot/mkinitcpio need the staged root to be an actual
+            # mountpoint so root filesystem detection sees Btrfs correctly.
+            recover.run('mount', '--bind', str(staged), str(staged))
+            staged_mounted = True
             inputs = staged / '.phios-update-inputs'
             inputs.mkdir(mode=0o700)
             (inputs / 'cache').mkdir(mode=0o700)
@@ -158,6 +163,8 @@ def execute(plan: dict[str, Any], payload: dict[str, Any], private: Path,
             shutil.rmtree(inputs)
             for path in (staged / 'boot').iterdir():
                 shutil.rmtree(path) if path.is_dir() else path.unlink()
+            recover.run('umount', str(staged))
+            staged_mounted = False
             journal['stage'] = 'switching root; live recovery may be required'
             recover.write_json(folder / 'update-transaction.json', journal)
             recover.write_json(top / '@snapshots/os-update-counter.json', {
@@ -186,6 +193,9 @@ def execute(plan: dict[str, Any], payload: dict[str, Any], private: Path,
             recover.run('btrfs', 'filesystem', 'sync', str(top))
             os.sync()
             raise
+        finally:
+            if staged_mounted:
+                recover.run('umount', str(staged))
 
 
 def main() -> int:

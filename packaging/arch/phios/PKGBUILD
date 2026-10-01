@@ -31,4 +31,6 @@ package() {
     install -Dm755 packaging/linux/updates/phios-os-recover "$pkgdir/usr/bin/phios-os-recover"
     install -Dm644 packaging/linux/updates/apply.py "$pkgdir/usr/lib/phios-updates/apply.py"
     install -Dm755 packaging/linux/updates/phios-os-update "$pkgdir/usr/bin/phios-os-update"
+    install -Dm644 packaging/linux/updates/enroll.py "$pkgdir/usr/lib/phios-updates/enroll.py"
+    install -Dm755 packaging/linux/updates/phios-update-enroll "$pkgdir/usr/bin/phios-update-enroll"
 }

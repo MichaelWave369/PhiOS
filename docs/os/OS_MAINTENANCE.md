@@ -14,7 +14,28 @@ maintainer signing key. Verification holds until the operator independently
 authenticates and installs a public key and full fingerprint. No test key is a
 release identity, and no signing private key belongs in this repository/image.
 
-Enrollment is manual Linux administration: create root-owned `/etc/phios`
+The volatile live account has no general root shell. Enroll through the
+root-owned narrow command instead, using the full independently authenticated
+fingerprint:
+
+```bash
+sudo phios-update-enroll --public-key /absolute/current-public-key.gpg --fingerprint FULL_UPPERCASE_FINGERPRINT --plan
+sudo phios-update-enroll --public-key /absolute/current-public-key.gpg --fingerprint FULL_UPPERCASE_FINGERPRINT
+```
+
+The placeholders must be replaced. Review the exact captured public-key hash,
+full fingerprint, current trust hashes and source environment, then type
+`ENROLL /etc/phios SHA256`. Missing/changed identity, multiple primary keys,
+secret-key material, expired/revoked keys or cancellation do not enroll trust.
+The tool captures the input once, exports only the selected public key,
+rechecks validity/current trust after review, and flushes protected key/policy
+files before readback. It has no unattended bypass or network retrieval.
+Terminal access is not proof of human identity; an administrator remains
+responsible for independent fingerprint authentication. Signing-trust rotation
+is an explicit local administration action, not an adapter promotion.
+
+An installed administrator can also perform manual Linux administration:
+create root-owned `/etc/phios`
 without group/other write access, install the independently authenticated
 exported public key at `/etc/phios/os-update-keyring.gpg` (root:root, 0644), and
 install `/etc/phios/os-update-trust.json` (root:root, 0644):

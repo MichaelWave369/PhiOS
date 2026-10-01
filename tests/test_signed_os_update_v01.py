@@ -203,3 +203,41 @@ def test_real_detached_signatures_and_pinned_identity(
         package.write_bytes(b'replaced after verification')
         assert (private / FILENAME).read_bytes() == CONTENT
     assert not private.exists()
+
+
+@pytest.mark.parametrize('case', ['public', 'wrong-fingerprint', 'secret', 'expired'])
+def test_real_public_key_enrollment_rejects_wrong_identity_secret_and_expired_keys(
+    tmp_path: Path, signing_keys: list[tuple[Path, str, bytes]], case: str,
+) -> None:
+    spec = importlib.util.spec_from_file_location('phios_enrollment', FILE.with_name('enroll.py'))
+    assert spec is not None and spec.loader is not None
+    enroll = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(enroll)
+    signer, fingerprint, public = signing_keys[2 if case == 'expired' else 0]
+    if case == 'secret':
+        public = subprocess.check_output(['gpg', '--no-options', '--homedir', str(signer), '--batch',
+            '--pinentry-mode', 'loopback', '--passphrase', '', '--export-secret-keys', fingerprint])
+    elif case == 'wrong-fingerprint':
+        fingerprint = signing_keys[1][1]
+    captured = tmp_path / 'supplied-key.gpg'
+    captured.write_bytes(public)
+    home = tmp_path / 'public-only-enrollment'
+    home.mkdir(mode=0o700)
+    try:
+        if case != 'public':
+            with pytest.raises(ValueError):
+                enroll.public_key(home, captured, fingerprint, now=datetime.now(UTC))
+        else:
+            exported = enroll.public_key(home, captured, fingerprint, now=datetime.now(UTC))
+            bundle = tmp_path / 'verified-after-enrollment'
+            bundle.mkdir()
+            data, archive = bundle / 'manifest.json', bundle / FILENAME
+            data.write_text(json.dumps(manifest()))
+            archive.write_bytes(CONTENT)
+            sign(signer, data)
+            sign(signer, archive)
+            with verify.verified_bundle(bundle, source='a' * 40, sequence=0, installed=BASE,
+                    trust=({'primary_fingerprint': fingerprint}, exported)) as (_payload, private):
+                assert (private / FILENAME).read_bytes() == CONTENT
+    finally:
+        subprocess.run(['gpgconf', '--homedir', str(home), '--kill', 'all'], capture_output=True, timeout=15)

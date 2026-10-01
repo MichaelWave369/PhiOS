@@ -91,7 +91,7 @@ def package(base: Path, name: str, *, missing_dependency: bool = False, interrup
             build += "install=interrupt.install\n"
             (work / 'interrupt.install').write_text('post_install() {\n'
                 "  printf 'staged pacman hook reached\\n' > /.phios-ci-stage-in-progress\n"
-                '  /usr/bin/sync\n  /usr/bin/sleep 600\n}\n')
+                '  /usr/bin/sync\n  /usr/bin/touch /run/phios-ci-signed-hook-ready\n  /usr/bin/sleep 600\n}\n')
         build += 'package() {\n  install -Dm644 data "$pkgdir/usr/share/$pkgname/verified.txt"\n' + \
             '  install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"\n}\n'
         (work / 'PKGBUILD').write_text(build)
@@ -138,10 +138,17 @@ def initial() -> None:
         try:
             # Test-only manual enrollment into the volatile live environment;
             # no trust or private key was shipped by the production image.
-            apply.generated_file(Path('/'), 'etc/phios/os-update-keyring.gpg', accepted[2], mode=0o644)
-            apply.generated_file(Path('/'), 'etc/phios/os-update-trust.json', json.dumps({
-                'schema_version': 'phios.os-update-trust.v1', 'channel': 'experimental',
-                'primary_fingerprint': accepted[1]}).encode(), mode=0o644)
+            exported = base / 'enrollment-public-key.gpg'
+            exported.write_bytes(accepted[2])
+            exported.chmod(0o600)
+            installer.drive_installer(cancel=True, enroll=(exported, accepted[1]))
+            if apply.verify.TRUST.exists() or apply.verify.KEYRING.exists():
+                raise ValueError('cancelled enrollment changed signing trust')
+            installer.drive_installer(cancel=False, enroll=(exported, accepted[1]))
+            policy, _public = apply.verify.load_trust()
+            if policy['primary_fingerprint'] != accepted[1]:
+                raise ValueError('production enrollment did not retain the authenticated fingerprint')
+            print('PHIOS_SIGNING_ENROLLMENT_OK', flush=True)
             with disk() as (top, esp):
                 before = state(top, esp)
             valid = bundle(base, PACKAGE, before, accepted)

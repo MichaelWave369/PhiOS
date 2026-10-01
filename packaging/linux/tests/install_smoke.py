@@ -23,9 +23,13 @@ def command(*args: str, data: str | None = None) -> str:
 
 
 def drive_installer(*, cancel: bool, recovery: list[str] | None = None, update: Path | None = None,
-                    reject: bool = False, plan: bool = False, interrupt: bool = False) -> str:
+                    reject: bool = False, plan: bool = False, interrupt: bool = False,
+                    enroll: tuple[Path, str] | None = None) -> str:
     pid, fd = pty.fork()
     if pid == 0:
+        if enroll is not None:
+            os.execv('/usr/bin/phios-update-enroll', ['phios-update-enroll', '--public-key', str(enroll[0]),
+                '--fingerprint', enroll[1]])
         if update is not None:
             os.execv('/usr/bin/phios-os-update', ['phios-os-update', '--disk', '/dev/vda', '--bundle', str(update),
                 *(['--plan'] if plan else [])])
@@ -52,13 +56,14 @@ def drive_installer(*, cancel: bool, recovery: list[str] | None = None, update: 
                 if prompt in text and prompt not in replied:
                     os.write(fd, (PASSWORD + "\n").encode())
                     replied.add(prompt)
-            match = re.search(r"(?:INSTALL|CHECKPOINT|RESTORE|UPDATE) /dev/vda [0-9a-f]{64}\r?\n", text)
+            match = re.search(r"(?:INSTALL|CHECKPOINT|RESTORE|UPDATE|ENROLL) (?:/dev/vda|/etc/phios) [0-9a-f]{64}\r?\n", text)
             if match and "confirm" not in replied and "> " in text[match.end():]:
                 os.write(fd, ("cancel\n" if cancel else match[0].strip() + "\n").encode())
                 replied.add("confirm")
             if interrupt and 'stage' not in replied:
                 markers = list(Path('/run').glob('phios-recovery-*/top/@update-*/.phios-ci-stage-in-progress'))
-                if len(markers) == 1 and markers[0].read_text() == 'staged pacman hook reached\n':
+                if (len(markers) == 1 and markers[0].read_text() == 'staged pacman hook reached\n' and
+                        (markers[0].parent / 'run/phios-ci-signed-hook-ready').is_file()):
                     print('PHIOS_SIGNED_STAGE_IN_PROGRESS', flush=True)
                     replied.add('stage')
             ended, status = os.waitpid(pid, os.WNOHANG)
