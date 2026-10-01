@@ -33,7 +33,11 @@ CONTENT = b'authenticated disposable PhiOS package update\n'
 
 
 def command(*args: str, **kwargs: Any) -> str:
-    return subprocess.check_output(args, text=True, stderr=subprocess.STDOUT, **kwargs)
+    try:
+        return subprocess.check_output(args, text=True, stderr=subprocess.STDOUT, **kwargs)
+    except subprocess.CalledProcessError as exc:
+        print((exc.output or '')[-6000:], flush=True)
+        raise
 
 
 @contextmanager
@@ -79,6 +83,8 @@ def package(base: Path, name: str, *, missing_dependency: bool = False, interrup
         shutil.copyfile('/usr/share/licenses/phios/LICENSE', work / 'LICENSE')
         build = "pkgname=" + name + "\npkgver=1.0.0\npkgrel=1\narch=('any')\n" + \
             "pkgdesc='Disposable PhiOS qualification package'\nlicense=('MIT')\noptions=('!strip' '!debug')\n"
+        build += "source=('data' 'LICENSE')\nsha256sums=(" + ' '.join(
+            "'" + hashlib.sha256((work / source).read_bytes()).hexdigest() + "'" for source in ['data', 'LICENSE']) + ')\n'
         if missing_dependency:
             build += "depends=('phios-ci-never-exists=999')\n"
         if interrupt:
