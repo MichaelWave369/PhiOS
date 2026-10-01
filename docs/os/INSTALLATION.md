@@ -1,8 +1,9 @@
 # Experimental blank-disk installation
 
 The candidate manual installer is `phios-install`, packaged behind a root-owned
-isolated Python launcher. This is a development installation path until the
-exact installed-image gate passes; a hardware-supported beta additionally
+isolated Python launcher. The disposable installed-image gate passed in
+[run 36798467774](https://github.com/MichaelWave369/PhiOS/actions/runs/36798467774).
+This remains an experimental development installation; a hardware-supported beta additionally
 requires update/recovery and the declared hardware matrix. Keep the verified
 live media available. An installed filesystem alone is not a completed OS
 release.
@@ -106,7 +107,10 @@ recorded in the receipt; no installed automatic login is introduced. Exact
 ISO/source hashes, serial logs, boot IDs and screenshots accompany success or
 failure. A VM restart is not hardware power-loss qualification.
 
-This lane is pending until its actual receipt reports a pass. CI credentials
+The qualified source is `0253b6e0fb27251fe2da37b6d8c1e31245a64290`; ISO SHA-256
+is `8599bbc7ff2ed35432bae23692464d4d5afa9ffdfc787699a7be88f2cfc62f5c`.
+The exact receipt and evidence identities are in
+`docs/os/evidence/installation-0253b6e0.json`. CI credentials
 are public test-only values; normal local profiles and production installs
 contain neither the fixture nor those credentials.
 
