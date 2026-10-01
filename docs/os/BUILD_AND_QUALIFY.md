@@ -109,3 +109,20 @@ for the integration. The complete candidate repeated all nine jobs in run
 DHCP/audio and actual PAM locking, plus the separate signed-update QA cases.
 See RELEASE_HANDOFF.md and `evidence/qualification-gate-a7bcd986.json` for exact
 identities, verified compact hashes, preserved failures and remaining gates.
+
+## Retained retries and compact review metadata
+
+Normal and QA artifact names include both the run ID and attempt number. A
+same-source failed-job retry preserves earlier failure artifacts rather than
+colliding with or overwriting them. Display conversion imports Pillow only when
+actual PPM captures exist, so an early builder/download failure retains its
+original error without an unrelated missing-Pillow cleanup exception.
+
+An always-run bounded metadata step emits the actual receipt JSON (without VM
+command arrays), source identity, inventory counts and small-file hashes to CI
+logs. It cross-checks report source identities against this run's checked-out
+source and preserves failed receipts as failures. These are producer metadata,
+not an independent archive download verification or publication authority.
+Use the emitted metadata when a review host cannot extract the compact archive;
+record that limitation explicitly. Exact VM and aggregate assertions still
+must pass, and every attempt retains its own source/artifact identity.

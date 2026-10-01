@@ -152,6 +152,61 @@
       "source_commit": "afe3795528e11107eeafbb74088c255cd97f356f",
       "tested_source_tree": "49571965ef7717c427d049b2a4e01ae3941b4fb4",
       "workflow_run": 36821774229
+    },
+    {
+      "workflow_run": 36825649652,
+      "run_attempt": 1,
+      "reviewed_branch_head": "57a55730b036a11d9e496701336999bf406bdaf5",
+      "source_commit": "d62011220805bfa5bb2313248a172e22cfc7b4cc",
+      "tested_source_tree": "b3bf00f59b147a5824466d93045eb3c11a835a23",
+      "job_id": 110250655210,
+      "phase": "signed_pinned_arch_builder_download",
+      "image_built": false,
+      "normal_live_qualified": false,
+      "normal_installed_qualified": false,
+      "evidence_artifact_id": 11145515404,
+      "evidence_archive_sha256_github": "642757c7426862f47310a94ae7d225e8cf0fde8a5f15cd9390ab446d70c5612a",
+      "evidence_archive_independently_verified": false,
+      "evidence_files_downloaded": false,
+      "job_logs_read": true,
+      "failure": "Pinned Arch archive transfers for iptables/readline signatures, iana-etc and brotli stalled below pacman's minimum speed. The signed package transaction held and no ISO was produced. Display conversion also failed because Pillow setup was not reached. Workspace execution/download service subsequently disconnected, so the archive digest is GitHub's producer digest rather than an independent review hash. Retry artifact names now include run_attempt to preserve failed and successful artifacts; empty display conversion avoids a spurious cleanup exception. Bounded source-bound receipt/file-hash metadata is emitted to CI logs for review without requiring binary archive extraction.",
+      "hardware_qualified": false,
+      "release_ready": false,
+      "release_gate_job_id": 110255621791,
+      "release_gate_result": "failure",
+      "separate_qa_job_id": 110250655131,
+      "separate_qa_result": "success",
+      "separate_qa_does_not_qualify_failed_normal_image": true,
+      "artifact_metadata": [
+        {
+          "id": 11146055612,
+          "name": "phios-linux-evidence-36825649652",
+          "size_in_bytes": 4187814,
+          "digest": "sha256:15a003d8dee582fc87fda21fc987fd855cfe395f3de7dcef8f0716c438f6052e",
+          "expires_at": "2026-10-08T06:53:53Z"
+        },
+        {
+          "id": 11145931386,
+          "name": "phios-linux-development-36825649652",
+          "size_in_bytes": 1803559635,
+          "digest": "sha256:0cb43a7b32ee68882fd76a7844fc955834437ee42621ea4a96e70bd8225211ab",
+          "expires_at": "2026-10-08T06:52:59Z"
+        },
+        {
+          "id": 11145520372,
+          "name": "phios-fixture-free-candidate-36825649652",
+          "size_in_bytes": 37593,
+          "digest": "sha256:642757c7426862f47310a94ae7d225e8cf0fde8a5f15cd9390ab446d70c5612a",
+          "expires_at": "2026-10-08T06:39:16Z"
+        },
+        {
+          "id": 11145515404,
+          "name": "phios-fixture-free-evidence-36825649652",
+          "size_in_bytes": 37593,
+          "digest": "sha256:642757c7426862f47310a94ae7d225e8cf0fde8a5f15cd9390ab446d70c5612a",
+          "expires_at": "2026-10-08T06:39:17Z"
+        }
+      ]
     }
   ],
   "schema_version": "phios.desktop-attempts.v1"
