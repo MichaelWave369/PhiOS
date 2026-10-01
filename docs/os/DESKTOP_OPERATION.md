@@ -102,6 +102,13 @@ corrected probe requires their absence and the actual lease/server. The failed
 image/source, serial log and screenshot hashes are retained in
 `evidence/desktop-attempts.json`. The installed signed QA lane passed its added
 audio and PAM lock checks, but that does not qualify the failed normal image.
+The second normal attempt captured the correct lease and isolation, then failed
+because nmcli joined its DHCP options on one line. The corrected parser accepts
+the observed joined/line forms while retaining exact unique server identity;
+captured-output regression tests reject static, wrong, duplicate and forwarding
+configurations. Service checks require each named unit individually; the live
+lifecycle requires all session/audio/socket units inactive at logout and repeats
+actual service/audio/network checks after graphical reauthentication.
 
 The complete added qualification is pending actual CI. Earlier passed ISO hashes remain
 valid only for their recorded earlier scope; do not claim these new features

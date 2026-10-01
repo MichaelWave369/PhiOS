@@ -12,8 +12,10 @@ actual image paths and refuses a mismatch with the requested fixture scope.
 The normal volatile `phios`/`phios` account remains the documented live login;
 that public live account does not become an installed user/password.
 
-The external VM harness uses only the finished ISO and fresh OVMF variables,
-with no target disk, network or shared folders. It logs in through normal
+The external normal live VM harness uses only the finished ISO and fresh OVMF
+variables, without a target disk or shared folders. Its added desktop gate uses
+restricted virtual Ethernet with no external forwarding and synthetic HDA with
+a null audio backend; no host audio is attached. It logs in through normal
 serial PAM using that public live account, observes the actual non-root
 Wayfire/Chromium/HTTP services, tests an observer restart, logs out, enters the
 same account at the real greetd keyboard/PAM prompt and checks the restarted
@@ -23,6 +25,8 @@ into the image. Logs/screenshots and the exact ISO/source hash are retained.
 The separate exact normal-image installed lane described below adds bounded
 installation/data/recovery/Linux proof evidence for that same ISO. Real hardware
 and the future final signed update transition remain additional release gates.
+The installed/recovery lanes retain no NIC or shared folders. See
+DESKTOP_OPERATION.md for the precise DHCP, user-audio and PAM-lock scope.
 
 ## Artifact inventory
 

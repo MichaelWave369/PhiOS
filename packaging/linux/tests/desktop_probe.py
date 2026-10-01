@@ -11,12 +11,22 @@ import wave
 from pathlib import Path
 
 
+def restricted_dhcp_lease(network: dict) -> bool:
+    # nmcli get-values emits array-valued DHCP options either as lines or as
+    # one " | "-joined value. Parse the actual array before checking identity.
+    options = [option for row in network['DHCP4.OPTION'] for option in row.split(' | ')]
+    return (network['IP4.ADDRESS'] == ['192.0.2.15/24'] and not network['IP4.GATEWAY']
+            and not network['IP4.DNS']
+            and options.count('dhcp_server_identifier = 192.0.2.2') == 1)
+
+
 def desktop_services(source: str, *, wired: bool = False) -> dict:
     assert os.getuid() == 1000 and os.geteuid() == 1000
     assert Path('/usr/share/phios/source-commit').read_text().strip() == source
     units = ['phios-audio.target', 'pipewire.service', 'pipewire-pulse.service', 'wireplumber.service', 'phios-policykit.service']
     for _ in range(60):
-        active = subprocess.run(['systemctl', '--user', 'is-active', '--quiet', *units]).returncode == 0
+        active = all(subprocess.run(['systemctl', '--user', 'is-active', '--quiet', unit]).returncode == 0
+                     for unit in units)
         graph = json.loads(subprocess.check_output(['pw-dump'], text=True, timeout=10)) if active else []
         devices = [item for item in graph if item.get('type') == 'PipeWire:Interface:Device' and
                    item.get('info', {}).get('props', {}).get('device.api') == 'alsa']
@@ -47,7 +57,8 @@ def desktop_services(source: str, *, wired: bool = False) -> dict:
             stream.setframerate(48000)
             stream.writeframes(b''.join(struct.pack('<h', 1000 if (i // 40) % 2 else -1000) for i in range(9600)))
         subprocess.run(['pw-play', '--target', str(sinks[0]['id']), str(path)], check=True, timeout=30)
-    subprocess.run(['systemctl', 'is-active', '--quiet', 'NetworkManager.service', 'systemd-resolved.service'], check=True)
+    for unit in ['NetworkManager.service', 'systemd-resolved.service']:
+        subprocess.run(['systemctl', 'is-active', '--quiet', unit], check=True)
     observed = {'source_commit': source, 'uid': os.getuid(), 'user_audio_services': True, 'nonroot_graphical_policykit_agent': True,
                 'emulated_alsa_device_observed': True, 'virtual_pcm_playback_completed': True,
                 'host_audio_attached': False, 'wired_dhcp_observed': False,
@@ -64,9 +75,7 @@ def desktop_services(source: str, *, wired: bool = False) -> dict:
                 # libslirp's restricted BOOTP/DHCP server intentionally omits
                 # RFC1533_GATEWAY and RFC1533_DNS. Require that isolation and
                 # the actual lease/server, rather than expecting NAT settings.
-                if (network['IP4.ADDRESS'] == ['192.0.2.15/24'] and not network['IP4.GATEWAY']
-                        and not network['IP4.DNS']
-                        and network['DHCP4.OPTION'].count('dhcp_server_identifier = 192.0.2.2') == 1):
+                if restricted_dhcp_lease(network):
                     break
             time.sleep(1)
         else:

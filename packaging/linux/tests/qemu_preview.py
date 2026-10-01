@@ -77,20 +77,24 @@ for _ in range(60):
 else:
     raise RuntimeError('observer restart failed')
 subprocess.run(['pkill','-TERM','-u',str(os.getuid()),'-x','wayfire'],check=True)
+units=['phios-session.target','phios-observer.service','phios-browser.service','phios-waybar.service',
+       'phios-curiosity-reader.service','phios-history-reader.service','phios-policykit.service','phios-audio.target',
+       'pipewire.service','pipewire-pulse.service','wireplumber.service','pipewire.socket','pipewire-pulse.socket']
 for _ in range(30):
-    active=subprocess.run(args+['is-active','--quiet','phios-session.target'],capture_output=True).returncode==0
+    states={unit:subprocess.check_output(args+['show',unit,'--property=ActiveState','--value'],text=True).strip()
+            for unit in units}
     try:
         urllib.request.urlopen('http://127.0.0.1:3969/api/v1/health',timeout=2).close()
         reachable=True
     except OSError:
         reachable=False
-    audio_active=subprocess.run(args+['is-active','--quiet','phios-audio.target'],capture_output=True).returncode==0
-    if not active and not reachable and not audio_active: break
+    if all(state=='inactive' for state in states.values()) and not reachable: break
     time.sleep(1)
 else:
-    raise RuntimeError('logout did not stop the supervised session')
+    raise RuntimeError('logout did not stop the supervised session: '+json.dumps(states))
 boot=Path('/proc/sys/kernel/random/boot_id').read_text().strip().replace('-','')
-print('PHIOS_PREVIEW_LOGOUT_OK:'+json.dumps({'boot_id':boot,'old_observer_pid':previous,'new_observer_pid':current}),flush=True)
+print('PHIOS_PREVIEW_LOGOUT_OK:'+json.dumps({'boot_id':boot,'old_observer_pid':previous,'new_observer_pid':current,
+    'all_session_units_inactive':True,'stopped_session_units':units}),flush=True)
 '''
 
 
@@ -180,6 +184,7 @@ def qualify(iso: Path, source: str, output: Path) -> None:
                         first = json.loads(wait(r'PHIOS_PREVIEW_OK:(\{[^\r\n]+\})')[1])
                         assert first['source_commit'] == source and first['stage'] == 'first'
                         desktop_result = json.loads(wait(r'PHIOS_DESKTOP_SERVICES_OK:(\{[^\r\n]+\})')[1])
+                        desktop_result.update({'boot_id': first['boot_id'], 'stage': 'first'})
                         receipt.setdefault('desktop_service_boots', []).append(desktop_result)
                         time.sleep(2)
                         capture_display(qmp, output, name=f'screen-{boot}-first')
@@ -191,9 +196,12 @@ def qualify(iso: Path, source: str, output: Path) -> None:
                         assert lifecycle['boot_id'] == first['boot_id']
                         enter_live_login(qmp)
                         text = ''
-                        program(f'SOURCE={source!r}\nSTAGE="reauthenticated"\n' + PROBE)
+                        program(f'SOURCE={source!r}\nSTAGE="reauthenticated"\n' + desktop + f'\ndesktop_services({source!r}, wired=True)\n' + PROBE)
                         second = json.loads(wait(r'PHIOS_PREVIEW_OK:(\{[^\r\n]+\})')[1])
                         assert second['boot_id'] == first['boot_id'] and second['stage'] == 'reauthenticated'
+                        restarted_desktop = json.loads(wait(r'PHIOS_DESKTOP_SERVICES_OK:(\{[^\r\n]+\})')[1])
+                        restarted_desktop.update({'boot_id': second['boot_id'], 'stage': 'reauthenticated'})
+                        receipt['desktop_service_boots'].append(restarted_desktop)
                         time.sleep(2)
                         capture_display(qmp, output, name=f'screen-{boot}-reauthenticated')
                         receipt['boots'].append({'first': first, 'lifecycle': lifecycle, 'reauthenticated': second})

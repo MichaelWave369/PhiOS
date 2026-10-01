@@ -58,6 +58,14 @@ still require maintainer configuration. Keep publication separate from the
 existing Python `v*`/PyPI workflow. Evidence never promotes an adapter, enrolls a
 signing identity or grants execution/publication authority.
 
+Repository protection was rechecked on 2026-10-01. Main still points to
+`dad7a7d7cd53874926ad366f19d3fc0fa6b99a49`; its branch response reports no
+required checks. The sole active branch ruleset `protec` (13863077) contains
+deletion/non-fast-forward rules and no required status or review rule. Configure
+the reviewed `release-gate` requirement and main/OS-tag release protections
+through maintainer administration before merging/publishing. This candidate
+does not claim those settings were applied.
+
 ## Remaining work in order
 
 1. **Observe the supplied Skytech on the exact normal live media.** Follow
