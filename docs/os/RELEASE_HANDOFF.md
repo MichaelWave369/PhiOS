@@ -13,15 +13,15 @@ this handoff; no private PhiKernel/TIEKAT implementation is needed to boot it.
 
 | Identity | Value |
 | --- | --- |
-| Reviewed integration PR/head | [280](https://github.com/MichaelWave369/PhiOS/pull/280), `41f0c8b2f7b268d046bfd8aa1bef8d24c712c9d1` |
-| Tested prospective merge source | `a3572a9bac7051b70af2ef66e75bc021f4214b31` |
-| Identical source tree | `6d328cf55777a5fda0737f043e0f263208dfc3b4` |
-| Normal ISO SHA-256 | `8199e2abad0e7699747876bd95e734e3168758b1bb59f20a232339eb61ef614d` |
-| First-party source archive SHA-256 | `090f6ee53f5db5dca1cbae17b80580de467b0daeec804082f4a629609bd736ec` |
-| Normal image qualification | [36827706986](https://github.com/MichaelWave369/PhiOS/actions/runs/36827706986) |
-| Download normal ISO and payloads | [11146755842](https://github.com/MichaelWave369/PhiOS/actions/runs/36827706986/artifacts/11146755842) |
-| Compact evidence | [11146641362](https://github.com/MichaelWave369/PhiOS/actions/runs/36827706986/artifacts/11146641362) |
-| Persisted receipt | [integration-normal-a3572a9b.json](evidence/integration-normal-a3572a9b.json) |
+| Reviewed code PR/head | [281](https://github.com/MichaelWave369/PhiOS/pull/281), `3d282bdd6466052def8e632245f312863040cafc` |
+| Tested prospective merge source | `1c16c4732442d69d2c7b5763212f1977860a15ae` |
+| Identical source tree | `0ccf3ccc589e0bad79e9917f2c01818772926ee1` |
+| Normal ISO SHA-256 | `376fd601f66b13dccd6a08644a7b807129f315882d355fd376d0934a80ae29aa` |
+| First-party source archive SHA-256 | `0a2a58aa9ce77e369435e731510859cdee7fc820a9f2333e308441013faf42ec` |
+| Normal image qualification | [36832501182](https://github.com/MichaelWave369/PhiOS/actions/runs/36832501182) |
+| Download normal ISO and payloads | [11147798040](https://github.com/MichaelWave369/PhiOS/actions/runs/36832501182/artifacts/11147798040) |
+| Compact evidence | [11147969308](https://github.com/MichaelWave369/PhiOS/actions/runs/36832501182/artifacts/11147969308) |
+| Persisted receipt | [delivery-normal-1c16c473.json](evidence/delivery-normal-1c16c473.json) |
 
 These unsigned review downloads expire **2026-10-08**. A later build, branch
 update, final merge or tag has a separate identity. Download the normal payload,
@@ -45,6 +45,7 @@ Review the component PRs in dependency order after assessing each boundary:
 | [277](https://github.com/MichaelWave369/PhiOS/pull/277) | Exact normal-image installed/recovery gate and explicit serial password login |
 | [278](https://github.com/MichaelWave369/PhiOS/pull/278) | Always-reported same-source `release-gate` and reusable qualification jobs |
 | [279](https://github.com/MichaelWave369/PhiOS/pull/279) | NetworkManager, user audio, manual PAM locking and their actual desktop probes |
+| [281](https://github.com/MichaelWave369/PhiOS/pull/281) | Offline exact component source/notice delivery records and packet verification, stacked on integration #280 |
 
 Use the complete main-targeted integration PR as the merge vehicle after its
 own exact-source qualification passes. It contains the candidate and aggregate
@@ -53,7 +54,29 @@ integration. The component PRs above remain focused review references. Requiring
 `release-gate` on the earlier component heads would leave them pending because
 they predate that controller. Keep every merge and release under maintainer review.
 
-The main-targeted integration's aggregate gate passed all nine jobs in
+The latest code continuation's aggregate gate passed all nine jobs in
+[run 36832501182](https://github.com/MichaelWave369/PhiOS/actions/runs/36832501182)
+for source `1c16c4732442d69d2c7b5763212f1977860a15ae`, with 2,324 Python tests
+passed and six existing optional skips. Both exact normal and separate ephemeral
+signed QA image lanes repeated their live/install/data/proof/desktop/recovery
+scopes. Both downloaded compact ZIP digests, 15 available checksum payloads each
+and available provenance records were checked. The actual 1,778,503-byte
+first-party source archive was independently reconstructed from this exact
+Git commit with the builder's normalized tar/gzip parameters and matched its
+full recorded digest. Normal recovery and wrong-password screenshots were
+visually inspected. ISO/package/third-party notice archive bytes were not
+redownloaded; their identities remain producer hashes. See
+`evidence/qualification-gate-1c16c473.json` and its linked receipts.
+
+The delivery checker observed one verified first-party material file and all 501
+component reviews still pending; the supplier notice archive and third-party
+source/build material have not been supplied locally. The existing 746 captured
+supplier notice files do not establish delivery/content/license compliance.
+`evidence/source-delivery-1c16c473.json` records that exact observation. This
+evidence-only handoff is a later source identity; its documentation CI does not
+qualify a new image. Requalify final publication bytes after freezing them.
+
+The preceding main-targeted integration's aggregate gate passed all nine jobs in
 [run 36827706986](https://github.com/MichaelWave369/PhiOS/actions/runs/36827706986)
 for source `a3572a9bac7051b70af2ef66e75bc021f4214b31`, with 2,287 Python tests
 passed and six existing optional skips. The two compact archives were downloaded

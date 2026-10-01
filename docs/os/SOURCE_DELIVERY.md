@@ -134,3 +134,17 @@ that exact candidate leaves all 501 reviews pending and requires the actual
 first-party source and supplier notice archive bytes. This is the observed
 starting point, not a completed source-delivery gate. The compact observation
 receipt is `evidence/source-delivery-a3572a9b.json`.
+
+The later source-delivery code run **36832501182** passed all nine jobs for
+source `1c16c4732442d69d2c7b5763212f1977860a15ae`, including the 37 new delivery
+checks in full Python CI (2,324 passed / six existing optional skips), both exact
+normal and ephemeral signed QA image scopes. Both compact archive digests,
+available checksum/provenance payloads and source identities were checked.
+The first-party archive was independently reconstructed from that exact Git
+commit with the builder's tar/gzip parameters; its actual 1,778,503 bytes and
+SHA-256 `0a2a58aa9ce77e369435e731510859cdee7fc820a9f2333e308441013faf42ec`
+matched candidate provenance. The tool then verified that one supplied material,
+left all 501 reviews pending, and held delivery for the remaining material and
+review work. `evidence/source-delivery-1c16c473.json` records the exact first-party
+reconstruction and observation. A matching source archive does not complete
+third-party content/notice delivery or authenticate a reviewer.
