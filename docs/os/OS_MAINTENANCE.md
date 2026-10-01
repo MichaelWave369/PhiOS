@@ -78,7 +78,8 @@ path of the already installed, offline disk. It requires the installer's exact
 GPT/1-GiB-ESP/single-device-Btrfs layout, stable serial/WWN, filesystem UUIDs,
 and a matching installation receipt. Mounted disks, swap, holders, unexpected
 filesystems, extra partitions and noncanonical aliases are refused. A Btrfs
-read-only probe disables log replay. No target write occurs for `--plan` or
+read-only probe uses `ro,rescue=nologreplay,subvolid=5` to disable log replay
+([Btrfs mount documentation](https://btrfs.readthedocs.io/en/latest/btrfs-man5.html#mount-options)). No target write occurs for `--plan` or
 cancellation. The tool exposes no unattended confirmation bypass.
 
 Run the command without `--plan`, review the complete disk/source/boot-file
@@ -119,7 +120,11 @@ that prevents mounting needs a separate storage recovery procedure.
 Restoration discards old system/EFI entropy seeds, removes rolled-back update
 trust files so an earlier signing policy cannot be silently reinstated, and
 increments the highest observed update generation rather than replaying its
-counter. Re-enroll the independently authenticated current public key before
+counter. The root generation is paired with a root-owned counter in
+`@snapshots/os-update-counter.json`, outside the rollback snapshots. This counter
+is flushed before root activation. A missing root after an interrupted rename
+therefore cannot reset an already consumed update sequence. An inconsistent
+root/counter pair holds updates for explicit live recovery. Re-enroll the independently authenticated current public key before
 subsequent updates. Normal password/PAM login remains required. Same-user
 terminal access is not proof of human identity and arbitrary administrator
 processes remain outside PhiOS's narrow governed-effect boundary.
@@ -133,7 +138,61 @@ historical authority; and a second disk-only boot. Root snapshots alone do not
 back up `/home`, and same-disk checkpoints do not survive loss of that disk.
 Maintain a verified data-only backup on separately owned storage.
 
-Current status: signature/transition verification and offline root/EFI recovery
-are implemented as candidates. Package application and VM recovery failure
-evidence are pending. `whole_os_rollback_available` remains false. Do not substitute the
+## Offline signed package application
+
+Boot PhiOS UEFI live media, keep the installed disk offline, and enroll the
+independently authenticated current public key into the **live** environment.
+The updater does not inherit trust from the disk it is about to change.
+
+```bash
+sudo phios-os-update --disk /dev/REPLACE --bundle /absolute/offline-bundle --plan
+sudo phios-os-update --disk /dev/REPLACE --bundle /absolute/offline-bundle
+```
+
+The read-only plan binds the explicit disk, exact current source, complete
+package inventory, independent counter, entire EFI hash inventory, signed
+manifest digest, pinned signer and fresh checkpoint ID. Review and type the
+exact `UPDATE /dev/... SHA256` phrase. Cancellation changes no target files.
+Trust, validity and every captured package signature are checked again after
+confirmation. Downgrades and package removals require recovery rather than an
+update. Accurate time and enough live temporary storage for the bounded bundle
+are prerequisites; insufficient space holds the operation.
+
+The command first creates a matched recovery checkpoint, then prepares a
+writable `@update-...` root. Pacman requires signatures for each captured
+archive, with only the enrolled keyring and no remote repositories. Package
+format/dependency failures or an incorrect complete target inventory leave
+the active root and EFI unchanged. The staged root must carry exactly the
+signed PhiOS source identity. Kernel/initramfs/EFI preparation occurs against
+a private copy of `/boot`; only after verification does the tool retain the
+prior root, activate the new root and copy/verify matching EFI contents.
+No user-home snapshot or historical authorization is activated.
+
+Signed package scripts run with administrator privileges. The staging chroot
+is not a security sandbox against a malicious signer or administrator. A
+maintainer must qualify the actual complete package transition, its hooks,
+state compatibility, licenses and boot behavior before signing it.
+
+The update journal lives beside its exact checkpoint as
+`@snapshots/recovery/<id>/update-transaction.json`. Failed stage roots,
+previous roots and transaction evidence remain for review. An interruption
+before activation leaves the active root in place. Root/EFI activation remains
+non-atomic: if interrupted during that switch, boot live media and explicitly
+restore the journal's checkpoint. Success reports activation only; a disk-only
+boot is still required to qualify the target. Keep a separate verified data
+backup and the matching live recovery image.
+
+CI uses only a newly created named 32-GiB VM disk, with no network, host disks
+or shared folders. It generates ephemeral signing keys in live RAM and builds
+real packages with makepkg. The new fixture tests invalid/missing/wrong-key/
+expired/replayed signatures or manifests, cancellation, a valid added package,
+a real dependency failure, abrupt VM termination during a pacman installation
+hook, unchanged active root/EFI after that interruption, deliberate boot
+corruption, matched live-media recovery and normal password/PAM desktop boots.
+Those test packages and credentials are excluded from normal images and
+installations. A successful fixture qualifies that bounded transition only;
+it does not qualify arbitrary kernel upgrades, real hardware or a release key.
+
+Current status: verification, offline root/EFI recovery and staged package
+application are implemented as candidates. End-to-end VM evidence is pending. `whole_os_rollback_available` remains false. Do not substitute the
 application platform's rollback receipt for these OS gates.

@@ -149,7 +149,7 @@ def mounted(identity: dict[str, Any], *, writable: bool) -> Iterator[tuple[Path,
     esp.mkdir(mode=0o700)
     mounts: list[Path] = []
     try:
-        options = 'rw,subvolid=5' if writable else 'ro,nologreplay,subvolid=5'
+        options = 'rw,subvolid=5' if writable else 'ro,rescue=nologreplay,subvolid=5'
         run('mount', '-t', 'btrfs', '-o', options, identity['system'], str(top))
         mounts.append(top)
         # Multi-device Btrfs would cross the selected-disk boundary.
@@ -338,6 +338,26 @@ def phrase(plan: dict[str, Any]) -> str:
     return f"{plan['operation'].upper()} {plan['disk']['path']} {digest}"
 
 
+def generation_record(path: Path, schema: str) -> dict[str, Any] | None:
+    if not path.exists() and not path.is_symlink():
+        return None
+    value = json.loads(regular(path))
+    if (not isinstance(value, dict) or set(value) != {'schema_version', 'sequence', 'source_commit'} or
+            value['schema_version'] != schema or type(value['sequence']) is not int or value['sequence'] < 0 or
+            not isinstance(value['source_commit'], str) or re.fullmatch(r'[0-9a-f]{40}', value['source_commit']) is None):
+        raise ValueError('update generation requires explicit recovery review')
+    return value
+
+
+def recovery_sequence(top: Path, saved_root: Path) -> int:
+    # This counter lives outside root snapshots. Even if activation stopped
+    # between root renames, an older root cannot reset the consumed sequence.
+    values = [generation_record(top / '@snapshots/os-update-counter.json', 'phios.os-update-counter.v1')]
+    for root in [top / '@root', saved_root]:
+        values.append(generation_record(root / 'var/lib/phios/os-update-generation.json', 'phios.os-update-generation.v1'))
+    return max((value['sequence'] for value in values if value is not None), default=0) + 1
+
+
 def execute(identity: dict[str, Any], operation: str, generation: str, reviewed: dict[str, Any]) -> dict[str, Any]:
     with mounted(identity, writable=True) as (top, esp):
         # Recheck reviewed source/checkpoint/boot identity before creating a
@@ -371,6 +391,9 @@ def execute(identity: dict[str, Any], operation: str, generation: str, reviewed:
         data, folder = checkpoint_data(top, esp, identity, generation)
         if data != reviewed['checkpoint']:
             raise ValueError('checkpoint changed after review')
+        next_sequence = recovery_sequence(top, folder / 'root')
+        if next_sequence != reviewed['next_sequence']:
+            raise ValueError('update counter changed after review')
         ensure_no_active_authority(top, data['installed']['install_receipt']['plan']['username'])
         transaction = folder / ('restore-' + uuid.uuid4().hex)
         transaction.mkdir(mode=0o700)
@@ -388,17 +411,13 @@ def execute(identity: dict[str, Any], operation: str, generation: str, reviewed:
         # An older root must never silently reinstate an earlier trust policy.
         for name in ['os-update-trust.json', 'os-update-keyring.gpg']:
             (staged / 'etc/phios' / name).unlink(missing_ok=True)
-        counters = []
-        for root in [top / '@root', staged]:
-            counter = root / 'var/lib/phios/os-update-generation.json'
-            if counter.exists():
-                value = json.loads(regular(counter))
-                if type(value.get('sequence')) is not int or value['sequence'] < 0:
-                    raise ValueError('update generation requires explicit recovery review')
-                counters.append(value['sequence'])
         write_json(staged / 'var/lib/phios/os-update-generation.json', {
             'schema_version': 'phios.os-update-generation.v1',
-            'sequence': max(counters, default=0) + 1, 'source_commit': data['source_commit']})
+            'sequence': next_sequence, 'source_commit': data['source_commit']})
+        write_json(top / '@snapshots/os-update-counter.json', {
+            'schema_version': 'phios.os-update-counter.v1',
+            'sequence': next_sequence, 'source_commit': data['source_commit']})
+        run('btrfs', 'filesystem', 'sync', str(top))
         journal['stage'] = 'switching root; keep live recovery media'
         write_json(transaction / 'transaction.json', journal)
         if (top / '@root').exists():
@@ -442,9 +461,10 @@ def main() -> int:
                 plan.update(installed=installed(top, identity), boot_files=boot_inventory(esp))
                 ensure_no_active_authority(top, plan['installed']['install_receipt']['plan']['username'])
             else:
-                data, _folder = checkpoint_data(top, esp, identity, generation)
+                data, folder = checkpoint_data(top, esp, identity, generation)
                 ensure_no_active_authority(top, data['installed']['install_receipt']['plan']['username'])
                 plan['checkpoint'] = data
+                plan['next_sequence'] = recovery_sequence(top, folder / 'root')
         print(json.dumps(plan, indent=2, sort_keys=True), flush=True)
         if args.plan:
             return 0

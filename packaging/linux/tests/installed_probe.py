@@ -13,7 +13,7 @@ from phios.state_io import append_jsonl, read_jsonl
 from phios.state_recovery import restore, verify_backup
 
 
-def probe(source: str, phase: int) -> None:
+def probe(source: str, phase: int, *, signed_update: bool = False) -> None:
     root = Path.home() / ".local/state/phios"
     assert os.getuid() == 1000
     assert Path("/usr/share/phios/source-commit").read_text().strip() == source
@@ -33,6 +33,15 @@ def probe(source: str, phase: int) -> None:
     assert read_jsonl(root / "qa/acknowledged.jsonl") == [{"source_commit": source, "execution_authority": False}]
     assert not (Path.home() / ".config/phios/memory.json").exists()
     assert not (root / "spine-v0.1/ledger/ghostwalk-authorization-decisions.jsonl").exists()
+    if signed_update:
+        package = Path('/usr/share/phios-ci-update/verified.txt')
+        if phase < 3:
+            assert package.read_bytes() == b'authenticated disposable PhiOS package update\n'
+            assert subprocess.check_output(['pacman', '-Q', 'phios-ci-update'], text=True).strip() == 'phios-ci-update 1.0.0-1'
+        else:
+            assert not package.exists()
+            assert subprocess.run(['pacman', '-Q', 'phios-ci-update'], capture_output=True).returncode == 1
+        assert not Path('/usr/share/phios-ci-interrupt/verified.txt').exists()
     # The host enters the same fresh account at greetd; the compositor and
     # browser must be launched by the configured login/session services.
     for _ in range(90):

@@ -29,4 +29,6 @@ package() {
     install -Dm755 packaging/linux/updates/phios-update-verify "$pkgdir/usr/bin/phios-update-verify"
     install -Dm644 packaging/linux/updates/recover.py "$pkgdir/usr/lib/phios-updates/recover.py"
     install -Dm755 packaging/linux/updates/phios-os-recover "$pkgdir/usr/bin/phios-os-recover"
+    install -Dm644 packaging/linux/updates/apply.py "$pkgdir/usr/lib/phios-updates/apply.py"
+    install -Dm755 packaging/linux/updates/phios-os-update "$pkgdir/usr/bin/phios-os-update"
 }

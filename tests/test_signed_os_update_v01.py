@@ -20,6 +20,7 @@ spec.loader.exec_module(verify)
 BASE = [{'name': 'linux', 'version': '6.18-1'}, {'name': 'phios', 'version': '1.0.0-1'}]
 CONTENT = b'public disposable package-signature fixture, not a deployable package'
 FILENAME = 'phios-1.0.0-2-any.pkg.tar.xz'
+EXPIRED_KEY_TIME = int(datetime.now(UTC).timestamp()) - 2 * 86400
 
 
 def manifest() -> dict[str, Any]:
@@ -125,12 +126,13 @@ def signing_keys(tmp_path_factory: pytest.TempPathFactory) -> Iterator[list[tupl
     keys = []
     homes = []
     try:
-        for label in ['accepted', 'untrusted']:
+        for label in ['accepted', 'untrusted', 'expired']:
             home = tmp_path_factory.mktemp('phios-disposable-key-' + label)
             home.chmod(0o700)
             homes.append(home)
             # These ephemeral keys are never retained or supplied to a release.
             subprocess.run(['/usr/bin/gpg', '--no-options', '--homedir', str(home), '--batch',
+                *(['--faked-system-time', str(EXPIRED_KEY_TIME)] if label == 'expired' else []),
                 '--pinentry-mode', 'loopback', '--passphrase', '', '--quick-generate-key',
                 f'PhiOS Disposable Test {label} <{label}@example.invalid>', 'ed25519', 'sign', '1d'],
                 check=True, capture_output=True, timeout=60)
@@ -145,17 +147,21 @@ def signing_keys(tmp_path_factory: pytest.TempPathFactory) -> Iterator[list[tupl
             subprocess.run(['gpgconf', '--homedir', str(home), '--kill', 'all'], capture_output=True, timeout=15)
 
 
-def sign(home: Path, path: Path) -> None:
+def sign(home: Path, path: Path, *, at: int | None = None) -> None:
     subprocess.run(['/usr/bin/gpg', '--no-options', '--homedir', str(home), '--batch', '--yes',
+        *(['--faked-system-time', str(at)] if at is not None else []),
         '--pinentry-mode', 'loopback', '--passphrase', '', '--detach-sign', str(path)],
         check=True, capture_output=True, timeout=30)
 
 
-@pytest.mark.parametrize('case', ['valid', 'manifest-tamper', 'package-tamper', 'wrong-key', 'missing-signature', 'wrong-pin'])
+@pytest.mark.parametrize('case', ['valid', 'manifest-tamper', 'package-tamper', 'wrong-key', 'missing-signature',
+    'wrong-pin', 'expired-key', 'revoked-key'])
 def test_real_detached_signatures_and_pinned_identity(
     tmp_path: Path, signing_keys: list[tuple[Path, str, bytes]], case: str,
 ) -> None:
     home, fingerprint, public = signing_keys[0]
+    if case == 'expired-key':
+        home, fingerprint, public = signing_keys[2]
     bundle = tmp_path / 'bundle'
     bundle.mkdir()
     payload = manifest()
@@ -164,8 +170,19 @@ def test_real_detached_signatures_and_pinned_identity(
     package = bundle / FILENAME
     package.write_bytes(CONTENT)
     signer = signing_keys[1][0] if case == 'wrong-key' else home
-    sign(signer, data)
-    sign(signer, package)
+    at = EXPIRED_KEY_TIME + 60 if case == 'expired-key' else None
+    sign(signer, data, at=at)
+    sign(signer, package, at=at)
+    if case == 'revoked-key':
+        revoked = tmp_path / 'revoked-public-only'
+        revoked.mkdir(mode=0o700)
+        subprocess.run(['gpg', '--no-options', '--homedir', str(revoked), '--batch', '--import'],
+            input=public, check=True, capture_output=True, timeout=30)
+        certificate = (home / 'openpgp-revocs.d' / (fingerprint + '.rev')).read_text()
+        armor = certificate[certificate.index('-----BEGIN PGP PUBLIC KEY BLOCK-----'):]
+        subprocess.run(['gpg', '--no-options', '--homedir', str(revoked), '--batch', '--import'],
+            input=armor.encode(), check=True, capture_output=True, timeout=30)
+        public = subprocess.check_output(['gpg', '--no-options', '--homedir', str(revoked), '--export', fingerprint])
     if case == 'manifest-tamper':
         data.write_text(json.dumps({**payload, 'source_commit': 'c' * 40}))
     elif case == 'package-tamper':

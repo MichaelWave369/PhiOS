@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# This fixture is included only when PHIOS_CI_SMOKE=1; it performs no disk writes.
+# CI-only. Disk writes require the install fixture's exact disposable disk.
 set -euo pipefail
 dump_failure() {
     echo PHIOS_BOOT_FAILED

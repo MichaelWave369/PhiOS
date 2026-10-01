@@ -62,6 +62,8 @@ def protected_file(path: Path, *, maximum: int = 2 * 1024**2) -> bytes:
         if stable_identity(os.fstat(handle.fileno())) != stable_identity(info):
             raise ValueError('protected metadata changed during intake')
         data = handle.read(maximum + 1)
+        if stable_identity(os.fstat(handle.fileno())) != stable_identity(info):
+            raise ValueError('protected metadata changed during intake')
     if len(data) > maximum:
         raise ValueError('protected metadata exceeds its bound')
     return data
