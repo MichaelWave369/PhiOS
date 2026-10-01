@@ -43,12 +43,14 @@ jobs:
         run: |
           set -euo pipefail
           sudo apt-get update
-          sudo apt-get install -y qemu-system-x86 ovmf python3-pil python3-jsonschema
+          sudo apt-get install -y qemu-system-x86 ovmf python3-pil python3-venv
           if [[ -e /dev/kvm ]]; then
             sudo chgrp "$(id -gn)" /dev/kvm
             sudo chmod g+rw /dev/kvm
           fi
-          /usr/bin/python3 packaging/linux/validate_sbom.py dist/fixture-free/sbom.cdx.json
+          python3 -m venv "$RUNNER_TEMP/phios-sbom-validator"
+          "$RUNNER_TEMP/phios-sbom-validator/bin/python" -m pip install jsonschema==4.26.0
+          "$RUNNER_TEMP/phios-sbom-validator/bin/python" packaging/linux/validate_sbom.py dist/fixture-free/sbom.cdx.json
           python3 packaging/linux/tests/qemu_preview.py \
             --iso dist/fixture-free/phios-linux-0.1.0-alpha.1-x86_64.iso \
             --source "$(cat dist/fixture-free/source-commit.txt)" \
