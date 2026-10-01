@@ -151,6 +151,21 @@ def qualify(iso: Path, source: str, output: Path) -> None:
                                     transcript.flush()
                                     text += chunk.decode(errors="replace")
                                     if "Traceback (most recent call last)" in text:
+                                        # A traceback can arrive in several serial
+                                        # reads. Preserve its actual exception and
+                                        # failing line before stopping the guest.
+                                        drain_deadline = time.monotonic() + 3
+                                        while time.monotonic() < drain_deadline:
+                                            try:
+                                                extra = channel.recv(65536)
+                                            except socket.timeout:
+                                                continue
+                                            if not extra:
+                                                break
+                                            transcript.write(extra)
+                                            transcript.flush()
+                                            text += extra.decode(errors="replace")
+                                        print("\n".join(text.splitlines()[-40:]))
                                         raise RuntimeError("installed data or session validation failed")
                                 raise RuntimeError("installed password login/qualification timed out")
 
