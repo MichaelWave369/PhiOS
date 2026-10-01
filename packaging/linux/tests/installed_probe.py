@@ -39,14 +39,26 @@ def probe(source: str, phase: int) -> None:
         try:
             with urllib.request.urlopen("http://127.0.0.1:3969/api/v1/health", timeout=2) as response:
                 assert response.status == 200
+            with urllib.request.urlopen("http://127.0.0.1:3969/", timeout=2) as response:
+                assert response.status == 200
+            # Observer health precedes browser startup. Require the whole
+            # supervised desktop to be ready within the same bounded wait.
+            if any(subprocess.run(["pgrep", "-u", "1000", "-x", name],
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode for name in ["wayfire", "chromium"]):
+                time.sleep(1)
+                continue
+            if subprocess.run(["systemctl", "--user", "is-active", "phios-observer.service", "phios-browser.service"],
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5).returncode:
+                time.sleep(1)
+                continue
             break
         except OSError:
             time.sleep(1)
     else:
-        raise RuntimeError("installed graphical login did not start observer")
-    for name in ["wayfire", "chromium"]:
-        subprocess.run(["pgrep", "-u", "1000", "-x", name], check=True, stdout=subprocess.DEVNULL)
-    subprocess.run(["systemctl", "--user", "is-active", "phios-observer.service", "phios-browser.service"], check=True)
+        subprocess.run(["journalctl", "--user", "--no-pager", "-n", "60", "-u", "phios-browser.service",
+            "-u", "phios-curiosity-reader.service", "-u", "phios-observer.service"], timeout=15)
+        raise RuntimeError("installed graphical login did not start the complete supervised desktop")
+    time.sleep(2)  # Preserve a rendered application screenshot after process readiness.
     boot_id = Path("/proc/sys/kernel/random/boot_id").read_text().strip().replace("-", "")
     print("PHIOS_INSTALLED_CHECK_OK:" + json.dumps({"source_commit": source, "phase": phase,
           "boot_id": boot_id, "record_sha256": record.record_sha256}), flush=True)

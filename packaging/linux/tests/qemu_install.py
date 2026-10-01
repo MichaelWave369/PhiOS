@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import argparse
-import base64
 import hashlib
 import json
 import os
@@ -185,8 +184,10 @@ def qualify(iso: Path, source: str, output: Path) -> None:
                             time.sleep(1)
                             send_text(qmp, PASSWORD)
                             program = Path(__file__).with_name("installed_probe.py").read_text() + f"\nprobe({source!r}, {phase})\n"
-                            encoded = base64.b64encode(program.encode()).decode()
-                            channel.sendall(f"python -c 'import base64; exec(base64.b64decode(\"{encoded}\"))'\n".encode())
+                            # Keep each input line below the terminal's canonical
+                            # line bound; a growing base64 -c command can exceed it.
+                            channel.sendall(("python - <<'PHIOS_INSTALLED_PROBE'\n" + program +
+                                "\nPHIOS_INSTALLED_PROBE\n").encode())
                             result = wait_for(r"PHIOS_INSTALLED_CHECK_OK:(\{[^\r\n]+\})")
                             details = json.loads(result[1])
                             if details["source_commit"] != source or details["phase"] != phase:
