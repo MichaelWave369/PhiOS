@@ -1,6 +1,6 @@
 pkgname=phishell
 pkgver=0.16.0
-pkgrel=3
+pkgrel=4
 pkgdesc='PhiShell browser interface and local observation transport'
 arch=('any')
 url='https://github.com/MichaelWave369/PhiOS'
