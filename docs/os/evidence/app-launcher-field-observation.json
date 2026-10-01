@@ -1,0 +1,34 @@
+{
+  "schema_version": "phios.field_observation.v0.1",
+  "received_date": "2026-10-01",
+  "source": "owner continuation in ChatGPT after the separate local VirtualBox report",
+  "observation": "Owner could not click app entries and expected Browsallax, PhiVessel and BrainC basics to be installed.",
+  "artifact_binding": {
+    "status": "not independently established for this additional observation",
+    "context": "The preceding report identifies the #283 ISO; this additional statement supplies no new ISO hash, log, screenshot or click transcript."
+  },
+  "source_inspection": {
+    "parent_head": "161eb063416d134dff0fb59ce5a0a55539458967",
+    "qualified_runtime_head": "d1a4a2bc515907d1011b6aa1c2a203acc200cad8",
+    "confirmed": [
+      "Home app tiles and Start pinned tiles lack click handlers",
+      "PhiVessel prompt/send and quick-action controls have no runtime binding",
+      "Normal #283 image inventory includes Chromium, Foot, Wayfire, Waybar, Wofi, PhiOS and PhiShell",
+      "Image packaging does not bundle Browsallax, Ollama or model weights",
+      "BrainC client and SOMA contracts/tools are present in the PhiOS Python package"
+    ],
+    "inventory_reference": "GitHub run 36916494462 normal compact artifact 11191232645, image-packages.txt",
+    "existing_field_receipt": "virtualbox-field-9510024d.json"
+  },
+  "repair_scope": "Wire included shell tools and integration-status windows; preserve existing read/compare grants and zero-privilege OS effect adapter.",
+  "unqualified": [
+    "Full Browsallax app runtime",
+    "Conversational PhiVessel runtime",
+    "Bundled BrainC inference runtime and model weights",
+    "Changed-candidate VirtualBox click test",
+    "Physical Skytech/RTX 5070 qualification"
+  ],
+  "execution_authority": false,
+  "publication_authority": false,
+  "release_ready": false
+}

@@ -7,6 +7,11 @@ operator decisions, bindings or leases and do not authorize an agent or browser
 to perform a general desktop effect. The restricted installed proof broker and
 its UID separation remain described in LINUX_PROOF_WORKFLOW.md.
 
+PhiShell's app names do not imply installed ecosystem runtimes. See
+[APP_AVAILABILITY.md](APP_AVAILABILITY.md) for included tools, unfinished
+integrations and the Home/Start/search launcher correction. Ordinary Linux
+apps continue through the desktop shortcuts below.
+
 ## Open, lock and end the session
 
 | Action | Current path |

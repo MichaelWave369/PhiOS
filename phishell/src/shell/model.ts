@@ -41,6 +41,7 @@ export interface CommandItem {
   label: string;
   detail: string;
   action:
+    | { type: "open-app"; appId: string }
     | { type: "open-view"; view: View }
     | { type: "open-window"; windowId: string }
     | { type: "request-authority"; capability: string };
