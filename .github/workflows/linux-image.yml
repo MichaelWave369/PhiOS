@@ -56,6 +56,7 @@ jobs:
       - name: Install only to a disposable virtual disk and qualify no-ISO recovery
         run: |
           python3 packaging/linux/tests/qemu_install.py \
+            --recovery \
             --iso dist/linux/phios-linux-0.1.0-alpha.1-x86_64.iso \
             --source "$(cat dist/linux/source-commit.txt)" \
             --output "$RUNNER_TEMP/phios-installed"

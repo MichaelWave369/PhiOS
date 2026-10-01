@@ -24,9 +24,11 @@ cannot mint operator approvals; see OPERATOR_AUTHORIZATION.md.
 
 ## Deliberately unqualified capabilities
 
-This preview is a volatile live image. It has no qualified disk installer,
-persistent installed-system recovery, whole-OS rollback, Secure Boot or BIOS
-support. No hardware compatibility claim follows from a VM boot. Agent
+This preview is a volatile live image. Its experimental blank-disk installer
+passed the named disposable VM gate (see INSTALLATION.md); it has no supported
+hardware installer, whole-OS rollback, Secure Boot or BIOS support. Installed
+data backup/restoration and abrupt VM restart passed; physical power-loss and
+whole-system update recovery remain separate gates. No hardware compatibility claim follows from a VM boot. Agent
 isolation requires separate OS principals and a verified restricted broker;
 an operator-owned shell or pseudo-TTY is not human authentication.
 

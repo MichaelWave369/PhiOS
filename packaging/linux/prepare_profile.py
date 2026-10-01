@@ -110,7 +110,7 @@ file_permissions=(["/usr/local/bin/phios-live-setup"]="0:0:755" ["/etc/sudoers.d
           "d /var/lib/phios-agent 0700 phios-agent phios-agent -\n")
     # The volatile public account can invoke this one root-owned interactive
     # installer; it receives no unrestricted sudo shell.
-    write("etc/sudoers.d/phios-live-installer", "phios ALL=(root) NOPASSWD: /usr/bin/phios-install\n")
+    write("etc/sudoers.d/phios-live-installer", "phios ALL=(root) NOPASSWD: /usr/bin/phios-install, /usr/bin/phios-os-recover\n")
     write("etc/greetd/config.toml", '[terminal]\nvt = 1\n[default_session]\n'
           'command = "tuigreet --cmd phios-session"\nuser = "phios-greeter"\n'
           '[initial_session]\ncommand = "phios-session"\nuser = "phios"\n')

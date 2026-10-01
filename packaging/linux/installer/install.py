@@ -206,6 +206,9 @@ def configure(root: Path, username: str, password: str, hostname: str, root_uuid
     write(root, "boot/loader/entries/phios.conf", "title PhiOS Linux development installation\n"
           "linux /vmlinuz-linux\ninitrd /initramfs-linux.img\n"
           f"options root=UUID={root_uuid} rw rootflags=subvol=@root\n")
+    write(root, "boot/loader/entries/phios-fallback.conf", "title PhiOS Linux fallback initramfs\n"
+          "linux /vmlinuz-linux\ninitrd /initramfs-linux-fallback.img\n"
+          f"options root=UUID={root_uuid} rw rootflags=subvol=@root\n")
     release = json.loads((root / "usr/share/phios/linux-release.json").read_text())
     write(root, "etc/os-release", 'NAME="PhiOS Linux Preview"\nID=phios\nID_LIKE=arch\n'
           f'PRETTY_NAME="PhiOS Linux {release["os_version"]} Experimental Installation"\nVERSION_ID="{release["os_version"]}"\n')

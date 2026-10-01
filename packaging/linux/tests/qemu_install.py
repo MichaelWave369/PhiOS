@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import argparse
-import base64
 import hashlib
 import json
 import os
@@ -39,7 +38,66 @@ def stop(process: subprocess.Popen[Any], *, abrupt: bool = False) -> None:
         process.wait(timeout=5)
 
 
-def qualify(iso: Path, source: str, output: Path) -> None:
+def failed_boot(common: list[str], output: Path, receipt: dict[str, Any]) -> None:
+    """Require an observed kernel/root failure, never treat a timeout as proof."""
+    qmp, serial = output / 'failed-boot-qmp.sock', output / 'failed-boot-serial.log'
+    command = common + ['-serial', f'file:{serial}', '-qmp', f'unix:{qmp},server=on,wait=off']
+    receipt['commands'].append(command)
+    with (output / 'failed-boot-qemu.log').open('w') as log:
+        process = subprocess.Popen(command, stdout=log, stderr=subprocess.STDOUT)
+        try:
+            deadline = time.monotonic() + 180
+            while time.monotonic() < deadline:
+                text = serial.read_text(errors='replace') if serial.exists() else ''
+                if 'Kernel panic' in text or 'Unable to mount root fs' in text:
+                    receipt['simulated_boot_failure_observed'] = True
+                    break
+                if 'login: ' in text or process.poll() is not None:
+                    raise RuntimeError('the deliberately broken root unexpectedly booted or VM exited')
+                time.sleep(1)
+            else:
+                raise RuntimeError('no specific unbootable-system failure was observed')
+        finally:
+            if process.poll() is None:
+                capture_display(qmp, output, name='screen-failed-boot')
+            stop(process)
+
+
+def recover_live(common: list[str], iso: Path, output: Path, receipt: dict[str, Any]) -> None:
+    qmp, serial = output / 'recovery-qmp.sock', output / 'recovery-live-serial.log'
+    command = common + ['-drive', f'file={iso.resolve()},if=none,id=installation,format=raw,media=cdrom,readonly=on',
+        '-device', 'ide-cd,drive=installation,bootindex=1', '-serial', f'file:{serial}',
+        '-qmp', f'unix:{qmp},server=on,wait=off']
+    receipt['commands'].append(command)
+    with (output / 'recovery-live-qemu.log').open('w') as log:
+        process = subprocess.Popen(command, stdout=log, stderr=subprocess.STDOUT)
+        try:
+            deadline = time.monotonic() + 900
+            login_sent = False
+            while time.monotonic() < deadline:
+                text = serial.read_text(errors='replace') if serial.exists() else ''
+                if 'PHIOS_BOOT_FAILED' in text or process.poll() is not None:
+                    raise RuntimeError('live system/root/EFI recovery fixture failed')
+                if 'PHIOS_LOGIN_REQUIRED:' in text and not login_sent:
+                    enter_live_login(qmp)
+                    login_sent = True
+                marker = 'PHIOS_OS_RESTORE_OK:' + receipt['recovery_checkpoint_generation']
+                if marker in text:
+                    assert 'PHIOS_OS_RESTORE_CANCEL_OK' in text
+                    receipt['matched_root_efi_restored'] = True
+                    break
+                time.sleep(1)
+            else:
+                raise RuntimeError('live-media recovery timed out')
+        finally:
+            if process.poll() is None:
+                capture_display(qmp, output, name='screen-recovery-live')
+            stop(process)
+            if not receipt.get('matched_root_efi_restored') and serial.exists():
+                print('\n'.join(serial.read_text(errors='replace').splitlines()[-160:]))
+
+
+def qualify(iso: Path, source: str, output: Path, *, recovery: bool = False) -> None:
     if not re.fullmatch(r"[0-9a-f]{40}", source) or not iso.is_file() or output.exists():
         raise ValueError("exact source/ISO and a new owned evidence destination are required")
     output.mkdir(mode=0o700, parents=True)
@@ -68,7 +126,9 @@ def qualify(iso: Path, source: str, output: Path) -> None:
           "iso_sha256": digest.hexdigest(), "accelerator": accelerator, "disk_serial": "PHIOS_CI_BLANK",
           "disk_bytes": 32 * 1024**3, "commands": [], "installed": False, "no_iso_boot_passed": False,
           "abrupt_virtual_restart_passed": False, "boot_ids": [], "ci_serial_console_injected": True,
-          "hardware_qualified": False, "release_ready": False}
+          "hardware_qualified": False, "release_ready": False, 'recovery_requested': recovery,
+          'simulated_boot_failure_observed': False, 'matched_root_efi_restored': False,
+          'whole_os_recovery_passed': False, 'signed_package_application_qualified': False}
     try:
         # Installer first boot: the CI-only live fixture drives both cancellation
         # and exact typed confirmation through the unmodified production CLI.
@@ -98,6 +158,11 @@ def qualify(iso: Path, source: str, output: Path) -> None:
                     if f"PHIOS_INSTALLED_DISK_OK:{source}" in text:
                         assert "PHIOS_INSTALL_CANCEL_OK" in text and "PHIOS_INSTALLED_SEED_OK:" in text
                         receipt["installed"] = True
+                        if recovery:
+                            generations = re.findall(r'PHIOS_OS_CHECKPOINT_OK:([0-9a-f]{32})', text)
+                            if len(generations) != 1:
+                                raise RuntimeError('exact disposable recovery checkpoint not observed')
+                            receipt['recovery_checkpoint_generation'] = generations[0]
                         break
                     time.sleep(1)
                 else:
@@ -114,7 +179,7 @@ def qualify(iso: Path, source: str, output: Path) -> None:
         # Boot the new disk twice with no ISO attached, normal password/PAM
         # logins and actual greetd keyboard input. Between boots kill QEMU so
         # acknowledged data must survive loss of the guest's memory.
-        for phase in [1, 2]:
+        for phase in ([1, 2, 3] if recovery else [1, 2]):
             qmp = output / f"installed-{phase}-qmp.sock"
             serial_socket = output / f"installed-{phase}-serial.sock"
             command = common + ["-serial", f"unix:{serial_socket},server=on,wait=off",
@@ -151,6 +216,21 @@ def qualify(iso: Path, source: str, output: Path) -> None:
                                     transcript.flush()
                                     text += chunk.decode(errors="replace")
                                     if "Traceback (most recent call last)" in text:
+                                        # A traceback can arrive in several serial
+                                        # reads. Preserve its actual exception and
+                                        # failing line before stopping the guest.
+                                        drain_deadline = time.monotonic() + 3
+                                        while time.monotonic() < drain_deadline:
+                                            try:
+                                                extra = channel.recv(65536)
+                                            except socket.timeout:
+                                                continue
+                                            if not extra:
+                                                break
+                                            transcript.write(extra)
+                                            transcript.flush()
+                                            text += extra.decode(errors="replace")
+                                        print("\n".join(text.splitlines()[-40:]))
                                         raise RuntimeError("installed data or session validation failed")
                                 raise RuntimeError("installed password login/qualification timed out")
 
@@ -170,8 +250,10 @@ def qualify(iso: Path, source: str, output: Path) -> None:
                             time.sleep(1)
                             send_text(qmp, PASSWORD)
                             program = Path(__file__).with_name("installed_probe.py").read_text() + f"\nprobe({source!r}, {phase})\n"
-                            encoded = base64.b64encode(program.encode()).decode()
-                            channel.sendall(f"python -c 'import base64; exec(base64.b64decode(\"{encoded}\"))'\n".encode())
+                            # Keep each input line below the terminal's canonical
+                            # line bound; a growing base64 -c command can exceed it.
+                            channel.sendall(("python - <<'PHIOS_INSTALLED_PROBE'\n" + program +
+                                "\nPHIOS_INSTALLED_PROBE\n").encode())
                             result = wait_for(r"PHIOS_INSTALLED_CHECK_OK:(\{[^\r\n]+\})")
                             details = json.loads(result[1])
                             if details["source_commit"] != source or details["phase"] != phase:
@@ -179,6 +261,17 @@ def qualify(iso: Path, source: str, output: Path) -> None:
                             receipt["boot_ids"].append(details["boot_id"])
                             receipt["record_sha256"] = details["record_sha256"]
                             capture_display(qmp, output, name=f"screen-installed-{phase}")
+                            if recovery and phase == 2:
+                                # Test-only administration through normal sudo
+                                # password authentication; never shipped as a
+                                # production effect or a confirmation bypass.
+                                damage = "from pathlib import Path; import os; " + \
+                                    "[Path('/boot/'+p).write_bytes(b'intentional CI boot corruption') for p in " + \
+                                    "['initramfs-linux.img','initramfs-linux-fallback.img']]; " + \
+                                    "Path('/usr/bin/wayfire').rename('/usr/bin/wayfire.failed-ci'); " + \
+                                    "os.sync(); print('PHIOS_OS_DAMAGE_OK:'+str(os.geteuid()),flush=True)"
+                                channel.sendall((f"printf '%s\\n' '{PASSWORD}' | sudo -S python -c \"{damage}\"\n").encode())
+                                wait_for(r'PHIOS_OS_DAMAGE_OK:0')
                 finally:
                     if process.poll() is None and not (output / f"screen-installed-{phase}.ppm").exists():
                         try:
@@ -186,10 +279,16 @@ def qualify(iso: Path, source: str, output: Path) -> None:
                         except (OSError, ValueError, RuntimeError):
                             pass
                     stop(process, abrupt=(phase == 1))
-        if len(set(receipt["boot_ids"])) != 2:
+            if recovery and phase == 2:
+                failed_boot(common, output, receipt)
+                recover_live(common, iso, output, receipt)
+        if len(set(receipt["boot_ids"])) != (3 if recovery else 2):
             raise RuntimeError("a distinct installed reboot was not observed")
         receipt["no_iso_boot_passed"] = True
         receipt["abrupt_virtual_restart_passed"] = True
+        if recovery:
+            receipt['whole_os_recovery_passed'] = (receipt['simulated_boot_failure_observed'] and
+                receipt['matched_root_efi_restored'])
         print("Disposable installation, no-ISO graphical login, data restore and abrupt virtual restart passed")
     except BaseException as exc:
         receipt["error"] = str(exc)
@@ -203,5 +302,6 @@ if __name__ == "__main__":
     parser.add_argument("--iso", required=True, type=Path)
     parser.add_argument("--source", required=True)
     parser.add_argument("--output", required=True, type=Path)
+    parser.add_argument('--recovery', action='store_true', help='Also damage and recover only this disposable installed disk')
     args = parser.parse_args()
-    qualify(args.iso, args.source, args.output.resolve())
+    qualify(args.iso, args.source, args.output.resolve(), recovery=args.recovery)

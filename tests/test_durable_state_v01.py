@@ -6,6 +6,7 @@ import os
 import sqlite3
 import subprocess
 import sys
+import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
@@ -30,8 +31,18 @@ for index in range(15):
 """
     children = [subprocess.Popen([sys.executable, "-c", script, str(path), str(i)])
                 for i in range(4)]
-    for child in children:
-        assert child.wait(timeout=30) == 0
+    # Shared CI disks can take longer to complete mandatory fsyncs. This checks
+    # exact durability/concurrency, not a 30-second storage latency promise.
+    # Keep one finite deadline and reap every child even when a check fails.
+    deadline = time.monotonic() + 120
+    try:
+        for child in children:
+            assert child.wait(timeout=max(0.1, deadline - time.monotonic())) == 0
+    finally:
+        for child in children:
+            if child.poll() is None:
+                child.kill()
+            child.wait(timeout=5)
     rows = read_jsonl(path)
     assert {row["id"] for row in rows} == {f"{i}:{j}" for i in range(4) for j in range(15)}
     assert len(rows) == 60

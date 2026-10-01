@@ -21,9 +21,11 @@ def command(*args: str, data: str | None = None) -> str:
     return subprocess.check_output(args, input=data, text=True, stderr=subprocess.STDOUT)
 
 
-def drive_installer(*, cancel: bool) -> None:
+def drive_installer(*, cancel: bool, recovery: list[str] | None = None) -> None:
     pid, fd = pty.fork()
     if pid == 0:
+        if recovery is not None:
+            os.execv('/usr/bin/phios-os-recover', ['phios-os-recover', *recovery, '--disk', '/dev/vda'])
         os.execv("/usr/bin/phios-install", ["phios-install", "--disk", "/dev/vda", "--username", "operator"])
     text = ""
     replied: set[str] = set()
@@ -45,7 +47,7 @@ def drive_installer(*, cancel: bool) -> None:
                 if prompt in text and prompt not in replied:
                     os.write(fd, (PASSWORD + "\n").encode())
                     replied.add(prompt)
-            match = re.search(r"INSTALL /dev/vda [0-9a-f]{64}\r?\n", text)
+            match = re.search(r"(?:INSTALL|CHECKPOINT|RESTORE) /dev/vda [0-9a-f]{64}\r?\n", text)
             if match and "confirm" not in replied and "> " in text[match.end():]:
                 os.write(fd, ("cancel\n" if cancel else match[0].strip() + "\n").encode())
                 replied.add("confirm")
@@ -78,6 +80,24 @@ def main() -> None:
     row = json.loads(command("lsblk", "--nodeps", "--json", "--output", "SERIAL,TYPE,SIZE", "--bytes", "/dev/vda"))["blockdevices"][0]
     if os.geteuid() != 0 or row["serial"] != "PHIOS_CI_BLANK" or row["type"] != "disk" or row["size"] != 32 * 1024**3:
         raise RuntimeError("CI install fixture requires its exact disposable virtual disk")
+    if Path('/dev/vda1').exists():
+        # Only the host harness's already installed disposable disk reaches
+        # this branch. The production live profile excludes this fixture.
+        root = Path('/run/phios-ci-checkpoint-read')
+        root.mkdir(mode=0o700)
+        command('mount', '-t', 'btrfs', '-o', 'ro,nologreplay,subvolid=5', '/dev/vda2', str(root))
+        try:
+            generations = list((root / '@snapshots/recovery').glob('*/checkpoint.json'))
+            if len(generations) != 1:
+                raise RuntimeError('exactly one disposable checkpoint is required')
+            generation = generations[0].parent.name
+        finally:
+            command('umount', str(root))
+        drive_installer(cancel=True, recovery=['restore', '--generation', generation])
+        print('PHIOS_OS_RESTORE_CANCEL_OK', flush=True)
+        drive_installer(cancel=False, recovery=['restore', '--generation', generation])
+        print('PHIOS_OS_RESTORE_OK:' + generation, flush=True)
+        return
     drive_installer(cancel=True)
     signatures = json.loads(command("wipefs", "--no-act", "--json", "/dev/vda"))["signatures"]
     if signatures:
@@ -129,6 +149,17 @@ print('PHIOS_INSTALLED_SEED_OK:'+record.record_sha256)
     finally:
         for path in reversed(mounts):
             command("umount", str(path))
+    drive_installer(cancel=False, recovery=['checkpoint'])
+    root = Path('/run/phios-ci-checkpoint-read')
+    root.mkdir(mode=0o700)
+    command('mount', '-t', 'btrfs', '-o', 'ro,nologreplay,subvolid=5', '/dev/vda2', str(root))
+    try:
+        generations = list((root / '@snapshots/recovery').glob('*/checkpoint.json'))
+        if len(generations) != 1:
+            raise RuntimeError('checkpoint creation did not retain exact metadata')
+        print('PHIOS_OS_CHECKPOINT_OK:' + generations[0].parent.name, flush=True)
+    finally:
+        command('umount', str(root))
     print("PHIOS_INSTALLED_DISK_OK:" + receipt["plan"]["source_commit"], flush=True)
 
 
