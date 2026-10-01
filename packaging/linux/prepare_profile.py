@@ -128,10 +128,13 @@ file_permissions=(["/usr/local/bin/phios-live-setup"]="0:0:755" ["/etc/sudoers.d
           "install -m644 /usr/share/phios/preview-os-release /etc/os-release\n")
     write("usr/share/phios/preview-os-release", f'NAME="PhiOS Linux Preview"\nID=phios\nID_LIKE=arch\n'
           f'PRETTY_NAME="PhiOS Linux {version} Development Preview"\nVERSION_ID="{version}"\n')
-    write("etc/systemd/network/20-wired.network", "[Match]\nName=en* eth*\n[Network]\nDHCP=yes\n")
+    # One owner supplies both wired and Wi-Fi address/DNS configuration.
+    # Keep connectivity URL polling disabled in this local-first preview.
+    write("etc/NetworkManager/conf.d/10-phios.conf", "[main]\ndns=systemd-resolved\n"
+          "[connectivity]\nenabled=false\nuri=\ninterval=0\n")
     wants = root / "etc/systemd/system/multi-user.target.wants"
     wants.mkdir(parents=True)
-    for name in ["systemd-networkd.service", "systemd-resolved.service", "iwd.service"]:
+    for name in ["NetworkManager.service", "systemd-resolved.service"]:
         (wants / name).symlink_to(f"/usr/lib/systemd/system/{name}")
     graphical = root / "etc/systemd/system/graphical.target.wants"
     graphical.mkdir(parents=True)

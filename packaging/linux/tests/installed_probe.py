@@ -13,7 +13,7 @@ from phios.state_io import append_jsonl, read_jsonl
 from phios.state_recovery import restore, verify_backup
 
 
-def probe(source: str, phase: int, *, signed_update: bool = False) -> None:
+def probe(source: str, phase: int, *, signed_update: bool = False, desktop_check=None) -> None:
     root = Path.home() / ".local/state/phios"
     assert os.getuid() == 1000
     assert Path("/usr/share/phios/source-commit").read_text().strip() == source
@@ -68,6 +68,9 @@ def probe(source: str, phase: int, *, signed_update: bool = False) -> None:
             "-u", "phios-curiosity-reader.service", "-u", "phios-observer.service"], timeout=15)
         raise RuntimeError("installed graphical login did not start the complete supervised desktop")
     time.sleep(2)  # Preserve a rendered application screenshot after process readiness.
+    if desktop_check is None:
+        raise RuntimeError('external desktop service verifier is required')
+    desktop_check(source)
     boot_id = Path("/proc/sys/kernel/random/boot_id").read_text().strip().replace("-", "")
     print("PHIOS_INSTALLED_CHECK_OK:" + json.dumps({"source_commit": source, "phase": phase,
           "boot_id": boot_id, "record_sha256": record.record_sha256}), flush=True)

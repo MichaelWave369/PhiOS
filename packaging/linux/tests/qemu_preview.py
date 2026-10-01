@@ -15,6 +15,7 @@ from typing import Any
 
 from qemu_boot import capture_display, enter_live_login, qmp_request
 from qemu_install import stop
+from qemu_desktop import qualify_lock
 
 PROBE = '''
 import json,os,subprocess,time,urllib.request
@@ -76,19 +77,24 @@ for _ in range(60):
 else:
     raise RuntimeError('observer restart failed')
 subprocess.run(['pkill','-TERM','-u',str(os.getuid()),'-x','wayfire'],check=True)
+units=['phios-session.target','phios-observer.service','phios-browser.service','phios-waybar.service',
+       'phios-curiosity-reader.service','phios-history-reader.service','phios-policykit.service','phios-audio.target',
+       'pipewire.service','pipewire-pulse.service','wireplumber.service','pipewire.socket','pipewire-pulse.socket']
 for _ in range(30):
-    active=subprocess.run(args+['is-active','--quiet','phios-session.target'],capture_output=True).returncode==0
+    states={unit:subprocess.check_output(args+['show',unit,'--property=ActiveState','--value'],text=True).strip()
+            for unit in units}
     try:
         urllib.request.urlopen('http://127.0.0.1:3969/api/v1/health',timeout=2).close()
         reachable=True
     except OSError:
         reachable=False
-    if not active and not reachable: break
+    if all(state=='inactive' for state in states.values()) and not reachable: break
     time.sleep(1)
 else:
-    raise RuntimeError('logout did not stop the supervised session')
+    raise RuntimeError('logout did not stop the supervised session: '+json.dumps(states))
 boot=Path('/proc/sys/kernel/random/boot_id').read_text().strip().replace('-','')
-print('PHIOS_PREVIEW_LOGOUT_OK:'+json.dumps({'boot_id':boot,'old_observer_pid':previous,'new_observer_pid':current}),flush=True)
+print('PHIOS_PREVIEW_LOGOUT_OK:'+json.dumps({'boot_id':boot,'old_observer_pid':previous,'new_observer_pid':current,
+    'all_session_units_inactive':True,'stopped_session_units':units}),flush=True)
 '''
 
 
@@ -104,14 +110,18 @@ def qualify(iso: Path, source: str, output: Path) -> None:
         'host' if accelerator == 'kvm' else 'max', '-m', '4096', '-smp', '2',
         '-drive', 'if=pflash,format=raw,readonly=on,file=/usr/share/OVMF/OVMF_CODE_4M.fd',
         '-drive', 'if=pflash,format=raw,file=' + str(variables), '-cdrom', str(iso.resolve()), '-boot', 'd',
-        '-nic', 'none', '-vga', 'none', '-device', 'virtio-vga', '-display', 'none', '-monitor', 'none',
+        '-netdev', 'user,id=previewnet,restrict=on,net=192.0.2.0/24,dhcpstart=192.0.2.15,dns=192.0.2.3,host=192.0.2.2',
+        '-device', 'virtio-net-pci,netdev=previewnet', '-audiodev', 'none,id=previewaudio',
+        '-device', 'intel-hda', '-device', 'hda-duplex,audiodev=previewaudio',
+        '-vga', 'none', '-device', 'virtio-vga', '-display', 'none', '-monitor', 'none',
         '-serial', f'unix:{serial},server=on,wait=off', '-qmp', f'unix:{qmp},server=on,wait=off']
     with iso.open('rb') as handle:
         iso_hash = hashlib.file_digest(handle, 'sha256').hexdigest()
     receipt: dict[str, Any] = {'schema_version': 'phios.fixture-free-live-evidence.v1', 'source_commit': source,
         'iso_sha256': iso_hash, 'command': command, 'accelerator': accelerator, 'boots': [],
         'fixture_free_qualified': False, 'hardware_qualified': False, 'release_ready': False,
-        'public_volatile_credentials': True, 'test_code_injected_into_image': False}
+        'public_volatile_credentials': True, 'test_code_injected_into_image': False,
+        'restricted_virtual_ethernet': True, 'external_network_forwarding': False, 'host_audio_attached': False}
     with (output / 'qemu.log').open('w') as log:
         process = subprocess.Popen(command, stdout=log, stderr=subprocess.STDOUT)
         try:
@@ -142,7 +152,7 @@ def qualify(iso: Path, source: str, output: Path) -> None:
                             transcript.write(data)
                             transcript.flush()
                             text += data.decode(errors='replace')
-                            if '\nTraceback (most recent call last):' in text:
+                            if 'Traceback (most recent call last)' in text:
                                 # Preserve the actual guest exception before shutting down.
                                 drain_until = time.monotonic() + 3
                                 while time.monotonic() < drain_until:
@@ -158,7 +168,9 @@ def qualify(iso: Path, source: str, output: Path) -> None:
                         raise RuntimeError('normal PAM/desktop qualification timed out')
 
                     def program(value: str) -> None:
-                        channel.sendall(("python - <<'PHIOS_NORMAL_PROBE'\n" + value + '\nPHIOS_NORMAL_PROBE\n').encode())
+                        if max(map(len, value.splitlines()), default=0) >= 4096:
+                            raise ValueError('guest program exceeds canonical terminal line bound')
+                        channel.sendall(("PYTHON_COLORS=0 python -u - <<'PHIOS_NORMAL_PROBE'\n" + value + '\nPHIOS_NORMAL_PROBE\n').encode())
 
                     for boot in [1, 2]:
                         wait(r'login: ')
@@ -167,20 +179,29 @@ def qualify(iso: Path, source: str, output: Path) -> None:
                         channel.sendall(b'phios\n')
                         time.sleep(2)
                         text = ''
-                        program(f'SOURCE={source!r}\nSTAGE="first"\n' + PROBE)
+                        desktop = Path(__file__).with_name('desktop_probe.py').read_text().replace('from __future__ import annotations\n', '')
+                        program(f'SOURCE={source!r}\nSTAGE="first"\n' + desktop + f'\ndesktop_services({source!r}, wired=True)\n' + PROBE)
                         first = json.loads(wait(r'PHIOS_PREVIEW_OK:(\{[^\r\n]+\})')[1])
                         assert first['source_commit'] == source and first['stage'] == 'first'
+                        desktop_result = json.loads(wait(r'PHIOS_DESKTOP_SERVICES_OK:(\{[^\r\n]+\})')[1])
+                        desktop_result.update({'boot_id': first['boot_id'], 'stage': 'first'})
+                        receipt.setdefault('desktop_service_boots', []).append(desktop_result)
                         time.sleep(2)
                         capture_display(qmp, output, name=f'screen-{boot}-first')
+                        receipt.setdefault('screen_lock_boots', []).append(qualify_lock(qmp, output, source=source,
+                            password='phios', label=f'live-{boot}', program=program, wait=wait))
                         text = ''
                         program(LIFECYCLE)
                         lifecycle = json.loads(wait(r'PHIOS_PREVIEW_LOGOUT_OK:(\{[^\r\n]+\})')[1])
                         assert lifecycle['boot_id'] == first['boot_id']
                         enter_live_login(qmp)
                         text = ''
-                        program(f'SOURCE={source!r}\nSTAGE="reauthenticated"\n' + PROBE)
+                        program(f'SOURCE={source!r}\nSTAGE="reauthenticated"\n' + desktop + f'\ndesktop_services({source!r}, wired=True)\n' + PROBE)
                         second = json.loads(wait(r'PHIOS_PREVIEW_OK:(\{[^\r\n]+\})')[1])
                         assert second['boot_id'] == first['boot_id'] and second['stage'] == 'reauthenticated'
+                        restarted_desktop = json.loads(wait(r'PHIOS_DESKTOP_SERVICES_OK:(\{[^\r\n]+\})')[1])
+                        restarted_desktop.update({'boot_id': second['boot_id'], 'stage': 'reauthenticated'})
+                        receipt['desktop_service_boots'].append(restarted_desktop)
                         time.sleep(2)
                         capture_display(qmp, output, name=f'screen-{boot}-reauthenticated')
                         receipt['boots'].append({'first': first, 'lifecycle': lifecycle, 'reauthenticated': second})

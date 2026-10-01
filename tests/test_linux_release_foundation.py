@@ -45,6 +45,12 @@ def test_profile_drops_root_autologin_and_keeps_required_boot_inputs(tmp_path: P
     assert (destination / "airootfs/etc/systemd/system/systemd-firstboot.service").readlink() == Path("/dev/null")
     assert (destination / "airootfs/etc/localtime").readlink() == Path("/usr/share/zoneinfo/UTC")
     assert (destination / "airootfs/etc/vconsole.conf").read_text() == "KEYMAP=us\n"
+    wants = destination / 'airootfs/etc/systemd/system/multi-user.target.wants'
+    assert (wants / 'NetworkManager.service').is_symlink()
+    assert not (wants / 'systemd-networkd.service').exists()
+    assert not (wants / 'iwd.service').exists()
+    network = (destination / 'airootfs/etc/NetworkManager/conf.d/10-phios.conf').read_text()
+    assert 'dns=systemd-resolved' in network and 'enabled=false' in network and 'interval=0' in network
     for name, text in inputs.items():
         assert (upstream / name).read_text() == text
     with pytest.raises(ValueError, match="refusing to overwrite"):

@@ -52,8 +52,10 @@ All compatibility results remain `not tested` until actual observations exist.
 Record pass/fail/not available with evidence for resolution/rendering and
 multiple displays; keyboard/mouse/keymap; wired networking and Wi-Fi association,
 DHCP/DNS; audio playback/recording; sleep/resume; shutdown/restart; and storage
-visibility. Record missing drivers and services honestly. Audio/session locking
-and Wi-Fi configuration are not currently qualified product features. A blank
+visibility. Record missing drivers and services honestly. The later desktop
+candidate adds NetworkManager, user audio and manual PAM locking; its new
+software/VM scope is recorded in DESKTOP_OPERATION.md. Physical audio and Wi-Fi
+remain unqualified until actual observations exist. A blank
 audio-card count or successful PCI enumeration is not audio/GPU compatibility.
 Resolve observed blockers, build a new exact candidate and repeat affected
 tests before moving to installation.

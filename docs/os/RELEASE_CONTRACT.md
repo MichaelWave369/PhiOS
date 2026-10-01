@@ -13,6 +13,8 @@ Python package versions and OS versions are independent. OS tags start with
 - Local observation of host, services, processes, devices and native packages.
 - A non-root Wayfire session, Chromium application window, Waybar and terminal.
 - Supervised user services with bounded loopback ports and private state umask.
+- Candidate NetworkManager wired/Wi-Fi configuration, user audio and manual
+  PAM screen locking; exact new qualification is described in DESKTOP_OPERATION.md.
 - Optional governed history when an operator supplies an enabled memory config.
 - Curiosity projection access, with consequential persistence approval held.
 

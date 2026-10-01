@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Any
 
 from qemu_boot import capture_display, enter_live_login, qmp_request
+from qemu_desktop import qualify_lock
 
 PASSWORD = "phios-qa-only-2026"  # Same public ephemeral test credential as live fixture.
 
@@ -187,7 +188,9 @@ def qualify(iso: Path, source: str, output: Path, *, recovery: bool = False, sig
               "-drive", f"if=pflash,format=raw,file={variables}",
               "-drive", f"file={disk},if=none,id=target,format=qcow2",
               "-device", "virtio-blk-pci,drive=target,serial=PHIOS_CI_BLANK,bootindex=2",
-              "-nic", "none", "-vga", "none", "-device", "virtio-vga",
+              "-nic", "none", '-audiodev', 'none,id=previewaudio',
+              '-device', 'intel-hda', '-device', 'hda-duplex,audiodev=previewaudio',
+              "-vga", "none", "-device", "virtio-vga",
               "-display", "none", "-monitor", "none"]
     if signed_update:
         if not recovery:
@@ -290,7 +293,9 @@ def qualify(iso: Path, source: str, output: Path, *, recovery: bool = False, sig
                             time.sleep(1)
                             send_text(qmp, PASSWORD)
                             program = Path(__file__).with_name("installed_probe.py").read_text() + \
-                                f"\nprobe({source!r}, {phase}, signed_update={signed_update!r})\n"
+                                f"\nprobe({source!r}, {phase}, signed_update={signed_update!r}, desktop_check=desktop_services)\n"
+                            program = Path(__file__).with_name('desktop_probe.py').read_text() + '\n' + \
+                                program.replace('from __future__ import annotations\n', '')
                             if Path(__file__).with_name('proof_smoke.py').exists():
                                 program = Path(__file__).with_name('proof_smoke.py').read_text() + \
                                     (f'\nproof_workflow({source!r})\n' if phase == 1 else f'\nhistorical_proof({source!r})\n') + \
@@ -323,6 +328,15 @@ def qualify(iso: Path, source: str, output: Path, *, recovery: bool = False, sig
                                     receipt['linux_governed_workflow_qualified'] = True
                             receipt["boot_ids"].append(details["boot_id"])
                             receipt["record_sha256"] = details["record_sha256"]
+                            audio = re.search(r'PHIOS_DESKTOP_SERVICES_OK:(\{[^\r\n]+\})', text)
+                            if audio is None:
+                                raise RuntimeError('actual installed audio/network service evidence missing')
+                            receipt.setdefault('desktop_service_boots', []).append(json.loads(audio[1]))
+                            if phase == 1:
+                                def desktop_program(value: str) -> None:
+                                    channel.sendall(("python - <<'PHIOS_DESKTOP_PROBE'\n" + value + '\nPHIOS_DESKTOP_PROBE\n').encode())
+                                receipt['installed_screen_lock'] = qualify_lock(qmp, output, source=source,
+                                    password=PASSWORD, label='installed', program=desktop_program, wait=wait_for)
                             capture_display(qmp, output, name=f"screen-installed-{phase}")
                             if recovery and phase == 2:
                                 # Test-only administration through normal sudo
