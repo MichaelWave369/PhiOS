@@ -75,3 +75,12 @@ including Vite-generated runtime helpers. Bundled supplier metadata and license
 notices are retained in the installed dist tree; the collector checks final
 chunk and notice hashes and emits a separate javascript-bundled inventory.
 A pruned runtime package list alone cannot describe all generated frontend code.
+
+The normal candidate workflow also invokes `qemu_install.py --fixture-free
+--recovery` against that same ISO. It uses the public live account's narrow
+maintenance sudo, an explicitly reviewed standard serial password login,
+user-owned canonical data/backup, the actual installed proof broker, deliberate
+boot corruption and matched recovery. It introduces no root autologin or QA
+service into the image. This exact installed-artifact qualification is pending;
+the real final signed package transition and physical hardware remain separate
+gates.

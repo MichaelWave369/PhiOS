@@ -118,3 +118,29 @@ References: [bootctl](https://man.archlinux.org/man/bootctl.1.en),
 [lsblk](https://man.archlinux.org/man/lsblk.8.en),
 [wipefs](https://man.archlinux.org/man/wipefs.8.en),
 [Btrfs subvolumes](https://btrfs.readthedocs.io/en/latest/btrfs-subvolume.html).
+
+## Explicit serial password login and normal-image gate
+
+`--serial-console` is an optional installer setting, default off. It appears as
+`serial_console_password_login` in the reviewed plan and changes its full
+confirmation digest. When explicitly selected, both boot entries log to tty0
+and ttyS0 at 115200 baud, and ttyS0 uses the standard password/PAM getty. It
+creates no root or account autologin and changes no sudo permissions. This is
+useful for serial administration and reviewable isolated VM diagnostics.
+
+The fixture-free candidate workflow now installs the exact normal ISO through
+the public live user's limited production sudo commands. Its external test
+program runs in live RAM after real phios/phios PAM login; no test service or
+root console is added to the image. It explicitly selects serial password
+login in the production installer review, cancels first, completes installation
+and creates a matched checkpoint through the production recovery command.
+The normal installed administrator then creates/verifies its own canonical
+data and backup, runs the bounded Linux proof workflow, and exercises three
+password/PAM/greetd disk-only boots, abrupt termination, actual boot-file
+corruption and matched recovery through the same normal ISO. The receipt
+records explicit serial login and no privileged serial-console injection.
+
+This new exact-artifact gate is pending CI. The separate QA image still tests
+ephemerally signed package addition/interruption; neither proves a future
+maintainer-signed transition or physical hardware. Every qualification retains
+its own exact source/ISO identity and failure evidence.
