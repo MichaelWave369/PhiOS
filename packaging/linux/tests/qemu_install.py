@@ -14,7 +14,7 @@ import time
 from pathlib import Path
 from typing import Any
 
-from qemu_boot import capture_display, qmp_request
+from qemu_boot import capture_display, enter_live_login, qmp_request
 
 PASSWORD = "phios-qa-only-2026"  # Same public ephemeral test credential as live fixture.
 
@@ -57,7 +57,7 @@ def qualify(iso: Path, source: str, output: Path) -> None:
               "-drive", f"if=pflash,format=raw,readonly=on,file={code}",
               "-drive", f"if=pflash,format=raw,file={variables}",
               "-drive", f"file={disk},if=none,id=target,format=qcow2",
-              "-device", "virtio-blk-pci,drive=target,serial=PHIOS_CI_BLANK,bootindex=1",
+              "-device", "virtio-blk-pci,drive=target,serial=PHIOS_CI_BLANK,bootindex=2",
               "-nic", "none", "-vga", "none", "-device", "virtio-vga",
               "-display", "none", "-monitor", "none"]
     digest = hashlib.sha256()
@@ -74,7 +74,11 @@ def qualify(iso: Path, source: str, output: Path) -> None:
         # and exact typed confirmation through the unmodified production CLI.
         qmp = output / "live-qmp.sock"
         serial = output / "install-live-serial.log"
-        command = common + ["-cdrom", str(iso.resolve()), "-boot", "d", "-serial", f"file:{serial}",
+        # OVMF must receive one consistent boot-order mechanism. Mixing a
+        # device bootindex with -boot d excluded the CD and selected the empty
+        # target. Give the installation CD explicit priority over that target.
+        command = common + ["-drive", f"file={iso.resolve()},if=none,id=installation,format=raw,media=cdrom,readonly=on",
+                            "-device", "ide-cd,drive=installation,bootindex=1", "-serial", f"file:{serial}",
                             "-qmp", f"unix:{qmp},server=on,wait=off"]
         receipt["commands"].append(command)
         with (output / "install-live-qemu.log").open("w") as log:
@@ -86,11 +90,10 @@ def qualify(iso: Path, source: str, output: Path) -> None:
                     text = serial.read_text(errors="replace") if serial.exists() else ""
                     if "PHIOS_BOOT_FAILED" in text or process.poll() is not None:
                         raise RuntimeError("live installer qualification failed")
+                    if "UEFI Interactive Shell" in text:
+                        raise RuntimeError("firmware did not boot the installation ISO")
                     if "PHIOS_LOGIN_REQUIRED:" in text and not login_sent:
-                        time.sleep(1)
-                        send_text(qmp, "phios")
-                        time.sleep(1)
-                        send_text(qmp, "phios")
+                        enter_live_login(qmp)
                         login_sent = True
                     if f"PHIOS_INSTALLED_DISK_OK:{source}" in text:
                         assert "PHIOS_INSTALL_CANCEL_OK" in text and "PHIOS_INSTALLED_SEED_OK:" in text
@@ -101,8 +104,13 @@ def qualify(iso: Path, source: str, output: Path) -> None:
                     raise RuntimeError("installation qualification timed out")
             finally:
                 if process.poll() is None:
-                    capture_display(qmp, output, name="screen-install-live")
+                    try:
+                        capture_display(qmp, output, name="screen-install-live")
+                    except (OSError, ValueError, RuntimeError) as exc:
+                        receipt["display_capture_error"] = str(exc)
                 stop(process)
+                if not receipt["installed"] and serial.exists():
+                    print("\n".join(serial.read_text(errors="replace").splitlines()[-160:]))
         # Boot the new disk twice with no ISO attached, normal password/PAM
         # logins and actual greetd keyboard input. Between boots kill QEMU so
         # acknowledged data must survive loss of the guest's memory.
