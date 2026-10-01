@@ -22,6 +22,13 @@ present. The receipt retains the screenshot digest, without copying the image
 into the public repository. Interaction and the staged failures/successes are
 owner observations. The exact VirtualBox version was not supplied.
 
+A later owner cold boot showed `vmwgfx` warning about an unsupported hypervisor
+and the separate unavailable TDX host feature before boot continued. The field
+receipt preserves those screenshot messages and its digest. The messages alone
+do not establish a fatal boot failure or persistence of the manual cursor
+override after a power cycle. Keep this observation separate from a new-ISO
+automatic startup pass.
+
 ## Configuration and outcomes
 
 Arch Linux (64-bit) guest, EFI enabled, Secure Boot off, 8192 MB RAM, four vCPUs,
@@ -101,8 +108,9 @@ operator environment preservation, socket gating, relative/absolute
 display paths, import-before-restart ordering and failure propagation. The
 normal-image QEMU gate additionally contaminates the manager's display variables
 while the real browser and panel are active, invokes the packaged ready hook,
-and requires replacement process IDs with the actual compositor socket and
-cleared stale DISPLAY on both live boots. This verifies rebinding under QEMU;
+and requires replacement running browser/panel process IDs after the user
+manager imports the connected compositor's display environment and clears stale
+DISPLAY on both live boots. This verifies rebinding under QEMU;
 it does not emulate a Windows VirtualBox 3D driver or prove the new automatic
 cursor branch in VirtualBox.
 
@@ -110,6 +118,17 @@ Changed source and ISO bytes require their own complete qualification and a
 fresh local VirtualBox test of automatic startup without manual exports/target
 restart. Keep the original candidate hashes/receipts intact. Do not merge, tag,
 sign, publish or infer physical support from this observation.
+
+The first follow-up normal-image attempt rendered PhiShell/Waybar but failed
+the new probe while it tried to obtain a service process's display environment
+from `/proc/PID/environ`; the initial timeout omitted the failing PID/environment
+predicate. Its install/recovery phase was skipped. The revised probe
+uses the user manager's explicit `show-environment` state, validates only its
+display keys, connects to the actual compositor socket and requires individually
+active replacement Chromium/Waybar processes. The failed source/ISO, serial
+exception, screenshot and independently checked compact-archive hashes remain
+in [virtualbox-compatibility-attempts.json](evidence/virtualbox-compatibility-attempts.json).
+The failed gate is not replaced by its screenshot or a separate QA result.
 
 Detection references: [systemd virtualization identifiers](https://github.com/systemd/systemd/blob/main/src/basic/virt.c),
 [Oracle VMSVGA PCI definitions](https://github.com/VirtualBox/virtualbox/blob/main/src/VBox/Devices/Graphics/DevVGA-SVGA.h),

@@ -64,7 +64,8 @@ is omitted from normal locally built previews.
 
 The follow-up normal-image gate also replaces stale manager display variables
 while Chromium and Waybar are active, calls the packaged ready hook and requires
-new process IDs using the compositor's actual socket on both live boots. The
+new running browser/panel process IDs after the manager imports the connected
+compositor's display environment on both live boots. The
 focused shell tests cover the VirtualBox/VMSVGA cursor selection separately.
 QEMU rebinding does not qualify Windows VirtualBox's driver path; see
 VIRTUALBOX_COMPATIBILITY.md for the supplied field evidence and required new-ISO

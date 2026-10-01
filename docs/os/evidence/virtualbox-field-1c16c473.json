@@ -98,6 +98,24 @@
     "does_not_independently_prove_interaction_or_prior_attempts": true
   },
   "raw_wayfire_and_service_logs_acquired": false,
+  "additional_cold_boot_observation": {
+    "date": "2026-10-01",
+    "owner_action": "power off then power on",
+    "reported_boot_continued_after_messages": true,
+    "messages_visually_observed": [
+      "virt/tdx: TDX not supported by the host platform",
+      "vmwgfx 0000:00:02.0: [drm] *ERROR* vmwgfx seems to be running on an unsupported hypervisor.",
+      "vmwgfx 0000:00:02.0: [drm] *ERROR* This configuration is likely broken.",
+      "vmwgfx 0000:00:02.0: [drm] *ERROR* Please switch to a supported graphics device to avoid problems."
+    ],
+    "screenshot_name": "Screenshot 2026-10-01 121913.png",
+    "screenshot_sha256": "3badeec3fe20ef7f601bcb21a93a3eb7409740a19c3aabf2c999d4b2cb279354",
+    "screenshot_bytes": 57487,
+    "screenshot_visually_inspected": true,
+    "screenshot_published_in_repository": false,
+    "new_independent_iso_hash_acquired": false,
+    "automatic_cursor_or_service_rebinding_pass_inferred": false
+  },
   "automatic_fix_on_new_candidate_virtualbox_retested": false,
   "installation_qualified_by_this_observation": false,
   "physical_hardware_qualified": false,

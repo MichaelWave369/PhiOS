@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import os
+import shlex
 import socket
 import struct
 import subprocess
@@ -21,6 +22,23 @@ def restricted_dhcp_lease(network: dict) -> bool:
             and options.count('dhcp_server_identifier = 192.0.2.2') == 1)
 
 
+def session_display_environment(wire: str) -> dict:
+    """Read only display keys from systemctl's shell-quoted environment output."""
+    observed = {}
+    keys = {'WAYLAND_DISPLAY', 'XDG_RUNTIME_DIR', 'XDG_CURRENT_DESKTOP', 'DISPLAY'}
+    for line in wire.splitlines():
+        name = line.split('=', 1)[0]
+        if name not in keys:
+            continue
+        fields = shlex.split(line)
+        if len(fields) != 1 or '=' not in fields[0] or name in observed:
+            raise ValueError('ambiguous manager display environment')
+        observed[name] = fields[0].split('=', 1)[1]
+    if any(not observed.get(key) for key in keys - {'DISPLAY'}):
+        raise ValueError('missing manager compositor environment')
+    return observed
+
+
 def session_rebind(source: str) -> dict:
     """Exercise the packaged ready hook against already-running real services."""
     assert os.getuid() == 1000 and os.geteuid() == 1000
@@ -33,18 +51,27 @@ def session_rebind(source: str) -> dict:
         return {unit: int(subprocess.check_output(args + ['show', unit, '--property=MainPID', '--value'], text=True))
                 for unit in units}
 
-    def environment(pid: int) -> dict:
-        return dict(value.split('=', 1) for value in Path(f'/proc/{pid}/environ').read_text().split('\0') if '=' in value)
+    def environment() -> dict:
+        return session_display_environment(subprocess.check_output(args + ['show-environment'], text=True))
+
+    def running(pids: dict) -> bool:
+        try:
+            return all(pids[unit] > 0 and Path(f'/proc/{pids[unit]}/comm').read_text().strip() == name
+                       and subprocess.run(args + ['is-active', '--quiet', unit]).returncode == 0
+                       for unit, name in zip(units, ['chromium', 'waybar']))
+        except FileNotFoundError:
+            return False
 
     for _ in range(90):
         previous = service_pids()
-        if all(previous.values()):
-            current_environment = environment(previous[units[0]])
-            if current_environment.get('WAYLAND_DISPLAY') and current_environment.get('XDG_RUNTIME_DIR'):
-                break
+        if running(previous):
+            current_environment = environment()
+            break
         time.sleep(1)
     else:
-        raise RuntimeError('no supervised desktop environment available for rebinding')
+        states = {unit: subprocess.check_output(args + ['show', unit, '--property=ActiveState', '--value'], text=True).strip()
+                  for unit in units}
+        raise RuntimeError('no supervised desktop processes available for rebinding: ' + json.dumps({'pids': previous, 'states': states}))
     display = current_environment['WAYLAND_DISPLAY']
     runtime = current_environment['XDG_RUNTIME_DIR']
     path = Path(display) if display.startswith('/') else Path(runtime) / display
@@ -60,18 +87,17 @@ def session_rebind(source: str) -> dict:
     subprocess.run(['/usr/lib/phishell/session-ready'], env=child_env, check=True, timeout=60)
     for _ in range(90):
         current = service_pids()
-        if all(current[unit] > 0 and current[unit] != previous[unit] for unit in units):
-            observations = [environment(pid) for pid in current.values()]
-            if all(value.get('WAYLAND_DISPLAY') == display and value.get('XDG_RUNTIME_DIR') == runtime
-                   and value.get('DISPLAY') == '' for value in observations):
-                if all(Path(f'/proc/{pid}/comm').read_text().strip() == name
-                       for pid, name in zip(current.values(), ['chromium', 'waybar'])):
-                    break
+        if all(current[unit] != previous[unit] for unit in units) and running(current):
+            imported = environment()
+            if (imported['WAYLAND_DISPLAY'] == display and imported['XDG_RUNTIME_DIR'] == runtime
+                    and imported['XDG_CURRENT_DESKTOP'] == current_environment['XDG_CURRENT_DESKTOP']
+                    and imported.get('DISPLAY') == ''):
+                break
         time.sleep(1)
     else:
         raise RuntimeError('active desktop services did not rebind to the compositor environment')
     observed = {'source_commit': source, 'uid': os.getuid(), 'active_services_restarted': True,
-                'stale_manager_environment_replaced': True, 'new_processes_use_compositor_socket': True,
+                'stale_manager_environment_replaced': True, 'replacement_processes_after_compositor_environment_import': True,
                 'stale_xwayland_display_cleared': True, 'services': units,
                 'virtualbox_qualified': False, 'release_ready': False}
     print('PHIOS_SESSION_REBIND_OK:' + json.dumps(observed), flush=True)
