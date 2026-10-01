@@ -3,10 +3,11 @@ name: Fixture-free OS candidate (unpublished)
 on:
   pull_request:
     paths:
-      - 'packaging/linux/release_inventory.py'
-      - 'packaging/linux/validate_sbom.py'
-      - 'packaging/linux/sbom-schema-lock.json'
-      - 'packaging/linux/tests/qemu_preview.py'
+      - 'packaging/**'
+      - 'phios/**'
+      - 'phishell/**'
+      - 'pyproject.toml'
+      - 'build/build_iso.sh'
       - '.github/workflows/os-release-candidate.yml'
   workflow_dispatch:
 
