@@ -126,3 +126,14 @@ ISO/source/package/notice archives were not redownloaded on the review host.
 `evidence/qualification-gate-a3572a9b.json` retains exact receipts and the earlier
 failed integration; RELEASE_HANDOFF.md points to this normal candidate. New
 continuation/final source bytes require separate qualification.
+
+Source-delivery code [run 36832501182](https://github.com/MichaelWave369/PhiOS/actions/runs/36832501182)
+passed all nine jobs with 2,324 Python tests / six existing optional skips for
+source `1c16c4732442d69d2c7b5763212f1977860a15ae`. The exact normal and separate
+ephemeral signed QA scopes passed again. Both compact archive digests and 15
+available checksum payloads each were checked; actual first-party source bytes
+were independently reconstructed and matched. Large ISO/package/third-party
+notice payloads retain producer hashes. The normal component/notice counts
+remain 501/746. `evidence/qualification-gate-1c16c473.json` and its linked
+receipts retain the hashes, actual scopes and delivery hold. The later handoff
+documentation is a separate source identity and does not qualify a new ISO.

@@ -20,6 +20,23 @@ proof that PhiOS is a completed OS. Preserve the repository AGENTS.md rules.
 
 ## Latest integration and source-delivery continuation
 
+The source-delivery code head `3d282bdd6466052def8e632245f312863040cafc` in
+PR #281 passed all nine jobs in
+[run 36832501182](https://github.com/MichaelWave369/PhiOS/actions/runs/36832501182),
+tested prospective source `1c16c4732442d69d2c7b5763212f1977860a15ae`, identical
+tree `0ccf3ccc589e0bad79e9917f2c01818772926ee1`. Python CI passed 2,324 tests
+with six existing optional skips; both exact normal and signed QA image scopes
+passed again. The two compact ZIP digests, 15 available checksum payloads each
+and available provenance records were independently checked. The actual
+first-party source archive was reconstructed from the exact Git commit and
+matched its 1,778,503 bytes / full recorded hash. Recovery and wrong-password
+screenshots were visually inspected. The delivery check retains all 501 pending
+reviews and verifies that one source file; required third-party delivery/content
+review remains open. `evidence/qualification-gate-1c16c473.json` and its linked
+normal/signed/source-delivery receipts preserve the exact outcome. The later
+evidence-only handoff has documentation-only CI scope; that is not a new-image
+qualification. Final source/bytes still need their own complete release gates.
+
 [Run 36827706986](https://github.com/MichaelWave369/PhiOS/actions/runs/36827706986)
 passed all nine main-targeted integration jobs for prospective source
 `a3572a9bac7051b70af2ef66e75bc021f4214b31`, the same tree as PR #280 head
@@ -42,7 +59,8 @@ authority. Its observed initial check of this candidate finds 501 pending
 component reviews and no supplied material bytes; receipt:
 `evidence/source-delivery-a3572a9b.json`. Actual terms/content review and
 corresponding source delivery remain open. This continuation's new code/source
-must pass its own CI; the historical passed image does not qualify changed bytes.
+passed its own complete CI as recorded above; the historical image does not
+qualify later changed bytes.
 Local validation passed 82 focused source-delivery/inventory/Linux-foundation/
 CI-gate cases, including actual packet bytes/checksums, deterministic output,
 changed material/candidate refusal, symlink/FIFO/traversal holds and incomplete
