@@ -16,7 +16,7 @@ proof that PhiOS is a completed OS. Preserve the repository AGENTS.md rules.
 | R7: Explicit blank-disk installation | Experimental root-owned offline CLI and disposable qualification lane | 20 local refusal/cancellation/identity tests; cancellation, actual installation, no-ISO desktop boot and fresh data restoration passed on the named disposable VM; hardware beta pending |
 | R8: Whole-OS update and recovery | Explicit public-key enrollment, signed verifier, staged package application and matched root/EFI checkpoints | Full 2,218-test CI and bounded end-to-end VM run 36805999628 passed: valid update, invalid/cancelled/replayed/dependency refusal, abrupt termination during a real package hook, unchanged active system, deliberate kernel boot failure, matched live recovery and three password-authenticated disk-only boots; arbitrary transitions and hardware remain unqualified |
 | R9: Qualify hardware and one Linux governed workflow | Pending | Named hardware matrix and observed effect verification |
-| R10: Sign and publish the exact qualified artifact | Held | Proven preceding gates, hashes, SBOM, signatures, source/license notices and maintainer release decision |
+| R10: Sign and publish the exact qualified artifact | Exact native/Python/npm inventory, supplier license notices, CycloneDX SBOM and source/ISO/artifact provenance; fixture-free build/normal PAM qualification workflow | Eight focused inventory/refusal tests and validation against pinned official CycloneDX 1.6 schemas passed locally; actual image/VM CI pending; third-party source/license review, release identity, signatures and maintainer publication remain held |
 
 ## First builder handoff
 

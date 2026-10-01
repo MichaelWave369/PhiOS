@@ -1,0 +1,37 @@
+{
+  "attempts": [
+    {
+      "evidence_artifact_id": 11137864737,
+      "evidence_files": {
+        "PhiOS/PhiOS/dist/fixture-free/build.log": "3e7bb609dd75c63c3e7f38d75057cab48ce9dd35343a5a3832e2cd2d4309bf97",
+        "PhiOS/PhiOS/dist/fixture-free/builder-image.json": "4c24272571dc26166f660640fd3fb3cd97a77b799b032876e507afe933679d64",
+        "PhiOS/PhiOS/dist/fixture-free/builder-packages.txt": "9c8e376a83e3ebbad5078dbb9fc5cc12ecd15ad57c4fa933466bad26dd09a291",
+        "PhiOS/PhiOS/dist/fixture-free/fixture-inventory.json": "14ce1577031ab6cc9b29967bc57b054661ce36d3a5ec0ada86a0bba9ddc9627e",
+        "PhiOS/PhiOS/dist/fixture-free/image-packages.txt": "f2c4bf4ca37189cec44b2fb77826e39e2528df2011ff23b94000e3408a4ad93c",
+        "PhiOS/PhiOS/dist/fixture-free/javascript-packages.json": "a9026fc707306f7fb2ffb952b884197a66ccc3def539f90f938e8c4b7e4e0582",
+        "PhiOS/PhiOS/dist/fixture-free/mkarchiso.log": "9940448095210ce1fdb903b06d641d2b68e3664114c6b9bbde1bc9712f34b2cc",
+        "PhiOS/PhiOS/dist/fixture-free/native-packages.json": "ce5aad0f6e2580b0b0a7b4c19aba64bbf11fc1c979555dfb662aca2756cf8754",
+        "PhiOS/PhiOS/dist/fixture-free/provenance.json": "374f469246ce0c6589ddbe1a56d2d2a7b09d6f86aefa962693ac1d3ccb10017e",
+        "PhiOS/PhiOS/dist/fixture-free/python-packages.json": "9af1ad8db48a4e1a528d082984d07efbf34539b52ddac7026ea4e9923073d5a0",
+        "PhiOS/PhiOS/dist/fixture-free/release.json": "0d5499ce8f252637d7a1d6a8bdedeb8aef9829307893e348f3c1bf0795b91a75",
+        "PhiOS/PhiOS/dist/fixture-free/sbom.cdx.json": "a98584f3eed17d1f632cca4dc4c7ff4441162650248b1fe377f3421b8184fa01",
+        "PhiOS/PhiOS/dist/fixture-free/source-archive-sha256.txt": "1c6673eded8f2cb947fcd753a6be0a4c14e33323bcb517ec4c3a9b6324cdc705",
+        "PhiOS/PhiOS/dist/fixture-free/source-commit.txt": "385b6ff6df10f358702bcdd516aa329296354ab5259990529ff07dd128aabc05",
+        "PhiOS/PhiOS/dist/fixture-free/source-review.json": "c9be6272f62b1694480c9c0056de4420244354c50861769045cb8996e2723964",
+        "PhiOS/PhiOS/dist/fixture-free/third-party-notices.json": "137316e3c393079fd72aa7234611db782aa5f7c540b69648dd42729f35e25493"
+      },
+      "failure": "Ubuntu distribution JSON Schema validator raised TypeError while sorting dicts during valid actual-image SBOM validation, before QEMU. The complete 437-component SBOM validates against the pinned official CycloneDX schemas in the newer local validator. CI now installs jsonschema==4.26.0 in a dedicated virtual environment.",
+      "fixture_free_vm_qualified": false,
+      "head": "83d2feb42a3dbd506bd6479ff60f73ce7ff7961f",
+      "image_artifact_id": 11137889468,
+      "image_built": true,
+      "iso_sha256": "0fc3d6fc787d636b0d85ea2c78e73069048486cfce6f57f4380062c158194ef4",
+      "job_id": 110195126187,
+      "native_python_npm_components": 437,
+      "release_ready": false,
+      "source_commit": "923a61567be61e0f25a6d4cf07ed427c998abd89",
+      "workflow_run": 36807539115
+    }
+  ],
+  "schema_version": "phios.fixture-free-attempts.v1"
+}
