@@ -1,0 +1,62 @@
+{
+  "candidate": {
+    "first_party_source_archive": {
+      "sha256": "090f6ee53f5db5dca1cbae17b80580de467b0daeec804082f4a629609bd736ec",
+      "size": 1758971
+    },
+    "iso": {
+      "filename": "phios-linux-0.1.0-alpha.1-x86_64.iso",
+      "sha256": "8199e2abad0e7699747876bd95e734e3168758b1bb59f20a232339eb61ef614d",
+      "size": 1802305536
+    },
+    "metadata": {
+      "SHA256SUMS": {
+        "sha256": "3d6a5739ef070a3d4cf7fe6258c420c0c6e7f7c4fa9d815e208379fab75e98d5",
+        "size": 1866
+      },
+      "provenance.json": {
+        "sha256": "1f53ef2a290479a390f21ee782c3c671dd03fa1a639ac4267a6bc21430db6c4a",
+        "size": 3582
+      },
+      "sbom.cdx.json": {
+        "sha256": "8d60bf9d1fe67b242b915ab4f1f358eed33fd3040f08bb77f86cb5a44d62ae25",
+        "size": 382659
+      },
+      "source-review.json": {
+        "sha256": "4334dc47c9907aa86b127d36b586d3db9c75dad72f5582318ab58c073f8b7d99",
+        "size": 223400
+      },
+      "third-party-notices.json": {
+        "sha256": "840a10e3dac4ffac473e0f68ba6d078c85ddf1e4120518fa598d1876fe3cc71f",
+        "size": 194883
+      }
+    },
+    "source_commit": "a3572a9bac7051b70af2ef66e75bc021f4214b31",
+    "source_date_epoch": 1790837928,
+    "supplier_notice_archive": {
+      "sha256": "608e76cc9b418e017dcba1d8fd3eb1a276ff2e5398ac3aafa5cff214af3d922d",
+      "size": 919270
+    }
+  },
+  "canonical_manifest_sha256": "2052e0fb717b978a3d5f62dbfd6b53c8db16c04998afa29e468c8e5872e6cda9",
+  "component_reviews_recorded": 0,
+  "components_total": 501,
+  "delivery_records_complete": false,
+  "evidence_artifact_id": 11146641362,
+  "iso_bytes_independently_verified": false,
+  "license_conclusions_automatically_selected": false,
+  "license_source_compliance_reviewed": false,
+  "manifest_initialized_from_exact_candidate": true,
+  "missing_candidate_archives": [
+    "first_party_source_archive",
+    "supplier_notice_archive"
+  ],
+  "pending_component_count": 501,
+  "publication_authority": false,
+  "release_ready": false,
+  "review_declarations_authenticated": false,
+  "schema_version": "phios.source-delivery-check.v1",
+  "verified_material_bytes": 0,
+  "verified_material_files": 0,
+  "workflow_run": 36827706986
+}

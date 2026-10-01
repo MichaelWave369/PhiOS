@@ -18,7 +18,38 @@ proof that PhiOS is a completed OS. Preserve the repository AGENTS.md rules.
 | R9: Qualify hardware and one Linux governed workflow | UID-separated installed-only proof-note broker, canonical bound single-use lease, independent protected ledger and read-only hardware collector/protocol | 21 focused tests and actual sudo/PAM/UID 1001 proof, cancellation, denial, replay, expiry and historical-authority refusal after restart/recovery passed on the exact normal ISO in run 36812104386; supplied Skytech target remains physically unqualified |
 | R10: Sign and publish the exact qualified artifact | Actual native/Python/npm and bundled frontend inventory, supplier notices, CycloneDX SBOM and exact source/ISO/artifact provenance | 11 focused inventory/refusal tests, pinned CycloneDX schema validation and exact fixture-free live/install/state/recovery VM qualification passed in run 36812104386; final signed transition, hardware, source/license delivery, release identity and publication remain held |
 
-## Latest desktop and aggregate qualification
+## Latest integration and source-delivery continuation
+
+[Run 36827706986](https://github.com/MichaelWave369/PhiOS/actions/runs/36827706986)
+passed all nine main-targeted integration jobs for prospective source
+`a3572a9bac7051b70af2ef66e75bc021f4214b31`, the same tree as PR #280 head
+`41f0c8b2f7b268d046bfd8aa1bef8d24c712c9d1`. Python CI passed 2,287 tests and
+six existing optional skips, with lint/types and wheel/vector/ledger/PhiShell
+also passing. Exact normal and separate signed QA image scopes passed. The
+downloaded compact archive digests, 15 available checksum payloads each and
+available provenance records were independently checked; large image/source/
+package/notice payloads retain producer hashes. The normal recovered desktop
+and wrong-password hold were visually inspected. Exact identities and the
+earlier failed integration are preserved in
+`evidence/qualification-gate-a3572a9b.json` and its linked receipts.
+
+The R10 continuation adds `packaging/linux/source_delivery.py` and
+SOURCE_DELIVERY.md. The offline tool binds a manifest to the exact normal
+provenance/SBOM/source-review/notices, requires every component origin, checks
+local source/build/notice hashes, and refuses pending or unsafe delivery packets.
+It never selects license conclusions, authenticates a reviewer or grants release
+authority. Its observed initial check of this candidate finds 501 pending
+component reviews and no supplied material bytes; receipt:
+`evidence/source-delivery-a3572a9b.json`. Actual terms/content review and
+corresponding source delivery remain open. This continuation's new code/source
+must pass its own CI; the historical passed image does not qualify changed bytes.
+Local validation passed 82 focused source-delivery/inventory/Linux-foundation/
+CI-gate cases, including actual packet bytes/checksums, deterministic output,
+changed material/candidate refusal, symlink/FIFO/traversal holds and incomplete
+review refusal. Ruff and mypy passed for the added tool; GitHub remains the full
+platform and exact-image qualification check for this continuation.
+
+## Preceding desktop and aggregate qualification
 
 [Run 36823086807](https://github.com/MichaelWave369/PhiOS/actions/runs/36823086807)
 passed all nine jobs for source `a7bcd9863eea12a87c1a9ef1fcbd26211542cd91`,
