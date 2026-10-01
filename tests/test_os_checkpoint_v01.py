@@ -69,6 +69,28 @@ def checkpoint(identity: dict[str, Any]) -> dict[str, Any]:
         'home_snapshot_restored': False, 'authority_restored': False, 'release_ready': False}
 
 
+def test_partition_sysfs_has_no_slaves_but_still_refuses_holders(tmp_path: Path) -> None:
+    (tmp_path / 'partition').write_text('1\n')
+    (tmp_path / 'holders').mkdir()
+    assert not recover.block_dependencies(tmp_path, partition=True)
+    (tmp_path / 'holders/dm-0').touch()
+    assert recover.block_dependencies(tmp_path, partition=True)
+    with pytest.raises(ValueError, match='block type'):
+        recover.block_dependencies(tmp_path, partition=False)
+
+
+def test_whole_disk_requires_slaves_probe_and_refuses_dependencies(tmp_path: Path) -> None:
+    (tmp_path / 'holders').mkdir()
+    with pytest.raises(FileNotFoundError):
+        recover.block_dependencies(tmp_path, partition=False)
+    (tmp_path / 'slaves').mkdir()
+    assert not recover.block_dependencies(tmp_path, partition=False)
+    (tmp_path / 'slaves/sda').touch()
+    assert recover.block_dependencies(tmp_path, partition=False)
+    with pytest.raises(ValueError, match='block type'):
+        recover.block_dependencies(tmp_path, partition=True)
+
+
 @pytest.mark.parametrize('case', ['disk', 'generation', 'schema', 'authority', 'home', 'unknown'])
 def test_checkpoint_cannot_cross_disks_restore_authority_or_invent_schema(case: str) -> None:
     identity = recover.validate_disk(disk(), busy=False)

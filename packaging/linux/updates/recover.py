@@ -28,8 +28,8 @@ def run(*args: str) -> str:
     if command is None:
         raise ValueError(f'required program unavailable: {args[0]}')
     result = subprocess.run([command, *args[1:]], env=ENV, capture_output=True, text=True, timeout=600)
-    if result.returncode:
-        raise RuntimeError(f'{args[0]} failed (exit {result.returncode}): {result.stderr[-2000:]}')
+    if result.returncode or '==> ERROR:' in result.stdout or '==> ERROR:' in result.stderr:
+        raise RuntimeError(f'{args[0]} failed (exit {result.returncode}): {(result.stdout + result.stderr)[-6000:]}')
     return result.stdout
 
 
@@ -103,6 +103,16 @@ def validate_disk(row: dict[str, Any], *, busy: bool) -> dict[str, Any]:
             'esp': children[0]['path'], 'system': children[1]['path']}
 
 
+def block_dependencies(sys_device: Path, *, partition: bool) -> bool:
+    # Kernel partition kobjects have holders and a partition marker, but no
+    # slaves directory. Only the parent whole-disk kobject has slaves.
+    if (sys_device / 'partition').is_file() != partition:
+        raise ValueError('sysfs block type differs from the selected disk layout')
+    holders = list((sys_device / 'holders').iterdir())
+    slaves = [] if partition else list((sys_device / 'slaves').iterdir())
+    return bool(holders or slaves)
+
+
 def inventory(device: str) -> dict[str, Any]:
     path = Path(device)
     if not path.is_absolute() or path.resolve() != path or not stat.S_ISBLK(path.stat().st_mode):
@@ -120,8 +130,11 @@ def inventory(device: str) -> dict[str, Any]:
         info = Path(node['path']).stat()
         number = f'{os.major(info.st_rdev)}:{os.minor(info.st_rdev)}'
         sys_device = Path('/sys/dev/block') / number
+        partition = node.get('type') == 'part'
+        if partition and sys_device.resolve().parent != (Path('/sys/dev/block') / rows[0]['maj:min']).resolve():
+            raise ValueError('sysfs partition parent differs from the selected whole disk')
         if (number != node.get('maj:min') or number in mounted or info.st_rdev in swap_devices or
-                list((sys_device / 'holders').iterdir()) or list((sys_device / 'slaves').iterdir())):
+                block_dependencies(sys_device, partition=partition)):
             busy = True
     return validate_disk(rows[0], busy=busy)
 
