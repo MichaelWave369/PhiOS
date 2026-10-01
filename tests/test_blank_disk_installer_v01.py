@@ -45,6 +45,9 @@ def test_confirmation_binds_exact_identity_source_account_and_layout() -> None:
         assert installer.confirmation(changed, "a" * 40, "operator", "phios")[1] != phrase
     assert installer.confirmation(identity, "b" * 40, "operator", "phios")[1] != phrase
     assert installer.confirmation(identity, "a" * 40, "someone", "phios")[1] != phrase
+    serial_plan, serial_phrase = installer.confirmation(identity, 'a'*40, 'operator', 'phios', serial_console=True)
+    assert serial_phrase != phrase and serial_plan['serial_console_password_login'] is True
+    assert plan['serial_console_password_login'] is False
     assert plan["encrypted"] is False and plan["firmware_variables_changed"] is False
     assert plan["release_ready"] is False
 

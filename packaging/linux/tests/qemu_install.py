@@ -166,9 +166,11 @@ def install_live(common: list[str], iso: Path, output: Path, source: str, receip
     raise RuntimeError('disposable installed target never qualified')
 
 
-def qualify(iso: Path, source: str, output: Path, *, recovery: bool = False, signed_update: bool = False) -> None:
+def qualify(iso: Path, source: str, output: Path, *, recovery: bool = False, signed_update: bool = False, fixture_free: bool = False) -> None:
     if not re.fullmatch(r"[0-9a-f]{40}", source) or not iso.is_file() or output.exists():
         raise ValueError("exact source/ISO and a new owned evidence destination are required")
+    if fixture_free and (signed_update or not recovery):
+        raise ValueError('normal ISO qualification requires recovery; signed fixture transitions use the separate QA lane')
     output.mkdir(mode=0o700, parents=True)
     code = Path("/usr/share/OVMF/OVMF_CODE_4M.fd")
     variables = output / "OVMF_VARS.fd"
@@ -198,14 +200,22 @@ def qualify(iso: Path, source: str, output: Path, *, recovery: bool = False, sig
     receipt: dict[str, Any] = {"schema_version": "phios.installed-boot-evidence.v1", "source_commit": source,
           "iso_sha256": digest.hexdigest(), "accelerator": accelerator, "disk_serial": "PHIOS_CI_BLANK",
           "disk_bytes": 32 * 1024**3, "commands": [], "installed": False, "no_iso_boot_passed": False,
-          "abrupt_virtual_restart_passed": False, "boot_ids": [], "ci_serial_console_injected": True,
+          "abrupt_virtual_restart_passed": False, "boot_ids": [], "ci_serial_console_injected": not fixture_free,
+          'explicit_serial_console_password_login': fixture_free, 'fixture_free_requested': fixture_free,
+          'fixture_free_installed_qualified': False,
           "hardware_qualified": False, "release_ready": False, 'recovery_requested': recovery,
           'simulated_boot_failure_observed': False, 'matched_root_efi_restored': False,
           'whole_os_recovery_passed': False, 'signed_package_application_qualified': False}
     receipt.update(signed_update_requested=signed_update, signed_update_refusals_observed=False,
         interrupted_signed_transaction_observed=False, interrupted_update_active_root_preserved=False)
     try:
-        install_live(common, iso, output, source, receipt, signed_update=signed_update)
+        if fixture_free:
+            from qemu_normal_live import drive_live
+            installed = drive_live(common, iso, source, output, receipt, stage='install')
+            receipt['recovery_checkpoint_generation'] = installed['generation']
+            receipt['installed'] = True
+        else:
+            install_live(common, iso, output, source, receipt, signed_update=signed_update)
         # Boot the new disk twice with no ISO attached, normal password/PAM
         # logins and actual greetd keyboard input. Between boots kill QEMU so
         # acknowledged data must survive loss of the guest's memory.
@@ -285,6 +295,9 @@ def qualify(iso: Path, source: str, output: Path, *, recovery: bool = False, sig
                                 program = Path(__file__).with_name('proof_smoke.py').read_text() + \
                                     (f'\nproof_workflow({source!r})\n' if phase == 1 else f'\nhistorical_proof({source!r})\n') + \
                                     program.replace('from __future__ import annotations\n', '')
+                            if fixture_free and phase == 1:
+                                program = Path(__file__).with_name('normal_seed.py').read_text() + '\nseed_normal()\n' + \
+                                    program.replace('from __future__ import annotations\n', '')
                             # Keep each input line below the terminal's canonical
                             # line bound; a growing base64 -c command can exceed it.
                             channel.sendall(("python - <<'PHIOS_INSTALLED_PROBE'\n" + program +
@@ -331,7 +344,14 @@ def qualify(iso: Path, source: str, output: Path, *, recovery: bool = False, sig
                     stop(process, abrupt=(phase == 1))
             if recovery and phase == 2:
                 failed_boot(common, output, receipt)
-                recover_live(common, iso, output, receipt)
+                if fixture_free:
+                    restored = drive_live(common, iso, source, output, receipt, stage='restore',
+                                          generation=receipt['recovery_checkpoint_generation'])
+                    if restored['generation'] != receipt['recovery_checkpoint_generation']:
+                        raise RuntimeError('normal recovery restored a different checkpoint')
+                    receipt['matched_root_efi_restored'] = True
+                else:
+                    recover_live(common, iso, output, receipt)
         if len(set(receipt["boot_ids"])) != (3 if recovery else 2):
             raise RuntimeError("a distinct installed reboot was not observed")
         receipt["no_iso_boot_passed"] = True
@@ -343,6 +363,9 @@ def qualify(iso: Path, source: str, output: Path, *, recovery: bool = False, sig
             receipt['signed_package_application_qualified'] = (receipt['whole_os_recovery_passed'] and
                 receipt['signed_update_refusals_observed'] and receipt['interrupted_signed_transaction_observed'] and
                 receipt['interrupted_update_active_root_preserved'])
+        if fixture_free:
+            receipt['fixture_free_installed_qualified'] = (receipt['whole_os_recovery_passed'] and
+                receipt.get('linux_governed_workflow_qualified') is True and len(set(receipt['boot_ids'])) == 3)
         print("Disposable installation, no-ISO graphical login, data restore and abrupt virtual restart passed")
     except BaseException as exc:
         receipt["error"] = str(exc)
@@ -358,5 +381,6 @@ if __name__ == "__main__":
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument('--recovery', action='store_true', help='Also damage and recover only this disposable installed disk')
     parser.add_argument('--signed-update', action='store_true', help='Also qualify signed packages and actual interrupted staging')
+    parser.add_argument('--fixture-free', action='store_true', help='Install/recover the unmodified normal ISO using its limited live sudo and explicitly reviewed serial-console login')
     args = parser.parse_args()
-    qualify(args.iso, args.source, args.output.resolve(), recovery=args.recovery, signed_update=args.signed_update)
+    qualify(args.iso, args.source, args.output.resolve(), recovery=args.recovery, signed_update=args.signed_update, fixture_free=args.fixture_free)

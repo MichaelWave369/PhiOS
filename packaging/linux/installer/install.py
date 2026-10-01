@@ -107,9 +107,10 @@ def verify_zeroed(device: str, size: int) -> None:
         os.close(fd)
 
 
-def confirmation(identity: dict[str, Any], source: str, username: str, hostname: str) -> tuple[dict[str, Any], str]:
+def confirmation(identity: dict[str, Any], source: str, username: str, hostname: str, *, serial_console: bool = False) -> tuple[dict[str, Any], str]:
     plan = {"schema_version": "phios.blank-disk-install-plan.v1", "target": identity,
             "source_commit": source, "username": username, "hostname": hostname,
+            "serial_console_password_login": serial_console,
             "layout": {"gpt": True, "esp_bytes": 1024**3, "filesystem": "btrfs",
                        "subvolumes": ["@root", "@home", "@log", "@snapshots"]},
             "encrypted": False, "secure_boot": False, "firmware_variables_changed": False,
@@ -142,7 +143,7 @@ def write(root: Path, name: str, content: str, *, mode: int = 0o644) -> None:
     os.chmod(path, mode)
 
 
-def configure(root: Path, username: str, password: str, hostname: str, root_uuid: str, esp_uuid: str) -> None:
+def configure(root: Path, username: str, password: str, hostname: str, root_uuid: str, esp_uuid: str, *, serial_console: bool = False) -> None:
     for pattern in ["etc/sysusers.d/phios-live.conf", "etc/tmpfiles.d/phios-live.conf",
                     "etc/mkinitcpio.conf.d/archiso.conf", "etc/systemd/system/phios-live-*.service",
                     "etc/systemd/system/multi-user.target.wants/phios-live-*.service",
@@ -203,12 +204,17 @@ def configure(root: Path, username: str, password: str, hostname: str, root_uuid
     run("arch-chroot", str(root), "mkinitcpio", "-P")
     run("bootctl", f"--root={root}", "--esp-path=/boot", "--install-source=image", "--variables=no", "install")
     write(root, "boot/loader/loader.conf", "default phios.conf\ntimeout 5\neditor no\n")
+    console = ' console=tty0 console=ttyS0,115200' if serial_console else ''
+    if serial_console:
+        getty = root / 'etc/systemd/system/getty.target.wants/serial-getty@ttyS0.service'
+        getty.parent.mkdir(parents=True, exist_ok=True)
+        getty.symlink_to('/usr/lib/systemd/system/serial-getty@.service')
     write(root, "boot/loader/entries/phios.conf", "title PhiOS Linux development installation\n"
           "linux /vmlinuz-linux\ninitrd /initramfs-linux.img\n"
-          f"options root=UUID={root_uuid} rw rootflags=subvol=@root\n")
+          f"options root=UUID={root_uuid} rw rootflags=subvol=@root{console}\n")
     write(root, "boot/loader/entries/phios-fallback.conf", "title PhiOS Linux fallback initramfs\n"
           "linux /vmlinuz-linux\ninitrd /initramfs-linux-fallback.img\n"
-          f"options root=UUID={root_uuid} rw rootflags=subvol=@root\n")
+          f"options root=UUID={root_uuid} rw rootflags=subvol=@root{console}\n")
     release = json.loads((root / "usr/share/phios/linux-release.json").read_text())
     write(root, "etc/os-release", 'NAME="PhiOS Linux Preview"\nID=phios\nID_LIKE=arch\n'
           f'PRETTY_NAME="PhiOS Linux {release["os_version"]} Experimental Installation"\nVERSION_ID="{release["os_version"]}"\n')
@@ -287,7 +293,8 @@ def apply(plan: dict[str, Any], password: str) -> dict[str, Any]:
         if not re.fullmatch(r"[0-9a-f-]{36}", root_uuid) or not re.fullmatch(r"[0-9A-F]{4}-[0-9A-F]{4}", esp_uuid):
             raise ValueError("invalid new filesystem UUID")
         receipt["stage"] = "configuring installed system"
-        configure(root, plan["username"], password, plan["hostname"], root_uuid, esp_uuid)
+        configure(root, plan["username"], password, plan["hostname"], root_uuid, esp_uuid,
+                  serial_console=plan['serial_console_password_login'])
         receipt.update(stage="installed; no-ISO boot unqualified", installed=True,
                        root_uuid=root_uuid, esp_uuid=esp_uuid)
         write(root, "var/lib/phios/install-receipt.json", json.dumps(receipt, indent=2) + "\n", mode=0o600)
@@ -317,6 +324,7 @@ def main() -> int:
     parser.add_argument("--disk", required=True)
     parser.add_argument("--username", required=True)
     parser.add_argument("--hostname", default="phios")
+    parser.add_argument('--serial-console', action='store_true', help='Explicit password/PAM login on ttyS0 at 115200 baud; included in the reviewed plan')
     parser.add_argument("--plan", action="store_true", help="Read-only inventory; never installs")
     args = parser.parse_args()
     try:
@@ -332,7 +340,7 @@ def main() -> int:
         if re.fullmatch(r"[0-9a-f]{40}", source) is None:
             raise ValueError("exact installed source identity is required")
         identity = inventory(args.disk)
-        plan, phrase = confirmation(identity, source, args.username, args.hostname)
+        plan, phrase = confirmation(identity, source, args.username, args.hostname, serial_console=args.serial_console)
         print(json.dumps(plan, indent=2), flush=True)
         if args.plan:
             return 0
