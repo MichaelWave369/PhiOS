@@ -115,6 +115,27 @@ unavailable canonical-history backend; window operation does not qualify
 external runtimes or backend health. This report supplies no new lock/refusal/
 unlock result, so the earlier VirtualBox lock observation remains unresolved.
 
+The subsequent #288 owner-local report on exact normal ISO `0e68508d...` supplies
+the bounded missing lock sequence: Super+L protected the current session, a wrong
+password produced a visible `Wrong` indicator without exposing the desktop, and
+the correct password resumed that same Wayfire/PhiShell session. This is reported
+field evidence for the #288 configuration, not a retroactive change to #283's
+blank-screen observation. Both user/system failed-unit lists were empty before
+and after the reported ACPI shutdown/cold boot. Automatic desktop/cursor startup
+and the installed NBG-A reader passed; Wofi still required the reported Ctrl+A
+workaround, so launcher regression remains partial fail. The boot-time `vmwgfx`
+warning and failed TCP/serial evidence-export attempts remain preserved in
+[virtualbox-field-a44dd077.json](evidence/virtualbox-field-a44dd077.json).
+
+For the narrow launcher follow-up, reopen untouched Super+Space and type
+`chromium` directly without Ctrl+A or other clearing. Record whether `drun`
+disappears or becomes part of the query, whether Chromium is found and whether
+Enter launches it. The [Wofi manual](https://man.archlinux.org/man/wofi.1) documents
+the mode name as the default prompt and `--search` as a separate initial-search
+option. The packaged command is `wofi --show drun`; a prompt could explain the
+displayed word, but it does not establish why clearing was reported necessary.
+Keep the reported failure until this actual interaction is observed.
+
 The new exact normal live gate attaches only a restricted QEMU user-network
 Ethernet device on the documentation range `192.0.2.0/24`, without port forwarding,
 and an emulated HDA device with a null audio backend. It checks the actual DHCP

@@ -111,3 +111,24 @@ mutation operations require separately reviewed contracts and a persistent
 installed test environment. A live ISO's temporary overlay does not establish
 cold-power-cycle memory reconstruction. Private PhiKernel/TIEKAT implementation
 internals remain outside public PhiOS.
+
+## Owner-local #288 field observation
+
+The owner-local VirtualBox `7.2.20r175154` report for exact normal ISO `0e68508d...`
+records ordinary-user reader success, repeated filtered output, unchanged
+installed hashes, and refusal of both a tampered and a missing prior-failure
+document in disposable copies. Automatic desktop/cursor startup, actual
+lock/wrong-password/same-session unlock and ACPI cold boot also passed as
+reported. Wofi launcher regression remains **PARTIAL FAIL**; the canonical-history
+backend remains unavailable and the `vmwgfx` warning is preserved.
+
+The supplied full/filtered JSON files were regenerated on the Windows host after
+the guest run was validated: TCP and ordinary-user serial export failed. This
+review hashed both attachments and reproduced their exact bytes with the pinned
+provider. That verifies reproducible historical output, not raw guest capture or
+new memory persistence. Cited screenshots were not supplied to this review.
+The normalized field receipt is
+[virtualbox-field-a44dd077.json](os/evidence/virtualbox-field-a44dd077.json).
+It remains outside the unchanged four-document packet. No new observation is
+silently inserted into the qualified #288 reader, and no release authority is
+created by its field test.

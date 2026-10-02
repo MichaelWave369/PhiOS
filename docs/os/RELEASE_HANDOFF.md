@@ -9,7 +9,56 @@ hardware, the final signed transition and distribution delivery remain open.
 This is not a supported beta or OS 1.0. Nothing has been merged or published by
 this handoff; no private PhiKernel/TIEKAT implementation is needed to boot it.
 
-## Exact qualified launcher candidate and local field result
+## Exact qualified observation candidate and local field result
+
+| Identity | Value |
+| --- | --- |
+| Reviewed code PR/head | [288](https://github.com/MichaelWave369/PhiOS/pull/288), `57666cc68fcf8a5ff4c92e0b0548ab6632534061` |
+| Tested prospective source / identical tree | `a44dd077e70d853cef24a30258c2734f48fcfad3` / `ad830c4434b3e85736258774b6e0bbc9d2023976` |
+| Normal ISO SHA-256 / bytes | `0e68508d052c08489dfa693b2294dd75343123b33abf2e67c9a729a3e0de0aa6` / 1,802,334,208 |
+| Original qualification | [36966541666](https://github.com/MichaelWave369/PhiOS/actions/runs/36966541666), attempt 1, all nine jobs successful |
+| Normal ISO/payloads | [11210343338](https://github.com/MichaelWave369/PhiOS/actions/runs/36966541666/artifacts/11210343338), expires 2026-10-09 UTC |
+| Normal compact evidence | [11210248671](https://github.com/MichaelWave369/PhiOS/actions/runs/36966541666/artifacts/11210248671), ZIP SHA-256 `178a69ce18ed296e51be1684764238844aed00686c974f8d180d35b152a19f59` |
+| Separate QA ISO SHA-256 | `e7aff49826fe116dd85343a8a82598c0cf71dab6132a2829e68e85508e934680` |
+| Separate QA compact evidence | [11209989491](https://github.com/MichaelWave369/PhiOS/actions/runs/36966541666/artifacts/11209989491), ZIP SHA-256 `96a0e55d9d5acdfb31c65f46da1992dcd531c9a3ae546882ca8945c1723b092f` |
+| Owner-local field receipt | [virtualbox-field-a44dd077.json](evidence/virtualbox-field-a44dd077.json) |
+
+The offline reader returns normalized historical observations only; Bubble Zero
+and the canonical-history backend remain unavailable. PhiOS stays `1.0.0` with
+Arch package revision 2, PhiShell stays `0.16.0-4`, and the distribution remains
+experimental `0.1.0-alpha.1`. The original run passed 2,437 Python tests with six
+existing optional skips, Ruff/mypy (306 files), wheel/vector/ledger and 197
+frontend/host tests. Normal/QA live/installed probes supplied ten ordinary-user
+reader/tamper-refusal pairs; these are repeated service checks, not ten distinct
+boots. Original compact evidence/provenance was reviewed independently; large
+ISO/package/source/notice payload hashes remain producer observations.
+
+The owner supplied `PhiOS-PR288-test-report.md` and two JSON files for separate
+VM `PhiOS-PR288`, VirtualBox `7.2.20r175154`. The report's before-boot ISO digest,
+size and guest source match the exact normal provenance above. Automatic
+desktop/Waybar/cursor/clicks, reader/repeatability/immutability/refusals, actual
+lock/wrong-password/same-session unlock and full ACPI shutdown/cold start passed
+as reported. Both user and system failed-unit lists were empty. **Launcher
+regression is PARTIAL FAIL:** Super+Space reportedly inserts literal `drun` and
+requires Ctrl+A before `chromium`, initially and after cold boot. Reality Ledger
+opens with its backend unavailable. The transient `vmwgfx` warning is retained.
+
+This review hashed all three supplied files and reproduced both JSON attachments
+byte for byte from the pinned packet. The report explicitly says the JSON was
+regenerated on the Windows host after guest validation because TCP/serial export
+failed. These are not raw guest captures. The cited screenshots and separate raw
+guest logs were not supplied here; this review did not operate the owner's VM
+or independently hash its Windows ISO. Guest interactions remain reported field
+evidence. Repeated historical output after boot is not memory reconstruction.
+
+The narrow remaining launcher observation is documented in DESKTOP_OPERATION.md.
+No runtime, packet, code pin, package revision or authority changes accompany
+this field record. The exact tested #288 bytes and every earlier receipt remain
+unchanged. This documentation continuation qualifies no replacement ISO;
+`publication_authority=false`, `release_ready=false`, and physical/signing/source
+delivery qualification remain separate. Nothing is merged, tagged or published.
+
+## Preceding qualified launcher candidate and local field result
 
 | Identity | Value |
 | --- | --- |

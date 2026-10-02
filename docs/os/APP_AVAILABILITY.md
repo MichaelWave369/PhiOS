@@ -49,8 +49,9 @@ initial overlapping windows do not hide the entry point.
   qualification documents; it does not connect the unavailable ledger backend
   or implement persistent memory. See
   [NBGA_OBSERVATION_PROVIDER_V0.1.md](../NBGA_OBSERVATION_PROVIDER_V0.1.md).
-- **Lock:** Super+L; enter the account password to unlock. The separate
-  VirtualBox wrong-password/unlock test remains pending.
+- **Lock:** Super+L; enter the account password to unlock. The owner-local #288
+  report records wrong-password refusal and correct-password return to the same
+  session in its exact VirtualBox live case; see the field receipt below.
 
 The owner-local #286 test reported that Wofi initially put literal `drun` in the
 search field on both passes. Selecting that text and replacing it with
@@ -86,3 +87,13 @@ its governed canonical-history backend as unavailable. The test did not install
 external runtimes or prove chat/model inference. This documentation continuation
 does not qualify a replacement ISO, the physical Skytech/RTX 5070 machine or
 authorize merging, tagging or publishing.
+
+The separate #288 retest on normal ISO `0e68508d...` again reports working shell
+navigation and tool windows, but classifies launcher regression **PARTIAL FAIL**:
+Super+Space reportedly inserts literal `drun` and requires Ctrl+A before typing
+`chromium`, both initially and after cold boot. The report also records successful
+same-session lock/refusal/unlock and the installed NBG-A reader/refusal checks.
+Reality Ledger's backend remains **UNAVAILABLE**. See
+[virtualbox-field-a44dd077.json](evidence/virtualbox-field-a44dd077.json) for the
+exact binding, host-regenerated JSON origin and remaining launcher observation.
+The new field receipt is separate from the reader's unchanged historical packet.
