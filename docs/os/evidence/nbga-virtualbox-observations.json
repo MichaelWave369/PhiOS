@@ -1,0 +1,121 @@
+{
+  "schema_version": "phios.nbga.observation-packet.v1",
+  "packet_id": "phios:virtualbox:qualification:2026-10-01",
+  "evidence": [
+    {
+      "id": "document:virtualbox:original-1c16c473",
+      "filename": "virtualbox-field-1c16c473.json",
+      "sha256": "e9d47ac8263e455793c6024282b31fad72923d2463e9c71deb8332bb00af214c",
+      "size_bytes": 5201
+    },
+    {
+      "id": "document:virtualbox:failed-attempt-146e470f",
+      "filename": "virtualbox-compatibility-attempts.json",
+      "sha256": "b1ecd3de4b4d71da93368b45b10f82c1abf9da06f56a818bd01bae0f96a0c2f9",
+      "size_bytes": 2864
+    },
+    {
+      "id": "document:virtualbox:automatic-9510024d",
+      "filename": "virtualbox-field-9510024d.json",
+      "sha256": "e89dfdab97661582d20921d177f6dc5ad6181cb4609b433eb94227ec2722b001",
+      "size_bytes": 6805
+    },
+    {
+      "id": "document:virtualbox:launcher-0f17bac1",
+      "filename": "virtualbox-field-0f17bac1.json",
+      "sha256": "dd36b28b76a2e4d652bd8f6ba63f973f256ddef539357b65ebc654695428b9da",
+      "size_bytes": 9566
+    }
+  ],
+  "observations": [
+    {
+      "bubble_id": "bubble:phios:virtualbox:original-1c16c473",
+      "bubble_version": 1,
+      "observable": "Owner-reported PR #281 live test on ISO 376fd601f66b13dccd6a08644a7b807129f315882d355fd376d0934a80ae29aa: renderer failed with 3D off; enabling 3D rendered the desktop but the pointer was invisible. WLR_NO_HARDWARE_CURSORS=1 restored the pointer; restarting the session target restored PhiShell/Waybar. These are separate steps. Physical hardware and automatic startup were not qualified by this report.",
+      "trust_state": "owner-reported",
+      "evidence": [
+        "document:virtualbox:original-1c16c473"
+      ],
+      "gear_path": [],
+      "event_head": "document:virtualbox:original-1c16c473"
+    },
+    {
+      "bubble_id": "bubble:phios:virtualbox:failed-attempt-146e470f",
+      "bubble_version": 1,
+      "observable": "Reviewed CI failure record for run 36913191826, source 146e470f6d9ee0e5ff8700cf3fab5e779c9ddacd, ISO f544ce35f4ae09ecf67b18f19b079a94489c65f10a8bd8cd74a8f3626c2abab2: normal qualification failed at the live rebinding probe and installation/recovery was skipped. Rendered screenshots and a passing separate QA lane did not qualify that normal image.",
+      "trust_state": "reviewed-ci-record",
+      "evidence": [
+        "document:virtualbox:original-1c16c473",
+        "document:virtualbox:failed-attempt-146e470f"
+      ],
+      "gear_path": [
+        {
+          "gear_id": "gear:virtualbox:follow-up-1",
+          "transform": "documented-follow-up",
+          "source": "bubble:phios:virtualbox:original-1c16c473",
+          "destination": "bubble:phios:virtualbox:failed-attempt-146e470f"
+        }
+      ],
+      "event_head": "document:virtualbox:failed-attempt-146e470f"
+    },
+    {
+      "bubble_id": "bubble:phios:virtualbox:automatic-9510024d",
+      "bubble_version": 1,
+      "observable": "Owner-local PR #283 report records ISO 33bfb34251d7f65abe7f8a9d600c21794d051640a305d50c1bca9b21364c2c68 hash match, automatic PhiShell/Waybar/cursor startup and ACPI shutdown/cold boot. The blank Super+L observation remains unresolved: wrong-password refusal/PAM unlock was not tested. Sudo poweroff was refused; ACPI shutdown passed. Physical hardware and VirtualBox installation remain unqualified.",
+      "trust_state": "owner-reported",
+      "evidence": [
+        "document:virtualbox:original-1c16c473",
+        "document:virtualbox:failed-attempt-146e470f",
+        "document:virtualbox:automatic-9510024d"
+      ],
+      "gear_path": [
+        {
+          "gear_id": "gear:virtualbox:follow-up-1",
+          "transform": "documented-follow-up",
+          "source": "bubble:phios:virtualbox:original-1c16c473",
+          "destination": "bubble:phios:virtualbox:failed-attempt-146e470f"
+        },
+        {
+          "gear_id": "gear:virtualbox:follow-up-2",
+          "transform": "documented-follow-up",
+          "source": "bubble:phios:virtualbox:failed-attempt-146e470f",
+          "destination": "bubble:phios:virtualbox:automatic-9510024d"
+        }
+      ],
+      "event_head": "document:virtualbox:automatic-9510024d"
+    },
+    {
+      "bubble_id": "bubble:phios:virtualbox:launcher-0f17bac1",
+      "bubble_version": 1,
+      "observable": "Owner-local PR #286 report records ISO 8635a5f1277ca01ef7174b6e3b325e3cf9e972572070eb84d7395b9cec3dcd08 hash match and successful Apps/Home/Start/search, four tool window lifecycles, desktop/cursor startup and Chromium/Foot before and after cold boot under VirtualBox 7.2.20r175154. The older mismatched ISO was rejected before boot; Wofi required clearing literal drun. The reviewed screenshot shows canonical history unavailable. External runtimes, VirtualBox lock/unlock and physical hardware remain unqualified.",
+      "trust_state": "owner-reported",
+      "evidence": [
+        "document:virtualbox:original-1c16c473",
+        "document:virtualbox:failed-attempt-146e470f",
+        "document:virtualbox:automatic-9510024d",
+        "document:virtualbox:launcher-0f17bac1"
+      ],
+      "gear_path": [
+        {
+          "gear_id": "gear:virtualbox:follow-up-1",
+          "transform": "documented-follow-up",
+          "source": "bubble:phios:virtualbox:original-1c16c473",
+          "destination": "bubble:phios:virtualbox:failed-attempt-146e470f"
+        },
+        {
+          "gear_id": "gear:virtualbox:follow-up-2",
+          "transform": "documented-follow-up",
+          "source": "bubble:phios:virtualbox:failed-attempt-146e470f",
+          "destination": "bubble:phios:virtualbox:automatic-9510024d"
+        },
+        {
+          "gear_id": "gear:virtualbox:follow-up-3",
+          "transform": "documented-follow-up",
+          "source": "bubble:phios:virtualbox:automatic-9510024d",
+          "destination": "bubble:phios:virtualbox:launcher-0f17bac1"
+        }
+      ],
+      "event_head": "document:virtualbox:launcher-0f17bac1"
+    }
+  ]
+}
