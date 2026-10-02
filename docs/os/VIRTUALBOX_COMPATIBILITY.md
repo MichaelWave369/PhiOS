@@ -277,6 +277,83 @@ separate. The qualified source/ISO and all earlier failure receipts remain
 unchanged. This documentation continuation qualifies no replacement image and
 does not authorize merge, tag or publication.
 
+## NBG-A and session field retest on #288
+
+The owner supplied `PhiOS-PR288-test-report.md` and full/filtered reader JSON
+for a separate `PhiOS-PR288` VM. The report states its test date as
+`2026-10-01/02 PDT`; that supplied date label is retained. The normalized receipt
+is [virtualbox-field-a44dd077.json](evidence/virtualbox-field-a44dd077.json).
+This review hashed all three files, compared both JSON results byte for byte
+with the pinned provider and checked the reported ISO/source against retained
+normal provenance and the original successful run.
+
+| Identity | Value |
+| --- | --- |
+| Reviewed code PR/head | [288](https://github.com/MichaelWave369/PhiOS/pull/288), `57666cc68fcf8a5ff4c92e0b0548ab6632534061` |
+| Qualified source / identical tree | `a44dd077e70d853cef24a30258c2734f48fcfad3` / `ad830c4434b3e85736258774b6e0bbc9d2023976` |
+| Normal ISO expected/reported digest and bytes | `0e68508d052c08489dfa693b2294dd75343123b33abf2e67c9a729a3e0de0aa6` / 1,802,334,208 |
+| Original qualification | [36966541666](https://github.com/MichaelWave369/PhiOS/actions/runs/36966541666), attempt 1, all nine jobs successful |
+| Supplied report digest / bytes | `a382b911cf71c59f2c30ea663b69e3db91650cf9fbd6b122ceb06a548c598706` / 11,741 |
+| Full host-regenerated JSON digest / bytes | `380283c177ee38e9b702ad3917e711c466345031e837e0da64d47c38f2532a8b` / 6,103 |
+| Filtered host-regenerated JSON digest / bytes | `79cc52c205ad51f2cddeca55f09df12e447e9bdee3ef9192ec0fe9d3f5a5ed17` / 2,914 |
+
+The reported configuration is VirtualBox `7.2.20r175154`, Arch Linux 64-bit,
+EFI/Secure Boot off, 8192 MB RAM, four CPUs, new 64 GiB VDI, VMSVGA/128 MB/3D on,
+NAT and no shared folders, clipboard or drag-and-drop. Existing `PhiOS`,
+`PhiOS-PR283` and `PhiOS-PR286` VMs were preserved; `PhiOS-PR288` remained running.
+Windows 11 Home is preceding owner context, not independently established host
+edition/build in this report. No external runtime was installed.
+
+| Observation | Reported result |
+| --- | --- |
+| Actual ISO hash/size before boot and guest source file | PASS; full identities match the exact normal candidate above |
+| Login, automatic PhiShell/Waybar, visible movable pointer and clicks | PASS initially and after cold boot; no manual export or target restart |
+| Apps, Home, Start, search and four tool windows | Navigation and initial open/minimize/reopen/close PASS; windows reopened after cold boot |
+| Ordinary-user full reader | Exit 0; four observations/four documents, read-only, pinned integrity, three owner-reported/one reviewed-CI trust state, null confidence |
+| Latest filtered query | Exit 0; one observation, four checked documents, three Gear hops; repeated output compared identical |
+| Installed packet/documents | All five before/after SHA-256 values unchanged |
+| Disposable prior-failure tamper and missing-file tests | Both exit 2, unavailable and no partial observations; copied baseline exit 0; originals unchanged |
+| Super+L / wrong password / correct password | PASS: protected desktop, visible Wrong refusal and same-session unlock; not greeter login after termination |
+| ACPI shutdown / cold start | VMState=poweroff before restart; automatic desktop and reader returned |
+| Failed system/user units | Zero in both managers before and after cold boot |
+| Launcher regression | PARTIAL FAIL: literal drun reportedly required Ctrl+A before Chromium, initially and after cold boot; Foot shortcut passed |
+| Canonical-history backend / Bubble Zero | UNAVAILABLE / unavailable with no continuity backend; no persistence inference |
+
+### Capture origin and preserved failures
+
+The report explicitly says guest-to-host TCP returned `Network is unreachable`
+and ordinary-user serial output was refused by `/dev/ttyS0` permissions. The
+attached JSON was regenerated on the Windows host from verified extracted
+candidate source/evidence after confirming the guest run's exit code and summary.
+Exact agreement with the public provider verifies deterministic historical output;
+it does not turn the attachments into raw guest captures. No guest evidence was
+modified to bypass the restrictions. The report cites screenshots, but their
+bytes and separate raw guest logs were not supplied to this review. This review
+did not view those screenshots, operate the VM or independently hash its local ISO.
+
+The transient cold-boot `vmwgfx` unsupported-hypervisor/configuration warning
+is retained verbatim in the receipt. The reported subsequent automatic desktop
+pass does not erase it. Reality Ledger's working window still reports an
+unavailable backend. Super+Space still required the reported Ctrl+A workaround;
+the earlier #286 observation is not overwritten or upgraded to a clean pass.
+
+The [Wofi manual](https://man.archlinux.org/man/wofi.1) documents that its prompt
+defaults to the mode name and that `--search` separately sets an initial query.
+The packaged command supplies `wofi --show drun`, with no initial-search option.
+A default prompt could explain the visible word, but this review has not proved
+why clearing was necessary. The bounded next check is to open the untouched
+shortcut and type `chromium` without Ctrl+A or other clearing, capturing whether
+`drun` disappears or enters the query, whether the app is found and whether Enter
+launches it. The partial-fail classification remains until that observation.
+
+The actual reported #288 lock sequence supplies the missing field case for this
+exact configuration; #283's earlier blank-screen result remains historical.
+VirtualBox installation/recovery, durable new memory/Bubble Zero, networking,
+audio/suspend, another hypervisor configuration, physical Skytech/RTX 5070,
+actual signing and source/license delivery remain separate. This documentation
+continuation changes no runtime or pinned packet, qualifies no replacement ISO
+and authorizes no merge, tag or publication.
+
 Detection references: [systemd virtualization identifiers](https://github.com/systemd/systemd/blob/main/src/basic/virt.c),
 [Oracle VMSVGA PCI definitions](https://github.com/VirtualBox/virtualbox/blob/main/src/VBox/Devices/Graphics/DevVGA-SVGA.h),
 [systemd PartOf lifecycle semantics](https://www.freedesktop.org/software/systemd/man/systemd.unit.html),

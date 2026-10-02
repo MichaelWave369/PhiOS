@@ -1,0 +1,163 @@
+{
+  "schema_version": "phios.virtualbox-field.v1",
+  "report_test_date_as_supplied": "2026-10-01/02 PDT",
+  "evidence_source": "Owner-supplied report from local Windows Codex GPT-5.6; guest interaction results remain reported observations",
+  "tested_candidate": {
+    "source_pr": 288,
+    "reviewed_head_commit": "57666cc68fcf8a5ff4c92e0b0548ab6632534061",
+    "qualified_prospective_source_commit": "a44dd077e70d853cef24a30258c2734f48fcfad3",
+    "reported_guest_source_commit": "a44dd077e70d853cef24a30258c2734f48fcfad3",
+    "identical_source_tree": "ad830c4434b3e85736258774b6e0bbc9d2023976",
+    "iso_filename": "phios-linux-0.1.0-alpha.1-x86_64.iso",
+    "iso_sha256_expected_and_reported_observed": "0e68508d052c08489dfa693b2294dd75343123b33abf2e67c9a729a3e0de0aa6",
+    "iso_size_bytes_expected_and_reported_observed": 1802334208,
+    "iso_verified_before_boot_by_local_tester": true,
+    "qualification_run_id": 36966541666,
+    "qualification_run_attempt": 1,
+    "original_required_jobs_rechecked_successful": 9,
+    "normal_payload_artifact_id": 11210343338,
+    "normal_compact_evidence_artifact_id": 11210248671,
+    "normal_compact_evidence_zip_sha256": "178a69ce18ed296e51be1684764238844aed00686c974f8d180d35b152a19f59"
+  },
+  "provided_files": [
+    {
+      "filename": "PhiOS-PR288-test-report.md",
+      "size_bytes": 11741,
+      "sha256": "a382b911cf71c59f2c30ea663b69e3db91650cf9fbd6b122ceb06a548c598706",
+      "role": "Owner-local qualification report with command/output excerpts and screenshot references"
+    },
+    {
+      "filename": "reader-full.json",
+      "size_bytes": 6103,
+      "sha256": "380283c177ee38e9b702ad3917e711c466345031e837e0da64d47c38f2532a8b",
+      "role": "Host-regenerated full reader result; byte-identical to this review's pinned provider result",
+      "raw_guest_capture": false
+    },
+    {
+      "filename": "reader-filtered.json",
+      "size_bytes": 2914,
+      "sha256": "79cc52c205ad51f2cddeca55f09df12e447e9bdee3ef9192ec0fe9d3f5a5ed17",
+      "role": "Host-regenerated filtered reader result; byte-identical to this review's pinned provider result",
+      "raw_guest_capture": false
+    }
+  ],
+  "review_boundary": {
+    "supplied_files_hashed_by_this_review": true,
+    "both_json_files_match_pinned_provider_bytes": true,
+    "local_pinned_packet_and_documents_checked": true,
+    "windows_vm_operated_by_this_review": false,
+    "windows_iso_independently_hashed_by_this_review": false,
+    "raw_guest_json_capture_supplied": false,
+    "separate_raw_guest_logs_supplied": false,
+    "report_cited_screenshots_supplied_or_viewed_by_this_review": false,
+    "raw_report_or_json_bytes_copied_into_public_repo": false,
+    "capture_limitation": "Guest-to-host TCP returned Network is unreachable and ordinary-user serial output was denied by /dev/ttyS0 permissions. The local tester regenerated the attached JSON on the Windows host from the verified extracted candidate source/evidence after confirming guest exit codes and summaries. No guest evidence was modified to bypass these restrictions. Byte agreement verifies reproducibility of public historical output, not an independently captured guest run."
+  },
+  "vm": {
+    "name": "PhiOS-PR288",
+    "hypervisor": "Oracle VirtualBox",
+    "hypervisor_version_reported": "7.2.20r175154",
+    "host_context": "Windows 11 Home from preceding owner context; this report does not independently establish host edition/build",
+    "guest_type": "Arch Linux (64-bit)",
+    "firmware": "EFI",
+    "secure_boot_reported": "off",
+    "ram_mb": 8192,
+    "vcpu": 4,
+    "new_virtual_disk_capacity_mib": 65536,
+    "graphics_controller": "VMSVGA",
+    "video_memory_mb": 128,
+    "acceleration_3d": true,
+    "network": "NAT; cable connected",
+    "shared_folders": "none",
+    "shared_clipboard": "disabled",
+    "drag_and_drop": "disabled",
+    "preserved_existing_vms": ["PhiOS", "PhiOS-PR283", "PhiOS-PR286"],
+    "state_at_handoff_reported": "running"
+  },
+  "reported_results": {
+    "iso_hash_and_size_before_boot": "PASS",
+    "graphical_public_live_account_login": "PASS",
+    "automatic_phishell_waybar_visible_cursor_and_clicks": "PASS before and after cold boot; no manual cursor export or session-target restart",
+    "session_browser_waybar_units": "All three individually active before and after cold boot",
+    "failed_units": "Zero in both system and user managers before and after cold boot",
+    "apps_home_start_search": "PASS",
+    "system_inspector_reality_ledger_phidream_builder": "Open/minimize/reopen/close PASS initially; all four reopened after cold boot",
+    "foot_super_alt_enter": "PASS before and after cold boot",
+    "chromium_super_space": "PASS with Ctrl+A then chromium workaround before and after cold boot",
+    "launcher_regression_overall": "PARTIAL FAIL: Super+Space reportedly inserts literal drun and requires Ctrl+A",
+    "reality_ledger_backend": "UNAVAILABLE despite working window; no validated persistent-history projection",
+    "integration_labels": {"Browsallax": "Not bundled", "PhiVessel": "Advisory only", "BrainC": "Client only"},
+    "ordinary_user_full_reader": "Exit 0 initially and after cold boot; read-only, verified-against-pins, four documents and four observations",
+    "filtered_reader": "Both runs exit 0; one observation, four checked documents and three Gear hops",
+    "filtered_repeatability": "cmp exit 0 for two outputs",
+    "installed_evidence_immutability": "Before/after hashes of all five JSON files unchanged; comparison exit 0",
+    "disposable_copy_baseline": "Exit 0",
+    "disposable_copy_prior_failure_tamper": "Exit 2; unavailable; evidence document integrity mismatch; no partial observations",
+    "disposable_copy_prior_failure_missing": "Exit 2; unavailable; public evidence file unavailable; no partial observations",
+    "disposable_copy_cleanup": "Temporary directory removed; installed originals unchanged",
+    "super_l_lock": "PASS: protected current session",
+    "wrong_password_refusal": "PASS: visible red Wrong indicator; desktop remained protected",
+    "correct_password_unlock": "PASS: same Wayfire/PhiShell session resumed; not termination followed by greeter login",
+    "acpi_shutdown": "PASS: host observed VMState=poweroff before restart",
+    "cold_start": "PASS: automatic desktop/cursor/services and reader returned; launcher workaround still required"
+  },
+  "reader_contract": {
+    "packet_sha256": "d61f0bd49de27f770e62d36871dbd335f82684c526a8631b19da6dc2b5651608",
+    "trust_states": {"owner-reported": 3, "reviewed-ci-record": 1},
+    "confidence": "null for every observation",
+    "bubble_zero": {"availability": "unavailable", "reason": "no continuity backend"},
+    "historical_packet_describes_current_boot": false,
+    "cold_boot_proves_memory_reconstruction": false,
+    "new_field_receipt_added_to_pinned_packet": false
+  },
+  "preserved_observations": [
+    {
+      "observation": "Super+Space reportedly inserts literal drun before and after cold boot",
+      "reported_workaround": "Ctrl+A, type chromium, Enter",
+      "assessment": "Keep the reported partial launcher failure. This review did not inspect the cited Wofi screenshots or directly reproduce the interaction."
+    },
+    {
+      "observation": "Reality Ledger backend UNAVAILABLE",
+      "assessment": "Window operation is not backend-health or persistent-memory qualification. The historical evidence reader does not connect this backend."
+    },
+    {
+      "observation": "Transient vmwgfx unsupported-hypervisor warning before automatic desktop recovery",
+      "reported_messages": [
+        "vmwgfx 0000:00:02.0: [drm] *ERROR* vmwgfx seems to be running on an unsupported hypervisor.",
+        "vmwgfx 0000:00:02.0: [drm] *ERROR* This configuration is likely broken.",
+        "vmwgfx 0000:00:02.0: [drm] *ERROR* Please switch to a supported graphics device to avoid problems."
+      ],
+      "assessment": "Retained reported boot messages; the reported later graphical pass does not erase this warning or qualify another GPU/hypervisor."
+    },
+    {
+      "observation": "TCP and serial export attempts failed; attached reader JSON regenerated on host",
+      "assessment": "Preserve capture origin and failure; do not claim raw guest JSON acquisition or working network/serial export."
+    }
+  ],
+  "bounded_launcher_follow_up": {
+    "reviewed_command": "wofi --show drun",
+    "upstream_reference": "https://man.archlinux.org/man/wofi.1",
+    "documented_semantics": "The default prompt is the mode name; --search separately specifies an initial search. The packaged command supplies --show but no --search.",
+    "diagnosis": "A default prompt could explain the displayed word; it does not prove why Ctrl+A was reported necessary. No failure is reclassified and no runtime command is changed by this receipt.",
+    "next_observation": "Open untouched Super+Space and type chromium without Ctrl+A, Backspace or other clearing. Capture whether drun disappears or becomes part of the query, whether Chromium is found and whether Enter launches it."
+  },
+  "prior_field_receipts": ["virtualbox-field-1c16c473.json", "virtualbox-field-9510024d.json", "virtualbox-field-0f17bac1.json"],
+  "prior_failed_attempt_receipt": "virtualbox-compatibility-attempts.json",
+  "prior_failure_and_observation_receipts_unchanged": true,
+  "scope": "Owner-local exact #288 normal live-ISO automatic desktop, launcher/session and NBG-A reader regression in the supplied separate VirtualBox VM, including actual reported lock/refusal/same-session unlock and ACPI cold cycle. Overall launcher regression remains partial fail. This review verifies attachment bytes, reproducible historical JSON and exact source/provenance binding; guest interaction remains owner-local reported evidence.",
+  "not_qualified_by_this_field_report": [
+    "Wofi search without the Ctrl+A workaround or a diagnosed launcher repair",
+    "network/serial export, Internet connectivity, audio or suspend/resume",
+    "VirtualBox installation, disk-only boot, durable new memory, Bubble Zero continuity, backup or recovery",
+    "guest systemctl shutdown permission path or Secure Boot support",
+    "governed canonical-history backend health, external app runtimes or model inference",
+    "other VirtualBox versions/configurations, physical Skytech/RTX 5070 compatibility or physical installation",
+    "actual maintainer-signed transition or source/license delivery review"
+  ],
+  "external_runtimes_installed": false,
+  "release_ready": false,
+  "publication_authority": false,
+  "physical_hardware_qualified": false,
+  "release_chain_promoted": false,
+  "merge_tag_publish_performed": false
+}
