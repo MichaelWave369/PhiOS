@@ -1,0 +1,148 @@
+{
+  "schema_version": "phios.virtualbox-field.v1",
+  "observation_date": "2026-10-01",
+  "observation_timezone": "America/Los_Angeles",
+  "evidence_origin": "Owner-supplied Markdown report and two PNG screenshots from a separate local Windows desktop Codex GPT-5.6 test; this review inspected the supplied files but did not operate or independently observe the VM.",
+  "source_report": {
+    "uploaded_filename": "PhiOS-PR286-test-report.md",
+    "sha256": "8e8f092e38bb590bb062de3dbc09ddeb5201f03ffb17e982cb919a5f9d6525da",
+    "size_bytes": 3704,
+    "report_bytes_independently_hashed_by_this_review": true,
+    "raw_guest_logs_supplied": false,
+    "command_transcripts_supplied": false,
+    "screenshots_supplied": 2,
+    "normalized_transcription": true,
+    "personal_host_paths_omitted": true
+  },
+  "candidate": {
+    "source_pr": 286,
+    "source_pr_url": "https://github.com/MichaelWave369/PhiOS/pull/286",
+    "reviewed_head": "ff05e82d80b5cfb6c1699c57e3d6e2aff0daaaf8",
+    "qualified_prospective_source": "0f17bac1ed22bb21374c5471bef32e5e099f5845",
+    "qualified_source_tree": "5a64718e021156c068771da1ebb0b27abf12cdc5",
+    "source_binding_basis": "The report's used ISO digest matches the independently reviewed normal-image provenance and qualification run for this source. The report supplies the ISO digest and extraction run identity, but not a source commit; the screenshots do not independently establish an ISO or source identity.",
+    "qualification_run": 36939975061,
+    "qualification_run_url": "https://github.com/MichaelWave369/PhiOS/actions/runs/36939975061",
+    "qualification_run_attempt": 1,
+    "qualification_run_conclusion_rechecked": "success",
+    "all_nine_original_qualification_jobs_rechecked": "success",
+    "normal_artifact_id": 11199488836,
+    "normal_artifact_url": "https://github.com/MichaelWave369/PhiOS/actions/runs/36939975061/artifacts/11199488836",
+    "normal_evidence_artifact_id": 11199553909,
+    "normal_evidence_zip_sha256": "90b423de52af7a843476345ae3c8be1a2894db6c9c578f28e925f4cdf51f0400",
+    "iso_filename": "phios-linux-0.1.0-alpha.1-x86_64.iso",
+    "iso_size_bytes_from_provenance": 1802309632,
+    "iso_expected_sha256": "8635a5f1277ca01ef7174b6e3b325e3cf9e972572070eb84d7395b9cec3dcd08",
+    "iso_observed_sha256_reported": "8635a5f1277ca01ef7174b6e3b325e3cf9e972572070eb84d7395b9cec3dcd08",
+    "iso_hash_match_before_boot_reported": true,
+    "iso_bytes_independently_hashed_by_this_review": false,
+    "used_extraction_run_attempt_reported": "36939975061-attempt-1",
+    "phishell_package_from_normal_inventory": "0.16.0-4"
+  },
+  "vm_configuration_reported": {
+    "host_context": "Windows 11 Home from the owner's preceding field observation; Windows edition/build is not independently established by this report.",
+    "hypervisor": "Oracle VirtualBox",
+    "hypervisor_version": "7.2.20r175154",
+    "hypervisor_version_independently_verified_by_this_review": false,
+    "vm_name": "PhiOS-PR286",
+    "preserved_existing_vms": ["PhiOS", "PhiOS-PR283"],
+    "guest_type": "Arch Linux (64-bit)",
+    "firmware": "EFI",
+    "secure_boot_status_supplied_by_this_report": false,
+    "ram_mb": 8192,
+    "vcpus": 4,
+    "disk": "new 64 GB VDI",
+    "graphics_controller": "VMSVGA",
+    "video_memory_mb": 128,
+    "acceleration_3d": true,
+    "network": "NAT",
+    "shared_folders": [],
+    "clipboard": "disabled",
+    "drag_and_drop": "disabled"
+  },
+  "results_reported": {
+    "graphical_greeter_and_phios_phios_login": "pass before cold boot",
+    "automatic_graphical_desktop_startup": "pass before and after cold boot",
+    "phishell": "pass before and after cold boot",
+    "waybar_populated_and_visible": "pass before and after cold boot",
+    "cursor_visible_and_functional": "pass before and after cold boot; guest pointer movement through VirtualBox absolute mouse injection reported",
+    "apps_library": "pass before and after cold boot",
+    "home": "pass before and after cold boot",
+    "start": "pass before and after cold boot",
+    "search": "pass; System Inspector before cold boot, Builder after cold boot",
+    "included_window_lifecycle": {
+      "System Inspector": "open, minimize, reopen, close passed before and after cold boot",
+      "Reality Ledger": "open, minimize, reopen, close passed before and after cold boot; backend canonical-history availability is not qualified",
+      "PhiDream / Symbol Lab": "open, minimize, reopen, close passed before and after cold boot",
+      "Builder / Build Field": "open, minimize, reopen, close passed before and after cold boot; compilation or command execution is not qualified"
+    },
+    "integration_states": {
+      "Browsallax": "Not bundled",
+      "PhiVessel": "Advisory only",
+      "BrainC": "Client only"
+    },
+    "chromium": "pass before and after cold boot using Super+Space; reported Wofi search-text workaround required",
+    "foot": "pass before and after cold boot using Super+Alt+Enter",
+    "cold_power_cycle": "pass; ACPI shutdown reached VMState=poweroff, then cold start returned to the automatic graphical desktop",
+    "system_manager_failed_units_after_cold_boot": "0 reported by systemctl --failed; no separate user-manager failed-unit output supplied",
+    "wayfire_waybar_and_phishell_chromium_processes_after_cold_boot": "active reported",
+    "crashes_blank_app_windows_or_shell_launcher_failures": "none observed in either pass according to the report",
+    "external_application_runtimes_installed": false,
+    "final_vm_state": "running in graphical live session"
+  },
+  "supplied_screenshots": [
+    {
+      "uploaded_filename": "25-cold-apps-launcher.png",
+      "sha256": "789478cdb3edb6a40a762cff880b958ea7f4800df384d99f5523c82d0994bac3",
+      "size_bytes": 413906,
+      "width_px": 1280,
+      "height_px": 800,
+      "bytes_independently_hashed_and_image_inspected": true,
+      "visual_observation": "Apps library is visible with Browsallax Not bundled, PhiVessel Advisory only and BrainC Client only; a pointer is visible at the Apps button and Waybar is present. PhiVessel says chat not connected. This still image does not demonstrate movement or window lifecycle operations."
+    },
+    {
+      "uploaded_filename": "35-final-phishell.png",
+      "sha256": "efd6964a65c4f2dcecf7cd965060f8d71524f8eb9ac70dca77e167aa77cc5018",
+      "size_bytes": 433079,
+      "width_px": 1280,
+      "height_px": 800,
+      "bytes_independently_hashed_and_image_inspected": true,
+      "visual_observation": "PhiShell, Waybar, Research Field and Reality Ledger windows are visible. Reality Ledger explicitly reports canonical history UNAVAILABLE and requests the existing governed service/read grants; PhiVessel remains advisory with chat not connected. A window-launch pass does not establish those backend services as available."
+    }
+  ],
+  "preserved_observations": [
+    {
+      "action": "Hash the owner-named ISO before boot",
+      "reported_result": "mismatch; the supplied older extraction contained ISO 376fd601f66b13dccd6a08644a7b807129f315882d355fd376d0934a80ae29aa from run 36832501182-attempt-1",
+      "subsequent_action_reported": "locate extraction 36939975061-attempt-1, verify the full expected #286 digest, and attach only the matching image to PhiOS-PR286",
+      "mismatched_iso_attached_or_booted_during_this_test_reported": false,
+      "assessment": "The required integrity check rejected the older candidate. Its bytes and prior qualification remain distinct; it is not reclassified as a failed #286 boot."
+    },
+    {
+      "action": "Super+Space on both desktop passes",
+      "reported_result": "Wofi initially displayed the literal text drun in its search field",
+      "subsequent_action_reported": "select that text and replace it with Chromium; Chromium launched successfully",
+      "assessment": "Preserved unresolved Wofi launcher quirk with a reported working search-text workaround. This review did not reproduce or diagnose it, and this evidence-only continuation does not change the launcher command."
+    }
+  ],
+  "prior_field_receipts": ["virtualbox-field-1c16c473.json", "virtualbox-field-9510024d.json"],
+  "prior_failed_attempt_receipt": "virtualbox-compatibility-attempts.json",
+  "original_app_click_observation_receipt": "app-launcher-field-observation.json",
+  "prior_failure_and_observation_receipts_unchanged": true,
+  "scope": "Owner-local #286 normal live-ISO launcher/window lifecycle, included desktop shortcuts, automatic desktop/cursor startup and cold power-cycle qualification in the supplied separate VirtualBox VM. Static screenshot contents were independently inspected; interaction results remain reported local observations.",
+  "not_qualified_by_this_field_report": [
+    "VirtualBox lock, wrong-password refusal and PAM unlock; the preceding #283 blank-screen observation remains unresolved",
+    "VirtualBox installation, disk-only boot, durable data, backup or recovery",
+    "VirtualBox guest systemctl shutdown permission path or Secure Boot support",
+    "audio playback/capture, network connectivity or suspend/resume",
+    "governed canonical-history backend availability, external application runtimes or model inference",
+    "other VirtualBox versions or graphics configurations",
+    "physical Skytech/RTX 5070 compatibility or physical installation",
+    "actual maintainer-signed transition or source/license delivery review"
+  ],
+  "release_ready": false,
+  "publication_authority": false,
+  "physical_hardware_qualified": false,
+  "release_chain_promoted": false,
+  "merge_tag_publish_performed": false
+}

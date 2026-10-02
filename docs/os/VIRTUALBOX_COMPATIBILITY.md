@@ -209,6 +209,74 @@ the compositor is not a successful unlock. Record the exact VirtualBox version
 and retain relevant screenshots/logs separately. This check requires no new
 runtime, sudo policy or global cursor changes.
 
+## Launcher field retest on #286
+
+On 2026-10-01 the owner supplied `PhiOS-PR286-test-report.md` from local Windows
+Codex GPT-5.6 and two PNG screenshots. This review hashed all three supplied
+files, inspected the images and checked the reported used ISO against retained
+normal provenance, the exact source tree and the successful original run. It
+did not operate the VM or independently hash the Windows ISO. Interaction,
+shutdown and service results remain the local tester's reported observations.
+The normalized receipt is
+[virtualbox-field-0f17bac1.json](evidence/virtualbox-field-0f17bac1.json).
+
+| Identity | Value |
+| --- | --- |
+| Reviewed code PR/head | [286](https://github.com/MichaelWave369/PhiOS/pull/286), `ff05e82d80b5cfb6c1699c57e3d6e2aff0daaaf8` |
+| Qualified prospective source | `0f17bac1ed22bb21374c5471bef32e5e099f5845` |
+| Identical source tree | `5a64718e021156c068771da1ebb0b27abf12cdc5` |
+| Normal ISO SHA-256 | `8635a5f1277ca01ef7174b6e3b325e3cf9e972572070eb84d7395b9cec3dcd08` |
+| Original qualification | [36939975061](https://github.com/MichaelWave369/PhiOS/actions/runs/36939975061), attempt 1, all nine jobs successful |
+| Report SHA-256 / bytes | `8e8f092e38bb590bb062de3dbc09ddeb5201f03ffb17e982cb919a5f9d6525da` / 3,704 |
+| Supplied hypervisor version | Oracle VirtualBox `7.2.20r175154` |
+
+The local tester created a separate `PhiOS-PR286` VM and preserved `PhiOS` and
+`PhiOS-PR283`: Arch Linux 64-bit, EFI, 8192 MB RAM, four CPUs, new 64 GB VDI,
+VMSVGA/128 MB/3D enabled, NAT, no shared folders, and clipboard/drag-and-drop
+disabled. This report does not independently establish host Windows build or
+Secure Boot state. No external application runtime was installed.
+
+| Check | Reported result |
+| --- | --- |
+| ISO integrity before boot | Full expected digest matched in extraction `36939975061-attempt-1` |
+| Graphical greeter / public live-account login | PASS before cold boot |
+| Automatic desktop, PhiShell, Waybar, visible movable cursor | PASS before and after cold boot |
+| Apps, Home, Start, search | PASS before and after cold boot; search exercised System Inspector, then Builder |
+| System Inspector, Reality Ledger, ΦDream, Builder | Open/minimize/reopen/close PASS for each before and after cold boot |
+| Integration labels | Browsallax `Not bundled`, PhiVessel `Advisory only`, BrainC `Client only` |
+| Chromium / Foot shortcuts | PASS before and after cold boot; Chromium needed the Wofi search-text workaround below |
+| Complete shutdown / cold start | ACPI reached `VMState=poweroff`, then returned to automatic graphical desktop |
+| Failed units after cold boot | `systemctl --failed` reported zero; no separate user-manager output supplied |
+
+`25-cold-apps-launcher.png` shows the Apps library, integration labels, a visible
+pointer and Waybar. `35-final-phishell.png` shows PhiShell, Research Field and
+Reality Ledger; the ledger explicitly reports canonical history **UNAVAILABLE**.
+PhiVessel says chat is not connected. These static images support the visible
+UI states, not a click transcript, backend-health result or model-inference test.
+Their complete hashes, sizes and dimensions are in the receipt; image bytes are
+not copied into the public repository.
+
+Two observations remain intact:
+
+1. The owner-named extraction still contained the older ISO with digest
+   `376fd601...`. It failed the expected #286 hash check and was not attached or
+   booted in this test. The matching image was found in the separate run
+   `36939975061-attempt-1` extraction and verified before boot. An identical
+   filename does not establish candidate identity.
+2. On both Super+Space uses, Wofi initially displayed literal `drun` in its search
+   field. Selecting that text and replacing it with `Chromium` successfully
+   launched the browser. This is an unresolved reported launcher quirk; this
+   review does not diagnose it or change its command in an evidence-only PR.
+
+This closes the fresh #286 VirtualBox launcher/window interaction test within
+the reported VM configuration. It supplies no new VirtualBox lock/refusal/PAM
+unlock result; the earlier #283 blank-screen observation remains unresolved.
+Installation/recovery, network/audio/suspend, external runtimes/backend health,
+physical Skytech/RTX 5070, actual signing and source/license delivery remain
+separate. The qualified source/ISO and all earlier failure receipts remain
+unchanged. This documentation continuation qualifies no replacement image and
+does not authorize merge, tag or publication.
+
 Detection references: [systemd virtualization identifiers](https://github.com/systemd/systemd/blob/main/src/basic/virt.c),
 [Oracle VMSVGA PCI definitions](https://github.com/VirtualBox/virtualbox/blob/main/src/VBox/Devices/Graphics/DevVGA-SVGA.h),
 [systemd PartOf lifecycle semantics](https://www.freedesktop.org/software/systemd/man/systemd.unit.html),

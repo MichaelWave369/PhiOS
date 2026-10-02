@@ -9,7 +9,63 @@ hardware, the final signed transition and distribution delivery remain open.
 This is not a supported beta or OS 1.0. Nothing has been merged or published by
 this handoff; no private PhiKernel/TIEKAT implementation is needed to boot it.
 
-## Exact qualified compatibility candidate
+## Exact qualified launcher candidate and local field result
+
+| Identity | Value |
+| --- | --- |
+| Reviewed code PR/head | [286](https://github.com/MichaelWave369/PhiOS/pull/286), `ff05e82d80b5cfb6c1699c57e3d6e2aff0daaaf8` |
+| Tested prospective merge source | `0f17bac1ed22bb21374c5471bef32e5e099f5845` |
+| Identical source tree | `5a64718e021156c068771da1ebb0b27abf12cdc5` |
+| Normal ISO SHA-256 / bytes | `8635a5f1277ca01ef7174b6e3b325e3cf9e972572070eb84d7395b9cec3dcd08` / 1,802,309,632 |
+| Exact-source qualification | [36939975061](https://github.com/MichaelWave369/PhiOS/actions/runs/36939975061), attempt 1 |
+| Download normal ISO and payloads | [11199488836](https://github.com/MichaelWave369/PhiOS/actions/runs/36939975061/artifacts/11199488836) |
+| Normal compact evidence | [11199553909](https://github.com/MichaelWave369/PhiOS/actions/runs/36939975061/artifacts/11199553909), ZIP SHA-256 `90b423de52af7a843476345ae3c8be1a2894db6c9c578f28e925f4cdf51f0400` |
+| Separate QA ISO SHA-256 | `13860c836c931daad4bc2c7575e4ba66c100004798cc420a670ea298e27b33a2` |
+| Separate QA compact evidence | [11200063827](https://github.com/MichaelWave369/PhiOS/actions/runs/36939975061/artifacts/11200063827), ZIP SHA-256 `5b2595ab1e9438c63834e1ad3ee086ce1f705a3e6086ab562916593869343767` |
+| Owner-local report and screenshot receipt | [virtualbox-field-0f17bac1.json](evidence/virtualbox-field-0f17bac1.json) |
+
+These unpublished unsigned review artifacts expire **2026-10-08**. The launcher
+repair opens/restores/focuses existing tool windows and explains missing
+integrations without adding process-launch authority or installing runtimes.
+The OS remains experimental `0.1.0-alpha.1`; PhiShell remains `0.16.0` with Arch
+package revision 4. Full availability is described in
+[APP_AVAILABILITY.md](APP_AVAILABILITY.md).
+
+All nine original qualification jobs passed: 2,358 Python tests with six
+existing optional skips, Ruff/mypy, wheel/vector/ledger checks, and 91 frontend
+plus 106 host tests. The normal ISO repeated two real live PAM desktop boots,
+two active-session rebinding checks, lock/refusal/unlock and logout/login, then
+three disk-only installed/data/proof/recovery boots. The separate QA ISO passed
+its ephemeral test-signed package/refusal/interruption/recovery scope. Both
+compact ZIP digests and their retained available file/checksum/provenance
+records were independently reviewed. Large ISO/package/source/notice payloads
+were not downloaded again here; their hashes remain producer observations.
+
+On 2026-10-01 the owner supplied a local GPT-5.6 report for separate VM
+`PhiOS-PR286`, with VirtualBox `7.2.20r175154`. The reported before-boot ISO hash
+matches this exact normal provenance. Automatic desktop/Waybar/cursor startup,
+Apps/Home/Start/search, System Inspector/Reality Ledger/ΦDream/Builder window
+lifecycles and Chromium/Foot shortcuts passed before and after a full ACPI
+shutdown/cold start. Existing VMs were preserved. This review hashed the report
+and two screenshots and inspected their visible states; it did not operate the
+owner's VM or independently hash its Windows ISO. Interaction results remain
+the local tester's reported evidence.
+
+The supplied older extraction failed the #286 hash check and was not booted;
+the matching image was located under `36939975061-attempt-1`. Wofi required
+replacing literal `drun` with `Chromium` on both launcher uses. These observations
+are preserved. Reality Ledger opened, while the screenshot honestly reports its
+canonical-history backend as unavailable. External runtimes/model inference,
+VirtualBox lock/refusal/unlock, installation/recovery, physical Skytech/RTX 5070,
+actual maintainer signing and source/license delivery remain separate. The
+earlier #283 blank lock-screen observation is unresolved.
+
+This evidence-only continuation is a different source identity and qualifies
+no replacement ISO. It preserves #286, #283 and all earlier qualification/failure
+receipts. The aggregate receipts retain `publication_authority=false` and
+`release_ready=false`; no merge, tag or publication is authorized by this report.
+
+## Preceding qualified compatibility candidate (identity retained)
 
 | Identity | Value |
 | --- | --- |
@@ -91,6 +147,8 @@ Review the component PRs in dependency order after assessing each boundary:
 | [281](https://github.com/MichaelWave369/PhiOS/pull/281) | Offline exact component source/notice delivery records and packet verification, stacked on integration #280 |
 | [282](https://github.com/MichaelWave369/PhiOS/pull/282) | Documentation-only source-delivery qualification and original hardware handoff |
 | [283](https://github.com/MichaelWave369/PhiOS/pull/283) | Scoped VirtualBox/VMSVGA cursor behavior and active Wayland service rebinding, independently qualified after #282 |
+| [285](https://github.com/MichaelWave369/PhiOS/pull/285) | Evidence-only #283 automatic-startup/cold-cycle field report, preserving lock/shutdown/Secure Boot observations |
+| [286](https://github.com/MichaelWave369/PhiOS/pull/286) | Bounded Home/Start/search/Apps callbacks and honest integration status, separately qualified after #285 |
 
 Use the complete main-targeted integration PR as the merge vehicle after its
 own exact-source qualification passes. It contains the candidate and aggregate
@@ -99,7 +157,7 @@ integration. The component PRs above remain focused review references. Requiring
 `release-gate` on the earlier component heads would leave them pending because
 they predate that controller. Keep every merge and release under maintainer review.
 
-The latest code continuation's aggregate gate passed all nine jobs in
+The preceding #283 code continuation's aggregate gate passed all nine jobs in
 [run 36916494462](https://github.com/MichaelWave369/PhiOS/actions/runs/36916494462)
 for source `9510024d06d822729bd98579fefb6644ca0498c0`, with 2,358 Python tests
 passed and six existing optional skips. The normal ISO passed two live boots,

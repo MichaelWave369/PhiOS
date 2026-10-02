@@ -25,6 +25,12 @@ apps continue through the desktop shortcuts below.
 | Logout | From the ordinary desktop terminal, `loginctl terminate-session "$XDG_SESSION_ID"`; the supervised session target stops |
 | Restart / shutdown | `systemctl reboot` / `systemctl poweroff`, under ordinary logind/PolicyKit permission |
 
+The #286 owner-local VirtualBox report records successful Chromium launch with
+Super+Space and Foot launch with Super+Alt+Enter before and after a cold boot.
+Wofi initially displayed literal `drun` in its search field on both passes;
+selecting and replacing that text with `Chromium` worked. This unresolved quirk
+is preserved in [VIRTUALBOX_COMPATIBILITY.md](VIRTUALBOX_COMPATIBILITY.md).
+
 `phios-lock` runs the packaged swaylock under the current non-root Wayfire
 session. Wayfire's session-lock plugin supplies the protocol; swaylock waits for
 the compositor's locked acknowledgement before its daemonizing caller returns.
@@ -100,6 +106,14 @@ exports or target restarts. Its blank Super+L screen remains an unresolved
 VirtualBox observation; the subsequent greeter login after session termination
 does not test wrong-password refusal or unlock. See VIRTUALBOX_COMPATIBILITY.md
 for the retained report digest, exact identities and bounded remaining lock test.
+
+The separate #286 field report adds successful Home/Start/search/Apps navigation
+and System Inspector, Reality Ledger, ΦDream and Builder window lifecycle checks
+before and after a cold boot on ISO `8635a5f1...`, under VirtualBox
+`7.2.20r175154`. The supplied screenshots show integration status and an
+unavailable canonical-history backend; window operation does not qualify
+external runtimes or backend health. This report supplies no new lock/refusal/
+unlock result, so the earlier VirtualBox lock observation remains unresolved.
 
 The new exact normal live gate attaches only a restricted QEMU user-network
 Ethernet device on the documentation range `192.0.2.0/24`, without port forwarding,

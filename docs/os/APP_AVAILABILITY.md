@@ -47,6 +47,11 @@ initial overlapping windows do not hide the entry point.
 - **Lock:** Super+L; enter the account password to unlock. The separate
   VirtualBox wrong-password/unlock test remains pending.
 
+The owner-local #286 test reported that Wofi initially put literal `drun` in the
+search field on both passes. Selecting that text and replacing it with
+`Chromium` successfully opened the browser. This workaround and unresolved
+launcher quirk are retained in the field receipt below.
+
 Approved external app desktop entries continue through the existing governed
 desktop-launch path. `phi-app catalog-desktop-apps` in Foot inspects the catalog;
 it does not install an app or grant launch permissions. Empty discovery is not
@@ -62,6 +67,17 @@ The OS release remains `0.1.0-alpha.1` experimental. Full external app integrati
 needs its own exact source/artifact selection, runtime contract and qualification.
 
 The qualified #283 source/ISO and #285 field report remain historical evidence.
-Changed frontend/package bytes require their own normal/QA image qualification
-and a fresh VirtualBox click test. This correction does not qualify the physical
-Skytech/RTX 5070 machine or authorize merging, tagging or publishing.
+The changed #286 source passed its complete normal/QA qualification in
+[run 36939975061](https://github.com/MichaelWave369/PhiOS/actions/runs/36939975061).
+The owner then supplied a local GPT-5.6 report and two screenshots for the exact
+normal ISO. Home, Start, search, Apps and the four included tools' window
+lifecycles passed before and after a cold boot in `PhiOS-PR286`; Chromium and
+Foot also opened through their documented shortcuts. See
+[virtualbox-field-0f17bac1.json](evidence/virtualbox-field-0f17bac1.json) and
+[VIRTUALBOX_COMPATIBILITY.md](VIRTUALBOX_COMPATIBILITY.md) for the full binding,
+reported scope, screenshot digests and preserved observations.
+Reality Ledger's window opened, while the final screenshot explicitly shows
+its governed canonical-history backend as unavailable. The test did not install
+external runtimes or prove chat/model inference. This documentation continuation
+does not qualify a replacement ISO, the physical Skytech/RTX 5070 machine or
+authorize merging, tagging or publishing.
