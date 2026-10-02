@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 import os
 import shlex
+import shutil
 import socket
 import struct
 import subprocess
@@ -107,6 +108,32 @@ def session_rebind(source: str) -> dict:
 def desktop_services(source: str, *, wired: bool = False) -> dict:
     assert os.getuid() == 1000 and os.geteuid() == 1000
     assert Path('/usr/share/phios/source-commit').read_text().strip() == source
+    # Execute the installed offline provider as the ordinary live/installed user.
+    # Its packet describes historical evidence, never this boot's qualification.
+    nbga = json.loads(subprocess.check_output(
+        ['python', '-I', '-m', 'phios.adapters.nbga_observation'], text=True, timeout=10))
+    assert nbga['provider_mode'] == 'read-only' and nbga['evidence_integrity'] == 'verified-against-pins'
+    assert len(nbga['checked_documents']) == len(nbga['observations']) == 4
+    assert nbga['observations'][-1]['trust_state'] == 'owner-reported'
+    assert nbga['observations'][-1]['confidence'] is None
+    assert nbga['bubble_zero']['availability'] == 'unavailable'
+    assert nbga['release_ready'] is False and nbga['publication_authority'] is False
+    with tempfile.TemporaryDirectory(prefix='phios-nbga-probe-') as temporary:
+        evidence = Path(temporary)
+        packaged = Path('/usr/share/phios/nbga')
+        for filename in ['nbga-virtualbox-observations.json'] + [item['filename'] for item in nbga['checked_documents']]:
+            shutil.copyfile(packaged / filename, evidence / filename)
+        failed_record = evidence / 'virtualbox-compatibility-attempts.json'
+        content = failed_record.read_bytes()
+        failed_record.write_bytes(b'[' + content[1:])
+        refused = subprocess.run(['python', '-I', '-m', 'phios.adapters.nbga_observation',
+            '--evidence-root', str(evidence), '--bubble-id', 'bubble:phios:virtualbox:launcher-0f17bac1'],
+            capture_output=True, text=True, timeout=10)
+        refusal = json.loads(refused.stdout)
+        assert refused.returncode == 2 and refused.stderr == ''
+        assert refusal['availability'] == 'unavailable' and 'observations' not in refusal
+        assert refusal['reason'] == 'evidence document integrity mismatch'
+        assert refusal['publication_authority'] is False
     units = ['phios-audio.target', 'pipewire.service', 'pipewire-pulse.service', 'wireplumber.service', 'phios-policykit.service']
     for _ in range(60):
         active = all(subprocess.run(['systemctl', '--user', 'is-active', '--quiet', unit]).returncode == 0
@@ -143,7 +170,11 @@ def desktop_services(source: str, *, wired: bool = False) -> dict:
         subprocess.run(['pw-play', '--target', str(sinks[0]['id']), str(path)], check=True, timeout=30)
     for unit in ['NetworkManager.service', 'systemd-resolved.service']:
         subprocess.run(['systemctl', 'is-active', '--quiet', unit], check=True)
-    observed = {'source_commit': source, 'uid': os.getuid(), 'user_audio_services': True, 'nonroot_graphical_policykit_agent': True,
+    observed = {'source_commit': source, 'uid': os.getuid(),
+                'nbga_public_packet_sha256': nbga['packet_sha256'], 'nbga_checked_document_count': 4,
+                'nbga_readonly_observation_passed': True, 'nbga_continuity_backend_available': False,
+                'nbga_prior_failure_tamper_refused': True,
+                'user_audio_services': True, 'nonroot_graphical_policykit_agent': True,
                 'emulated_alsa_device_observed': True, 'virtual_pcm_playback_completed': True,
                 'host_audio_attached': False, 'wired_dhcp_observed': False,
                 'wifi_radio_qualified': False, 'physical_audio_qualified': False, 'release_ready': False}

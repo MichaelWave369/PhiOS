@@ -44,6 +44,11 @@ initial overlapping windows do not hide the entry point.
   inference quality.
 - **Network settings:** Super+N.
 - **SOMA/Spine tools:** in Foot, run `phi-spine --help`.
+- **Experimental NBG-A evidence reader:** in a candidate containing the provider,
+  run `python -m phios.adapters.nbga_observation` in Foot. It reads pinned public
+  qualification documents; it does not connect the unavailable ledger backend
+  or implement persistent memory. See
+  [NBGA_OBSERVATION_PROVIDER_V0.1.md](../NBGA_OBSERVATION_PROVIDER_V0.1.md).
 - **Lock:** Super+L; enter the account password to unlock. The separate
   VirtualBox wrong-password/unlock test remains pending.
 
