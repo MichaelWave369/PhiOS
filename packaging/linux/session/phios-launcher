@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Keep the Wofi mode separate from the visible prompt.  Earlier field tests saw
+# the default mode name ("drun") and treated it as seeded search text.
+# Deliberately do not pass --search here: an untouched launcher must begin with
+# no application query.
+exec wofi --show drun --prompt Applications
