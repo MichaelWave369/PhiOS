@@ -226,6 +226,7 @@ def _request(tmp_path: Path) -> ToolchainRuntimeRequest:
         approved_attestation_sha256=attestation.sha256(),
         approved_source_snapshot_sha256=plan.source_snapshot_sha256,
         approved_build_permissions=plan.requested_build_permissions,
+        execution_approval_id="33333333-3333-3333-3333-333333333333",
     )
 
 
@@ -371,6 +372,7 @@ def test_dependency_staging_plan_cannot_cross_runtime_boundary(tmp_path: Path) -
             approved_attestation_sha256=attestation.sha256(),
             approved_source_snapshot_sha256=plan.source_snapshot_sha256,
             approved_build_permissions=plan.requested_build_permissions,
+            execution_approval_id="44444444-4444-4444-4444-444444444444",
         )
 
 
@@ -432,4 +434,21 @@ def test_control_evidence_fails_closed_on_authority_smuggling(tmp_path: Path) ->
             capabilities_dropped=True,
             no_new_privileges=True,
             shell_invocation=False,
+        )
+
+
+def test_execution_approval_cannot_be_replayed(tmp_path: Path) -> None:
+    request = _request(tmp_path)
+    service = ToolchainRuntimeService(runner=FakeOciRunner(request))
+
+    first = service.execute(
+        request,
+        execution_root=tmp_path / "executions",
+    )
+    assert first.runtime.execution_approval_consumed is True
+
+    with pytest.raises(ValueError, match="already been consumed"):
+        service.execute(
+            request,
+            execution_root=tmp_path / "executions",
         )
