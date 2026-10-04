@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import re
 import stat
 import uuid
@@ -312,6 +313,7 @@ class ToolchainRuntimeRequest:
     approved_attestation_sha256: str
     approved_source_snapshot_sha256: str
     approved_build_permissions: tuple[str, ...]
+    execution_approval_id: str
     execution_scope: str = "single_toolchain_build"
     schema_version: str = TOOLCHAIN_RUNTIME_REQUEST_SCHEMA_VERSION
 
@@ -322,6 +324,12 @@ class ToolchainRuntimeRequest:
             )
         if self.execution_scope != "single_toolchain_build":
             raise ValueError("v0.54 supports only single_toolchain_build execution scope")
+        try:
+            parsed_approval_id = uuid.UUID(self.execution_approval_id)
+        except (ValueError, AttributeError) as exc:
+            raise ValueError("execution_approval_id must be a UUID") from exc
+        if str(parsed_approval_id) != self.execution_approval_id:
+            raise ValueError("execution_approval_id must use canonical lowercase UUID syntax")
         if self.sandbox_plan.status != "ready_for_runtime_adapter_review":
             raise ValueError(
                 "toolchain runtime execution requires ready_for_runtime_adapter_review"
@@ -425,6 +433,8 @@ class ToolchainRuntimeReceipt:
     controls: OciRuntimeControlEvidence
     build_execution_receipt_sha256: str
     build_status: str
+    execution_approval_id: str
+    execution_approval_claim_sha256: str
     execution_scope: str = "single_toolchain_build"
     execution_approval_consumed: bool = True
     reusable_execution_authority: bool = False
@@ -463,8 +473,18 @@ class ToolchainRuntimeReceipt:
                 self.build_execution_receipt_sha256,
                 "build_execution_receipt_sha256",
             ),
+            (
+                self.execution_approval_claim_sha256,
+                "execution_approval_claim_sha256",
+            ),
         ):
             _sha256(value, label)
+        try:
+            parsed_approval_id = uuid.UUID(self.execution_approval_id)
+        except (ValueError, AttributeError) as exc:
+            raise ValueError("execution_approval_id must be a UUID") from exc
+        if str(parsed_approval_id) != self.execution_approval_id:
+            raise ValueError("execution_approval_id must use canonical lowercase UUID syntax")
         if self.execution_scope != "single_toolchain_build":
             raise ValueError("unsupported runtime receipt execution_scope")
         _true(self.execution_approval_consumed, "execution_approval_consumed")
@@ -499,6 +519,8 @@ class ToolchainRuntimeReceipt:
             "controls": self.controls.to_dict(),
             "build_execution_receipt_sha256": self.build_execution_receipt_sha256,
             "build_status": self.build_status,
+            "execution_approval_id": self.execution_approval_id,
+            "execution_approval_claim_sha256": self.execution_approval_claim_sha256,
             "execution_scope": self.execution_scope,
             "execution_approval_consumed": True,
             "reusable_execution_authority": False,
@@ -543,6 +565,8 @@ class ToolchainRuntimeReceipt:
             "controls",
             "build_execution_receipt_sha256",
             "build_status",
+            "execution_approval_id",
+            "execution_approval_claim_sha256",
             "execution_scope",
             "execution_approval_consumed",
             "reusable_execution_authority",
@@ -598,6 +622,13 @@ class ToolchainRuntimeReceipt:
                 "build_execution_receipt_sha256",
             ),
             build_status=_string(data["build_status"], "build_status", maximum=32),
+            execution_approval_id=_string(
+                data["execution_approval_id"], "execution_approval_id", maximum=36
+            ),
+            execution_approval_claim_sha256=_sha256(
+                data["execution_approval_claim_sha256"],
+                "execution_approval_claim_sha256",
+            ),
             execution_scope=_string(
                 data["execution_scope"], "execution_scope", maximum=64
             ),
@@ -626,6 +657,53 @@ class ToolchainRuntimeExecutionResult:
     runtime: ToolchainRuntimeReceipt
     runtime_receipt_path: str | None
     runtime_receipt_persisted: bool
+
+
+def _consume_execution_approval(
+    authority_root: Path,
+    request: ToolchainRuntimeRequest,
+) -> str:
+    root = authority_root.expanduser().resolve()
+    claim_root = (root / "toolchain-runtime").resolve()
+    if root not in claim_root.parents:
+        raise ValueError("execution approval claim root escaped authority root")
+    claim_root.mkdir(parents=True, exist_ok=True)
+
+    claim_path = (claim_root / f"{request.execution_approval_id}.json").resolve()
+    if claim_root not in claim_path.parents:
+        raise ValueError("execution approval claim path escaped authority root")
+
+    body = {
+        "schema_version": "phios.toolchain_execution_claim.v0.1",
+        "execution_approval_id": request.execution_approval_id,
+        "execution_scope": request.execution_scope,
+        "sandbox_plan_sha256": request.sandbox_plan.sha256(),
+        "attestation_sha256": request.attestation.sha256(),
+        "capsule_sha256": request.capsule.sha256(),
+        "source_snapshot_sha256": request.build_plan.source_snapshot_sha256,
+    }
+    canonical = json.dumps(
+        body,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+    )
+    claim_sha256 = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+    payload = json.dumps(
+        {**body, "claim_sha256": claim_sha256},
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+    )
+
+    try:
+        with claim_path.open("x", encoding="utf-8") as stream:
+            stream.write(payload + "\n")
+            stream.flush()
+            os.fsync(stream.fileno())
+    except FileExistsError as exc:
+        raise ValueError("execution approval has already been consumed") from exc
+    return claim_sha256
 
 
 def _write_receipt(path: Path, receipt: ToolchainRuntimeReceipt) -> None:
@@ -669,6 +747,7 @@ class ToolchainRuntimeService:
             approved_attestation_sha256=request.approved_attestation_sha256,
             approved_source_snapshot_sha256=request.approved_source_snapshot_sha256,
             approved_build_permissions=request.approved_build_permissions,
+            execution_approval_id=request.execution_approval_id,
             execution_scope=request.execution_scope,
         )
 
@@ -691,6 +770,9 @@ class ToolchainRuntimeService:
             expected_sha256=request.capsule.artifact_sha256,
             expected_bytes=request.capsule_acquisition.artifact_bytes,
         )
+
+        authority_root = execution_root.expanduser().resolve() / ".phios-authority"
+        approval_claim_sha256 = _consume_execution_approval(authority_root, request)
 
         runtime_identity = self.runner.preflight()
         controls = self.runner.control_evidence()
@@ -770,6 +852,8 @@ class ToolchainRuntimeService:
             controls=controls,
             build_execution_receipt_sha256=execution.sha256(),
             build_status=execution.status,
+            execution_approval_id=request.execution_approval_id,
+            execution_approval_claim_sha256=approval_claim_sha256,
         )
 
         root = execution_root.expanduser().resolve()
