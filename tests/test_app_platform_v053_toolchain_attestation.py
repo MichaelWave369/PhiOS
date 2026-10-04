@@ -126,7 +126,9 @@ def _capsule() -> ToolchainCapsule:
     )
 
 
-def _acquisition(\n    plan: BuildPlan, capsule: ToolchainCapsule, tmp_path: Path\n) -> CapsuleAcquisitionReceipt:
+def _acquisition(
+    plan: BuildPlan, capsule: ToolchainCapsule, tmp_path: Path
+) -> CapsuleAcquisitionReceipt:
     requirement = derive_toolchain_requirement(plan)
     binding = bind_toolchain_capsule(requirement, capsule)
     return CapsuleAcquisitionReceipt(
