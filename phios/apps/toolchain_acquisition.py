@@ -3,7 +3,6 @@ from __future__ import annotations
 import hashlib
 import json
 import os
-import shutil
 import stat
 import uuid
 from dataclasses import dataclass
@@ -449,7 +448,7 @@ class CapsuleAcquisitionService:
                 raise ValueError(
                     "capsule provider source ref does not match the reviewed artifact ref"
                 )
-            source = provided.path.expanduser().resolve(strict=False)
+            source = provided.path.expanduser().absolute()
             artifact_bytes = _copy_verified(
                 source,
                 destination,
