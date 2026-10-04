@@ -1,6 +1,6 @@
 pkgname=phishell
 pkgver=0.16.0
-pkgrel=4
+pkgrel=5
 pkgdesc='PhiShell browser interface and local observation transport'
 arch=('any')
 url='https://github.com/MichaelWave369/PhiOS'
@@ -27,6 +27,7 @@ package() {
     install -Dm644 LICENSE "$pkgdir/usr/share/licenses/phishell/LICENSE"
     install -Dm755 packaging/linux/session/phios-session "$pkgdir/usr/bin/phios-session"
     install -Dm755 packaging/linux/session/phios-open-shell "$pkgdir/usr/bin/phios-open-shell"
+    install -Dm755 packaging/linux/session/phios-launcher "$pkgdir/usr/bin/phios-launcher"
     install -Dm755 packaging/linux/session/phios-lock "$pkgdir/usr/bin/phios-lock"
     install -Dm755 packaging/linux/session/phios-session-ready "$pkgdir/usr/lib/phishell/session-ready"
     install -Dm644 packaging/linux/session/virtualbox-compat.sh "$pkgdir/usr/lib/phishell/virtualbox-compat.sh"
