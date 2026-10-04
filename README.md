@@ -53,7 +53,7 @@ identity does not inherit old authority merely because continuity was demonstrat
 |---|---:|---|
 | **Shell / MCP** | active | operator interface, workflows, resources, prompts, capability surfaces |
 | **Spine** | **v0.24** | authority-aware observation, verification, evidence, and receipts |
-| **App Platform** | **v0.50** | governed intake, build, install, launch, update, rollback, cleanup, and release lineage |
+| **App Platform** | **v0.51** | governed intake, toolchain matching, build, install, launch, update, rollback, cleanup, and release lineage |
 | **PhiReflex** | **v0.10** | provider-neutral fast advisory layer with authenticated bounded routing influence |
 | **Governed Memory** | active | canonical local memory, derived semantic index, read admissibility, temporal horizon |
 | **Reality Ledger** | active | append-only evidence plus bounded read-only analytics |
@@ -172,10 +172,10 @@ unless the broader claim is separately observed and verified.
 Current contract:
 [Spine v0.24 numeric-transition verification](docs/PHIOS_SPINE_V0.24_NUMERIC_TRANSITION_CONTRACT.md).
 
-### App Platform v0.50
+### App Platform v0.51
 
 The App Platform provides a governed lifecycle from public source intake through
-exact-commit acquisition, reviewed build planning, Linux sandboxing, dependency staging,
+exact-commit acquisition, reviewed build planning, digest-bound toolchain capsule matching, Linux sandboxing, dependency staging,
 offline build, artifact installation, visible/persistent launch, app cataloging,
 side-by-side update, separately authorized rollback, cleanup recovery, release discovery,
 human review, execution lineage, package lineage, and release-install proposal gating.
@@ -194,7 +194,9 @@ update            != rollback authority
 ```
 
 Current contract:
-[App Platform v0.50 release-install proposal gate](docs/PHIOS_APP_PLATFORM_V0.50_RELEASE_INSTALL_PROPOSAL_GATE.md).
+[App Platform v0.51 toolchain capsules](docs/PHIOS_APP_PLATFORM_V0.51_TOOLCHAIN_CAPSULES.md).
+
+v0.51 is additive: capsule compatibility is review evidence only and does not grant execution, network, install, or host-write authority.
 
 ### PhiReflex v0.10
 
