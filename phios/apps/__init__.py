@@ -281,6 +281,16 @@ from .static_web import (
     plan_static_web_adapter,
     review_static_web_adapter,
 )
+from .toolchain_acquisition import (
+    CAPSULE_ACQUISITION_RECEIPT_SCHEMA_VERSION,
+    CAPSULE_ACQUISITION_REQUEST_SCHEMA_VERSION,
+    CapsuleAcquisitionReceipt,
+    CapsuleAcquisitionRequest,
+    CapsuleAcquisitionService,
+    CapsuleArtifactProvider,
+    LocalCapsuleArtifactProvider,
+    ProvidedCapsuleArtifact,
+)
 from .toolchain_capsule import (
     TOOLCHAIN_BINDING_SCHEMA_VERSION,
     TOOLCHAIN_CAPSULE_SCHEMA_VERSION,
@@ -374,6 +384,8 @@ __all__ = [
     "STATIC_WEB_ADAPTER_PLAN_SCHEMA_VERSION",
     "STATIC_WEB_ADAPTER_REVIEW_SCHEMA_VERSION",
     "STATIC_WEB_SERVE_RECEIPT_SCHEMA_VERSION",
+    "CAPSULE_ACQUISITION_RECEIPT_SCHEMA_VERSION",
+    "CAPSULE_ACQUISITION_REQUEST_SCHEMA_VERSION",
     "TOOLCHAIN_BINDING_SCHEMA_VERSION",
     "TOOLCHAIN_CAPSULE_SCHEMA_VERSION",
     "TOOLCHAIN_REQUIREMENT_SCHEMA_VERSION",
@@ -522,6 +534,12 @@ __all__ = [
     "StaticWebServeRequest",
     "StaticWebServeResult",
     "SuccessfulBuildBinding",
+    "CapsuleAcquisitionReceipt",
+    "CapsuleAcquisitionRequest",
+    "CapsuleAcquisitionService",
+    "CapsuleArtifactProvider",
+    "LocalCapsuleArtifactProvider",
+    "ProvidedCapsuleArtifact",
     "ToolchainBinding",
     "ToolchainCapsule",
     "ToolchainFamily",
