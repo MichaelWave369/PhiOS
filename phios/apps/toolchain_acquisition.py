@@ -106,7 +106,9 @@ class LocalCapsuleArtifactProvider:
         try:
             path = self._artifacts[capsule.artifact_ref]
         except KeyError as exc:
-            raise ValueError(\n                "no local capsule artifact is mapped for the reviewed artifact ref"\n            ) from exc
+            raise ValueError(
+                "no local capsule artifact is mapped for the reviewed artifact ref"
+            ) from exc
         return ProvidedCapsuleArtifact(path=path, source_ref=capsule.artifact_ref)
 
 
