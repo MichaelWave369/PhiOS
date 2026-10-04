@@ -30,7 +30,8 @@ adapter.
 
 The central rule is:
 
-> An exact execution approval is consumed by one toolchain build attempt. The resulting receipt is not reusable execution authority.
+> An exact execution approval is consumed by one toolchain build attempt.
+> The resulting receipt is not reusable execution authority.
 
 ## Runtime request
 
@@ -46,6 +47,7 @@ A v0.54 runtime request binds:
 - approval of the exact attestation SHA-256;
 - approval of the exact source-snapshot SHA-256;
 - exact reviewed build permissions;
+- one canonical operator-supplied `execution_approval_id` UUID;
 - `execution_scope = single_toolchain_build`.
 
 Construction reconstructs the v0.53 attestation and sandbox plan from the earlier
@@ -58,6 +60,10 @@ ready_for_runtime_adapter_review
 ```
 
 and every build step is already network-free.
+
+Immediately before runtime preflight, PhiOS atomically consumes the
+`execution_approval_id` in the configured execution authority store. Reusing the same
+approval ID is refused. A new attempt therefore requires a new explicit approval ID.
 
 A `dependency_staging_required` plan cannot cross the v0.54 execution boundary.
 
@@ -174,6 +180,8 @@ The v0.54 receipt binds:
 - OCI adapter identity;
 - runtime control evidence;
 - underlying v0.29 build-execution receipt SHA-256;
+- consumed execution approval ID;
+- canonical approval-claim SHA-256;
 - resulting build status.
 
 The receipt fixes:
