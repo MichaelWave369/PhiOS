@@ -1,0 +1,62 @@
+{
+  "attempts": [
+    {
+      "evidence_artifact_id": 11138998040,
+      "evidence_files": {
+        "PhiOS/PhiOS/dist/linux/build.log": "b2926f9e5a138d4ee82246fcb4e7930025a6fad1e062d813ac0163a8e6c7c274",
+        "PhiOS/PhiOS/dist/linux/builder-image.json": "152a89cdd304d4c82530635a884da51fa7a5667dc36e2124b922b34e1f4a818f",
+        "PhiOS/PhiOS/dist/linux/builder-packages.txt": "9c8e376a83e3ebbad5078dbb9fc5cc12ecd15ad57c4fa933466bad26dd09a291",
+        "PhiOS/PhiOS/dist/linux/fixture-inventory.json": "2ebf26541ddaa6d1e239b1a3be944946f18e8d08e78837065d11eed7921d7a60",
+        "PhiOS/PhiOS/dist/linux/image-packages.txt": "dd6faf936234848a574c0d3125da4eddabaa33b8f02998bc7be070250d3e29f9",
+        "PhiOS/PhiOS/dist/linux/javascript-packages.json": "a9026fc707306f7fb2ffb952b884197a66ccc3def539f90f938e8c4b7e4e0582",
+        "PhiOS/PhiOS/dist/linux/mkarchiso.log": "52dd7695fca50a2a4727e21413070068f5107385a5f5822b48a7444affad7895",
+        "PhiOS/PhiOS/dist/linux/native-packages.json": "ad9071bcaf5ab74f87b7915aa8e0909f95b577e472c2996aa1e1064427697090",
+        "PhiOS/PhiOS/dist/linux/provenance.json": "4f546f4e5ad9478f8cb8b1fde934c8bf919b62c5ba7d7e1f90b80b86e656291f",
+        "PhiOS/PhiOS/dist/linux/python-packages.json": "9af1ad8db48a4e1a528d082984d07efbf34539b52ddac7026ea4e9923073d5a0",
+        "PhiOS/PhiOS/dist/linux/release.json": "0d5499ce8f252637d7a1d6a8bdedeb8aef9829307893e348f3c1bf0795b91a75",
+        "PhiOS/PhiOS/dist/linux/sbom.cdx.json": "b6e74ec4d252a5e5b2b1a884d35ed806fa10d10503903a68160eaf71339f3e84",
+        "PhiOS/PhiOS/dist/linux/source-archive-sha256.txt": "46c01dbd154317150c0a91ae1931427ab9c15f979e33271e2f67cd87075124d7",
+        "PhiOS/PhiOS/dist/linux/source-commit.txt": "3b5f0f3cc3d038a55ab34daa3b9637df451584ac29ef77f1fdd433e36a2536d1",
+        "PhiOS/PhiOS/dist/linux/source-review.json": "0a7b94001b98bf05951f44fc47e518cc008a14cd71b871c16a73d3ff7f7086df",
+        "PhiOS/PhiOS/dist/linux/third-party-notices.json": "137316e3c393079fd72aa7234611db782aa5f7c540b69648dd42729f35e25493",
+        "_temp/phios-boot/boot-evidence.json": "89fd0b797b17370b187c1d450cc05c6f5ff51b26fd76e54f33859226de785587",
+        "_temp/phios-boot/qemu.log": "cfb88d1675b569a5b47b59d2b1fe103919a5649ff0a475d396d1ffde6c6b24f0",
+        "_temp/phios-boot/screen-first.png": "6bf190581d13131e0dfa84a0d2c48301eee4a9cae68e2d25e547335951f37d24",
+        "_temp/phios-boot/screen.png": "9e5130dfebfa68d901c9e339e94970c3e370bce4f7422bc196a6f679f227384c",
+        "_temp/phios-boot/serial.log": "b7a8e5bcd5402a5e2cc78dfca3d5ad035dcc579d174166a321f5544d23c69abb",
+        "_temp/phios-installed/install-live-qemu.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "_temp/phios-installed/install-live-serial.log": "74188764f835bf43d87ec7989e4de353cfd75f955defe6e85e1bcba41a92e05b",
+        "_temp/phios-installed/installed-1-qemu.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "_temp/phios-installed/installed-1-serial.log": "b2c8017c2eac119a0a7a087932d9465b3a150fb128ce9aab3433d65142a58956",
+        "_temp/phios-installed/installed-evidence.json": "0feaec08478a3f9d62f3ef66fe730d7fea3a125345a3184cc3edc7a4f906b85f",
+        "_temp/phios-installed/interrupted-resume-live-qemu.log": "06733008ca698aa515bfe73217fc56e15a6720fc69302592e9ab9e6c594c2e95",
+        "_temp/phios-installed/interrupted-resume-live-serial.log": "6330debfc5b90e9c344bc5759c0bab5bf2937f0780c6180f4743074fd8825c44",
+        "_temp/phios-installed/screen-install-live.png": "52e0cbfba53195e94b8e53e193f093d9b50d93ce7c52d84314ccde8725245f10",
+        "_temp/phios-installed/screen-installed-1-failure.png": "14e78d7ef364fe1a127090e54d5744d8e4a83a82b5ff9f975957ec858d4321aa",
+        "_temp/phios-installed/screen-installed-1-greeter.png": "f83a37571994ca7274939836bf77a47904c689fb6d38bb8587a11f2432aeba0e",
+        "_temp/phios-installed/screen-interrupted-resume-live.png": "612f17fbf548ef2042612b8617cc4b995174213c20e1d1762575d9f9805cd17e"
+      },
+      "failure": "External fixture saved its user QA summary before the older data probe created the qa directory. FileNotFoundError occurred after all proof effect/refusal commands passed, before restart/recovery qualification. Fixture now creates its own private summary directory and flushes it.",
+      "head": "d4e0c4bda9aca66189a6a4d08f459f0a0a437a6d",
+      "image_artifact_id": 11138743361,
+      "iso_sha256": "400dae3ba8cce0ef834b68cd905585ecd7feec372a15abc4268dfbd68f3a02e9",
+      "job_id": 110201722446,
+      "linux_workflow_qualified": false,
+      "observed": [
+        "production agent service",
+        "actual sudo password authentication",
+        "UID 1001 store/broker denial",
+        "cancellation",
+        "canonical bound single-use lease",
+        "actual note/readback receipt",
+        "replay refusal",
+        "real 60-second expiry refusal",
+        "successful signed package and preserved interrupted stage"
+      ],
+      "release_ready": false,
+      "source_commit": "0133997a0ac8b2d202170dd28a6f9c19b23c51fe",
+      "workflow_run": 36809656268
+    }
+  ],
+  "schema_version": "phios.linux-proof-attempts.v1"
+}

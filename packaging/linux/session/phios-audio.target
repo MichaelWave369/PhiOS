@@ -1,0 +1,5 @@
+[Unit]
+Description=PhiOS user audio session
+PartOf=phios-session.target
+Wants=pipewire.service pipewire-pulse.service wireplumber.service pipewire.socket pipewire-pulse.socket
+After=pipewire.service pipewire-pulse.service wireplumber.service

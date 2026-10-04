@@ -10,6 +10,37 @@ import {
 import { collectLinuxHostObservation } from "./linuxProbe.mjs";
 import { assertValidSystemStateReceipt } from "./systemStateContract.mjs";
 
+test("native Arch package observation survives unified composition without extending other planes", async () => {
+  const receipt = await composeSystemStateReceipt({
+    collectPackages: async () => ({
+      schemaVersion: "phios.package-observation.v1",
+      source: "pacman-local-desc",
+      capturedAt: new Date().toISOString(),
+      availability: "available",
+      reason: null,
+      adapter: "arch-pacman-local",
+      packageLimit: 64,
+      readOnly: true,
+      executionAuthority: false,
+      effectPerformed: false,
+      distro: { id: "phios", name: "PhiOS" },
+      totalInstalledPackageCount: 1,
+      packages: [{ name: "phios", version: "1.0.0-1", architecture: "any", essential: false }],
+    }),
+  });
+  assert.equal(receipt.components[3].source, "pacman-local-desc");
+  assert.equal(receipt.summary.installedPackageCount, 1);
+  assert.equal(assertValidSystemStateReceipt(receipt), receipt);
+  const wrongPlane = structuredClone(receipt);
+  wrongPlane.components[0].source = "pacman-local-desc";
+  wrongPlane.receiptDigest = recomputeSystemStateReceiptDigest(wrongPlane);
+  assert.throws(() => assertValidSystemStateReceipt(wrongPlane), /component source host/);
+  const unknownSource = structuredClone(receipt);
+  unknownSource.components[3].source = "unknown-package-source";
+  unknownSource.receiptDigest = recomputeSystemStateReceiptDigest(unknownSource);
+  assert.throws(() => assertValidSystemStateReceipt(unknownSource), /component source packages/);
+});
+
 test(
   "system state composer produces one bounded read-only receipt over all observation planes",
   { skip: process.platform !== "linux" },

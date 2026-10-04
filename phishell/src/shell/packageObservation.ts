@@ -6,11 +6,11 @@ export interface PackageRow {
 }
 export interface PackageObservationSnapshot {
   schemaVersion: "phios.package-observation.v1";
-  source: "dpkg-status-file" | "fixture";
+  source: "dpkg-status-file" | "pacman-local-desc" | "fixture";
   capturedAt: string;
   availability: "available" | "unavailable";
   reason: null | "non-linux-host" | "os-release-unavailable" | "unsupported-package-database" | "package-database-unavailable" | "transport-unavailable";
-  adapter: "debian-dpkg-status";
+  adapter: "debian-dpkg-status" | "arch-pacman-local";
   packageLimit: 64;
   readOnly: true;
   executionAuthority: false;
@@ -29,8 +29,8 @@ function num(v:unknown):v is number{return typeof v==="number"&&Number.isFinite(
 function int(v:unknown):v is number{return typeof v==="number"&&Number.isInteger(v)}
 function native(v:unknown):v is PackageObservationSnapshot{
   if(!rec(v)) return false;
-  if(v.schemaVersion!=="phios.package-observation.v1"||v.source!=="dpkg-status-file"||typeof v.capturedAt!=="string"||Number.isNaN(Date.parse(v.capturedAt))||
-    !["available","unavailable"].includes(String(v.availability))||v.adapter!=="debian-dpkg-status"||v.packageLimit!==64||
+  if(v.schemaVersion!=="phios.package-observation.v1"||!((v.source==="dpkg-status-file"&&v.adapter==="debian-dpkg-status")||(v.source==="pacman-local-desc"&&v.adapter==="arch-pacman-local"))||typeof v.capturedAt!=="string"||Number.isNaN(Date.parse(v.capturedAt))||
+    !["available","unavailable"].includes(String(v.availability))||v.packageLimit!==64||
     v.readOnly!==true||v.executionAuthority!==false||v.effectPerformed!==false||!int(v.totalInstalledPackageCount)||v.totalInstalledPackageCount<0||
     !Array.isArray(v.packages)||v.packages.length>64||v.packages.length>v.totalInstalledPackageCount) return false;
   if(v.availability==="available"&&v.reason!==null) return false;

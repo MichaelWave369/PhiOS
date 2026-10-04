@@ -1,0 +1,112 @@
+{
+  "schema_version": "phios.virtualbox-field.v1",
+  "observation_date": "2026-10-01",
+  "observation_timezone": "America/Los_Angeles",
+  "evidence_origin": "Owner-supplied Markdown report from a local Windows desktop Codex GPT-5.6 test; this review did not operate or independently observe the VM.",
+  "source_report": {
+    "uploaded_filename": "PhiOS-PR283-test-report.md",
+    "sha256": "f242dc804437395a576e740d36c6201c2eb75d19e3fa341d1f9154791443b7fc",
+    "size_bytes": 3096,
+    "report_bytes_independently_hashed_by_this_review": true,
+    "raw_guest_logs_screenshots_command_transcripts_supplied": false,
+    "normalized_transcription": true
+  },
+  "candidate": {
+    "source_pr": 283,
+    "source_pr_url": "https://github.com/MichaelWave369/PhiOS/pull/283",
+    "reviewed_head": "d1a4a2bc515907d1011b6aa1c2a203acc200cad8",
+    "qualified_prospective_source": "9510024d06d822729bd98579fefb6644ca0498c0",
+    "qualified_source_tree": "0dd0e998671105174b4bf2918a00ca06ac68f44a",
+    "source_binding_basis": "The report's ISO digest matches the independently reviewed normal-image provenance and qualification run for this source; the report itself does not supply a source commit.",
+    "qualification_run": 36916494462,
+    "qualification_run_url": "https://github.com/MichaelWave369/PhiOS/actions/runs/36916494462",
+    "qualification_run_attempt": 1,
+    "qualification_run_conclusion_rechecked": "success",
+    "normal_artifact_id": 11191052839,
+    "normal_artifact_url": "https://github.com/MichaelWave369/PhiOS/actions/runs/36916494462/artifacts/11191052839",
+    "iso_filename": "phios-linux-0.1.0-alpha.1-x86_64.iso",
+    "iso_expected_sha256": "33bfb34251d7f65abe7f8a9d600c21794d051640a305d50c1bca9b21364c2c68",
+    "iso_observed_sha256_reported": "33bfb34251d7f65abe7f8a9d600c21794d051640a305d50c1bca9b21364c2c68",
+    "iso_hash_match_before_boot_reported": true,
+    "iso_bytes_independently_hashed_by_this_review": false,
+    "older_extracted_iso_sha256_reported": "376fd601f66b13dccd6a08644a7b807129f315882d355fd376d0934a80ae29aa",
+    "older_iso_attached_or_booted_during_this_test_reported": false
+  },
+  "vm_configuration_reported": {
+    "host_context": "Windows 11 Home, supplied by the owner in the preceding field observation; Windows edition/build is not independently established by this report.",
+    "hypervisor": "Oracle VirtualBox",
+    "hypervisor_version_supplied": false,
+    "vm_name": "PhiOS-PR283",
+    "separate_from_existing_phios_vm": true,
+    "guest_type": "Arch Linux (64-bit)",
+    "firmware": "EFI",
+    "secure_boot": "off/unavailable; no enrolled platform key reported",
+    "ram_mb": 8192,
+    "vcpus": 4,
+    "disk": "new 64 GB VDI",
+    "graphics_controller": "VMSVGA",
+    "video_memory_mb": 128,
+    "acceleration_3d": true,
+    "network": "NAT",
+    "shared_folders": [],
+    "clipboard": "disabled",
+    "drag_and_drop": "disabled"
+  },
+  "results_reported": {
+    "initial_live_session_boot": "pass",
+    "graphical_greeter": "pass; subsequently exercised after terminating the current session and switching to tty1",
+    "manual_graphical_login_phios_phios": "pass",
+    "wayland_session": "pass; greetd and online Wayland session reported",
+    "phishell": "pass; displayed and interactive window launched",
+    "waybar": "pass; interface, CPU, memory and clock modules populated",
+    "cursor_visible": "pass",
+    "cursor_functional": "pass; VirtualBox absolute pointer injection visibly moved the guest-rendered cursor to (100,100), then (900,200) after a cold boot",
+    "automatic_cursor_and_session_startup": "pass",
+    "wayfire_environment_override_already_present": "WLR_NO_HARDWARE_CURSORS=1",
+    "manual_environment_export_performed": false,
+    "manual_session_target_restart_performed": false,
+    "system_manager_failed_units": "0 loaded units reported by systemctl --failed; no separate user-manager failed-unit output supplied",
+    "cold_power_cycle": "pass; ACPI power button reached VMState=poweroff, followed by cold start with PhiShell, Waybar and working cursor",
+    "final_vm_state": "running in graphical live session"
+  },
+  "preserved_observations": [
+    {
+      "action": "Super+L",
+      "reported_result": "blank screen rather than a visible lock UI",
+      "subsequent_action_reported": "terminate current login session and switch to tty1; graphical greeter and phios/phios authentication passed",
+      "virtualbox_pam_wrong_password_refusal_tested": false,
+      "virtualbox_pam_unlock_tested": false,
+      "assessment": "Unresolved lock-screen appearance/authentication observation. The packaged locker uses a dark solid background without requesting an idle-visible indicator; that is consistent with a blank idle screen but does not demonstrate successful locking, wrong-password refusal or unlock in this VM. Greeter authentication after session termination does not replace those tests."
+    },
+    {
+      "action": "sudo poweroff",
+      "reported_result": "refused; the live phios user is not allowed to execute /usr/bin/poweroff as root",
+      "subsequent_action_reported": "VM ACPI power button successfully completed shutdown and cold restart",
+      "assessment": "Preserved live-account administration refusal; no sudo/logind/PolicyKit permission was expanded, and this report does not test the documented guest systemctl poweroff path."
+    },
+    {
+      "action": "VBoxManage modifynvram secureboot --disable",
+      "reported_result": "Secure Boot unavailable because no platform key is enrolled",
+      "subsequent_action_reported": "VM restarted and returned to a healthy graphical session",
+      "assessment": "Effective Secure Boot off reported; no platform key enrollment or Secure Boot support is qualified."
+    }
+  ],
+  "prior_field_receipt": "virtualbox-field-1c16c473.json",
+  "prior_failed_attempt_receipt": "virtualbox-compatibility-attempts.json",
+  "prior_failure_receipts_unchanged": true,
+  "scope": "Reported VirtualBox normal live-ISO boot, graphical greeter/login, automatic cursor/session startup, pointer interaction and cold power cycle on the exact supplied ISO only.",
+  "not_qualified_by_this_field_report": [
+    "VirtualBox lock, wrong-password refusal and PAM unlock",
+    "VirtualBox installation, disk-only boot, durable data and recovery",
+    "VirtualBox guest systemctl shutdown permission path",
+    "audio playback/capture, network connectivity or suspend/resume",
+    "other VirtualBox versions or graphics configurations",
+    "physical Skytech/RTX 5070 compatibility or physical installation",
+    "actual maintainer-signed transition or source/license delivery review"
+  ],
+  "release_ready": false,
+  "publication_authority": false,
+  "physical_hardware_qualified": false,
+  "release_chain_promoted": false,
+  "merge_tag_publish_performed": false
+}

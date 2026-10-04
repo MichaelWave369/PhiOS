@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Network settings
+Comment=Manage wired and Wi-Fi connections using NetworkManager
+Exec=foot nmtui
+Icon=network-wireless
+Terminal=false
+Categories=Settings;Network;

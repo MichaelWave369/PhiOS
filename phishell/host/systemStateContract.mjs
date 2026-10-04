@@ -145,7 +145,10 @@ export function validateSystemStateReceipt(receipt) {
       if (component.schemaVersion !== expected.schemaVersion) {
         errors.push(`component schema ${expectedId}`);
       }
-      if (component.source !== expected.source) errors.push(`component source ${expectedId}`);
+      if (
+        component.source !== expected.source &&
+        !(expectedId === "packages" && component.source === "pacman-local-desc")
+      ) errors.push(`component source ${expectedId}`);
       if (!validTimestamp(component.capturedAt)) errors.push(`component time ${expectedId}`);
       if (!["available", "unavailable"].includes(component.availability)) {
         errors.push(`component availability ${expectedId}`);

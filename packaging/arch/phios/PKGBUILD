@@ -1,0 +1,45 @@
+# Build only from the local, hashed archive made by build-linux.sh.
+pkgname=phios
+pkgver=1.0.0
+pkgrel=2
+pkgdesc='PhiOS operator shell, verification spine and governed local runtime'
+arch=('any')
+url='https://github.com/MichaelWave369/PhiOS'
+license=('MIT')
+depends=('python' 'python-psutil' 'python-mcp>=1.26' 'python-mcp<2' 'gnupg')
+makedepends=('python-build' 'python-installer' 'python-setuptools' 'python-wheel')
+source=('phios-source.tar.gz')
+sha256sums=("${PHIOS_SOURCE_SHA256:?hashed source archive required}")
+
+build() {
+    cd "$srcdir/phios-source"
+    python -m build --wheel --no-isolation
+}
+
+package() {
+    cd "$srcdir/phios-source"
+    python -m installer --destdir="$pkgdir" dist/*.whl
+    install -Dm644 LICENSE "$pkgdir/usr/share/licenses/phios/LICENSE"
+    install -Dm644 LICENSE_HISTORY.md "$pkgdir/usr/share/doc/phios/LICENSE_HISTORY.md"
+    install -Dm644 packaging/linux/release.json "$pkgdir/usr/share/phios/linux-release.json"
+    install -Dm644 PHIOS_SOURCE_COMMIT "$pkgdir/usr/share/phios/source-commit"
+    for receipt in nbga-virtualbox-observations.json virtualbox-field-1c16c473.json \
+        virtualbox-compatibility-attempts.json virtualbox-field-9510024d.json virtualbox-field-0f17bac1.json; do
+        install -Dm644 "docs/os/evidence/$receipt" "$pkgdir/usr/share/phios/nbga/$receipt"
+    done
+    install -Dm644 packaging/linux/installer/install.py "$pkgdir/usr/lib/phios-installer/install.py"
+    install -Dm755 packaging/linux/installer/phios-install "$pkgdir/usr/bin/phios-install"
+    install -Dm644 packaging/linux/updates/verify.py "$pkgdir/usr/lib/phios-updates/verify.py"
+    install -Dm755 packaging/linux/updates/phios-update-verify "$pkgdir/usr/bin/phios-update-verify"
+    install -Dm644 packaging/linux/updates/recover.py "$pkgdir/usr/lib/phios-updates/recover.py"
+    install -Dm755 packaging/linux/updates/phios-os-recover "$pkgdir/usr/bin/phios-os-recover"
+    install -Dm644 packaging/linux/updates/apply.py "$pkgdir/usr/lib/phios-updates/apply.py"
+    install -Dm755 packaging/linux/updates/phios-os-update "$pkgdir/usr/bin/phios-os-update"
+    install -Dm644 packaging/linux/updates/enroll.py "$pkgdir/usr/lib/phios-updates/enroll.py"
+    install -Dm755 packaging/linux/updates/phios-update-enroll "$pkgdir/usr/bin/phios-update-enroll"
+    install -Dm644 packaging/linux/proof/broker.py "$pkgdir/usr/lib/phios-proof/broker.py"
+    install -Dm644 packaging/linux/proof/propose.py "$pkgdir/usr/lib/phios-proof/propose.py"
+    install -Dm755 packaging/linux/proof/phios-linux-proof "$pkgdir/usr/bin/phios-linux-proof"
+    install -Dm644 packaging/linux/proof/phios-proof-proposer.service "$pkgdir/usr/lib/systemd/system/phios-proof-proposer.service"
+    install -Dm755 packaging/linux/hardware_report.py "$pkgdir/usr/bin/phios-hardware-report"
+}

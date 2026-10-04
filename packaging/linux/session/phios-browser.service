@@ -1,0 +1,14 @@
+[Unit]
+Description=PhiShell Wayland browser
+PartOf=phios-session.target
+After=phios-observer.service
+Wants=phios-observer.service
+
+[Service]
+ExecStart=/usr/bin/phios-open-shell
+Restart=on-failure
+RestartSec=3
+UMask=0077
+
+[Install]
+WantedBy=phios-session.target

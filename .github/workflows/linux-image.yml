@@ -1,0 +1,154 @@
+name: Linux development image
+
+on:
+  workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: linux-image-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  live-image:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Build an unsigned development image in isolated Arch Linux
+        run: |
+          set -euo pipefail
+          mkdir -p dist/linux
+          builder_image=$(python3 -c 'import json; print(json.load(open("packaging/linux/release.json"))["builder_image"])')
+          docker pull "$builder_image"
+          docker image inspect "$builder_image" > dist/linux/builder-image.json
+          docker run --rm --privileged \
+            -v "$GITHUB_WORKSPACE:$GITHUB_WORKSPACE:ro" \
+            -v "$GITHUB_WORKSPACE/dist/linux:/artifacts" \
+            -w "$GITHUB_WORKSPACE" \
+            -e PHIOS_SOURCE_COMMIT="$(git rev-parse HEAD)" \
+            -e PHIOS_OUTPUT_DIR=/artifacts -e PHIOS_CI_SMOKE=1 \
+            "$builder_image" bash packaging/linux/build-linux.sh 2>&1 | tee dist/linux/build.log
+      - name: Qualify the exact ISO in a disposable UEFI VM
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y qemu-system-x86 ovmf python3-pil
+          if [[ -e /dev/kvm ]]; then
+            sudo chgrp "$(id -gn)" /dev/kvm
+            sudo chmod g+rw /dev/kvm
+          fi
+          python3 packaging/linux/tests/qemu_boot.py \
+            --iso dist/linux/phios-linux-0.1.0-alpha.1-x86_64.iso \
+            --source "$(cat dist/linux/source-commit.txt)" \
+            --output "$RUNNER_TEMP/phios-boot"
+      - name: Install only to a disposable virtual disk and qualify no-ISO recovery
+        run: |
+          python3 packaging/linux/tests/qemu_install.py \
+            --recovery \
+            --signed-update \
+            --iso dist/linux/phios-linux-0.1.0-alpha.1-x86_64.iso \
+            --source "$(cat dist/linux/source-commit.txt)" \
+            --output "$RUNNER_TEMP/phios-installed"
+      - name: Convert display evidence even when qualification fails
+        if: always()
+        run: |
+          /usr/bin/python3 -I - <<'PY'
+          from pathlib import Path
+          import os
+          files = [p for name in ["phios-boot","phios-installed"] for p in Path(os.environ['RUNNER_TEMP'], name).glob('*.ppm')]
+          if files:
+              from PIL import Image
+              for path in files:
+                  Image.open(path).save(path.with_suffix('.png'))
+          else:
+              print('No VM display captures exist; retain the earlier failure logs.')
+          PY
+      - name: Emit bounded qualification metadata for review
+        if: always()
+        run: |
+          /usr/bin/python3 -I - <<'PY'
+          import hashlib, json, os, re
+          from pathlib import Path
+          source = os.environ['GITHUB_SHA']
+          assert re.fullmatch('[0-9a-f]{40}', source)
+          roots = [('PhiOS/PhiOS/dist/linux', Path('dist/linux'))]
+          roots += [('_temp/' + name, Path(os.environ['RUNNER_TEMP'], name)) for name in ["phios-boot","phios-installed"]]
+          payload = {'schema_version': 'phios.ci-review-metadata.v1', 'source_commit': source,
+                     'run_attempt': int(os.environ['GITHUB_RUN_ATTEMPT']), 'files': {}, 'reports': {}, 'inventory_counts': {},
+                     'producer_metadata_only': True, 'review_archive_independently_verified': False, 'release_ready': False}
+          counts = {'native-packages.json': 'native', 'python-packages.json': 'python',
+                    'javascript-packages.json': 'installed_npm', 'javascript-bundled-packages.json': 'bundled_frontend_origins'}
+          for prefix, root in roots:
+              if not root.exists():
+                  continue
+              for path in sorted(root.iterdir()):
+                  if path.suffix not in {'.json', '.txt', '.log', '.png'} and path.name != 'SHA256SUMS':
+                      continue
+                  if path.is_symlink() or not path.is_file() or path.stat().st_size > 64 * 1024 * 1024:
+                      raise ValueError('unexpected or oversized review evidence file')
+                  with path.open('rb') as stream:
+                      digest = hashlib.file_digest(stream, 'sha256').hexdigest()
+                  payload['files'][prefix + '/' + path.name] = {'sha256': digest, 'size': path.stat().st_size}
+                  if path.suffix != '.json':
+                      continue
+                  if path.stat().st_size > 4 * 1024 * 1024:
+                      raise ValueError('review JSON exceeds its bound')
+                  data = json.loads(path.read_text())
+                  if path.name in {'provenance.json', 'boot-evidence.json', 'preview-evidence.json', 'installed-evidence.json'}:
+                      if data.get('source_commit') != source:
+                          raise ValueError('review source identity differs from this CI source')
+                      payload['reports'][prefix + '/' + path.name] = {k: v for k, v in data.items() if k not in {'command', 'commands', 'artifacts'}}
+                  elif path.name in counts:
+                      if not isinstance(data, list):
+                          raise ValueError('review inventory is not a list')
+                      payload['inventory_counts'][counts[path.name]] = len(data)
+                  elif path.name == 'sbom.cdx.json':
+                      payload['inventory_counts']['cyclonedx_components'] = len(data['components'])
+                  elif path.name == 'third-party-notices.json':
+                      payload['inventory_counts']['supplier_notice_files'] = len(data['files'])
+                  elif path.name == 'source-review.json':
+                      payload['first_party_source_archive'] = data['first_party_source_archive']
+                      payload['source_delivery_reviewed'] = data['third_party_source_compliance_reviewed']
+          wire = json.dumps(payload, sort_keys=True, separators=(',', ':'))
+          if len(wire.encode()) > 60000:
+              raise ValueError('compact review metadata exceeds its bound')
+          print('PHIOS_REVIEW_METADATA:' + wire)
+          PY
+      - name: Preserve candidate and qualification evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: phios-linux-development-${{ github.run_id }}-attempt-${{ github.run_attempt }}
+          path: |
+            dist/linux/
+            ${{ runner.temp }}/phios-boot/*.log
+            ${{ runner.temp }}/phios-boot/*.json
+            ${{ runner.temp }}/phios-boot/*.png
+            ${{ runner.temp }}/phios-installed/*.log
+            ${{ runner.temp }}/phios-installed/*.json
+            ${{ runner.temp }}/phios-installed/*.png
+          if-no-files-found: warn
+          retention-days: 7
+      - name: Preserve reviewable logs and screenshot separately
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: phios-linux-evidence-${{ github.run_id }}-attempt-${{ github.run_attempt }}
+          path: |
+            dist/linux/*.json
+            dist/linux/*.txt
+            dist/linux/*.log
+            dist/linux/SHA256SUMS
+            ${{ runner.temp }}/phios-boot/*.log
+            ${{ runner.temp }}/phios-boot/*.json
+            ${{ runner.temp }}/phios-boot/*.png
+            ${{ runner.temp }}/phios-installed/*.log
+            ${{ runner.temp }}/phios-installed/*.json
+            ${{ runner.temp }}/phios-installed/*.png
+          if-no-files-found: warn
+          retention-days: 7

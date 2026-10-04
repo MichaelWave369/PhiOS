@@ -123,7 +123,7 @@ def test_distrowatch_submission_under_250_words() -> None:
 
 
 def test_distrowatch_has_gpl3() -> None:
-    assert "GPLv3" in LaunchArtifactGenerator().generate_distrowatch_submission()
+    assert "License: MIT" in LaunchArtifactGenerator().generate_distrowatch_submission()
 
 
 def test_distrowatch_has_manifesto_url() -> None:

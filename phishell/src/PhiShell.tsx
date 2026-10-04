@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useReducer, useRef, useState } from "react";
+import packageMetadata from "../package.json";
 import { HostObservationPanel } from "./components/HostObservationPanel";
 import { GhostWalkControlPanel } from "./components/GhostWalkControlPanel";
 import { GhostWalkVesselContextCard } from "./components/GhostWalkVesselContextCard";
@@ -8,6 +9,9 @@ import { PackageObservationPanel } from "./components/PackageObservationPanel";
 import { DeviceObservationPanel } from "./components/DeviceObservationPanel";
 import { SystemStatePanel } from "./components/SystemStatePanel";
 import { SymbolLab } from "./components/SymbolLab";
+import { PersistentHistoryPanel } from "./components/PersistentHistoryPanel";
+import { AppDetails, AppLibrary, AppTiles } from "./components/AppLauncher";
+import { findShellApp, SHELL_APPS, shellAppEvent, windowTemplates } from "./shell/appLauncher";
 import {
   INITIAL_SHELL_STATE,
   type AuthorityRequest,
@@ -41,69 +45,13 @@ const projects = [
   ["Browsallax", "Browser", "1d"],
 ];
 
-const apps = [
-  ["Browsallax", "◉"],
-  ["PhiOffice", "▧"],
-  ["Domistika", "⌂"],
-  ["SOMA", "◌"],
-  ["Professor Φ", "Φ"],
-  ["Reality Ledger", "▤"],
-  ["Builder", "⌘"],
-  ["Apps", "⊞"],
-];
-
-const windowTemplates: Record<string, WindowModel> = {
-  "research-window": {
-    id: "research-window",
-    title: "Research Field",
-    subtitle: "Evidence, provenance, synthesis, and source context.",
-    kind: "workspace",
-    x: 7,
-    y: 10,
-    width: 54,
-    height: 58,
-    z: 1,
-    state: "open",
-  },
-  "ledger-window": {
-    id: "ledger-window",
-    title: "Reality Ledger",
-    subtitle: "Read-only receipts and system history projection.",
-    kind: "system",
-    x: 46,
-    y: 30,
-    width: 46,
-    height: 48,
-    z: 2,
-    state: "open",
-  },
-  "build-window": {
-    id: "build-window",
-    title: "Build Field",
-    subtitle: "Projects, tests, artifacts, and governed execution proposals.",
-    kind: "workspace",
-    x: 20,
-    y: 16,
-    width: 58,
-    height: 56,
-    z: 1,
-    state: "open",
-  },
-  "system-window": {
-    id: "system-window",
-    title: "System Inspector",
-    subtitle: "Session history, canonical recall, and temporary governed comparison of two persistent machine states.",
-    kind: "system",
-    x: 22,
-    y: 10,
-    width: 68,
-    height: 72,
-    z: 1,
-    state: "open",
-  },
-};
-
 const commands: CommandItem[] = [
+  ...SHELL_APPS.map((app): CommandItem => ({
+    id: `app-${app.id}`,
+    label: `${app.name} · ${app.status}`,
+    detail: app.description,
+    action: { type: "open-app", appId: app.id },
+  })),
   {
     id: "view-research",
     label: "Go to Research",
@@ -208,7 +156,7 @@ function Rail({
   );
 }
 
-function Home() {
+function Home({ openApp }: { openApp: (id: string) => void }) {
   return (
     <div className="home-grid">
       <section className="hero-card">
@@ -230,13 +178,13 @@ function Home() {
       </section>
 
       <section className="panel status">
-        <div className="panel-title">SYSTEM STATUS</div>
+        <div className="panel-title">CAPABILITY OBSERVATIONS</div>
         {[
-          ["PhiVessel", "Online"],
-          ["Models", "Ready"],
-          ["Memory", "Nominal"],
-          ["SOMA", "Active"],
-          ["Ledger", "Recording"],
+          ["PhiVessel", "Advisory only"],
+          ["Models", "Not observed"],
+          ["Memory", "Not observed"],
+          ["SOMA", "Not observed"],
+          ["Ledger", "Read only"],
           ["Linux Effects", "Blocked"],
         ].map(([a, b]) => (
           <div className="status-row" key={a}>
@@ -247,7 +195,7 @@ function Home() {
       </section>
 
       <section className="panel recent">
-        <div className="panel-title">RECENT PROJECTS</div>
+        <div className="panel-title">EXAMPLE PROJECTS</div>
         {projects.map(([name, type, when]) => (
           <div className="project" key={name}>
             <div className="project-dot" />
@@ -262,14 +210,7 @@ function Home() {
 
       <section className="panel launcher">
         <div className="panel-title">APP LAUNCHER</div>
-        <div className="app-grid">
-          {apps.map(([name, icon]) => (
-            <button className="app-tile" key={name}>
-              <span>{icon}</span>
-              <small>{name}</small>
-            </button>
-          ))}
-        </div>
+        <AppTiles openApp={openApp} />
       </section>
 
       <section className="panel notices">
@@ -334,8 +275,8 @@ function Workspace({ title, subtitle }: { title: string; subtitle: string }) {
   );
 }
 
-function Center({ view }: { view: View }) {
-  if (view === "home") return <Home />;
+function Center({ view, openApp }: { view: View; openApp: (id: string) => void }) {
+  if (view === "home") return <Home openApp={openApp} />;
   if (view === "dream") return <SymbolLab />;
   const copy: Record<Exclude<View, "home" | "dream">, [string, string]> = {
     research: [
@@ -363,25 +304,15 @@ function Center({ view }: { view: View }) {
   return <Workspace title={copy[view][0]} subtitle={copy[view][1]} />;
 }
 
-function WindowBody({ item }: { item: WindowModel }) {
+function WindowBody({ item, openApp }: { item: WindowModel; openApp: (id: string) => void }) {
+  if (item.id === "apps-window") return <AppLibrary openApp={openApp} />;
+  if (item.id === "dream-window") return <SymbolLab />;
+  if (item.id.startsWith("app:")) {
+    const app = findShellApp(item.id.slice(4));
+    if (app) return <AppDetails app={app} />;
+  }
   if (item.id === "ledger-window") {
-    return (
-      <div className="window-ledger">
-        <div>
-          <span>shell.window.focus</span>
-          <b>RECEIPT</b>
-        </div>
-        <div>
-          <span>authority.execution</span>
-          <b>FALSE</b>
-        </div>
-        <div>
-          <span>linux.adapter</span>
-          <b>ZERO PRIVILEGE</b>
-        </div>
-        <p>Projection only. No ledger entry displayed here grants authority.</p>
-      </div>
-    );
+    return <PersistentHistoryPanel />;
   }
 
   if (item.id === "system-window") {
@@ -448,9 +379,11 @@ function WindowBody({ item }: { item: WindowModel }) {
 function DesktopWindow({
   item,
   dispatch,
+  openApp,
 }: {
   item: WindowModel;
   dispatch: (event: ShellEvent) => void;
+  openApp: (id: string) => void;
 }) {
   const drag = useRef<{
     pointerId: number;
@@ -545,7 +478,7 @@ function DesktopWindow({
         <div className="window-boundary">
           ADVISORY / VISUAL STATE · EXECUTION AUTHORITY FALSE
         </div>
-        <WindowBody item={item} />
+        <WindowBody item={item} openApp={openApp} />
       </div>
     </section>
   );
@@ -554,22 +487,24 @@ function DesktopWindow({
 function DesktopLayer({
   windows,
   dispatch,
+  openApp,
 }: {
   windows: WindowModel[];
   dispatch: (event: ShellEvent) => void;
+  openApp: (id: string) => void;
 }) {
   return (
     <div className="desktop-layer" aria-label="PhiShell desktop windows">
       {[...windows]
         .sort((a, b) => a.z - b.z)
         .map((item) => (
-          <DesktopWindow key={item.id} item={item} dispatch={dispatch} />
+          <DesktopWindow key={item.id} item={item} dispatch={dispatch} openApp={openApp} />
         ))}
     </div>
   );
 }
 
-function PhiVessel() {
+function PhiVessel({ openApp }: { openApp: (id: string) => void }) {
   const [mode, setMode] = useState<VesselMode>("chat");
   return (
     <aside className="vessel">
@@ -577,7 +512,7 @@ function PhiVessel() {
         <div className="vessel-mark">◉</div>
         <div>
           <b>PhiVessel</b>
-          <small>Always here. Thinking with you.</small>
+          <small>Advisory context · chat not connected.</small>
         </div>
       </div>
       <div className="vessel-tabs">
@@ -585,7 +520,14 @@ function PhiVessel() {
           <button
             className={mode === entry ? "active" : ""}
             key={entry}
-            onClick={() => setMode(entry)}
+            disabled={entry === "translate"}
+            title={entry === "translate" ? "Translation runtime is not connected." : undefined}
+            onClick={() => {
+              setMode(entry);
+              if (entry === "dream") openApp("dream");
+              if (entry === "build") openApp("builder");
+              if (entry === "ledger") openApp("ledger");
+            }}
           >
             {entry}
           </button>
@@ -593,22 +535,22 @@ function PhiVessel() {
       </div>
       <div className="vessel-body">
         <small className="mode-label">{mode.toUpperCase()} MODE · ADVISORY</small>
-        <h2>Governed runtime context online.</h2>
+        <h2>Runtime context · advisory.</h2>
         <p>PhiVessel can read a stripped Ghost Walk explanation projection without receiving its lifecycle controls or execution primitives.</p>
         <p className="muted">
           The intelligence layer may propose an action. Proposal is still not authority.
         </p>
         <GhostWalkVesselContextCard />
         <div className="quick-actions">
-          <button>Explain Ghost Walk state</button>
-          <button>Search governed memory</button>
-          <button>Prepare build proposal</button>
-          <button>Explain ledger receipt</button>
+          <button onClick={() => openApp("system")}>Open System Inspector</button>
+          <button onClick={() => openApp("ledger")}>Open governed history</button>
+          <button onClick={() => openApp("builder")}>Open build workspace</button>
+          <button onClick={() => openApp("phivessel")}>PhiVessel integration status</button>
         </div>
       </div>
       <div className="prompt">
-        <input placeholder="Ask PhiVessel anything…" />
-        <button>→</button>
+        <input aria-label="PhiVessel chat unavailable" placeholder="Chat runtime not connected" disabled />
+        <button aria-label="Send unavailable: chat runtime not connected" disabled>→</button>
       </div>
     </aside>
   );
@@ -618,10 +560,12 @@ function StartMenu({
   close,
   openCommand,
   requestPower,
+  openApp,
 }: {
   close: () => void;
   openCommand: () => void;
   requestPower: () => void;
+  openApp: (id: string) => void;
 }) {
   return (
     <div className="start-menu">
@@ -634,18 +578,11 @@ function StartMenu({
         ⌕ Search apps, memory, windows, commands…
       </button>
       <div className="start-section">PINNED</div>
-      <div className="start-apps">
-        {apps.slice(0, 6).map(([name, icon]) => (
-          <button key={name}>
-            <span>{icon}</span>
-            {name}
-          </button>
-        ))}
-      </div>
+      <AppTiles openApp={openApp} pinned />
       <div className="start-footer">
         <span>Operator</span>
         <div>
-          <button>Lock</button>
+          <button disabled title="Use Super+L to lock the Wayfire session.">Lock: Super+L</button>
           <button onClick={requestPower}>Power</button>
         </div>
       </div>
@@ -656,9 +593,11 @@ function StartMenu({
 function CommandOverlay({
   query,
   dispatch,
+  openApp,
 }: {
   query: string;
   dispatch: (event: ShellEvent) => void;
+  openApp: (id: string) => void;
 }) {
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -670,7 +609,9 @@ function CommandOverlay({
   }, [query]);
 
   function run(item: CommandItem) {
-    if (item.action.type === "open-view") {
+    if (item.action.type === "open-app") {
+      openApp(item.action.appId);
+    } else if (item.action.type === "open-view") {
       dispatch({ type: "SET_VIEW", view: item.action.view });
     } else if (item.action.type === "open-window") {
       const template = windowTemplates[item.action.windowId];
@@ -811,6 +752,13 @@ export function PhiShell() {
     [state.view],
   );
 
+  const openApp = (id: string) => {
+    const event = shellAppEvent(id);
+    if (!event) return;
+    setStart(false);
+    dispatch(event);
+  };
+
   useEffect(() => {
     const handleKey = (event: KeyboardEvent) => {
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
@@ -854,13 +802,16 @@ export function PhiShell() {
       <Rail view={state.view} dispatch={dispatch} />
       <main className="field">
         <div className="field-title">
-          <span>{title}</span>
-          <small>PhiShell v0.13 · canonical history comparison · execution authority false</small>
+          <div className="field-destination">
+            <span>{title}</span>
+            <button onClick={() => openApp("apps")} aria-label="Open Apps status">Apps</button>
+          </div>
+          <small>PhiShell v{packageMetadata.version} · canonical history comparison · execution authority false</small>
         </div>
-        <Center view={state.view} />
-        <DesktopLayer windows={state.windows} dispatch={dispatch} />
+        <Center view={state.view} openApp={openApp} />
+        <DesktopLayer windows={state.windows} dispatch={dispatch} openApp={openApp} />
       </main>
-      <PhiVessel />
+      <PhiVessel openApp={openApp} />
       <footer className="commandbar">
         <button className="start-button" onClick={() => setStart(!start)}>
           <b>Φ</b>
@@ -903,10 +854,11 @@ export function PhiShell() {
             dispatch({ type: "OPEN_COMMAND" });
           }}
           requestPower={requestPower}
+          openApp={openApp}
         />
       )}
 
-      {state.commandOpen && <CommandOverlay query={state.commandQuery} dispatch={dispatch} />}
+      {state.commandOpen && <CommandOverlay query={state.commandQuery} dispatch={dispatch} openApp={openApp} />}
 
       {state.authorityRequest && (
         <AuthorityDialog

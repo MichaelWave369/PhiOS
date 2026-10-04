@@ -20,6 +20,7 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from phios.curiosity import CuriosityArtifact
+from phios.state_io import StateIntegrityError, append_jsonl, read_jsonl
 
 CURIOSITY_RETURN_POINTER_SCHEMA_VERSION = (
     "phios.curiosity_return_pointer.v0.2"
@@ -368,30 +369,14 @@ class CuriosityStore:
 
     @staticmethod
     def _append_json(path: Path, payload: Mapping[str, Any]) -> None:
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with path.open("a", encoding="utf-8") as handle:
-            handle.write(_canonical_json(payload) + "\n")
+        append_jsonl(path, payload)
 
     @staticmethod
     def _read_jsonl(path: Path) -> list[object]:
-        if not path.exists():
-            return []
-        values: list[object] = []
-        for index, line in enumerate(
-            path.read_text(encoding="utf-8").splitlines(),
-            start=1,
-        ):
-            if not line.strip():
-                raise CuriosityStoreError(
-                    f"blank line in append-only store at line {index}"
-                )
-            try:
-                values.append(json.loads(line))
-            except json.JSONDecodeError as exc:
-                raise CuriosityStoreError(
-                    f"invalid JSON at {path.name}:{index}"
-                ) from exc
-        return values
+        try:
+            return list(read_jsonl(path))
+        except StateIntegrityError as exc:
+            raise CuriosityStoreError(f"invalid JSON at {path.name}: {exc}") from exc
 
     def artifacts(self) -> list[CuriosityArtifact]:
         result: list[CuriosityArtifact] = []
@@ -422,8 +407,8 @@ class CuriosityStore:
         digest = artifact.curiosity_artifact_sha256
         if self.get_artifact(digest) is not None:
             return False
-        self._append_json(self.artifacts_path, artifact.to_dict())
-        return True
+        return append_jsonl(self.artifacts_path, artifact.to_dict(),
+                            identity_field="curiosity_artifact_sha256")
 
     def get_artifact(
         self,
@@ -651,11 +636,8 @@ class CuriosityStore:
             for item in self.return_pointers()
         ):
             return False
-        self._append_json(
-            self.return_pointers_path,
-            pointer.to_dict(),
-        )
-        return True
+        return append_jsonl(self.return_pointers_path, pointer.to_dict(),
+                            identity_field="return_pointer_sha256")
 
     def latest_return_pointer(
         self,

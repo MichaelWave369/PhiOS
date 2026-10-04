@@ -1,0 +1,12 @@
+[Unit]
+Description=PhiOS Waybar panel
+PartOf=phios-session.target
+
+[Service]
+ExecStart=/usr/bin/waybar -c /etc/xdg/phios/waybar.json
+Restart=on-failure
+RestartSec=3
+UMask=0077
+
+[Install]
+WantedBy=phios-session.target

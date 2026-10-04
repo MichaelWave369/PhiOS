@@ -1,0 +1,10 @@
+{
+  "DHCP4.OPTION": [
+    "dhcp_client_identifier = 01\\:52\\:54\\:00\\:12\\:34\\:56 | dhcp_lease_time = 86400 | dhcp_server_identifier = 192.0.2.2 | expiry = 1790920696 | ip_address = 192.0.2.15 | next_server = 192.0.2.2 | requested_broadcast_address = 1 | requested_domain_name = 1 | requested_domain_name_servers = 1 | requested_domain_search = 1 | requested_host_name = 1 | requested_interface_mtu = 1 | requested_ms_classless_static_routes = 1 | requested_nis_domain = 1 | requested_nis_servers = 1 | requested_ntp_servers = 1 | requested_rfc3442_classless_static_routes = 1 | requested_root_path = 1 | requested_routers = 1 | requested_static_routes = 1 | requested_subnet_mask = 1 | requested_time_offset = 1 | requested_wpad = 1 | subnet_mask = 255.255.255.0"
+  ],
+  "IP4.ADDRESS": [
+    "192.0.2.15/24"
+  ],
+  "IP4.DNS": [],
+  "IP4.GATEWAY": []
+}

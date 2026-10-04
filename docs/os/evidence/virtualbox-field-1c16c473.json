@@ -1,0 +1,126 @@
+{
+  "schema_version": "phios.owner-vm-field-observation.v1",
+  "observation_date": "2026-10-01",
+  "reporter": "Mikey / Michael Hughes",
+  "evidence_origin": "owner report in continuation conversation; attached desktop screenshot inspected",
+  "candidate": {
+    "version": "0.1.0-alpha.1",
+    "source_pr": 281,
+    "head_commit": "3d282bdd6466052def8e632245f312863040cafc",
+    "qualified_prospective_source": "1c16c4732442d69d2c7b5763212f1977860a15ae",
+    "iso_sha256": "376fd601f66b13dccd6a08644a7b807129f315882d355fd376d0934a80ae29aa",
+    "identity_supplied_by_owner": true,
+    "mounted_iso_independently_hashed_by_this_review": false,
+    "existing_qualification_run": "https://github.com/MichaelWave369/PhiOS/actions/runs/36832501182"
+  },
+  "configuration": {
+    "host_os": "Windows 11 Home",
+    "hypervisor": "Oracle VirtualBox",
+    "hypervisor_version": null,
+    "guest_type": "Arch Linux (64-bit)",
+    "efi": true,
+    "secure_boot": false,
+    "memory_mb": 8192,
+    "vcpu": 4,
+    "virtual_disk_gb_reported": 64,
+    "graphics_controller": "VMSVGA",
+    "video_memory_mb": 128,
+    "network": "NAT",
+    "shared_folders": false,
+    "exact_candidate_iso_mounted_reported": true,
+    "initial_3d_acceleration": false,
+    "working_3d_acceleration": true
+  },
+  "attempts": [
+    {
+      "stage": "initial live boot, 3D acceleration off",
+      "uefi_boot": "pass",
+      "live_environment": "pass",
+      "greetd_tuigreet": "pass",
+      "public_live_account_pam": "pass",
+      "tty_login": "pass",
+      "wayfire_renderer": "fail",
+      "graphical_session": "failed immediately",
+      "reported_wayfire_log_messages": [
+        "VMware: No 3D enabled",
+        "MESA-EGL warning: egl: failed to create dri2 screen",
+        "EGL_NOT_INITIALIZED",
+        "Failed to initialize EGL context",
+        "Could not initialize renderer",
+        "Failed to create renderer"
+      ]
+    },
+    {
+      "stage": "powered off, enabled 3D acceleration, retained VMSVGA/128 MB",
+      "wayfire_renderer": "pass",
+      "phishell_reality_ledger_launcher_windows_waybar_visible": "pass",
+      "hover_and_right_click": "pass",
+      "visible_pointer": "fail"
+    },
+    {
+      "stage": "tty2 exported cursor override before launching phios-session",
+      "commands": ["export WLR_NO_HARDWARE_CURSORS=1", "phios-session"],
+      "wayfire_renderer": "pass",
+      "visible_functional_pointer": "pass",
+      "desktop_initially_blank": true,
+      "reported_service_observations": {
+        "phios-browser.service": "active/running",
+        "chromium_arguments": "--ozone-platform=wayland --app=http://127.0.0.1:3969/",
+        "phios-waybar.service": "active/running",
+        "waybar_recognized_display": true
+      }
+    },
+    {
+      "stage": "session target rebound from terminal in the new graphical session",
+      "commands": [
+        "systemctl --user stop phios-session.target",
+        "systemctl --user start phios-session.target"
+      ],
+      "full_phios_desktop": "pass",
+      "phishell_and_waybar_visible": "pass",
+      "visible_functional_pointer": "pass",
+      "interactive_desktop_use": "pass"
+    }
+  ],
+  "diagnosis": {
+    "renderer_failure": "isolated to the reported renderer/EGL path with 3D acceleration off",
+    "cursor": "consistent with a Wayfire/wlroots hardware-cursor issue under VirtualBox",
+    "blank_desktop": "consistent with existing user service processes retaining the previous Wayland session/socket",
+    "inferences_are_not_additional_raw_log_evidence": true
+  },
+  "screenshot": {
+    "supplied_name": "image.png",
+    "sha256": "cf22251373df22c6cbb230d0e6e2b3b8bf5269f7555e25e7a9a5717ded86560e",
+    "bytes": 583611,
+    "visually_inspected": true,
+    "observed": ["PhiShell v0.16.0 visible", "mouse pointer visible"],
+    "published_in_repository": false,
+    "does_not_independently_prove_interaction_or_prior_attempts": true
+  },
+  "raw_wayfire_and_service_logs_acquired": false,
+  "additional_cold_boot_observation": {
+    "date": "2026-10-01",
+    "owner_action": "power off then power on",
+    "reported_boot_continued_after_messages": true,
+    "messages_visually_observed": [
+      "virt/tdx: TDX not supported by the host platform",
+      "vmwgfx 0000:00:02.0: [drm] *ERROR* vmwgfx seems to be running on an unsupported hypervisor.",
+      "vmwgfx 0000:00:02.0: [drm] *ERROR* This configuration is likely broken.",
+      "vmwgfx 0000:00:02.0: [drm] *ERROR* Please switch to a supported graphics device to avoid problems."
+    ],
+    "screenshot_name": "Screenshot 2026-10-01 121913.png",
+    "screenshot_sha256": "3badeec3fe20ef7f601bcb21a93a3eb7409740a19c3aabf2c999d4b2cb279354",
+    "screenshot_bytes": 57487,
+    "screenshot_visually_inspected": true,
+    "screenshot_published_in_repository": false,
+    "new_independent_iso_hash_acquired": false,
+    "automatic_cursor_or_service_rebinding_pass_inferred": false
+  },
+  "automatic_fix_on_new_candidate_virtualbox_retested": false,
+  "installation_qualified_by_this_observation": false,
+  "physical_hardware_qualified": false,
+  "skytech_rtx_5070_qualified": false,
+  "signed_release_transition_qualified": false,
+  "release_ready": false,
+  "publication_authority": false
+}

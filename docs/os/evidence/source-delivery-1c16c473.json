@@ -1,0 +1,76 @@
+{
+  "candidate": {
+    "first_party_source_archive": {
+      "sha256": "0a2a58aa9ce77e369435e731510859cdee7fc820a9f2333e308441013faf42ec",
+      "size": 1778503
+    },
+    "iso": {
+      "filename": "phios-linux-0.1.0-alpha.1-x86_64.iso",
+      "sha256": "376fd601f66b13dccd6a08644a7b807129f315882d355fd376d0934a80ae29aa",
+      "size": 1802305536
+    },
+    "metadata": {
+      "SHA256SUMS": {
+        "sha256": "2f7ed7588ed44dc4fe22104c9f51a423d304212a0045b93bc659fdd541ed6c0f",
+        "size": 1866
+      },
+      "provenance.json": {
+        "sha256": "df9c931a796ad45482a9d101fb32830fac363e535062e220a067281f4c6bd92e",
+        "size": 3582
+      },
+      "sbom.cdx.json": {
+        "sha256": "d49958f5611a3dc05093b83e3e2666e4b28fd5e33d098ec15ca47e041ef87977",
+        "size": 382659
+      },
+      "source-review.json": {
+        "sha256": "a55f4092143aa2cadfac297423f9ac15d0d299c489f6936ebfc082555e508ecb",
+        "size": 223400
+      },
+      "third-party-notices.json": {
+        "sha256": "840a10e3dac4ffac473e0f68ba6d078c85ddf1e4120518fa598d1876fe3cc71f",
+        "size": 194883
+      }
+    },
+    "source_commit": "1c16c4732442d69d2c7b5763212f1977860a15ae",
+    "source_date_epoch": 1790840916,
+    "supplier_notice_archive": {
+      "sha256": "d85ef3a1c1fa97e64ba142b1ce8d6a96cc990607b0d90d0108f4ed453dd24a0d",
+      "size": 919269
+    }
+  },
+  "canonical_manifest_sha256": "9537f18fd7289aa907a5f24238a8b62768d321ec62d1fdd7b1a8dc9afbddc8b2",
+  "component_reviews_recorded": 0,
+  "components_total": 501,
+  "delivery_records_complete": false,
+  "evidence_artifact_id": 11147969308,
+  "first_party_source_archive_reconstructed_and_verified": true,
+  "iso_bytes_independently_verified": false,
+  "license_conclusions_automatically_selected": false,
+  "license_source_compliance_reviewed": false,
+  "manifest_initialized_from_exact_candidate": true,
+  "missing_candidate_archives": [
+    "supplier_notice_archive"
+  ],
+  "pending_component_count": 501,
+  "publication_authority": false,
+  "reconstruction": {
+    "extra_file": "phios-source/PHIOS_SOURCE_COMMIT",
+    "source_commit": "1c16c4732442d69d2c7b5763212f1977860a15ae",
+    "source_date_epoch": 1790840916,
+    "source_tree": "0ccf3ccc589e0bad79e9917f2c01818772926ee1",
+    "tar_parameters": [
+      "--sort=name",
+      "--mtime=@1790840916",
+      "--owner=0",
+      "--group=0",
+      "--numeric-owner",
+      "--use-compress-program=gzip -n"
+    ]
+  },
+  "release_ready": false,
+  "review_declarations_authenticated": false,
+  "schema_version": "phios.source-delivery-check.v1",
+  "verified_material_bytes": 1778503,
+  "verified_material_files": 1,
+  "workflow_run": 36832501182
+}

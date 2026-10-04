@@ -11,6 +11,17 @@ platform, memory/ledger system, and constrained agent runtime built around one r
 
 The project is under active development and should be treated as **alpha software**.
 
+The Python package release is separate from the Linux OS effort. The Linux target
+is an unpublished x86_64 UEFI Arch-based Wayfire/PhiShell development preview.
+The exact normal candidate passed VM live/installed boot, persistent data,
+matched OS recovery and one restricted Linux proof effect. A separate QA image
+passed bounded signed-package update/interruption tests. The desktop candidate
+also passed virtual network/audio, manual PAM screen locking and session cleanup,
+with all nine aggregate jobs green. Physical hardware,
+the actual final signed transition, source/license delivery and public release
+remain open; Secure Boot is unsupported. See the [OS release contract](docs/os/RELEASE_CONTRACT.md),
+[exact evidence](docs/os/IMPLEMENTATION_STATUS.md) and [release handoff](docs/os/RELEASE_HANDOFF.md).
+
 ## What PhiOS is
 
 PhiOS is designed for systems that can observe, reason, retrieve, plan, and act without

@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+set -euo pipefail
+if [[ -z ${WAYLAND_DISPLAY:-} || -z ${XDG_RUNTIME_DIR:-} ]]; then
+    echo 'PhiOS session services require the compositor Wayland environment.' >&2
+    exit 1
+fi
+wayland_socket=$WAYLAND_DISPLAY
+[[ $wayland_socket == /* ]] || wayland_socket="$XDG_RUNTIME_DIR/$wayland_socket"
+if [[ ! -S $wayland_socket ]]; then
+    echo 'PhiOS session services require an existing Wayland socket.' >&2
+    exit 1
+fi
+# Empty DISPLAY clears a previous Xwayland session's value in both managers.
+export DISPLAY="${DISPLAY:-}"
+systemctl --user import-environment WAYLAND_DISPLAY DISPLAY XDG_CURRENT_DESKTOP XDG_RUNTIME_DIR
+dbus-update-activation-environment --systemd WAYLAND_DISPLAY DISPLAY XDG_CURRENT_DESKTOP XDG_RUNTIME_DIR
+# start alone preserves active processes bound to a previous Wayland socket.
+# Stop/start propagates through the existing PartOf session dependencies.
+systemctl --user stop phios-session.target
+systemctl --user start phios-session.target
