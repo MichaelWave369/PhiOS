@@ -383,7 +383,12 @@ class ToolchainSandboxPlan:
         }
 
     def canonical_json(self) -> str:
-        return json.dumps(self.body_dict(), sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+        return json.dumps(
+            self.body_dict(),
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=False,
+        )
 
     def sha256(self) -> str:
         return hashlib.sha256(self.canonical_json().encode("utf-8")).hexdigest()
