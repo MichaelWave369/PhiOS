@@ -519,16 +519,18 @@ def plan_toolchain_sandbox(
     if policy.network_mode != "deny":
         raise ValueError("v0.53 toolchain sandbox planning requires network denial")
 
-    if attestation.app_id != plan.app_id or attestation.commit_sha != plan.commit_sha:
-        raise ValueError("toolchain attestation identity does not match build plan")
-    if attestation.plan_sha256 != plan.sha256():
-        raise ValueError("toolchain attestation does not match build plan")
-    if attestation.capsule_sha256 != capsule.sha256():
-        raise ValueError("toolchain attestation does not match reviewed capsule")
-    if attestation.acquisition_receipt_sha256 != acquisition.sha256():
-        raise ValueError("toolchain attestation does not match acquisition receipt")
-    if acquisition.artifact_sha256 != capsule.artifact_sha256:
-        raise ValueError("capsule acquisition artifact digest does not match reviewed capsule")
+    reconstructed = attest_toolchain(
+        plan,
+        capsule,
+        acquisition,
+        attestation.observations,
+        inspector_id=attestation.inspector_id,
+        inspector_version=attestation.inspector_version,
+    )
+    if reconstructed.sha256() != attestation.sha256():
+        raise ValueError(
+            "toolchain attestation does not reconstruct from the exact plan, capsule and acquisition"
+        )
 
     status: ToolchainSandboxPlanStatus = (
         "dependency_staging_required"
