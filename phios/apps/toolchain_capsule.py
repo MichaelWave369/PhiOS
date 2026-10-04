@@ -124,6 +124,8 @@ class ToolchainRequirement:
         for tool in self.required_tools:
             if not _TOOL_RE.fullmatch(tool):
                 raise ValueError(f"Invalid required tool: {tool}")
+        if self.family is not None and self.family not in _FAMILY_TOOLS:
+            raise ValueError(f"Unsupported toolchain family: {self.family}")
         if self.status == "capsule_required" and self.family is None:
             raise ValueError("capsule_required requirements must name a family")
         if self.status != "capsule_required" and self.family is not None:
