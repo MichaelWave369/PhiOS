@@ -223,7 +223,12 @@ class ToolchainAttestation:
         }
 
     def canonical_json(self) -> str:
-        return json.dumps(\n            self.body_dict(), sort_keys=True, separators=(",", ":"), ensure_ascii=False\n        )
+        return json.dumps(
+            self.body_dict(),
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=False,
+        )
 
     def sha256(self) -> str:
         return hashlib.sha256(self.canonical_json().encode("utf-8")).hexdigest()
