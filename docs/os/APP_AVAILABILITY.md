@@ -53,10 +53,14 @@ initial overlapping windows do not hide the entry point.
   report records wrong-password refusal and correct-password return to the same
   session in its exact VirtualBox live case; see the field receipt below.
 
-The owner-local #286 test reported that Wofi initially put literal `drun` in the
-search field on both passes. Selecting that text and replacing it with
-`Chromium` successfully opened the browser. This workaround and unresolved
-launcher quirk are retained in the field receipt below.
+The owner-local #286 and #288 tests reported that Wofi presented literal `drun`
+and that the tester cleared it before typing the application name. The follow-up
+launcher candidate now routes Super+Space through `phios-launcher`, which invokes
+Wofi in `drun` mode with an explicit `Applications` prompt and supplies no
+`--search` value. This removes the mode-name prompt ambiguity without seeding an
+application query. The required field acceptance test is still explicit: open an
+untouched launcher and type `chromium` directly, without Ctrl+A or clearing any
+text, before classifying the regression closed.
 
 Approved external app desktop entries continue through the existing governed
 desktop-launch path. `phi-app catalog-desktop-apps` in Foot inspects the catalog;
@@ -67,8 +71,9 @@ evidence that the ecosystem apps were installed.
 
 The launcher repair changes UI state and connects existing read-only panels.
 It introduces no HTTP process-launch endpoint, download, install, model pull,
-grant, policy change or private kernel implementation. Packaging increments
-PhiShell's Arch package revision from 3 to 4 at the same `0.16.0` version.
+grant, policy change or private kernel implementation. Packaging originally advanced PhiShell from Arch package revision 3 to 4 for the
+shell repair; this launcher follow-up advances it from 4 to 5 at the same `0.16.0`
+version.
 The OS release remains `0.1.0-alpha.1` experimental. Full external app integration
 needs its own exact source/artifact selection, runtime contract and qualification.
 
@@ -89,10 +94,13 @@ does not qualify a replacement ISO, the physical Skytech/RTX 5070 machine or
 authorize merging, tagging or publishing.
 
 The separate #288 retest on normal ISO `0e68508d...` again reports working shell
-navigation and tool windows, but classifies launcher regression **PARTIAL FAIL**:
-Super+Space reportedly inserts literal `drun` and requires Ctrl+A before typing
-`chromium`, both initially and after cold boot. The report also records successful
-same-session lock/refusal/unlock and the installed NBG-A reader/refusal checks.
+navigation and tool windows, but classifies its launcher observation **PARTIAL FAIL**:
+Super+Space presented literal `drun` and the tester used Ctrl+A before typing
+`chromium`, both initially and after cold boot. That historical result remains
+unchanged. The new package-revision-5 candidate requires a fresh exact-image test
+that types directly into the untouched launcher before the result can be upgraded.
+The #288 report also records successful same-session lock/refusal/unlock and the
+installed NBG-A reader/refusal checks.
 Reality Ledger's backend remains **UNAVAILABLE**. See
 [virtualbox-field-a44dd077.json](evidence/virtualbox-field-a44dd077.json) for the
 exact binding, host-regenerated JSON origin and remaining launcher observation.
