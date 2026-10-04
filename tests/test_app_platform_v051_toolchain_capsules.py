@@ -73,6 +73,7 @@ def _receipt(root: Path, manifest: AppManifest) -> dict[str, Any]:
 
 
 def _plan(tmp_path: Path, family: str):
+    tmp_path.mkdir(parents=True, exist_ok=True)
     if family == "node_npm":
         manifest = _manifest()
         (tmp_path / "package.json").write_text(
