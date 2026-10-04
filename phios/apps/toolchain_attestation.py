@@ -223,7 +223,7 @@ class ToolchainAttestation:
         }
 
     def canonical_json(self) -> str:
-        return json.dumps(self.body_dict(), sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+        return json.dumps(\n            self.body_dict(), sort_keys=True, separators=(",", ":"), ensure_ascii=False\n        )
 
     def sha256(self) -> str:
         return hashlib.sha256(self.canonical_json().encode("utf-8")).hexdigest()
@@ -529,7 +529,8 @@ def plan_toolchain_sandbox(
     )
     if reconstructed.sha256() != attestation.sha256():
         raise ValueError(
-            "toolchain attestation does not reconstruct from the exact plan, capsule and acquisition"
+            "toolchain attestation does not reconstruct from the exact plan, capsule "
+            "and acquisition"
         )
 
     status: ToolchainSandboxPlanStatus = (
