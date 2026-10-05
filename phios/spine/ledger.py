@@ -39,6 +39,7 @@ if TYPE_CHECKING:
     from phios.macro_action_lease_service import GhostWalkActionLeaseRecord
     from phios.macro_lease_execution_handoff import GhostWalkLeaseExecutionReceipt
     from phios.phivessel_bridge import PhiVesselProposalPacket
+    from phios.phivid_ledger_admission import PHIVidLedgerAdmissionRecord
     from phios.macro_post_action_verification import (
         PostActionVerificationReceipt,
     )
@@ -80,6 +81,34 @@ class RealityLedger:
         if limit == 0 or not self.path.exists():
             return []
         return read_jsonl(self.path)[-limit:]
+
+    def append_phivid_evidence_admission_record(
+        self,
+        record: "PHIVidLedgerAdmissionRecord",
+    ) -> None:
+        """Append one operator-confirmed PHIVid evidence admission."""
+
+        path = self.path.parent / "phivid-evidence-admissions.jsonl"
+        append_jsonl(path, record.to_dict())
+
+    def phivid_evidence_admission_records(
+        self,
+        *,
+        envelope_sha256: str | None = None,
+    ) -> list[dict[str, object]]:
+        """Return append-order PHIVid evidence admission records."""
+
+        path = self.path.parent / "phivid-evidence-admissions.jsonl"
+        if not path.exists():
+            return []
+        rows = read_jsonl(path)
+        if envelope_sha256 is None:
+            return rows
+        return [
+            row
+            for row in rows
+            if row.get("envelope_sha256") == envelope_sha256
+        ]
 
     def append_macro_receipt(self, receipt: "MacroSpineReceipt") -> None:
         """Append one immutable macro-to-Spine execution receipt."""
