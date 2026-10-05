@@ -74,6 +74,7 @@ from .retained_cleanup import (
     review_retained_cleanup,
 )
 from .registry import AppRegistry
+from .repo_profile import profile_public_github_repository
 from .release_advancement import advance_release_candidate
 from .release_build_review import review_release_build_plan
 from .release_install_proposal import propose_release_install
@@ -263,6 +264,15 @@ def _parser() -> argparse.ArgumentParser:
         help="Read a bounded public GitHub repository snapshot and propose app metadata.",
     )
     inspect_parser.add_argument("repository_url")
+
+    profile_parser = subparsers.add_parser(
+        "profile-github",
+        help=(
+            "Profile one public GitHub repository and classify current PhiOS "
+            "compatibility without granting acquisition authority."
+        ),
+    )
+    profile_parser.add_argument("repository_url")
 
     review_parser = subparsers.add_parser(
         "review-intake",
@@ -1279,6 +1289,15 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.command == "inspect-github":
         try:
             result = inspect_public_github_app(args.repository_url)
+        except ValueError as exc:
+            print(json.dumps({"status": "blocked", "error": str(exc)}, sort_keys=True))
+            return 2
+        print(json.dumps(result.to_dict(), sort_keys=True, indent=2))
+        return 0
+
+    if args.command == "profile-github":
+        try:
+            result = profile_public_github_repository(args.repository_url)
         except ValueError as exc:
             print(json.dumps({"status": "blocked", "error": str(exc)}, sort_keys=True))
             return 2
