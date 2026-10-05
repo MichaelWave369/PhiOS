@@ -25,6 +25,12 @@ from phios.phivid_ledger_admission import (
     PHIVidLedgerAdmissionError,
     admit_phivid_evidence,
 )
+from phios.phivid_operator_approval import (
+    PHIVidOperatorApproval,
+    default_key_path,
+    load_or_create_operator_key,
+    verify_phivid_operator_approval,
+)
 from phios.spine.ledger import RealityLedger
 
 
@@ -98,6 +104,8 @@ def admit_from_files(
     operator_id: str,
     confirmed_at: str,
     operator_confirmed: bool,
+    approval_proof_path: Path,
+    operator_key_path: Path,
 ):
     if operator_confirmed is not True:
         raise PHIVidLedgerOperatorError(
@@ -116,6 +124,34 @@ def admit_from_files(
     epoch = AuthorityEpoch.from_dict(
         _read_json(authority_epoch_path, "AuthorityEpoch")
     )
+    approval = PHIVidOperatorApproval.from_dict(
+        _read_json(approval_proof_path, "PHIVid operator approval")
+    )
+    key = load_or_create_operator_key(operator_key_path)
+    if not verify_phivid_operator_approval(approval, key=key):
+        raise PHIVidLedgerOperatorError(
+            "PHIVid operator approval HMAC verification failed"
+        )
+    expected = {
+        "envelope_sha256": intake.envelope_sha256,
+        "admission_receipt_sha256": (
+            admission_receipt.admission_receipt_sha256
+        ),
+        "authority_epoch_sha256": epoch.authority_epoch_sha256,
+        "operator_id": operator_id,
+        "approved_at": confirmed_at,
+    }
+    actual = {
+        "envelope_sha256": approval.envelope_sha256,
+        "admission_receipt_sha256": approval.admission_receipt_sha256,
+        "authority_epoch_sha256": approval.authority_epoch_sha256,
+        "operator_id": approval.operator_id,
+        "approved_at": approval.approved_at,
+    }
+    if actual != expected:
+        raise PHIVidLedgerOperatorError(
+            "PHIVid operator approval does not bind this exact admission"
+        )
     authority = _authority_from_epoch(
         epoch,
         operator_id=operator_id,
@@ -146,6 +182,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--ledger", required=True, type=Path)
     parser.add_argument("--operator-id", required=True)
     parser.add_argument("--confirmed-at", required=True)
+    parser.add_argument("--approval-proof", required=True, type=Path)
+    parser.add_argument("--operator-key", type=Path, default=default_key_path())
     parser.add_argument(
         "--confirm-admit",
         action="store_true",
@@ -165,6 +203,8 @@ def main(argv: list[str] | None = None) -> int:
             operator_id=args.operator_id,
             confirmed_at=args.confirmed_at,
             operator_confirmed=args.confirm_admit,
+            approval_proof_path=args.approval_proof,
+            operator_key_path=args.operator_key,
         )
     except (
         ValueError,
