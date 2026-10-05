@@ -70,6 +70,12 @@ def _sha256(value: Any, label: str) -> str:
     return text
 
 
+def _bool(value: Any, label: str) -> bool:
+    if not isinstance(value, bool):
+        raise ValueError(f"{label} must be a boolean")
+    return value
+
+
 def _false(value: Any, label: str) -> bool:
     if value is not False:
         raise ValueError(f"{label} must remain false")
@@ -86,7 +92,11 @@ def _canonical_sha256(value: dict[str, Any]) -> str:
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
-def _build_family(runtime: str | None, target: str | None, root_paths: tuple[str, ...]) -> RepoBuildFamily:
+def _build_family(
+    runtime: str | None,
+    target: str | None,
+    root_paths: tuple[str, ...],
+) -> RepoBuildFamily:
     roots = set(root_paths)
 
     if runtime == "static_web":
@@ -158,6 +168,8 @@ class RepoProfile:
         _string(self.name, "name", maximum=100)
         if not _SHA_RE.fullmatch(self.head_sha):
             raise ValueError("head_sha must be a lowercase hexadecimal commit identifier")
+        _bool(self.archived, "archived")
+        _bool(self.disabled, "disabled")
         _string(self.intake_status, "intake_status", maximum=64)
         if self.manifest_source not in {"declared", "inferred", "none"}:
             raise ValueError("manifest_source must be declared, inferred, or none")
@@ -185,6 +197,9 @@ class RepoProfile:
             raise ValueError("unsupported build_family")
         if tuple(sorted(set(self.root_markers))) != self.root_markers:
             raise ValueError("root_markers must be sorted and unique")
+        _bool(self.submodule_marker_observed, "submodule_marker_observed")
+        _bool(self.gitattributes_marker_observed, "gitattributes_marker_observed")
+        _bool(self.lfs_config_marker_observed, "lfs_config_marker_observed")
         if any(
             value is not False
             for value in (
@@ -232,6 +247,110 @@ class RepoProfile:
         result = self.body_dict()
         result["profile_sha256"] = self.sha256()
         return result
+
+    @classmethod
+    def from_dict(cls, value: Any) -> RepoProfile:
+        if not isinstance(value, dict):
+            raise ValueError("repo profile must be an object")
+        data = cast(dict[str, Any], value)
+        expected = {
+            "schema_version",
+            "repository_url",
+            "owner",
+            "name",
+            "head_sha",
+            "archived",
+            "disabled",
+            "intake_status",
+            "manifest_source",
+            "app_id",
+            "runtime",
+            "target",
+            "license_expression",
+            "license_state",
+            "build_family",
+            "root_markers",
+            "submodule_marker_observed",
+            "gitattributes_marker_observed",
+            "lfs_config_marker_observed",
+            "profile_authority",
+            "acquisition_authority",
+            "build_authority",
+            "install_authority",
+            "launch_authority",
+            "profile_sha256",
+        }
+        if set(data) != expected:
+            raise ValueError("repo profile contains missing or unknown fields")
+        roots = data["root_markers"]
+        if not isinstance(roots, list) or not all(isinstance(item, str) for item in roots):
+            raise ValueError("root_markers must be an array of strings")
+        profile = cls(
+            schema_version=_string(data["schema_version"], "schema_version", maximum=64),
+            repository_url=_string(
+                data["repository_url"], "repository_url", maximum=512
+            ),
+            owner=_string(data["owner"], "owner", maximum=100),
+            name=_string(data["name"], "name", maximum=100),
+            head_sha=_string(data["head_sha"], "head_sha", maximum=64),
+            archived=_bool(data["archived"], "archived"),
+            disabled=_bool(data["disabled"], "disabled"),
+            intake_status=_string(
+                data["intake_status"], "intake_status", maximum=64
+            ),
+            manifest_source=_string(
+                data["manifest_source"], "manifest_source", maximum=16
+            ),
+            app_id=(
+                None
+                if data["app_id"] is None
+                else _string(data["app_id"], "app_id", maximum=64)
+            ),
+            runtime=(
+                None
+                if data["runtime"] is None
+                else _string(data["runtime"], "runtime", maximum=32)
+            ),
+            target=(
+                None
+                if data["target"] is None
+                else _string(data["target"], "target", maximum=512)
+            ),
+            license_expression=_string(
+                data["license_expression"], "license_expression", maximum=128
+            ),
+            license_state=_string(
+                data["license_state"], "license_state", maximum=32
+            ),
+            build_family=cast(RepoBuildFamily, data["build_family"]),
+            root_markers=tuple(roots),
+            submodule_marker_observed=_bool(
+                data["submodule_marker_observed"], "submodule_marker_observed"
+            ),
+            gitattributes_marker_observed=_bool(
+                data["gitattributes_marker_observed"],
+                "gitattributes_marker_observed",
+            ),
+            lfs_config_marker_observed=_bool(
+                data["lfs_config_marker_observed"], "lfs_config_marker_observed"
+            ),
+            profile_authority=_false(
+                data["profile_authority"], "profile_authority"
+            ),
+            acquisition_authority=_false(
+                data["acquisition_authority"], "acquisition_authority"
+            ),
+            build_authority=_false(data["build_authority"], "build_authority"),
+            install_authority=_false(
+                data["install_authority"], "install_authority"
+            ),
+            launch_authority=_false(
+                data["launch_authority"], "launch_authority"
+            ),
+        )
+        if data["profile_sha256"] != profile.sha256():
+            raise ValueError("repo profile digest does not match canonical content")
+        return profile
 
 
 @dataclass(frozen=True)
@@ -324,6 +443,80 @@ class RepoCompatibilityAssessment:
         result["assessment_sha256"] = self.sha256()
         return result
 
+    @classmethod
+    def from_dict(cls, value: Any) -> RepoCompatibilityAssessment:
+        if not isinstance(value, dict):
+            raise ValueError("repo compatibility assessment must be an object")
+        data = cast(dict[str, Any], value)
+        expected = {
+            "schema_version",
+            "profile_sha256",
+            "repository_url",
+            "head_sha",
+            "status",
+            "blocking_reasons",
+            "advisory_notes",
+            "next_gate",
+            "license_policy",
+            "advisory_only",
+            "acquisition_authority",
+            "build_authority",
+            "install_authority",
+            "launch_authority",
+            "assessment_sha256",
+        }
+        if set(data) != expected:
+            raise ValueError(
+                "repo compatibility assessment contains missing or unknown fields"
+            )
+        reasons = data["blocking_reasons"]
+        notes = data["advisory_notes"]
+        if not isinstance(reasons, list) or not all(
+            isinstance(item, str) for item in reasons
+        ):
+            raise ValueError("blocking_reasons must be an array of strings")
+        if not isinstance(notes, list) or not all(
+            isinstance(item, str) for item in notes
+        ):
+            raise ValueError("advisory_notes must be an array of strings")
+        assessment = cls(
+            schema_version=_string(data["schema_version"], "schema_version", maximum=64),
+            profile_sha256=_sha256(data["profile_sha256"], "profile_sha256"),
+            repository_url=_string(
+                data["repository_url"], "repository_url", maximum=512
+            ),
+            head_sha=_string(data["head_sha"], "head_sha", maximum=64),
+            status=cast(RepoCompatibilityStatus, data["status"]),
+            blocking_reasons=tuple(reasons),
+            advisory_notes=tuple(notes),
+            next_gate=_string(data["next_gate"], "next_gate", maximum=128),
+            license_policy=_string(
+                data["license_policy"], "license_policy", maximum=32
+            ),
+            advisory_only=(
+                True
+                if data["advisory_only"] is True
+                else (_ for _ in ()).throw(
+                    ValueError("advisory_only must remain true")
+                )
+            ),
+            acquisition_authority=_false(
+                data["acquisition_authority"], "acquisition_authority"
+            ),
+            build_authority=_false(data["build_authority"], "build_authority"),
+            install_authority=_false(
+                data["install_authority"], "install_authority"
+            ),
+            launch_authority=_false(
+                data["launch_authority"], "launch_authority"
+            ),
+        )
+        if data["assessment_sha256"] != assessment.sha256():
+            raise ValueError(
+                "repo compatibility assessment digest does not match canonical content"
+            )
+        return assessment
+
 
 @dataclass(frozen=True)
 class RepoProfileResult:
@@ -399,13 +592,15 @@ def profile_intake_result(intake: AppIntakeResult) -> RepoProfileResult:
     elif profile.submodule_marker_observed:
         status = "SUBMODULE_REQUIRED"
         reasons.append(
-            "repository root contains .gitmodules but v0.27 exact source acquisition does not acquire submodule content"
+            "repository root contains .gitmodules but v0.27 exact source "
+            "acquisition does not acquire submodule content"
         )
         next_gate = "submodule_acquisition_adapter"
     elif profile.lfs_config_marker_observed or profile.gitattributes_marker_observed:
         status = "LFS_REVIEW_REQUIRED"
         reasons.append(
-            "repository contains Git attributes/LFS markers that bounded intake does not prove are ordinary source bytes"
+            "repository contains Git attributes/LFS markers that bounded intake "
+            "does not prove are ordinary source bytes"
         )
         next_gate = "git_lfs_review"
     elif profile.build_family in _TOOLCHAIN_BLOCKERS:
@@ -417,7 +612,8 @@ def profile_intake_result(intake: AppIntakeResult) -> RepoProfileResult:
     elif profile.build_family == "node_unlocked":
         status = "LOCKFILE_REQUIRED"
         reasons.append(
-            "Node repository has no supported deterministic root lockfile for the governed dependency path"
+            "Node repository has no supported deterministic root lockfile for "
+            "the governed dependency path"
         )
         next_gate = "add_supported_lockfile_or_declared_no_dependency_path"
     elif profile.runtime == "native":
@@ -433,7 +629,8 @@ def profile_intake_result(intake: AppIntakeResult) -> RepoProfileResult:
     ):
         status = "UNSUPPORTED_RUNTIME"
         reasons.append(
-            "current direct Python runtime requires a declared executable .py entrypoint rather than inferred pyproject.toml"
+            "current direct Python runtime requires a declared executable .py "
+            "entrypoint rather than inferred pyproject.toml"
         )
         next_gate = "declare_python_entrypoint_or_add_python_package_runtime_adapter"
     elif profile.runtime not in {"node", "python", "static_web"}:
@@ -446,7 +643,8 @@ def profile_intake_result(intake: AppIntakeResult) -> RepoProfileResult:
         status = "SUPPORTED_AFTER_OPERATOR_APPROVAL"
         next_gate = "v0.27_source_acquisition_review"
         notes.append(
-            "profile support means no v0.58 blocker was observed; later acquisition, build, dependency, runtime, install and launch gates still apply"
+            "profile support means no v0.58 blocker was observed; later acquisition, "
+            "build, dependency, runtime, install and launch gates still apply"
         )
 
     if profile.archived:
