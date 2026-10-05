@@ -47,7 +47,9 @@ The profile records:
 - declared/inferred/absent manifest source;
 - app ID;
 - runtime and target;
-- license expression and normalized license state;
+- manifest/proposal license expression;
+- GitHub-reported SPDX identifier when available;
+- normalized license state;
 - deterministic build-family classification;
 - bounded root markers;
 - root `.gitmodules`, `.gitattributes`, and `.lfsconfig` marker presence.
@@ -60,15 +62,18 @@ The first policy is deliberately tailored to the stated PhiOS acceptance corpus:
 license_policy = mit_only
 ```
 
-Accepted license assertions:
+Accepted automatic corpus evidence requires both the manifest/proposal and GitHub's
+reported SPDX metadata to resolve to the MIT family:
 
 - `MIT`
 - `MIT-0`
 
-Any other or unasserted license produces `LICENSE_REVIEW_REQUIRED`.
+A declared MIT manifest with no matching GitHub SPDX observation is held for review.
+Conflicting license evidence is also held.
 
-This is not a legal conclusion that other licenses are incompatible with PhiOS. It means
-they are outside the first automatic acceptance corpus and need explicit review.
+This is not a legal conclusion and `mit_reported` is deliberately not named
+"legally verified." Other licenses are merely outside the first automatic acceptance
+corpus and need explicit review.
 
 ## Build-family classification
 
