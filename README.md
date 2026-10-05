@@ -53,7 +53,7 @@ identity does not inherit old authority merely because continuity was demonstrat
 |---|---:|---|
 | **Shell / MCP** | active | operator interface, workflows, resources, prompts, capability surfaces |
 | **Spine** | **v0.24** | authority-aware observation, verification, evidence, and receipts |
-| **App Platform** | **v0.54** | governed intake, toolchain matching/acquisition/attestation/runtime boundary, build, install, launch, update, rollback, cleanup, and release lineage |
+| **App Platform** | **v0.55** | governed intake, toolchain capsules, rootless Podman runtime, build, install, launch, update, rollback, cleanup, and release lineage |
 | **PhiReflex** | **v0.10** | provider-neutral fast advisory layer with authenticated bounded routing influence |
 | **Governed Memory** | active | canonical local memory, derived semantic index, read admissibility, temporal horizon |
 | **Reality Ledger** | active | append-only evidence plus bounded read-only analytics |
@@ -172,13 +172,14 @@ unless the broader claim is separately observed and verified.
 Current contract:
 [Spine v0.24 numeric-transition verification](docs/PHIOS_SPINE_V0.24_NUMERIC_TRANSITION_CONTRACT.md).
 
-### App Platform v0.54
+### App Platform v0.55
 
 The App Platform provides a governed lifecycle from public source intake through
 exact-commit acquisition, reviewed build planning, digest-bound toolchain capsule matching,
-verified capsule acquisition, toolchain attestation, network-denied sandbox planning and an
-explicit single-build OCI runtime boundary, dependency staging, offline build, artifact
-installation, visible/persistent launch, app cataloging,
+verified capsule acquisition, toolchain attestation, network-denied sandbox planning, an
+explicit single-build OCI runtime boundary, and a concrete rootless Podman adapter,
+dependency staging, offline build, artifact installation, visible/persistent launch,
+app cataloging,
 side-by-side update, separately authorized rollback, cleanup recovery, release discovery,
 human review, execution lineage, package lineage, and release-install proposal gating.
 
@@ -196,9 +197,11 @@ update            != rollback authority
 ```
 
 Current contract:
-[App Platform v0.54 toolchain runtime](docs/PHIOS_APP_PLATFORM_V0.54_TOOLCHAIN_RUNTIME.md).
+[App Platform v0.55 rootless Podman runtime](docs/PHIOS_APP_PLATFORM_V0.55_PODMAN_RUNTIME.md).
 
-v0.54 defines the exact approval and receipt boundary for one network-denied toolchain build through an injected OCI adapter. It intentionally does not ship or auto-select a production OCI backend.
+v0.55 implements the first concrete OCI adapter with an isolated rootless Podman store
+and fixed network-denied container controls. Podman is never auto-selected merely
+because it is installed.
 
 ### PhiReflex v0.10
 

@@ -268,6 +268,14 @@ from .sandbox import (
     SandboxedBuildExecutionResult,
     SandboxedBuildExecutionService,
 )
+from .podman_runtime import (
+    PODMAN_ROOTLESS_ADAPTER_ID,
+    PODMAN_ROOTLESS_ADAPTER_VERSION,
+    PodmanCommandExecutor,
+    PodmanCommandResult,
+    PodmanRootlessOciRunner,
+    SubprocessPodmanCommandExecutor,
+)
 from .static_web import (
     STATIC_WEB_ADAPTER_PLAN_SCHEMA_VERSION,
     STATIC_WEB_ADAPTER_REVIEW_SCHEMA_VERSION,
@@ -410,6 +418,8 @@ __all__ = [
     "STATIC_WEB_SERVE_RECEIPT_SCHEMA_VERSION",
     "CAPSULE_ACQUISITION_RECEIPT_SCHEMA_VERSION",
     "CAPSULE_ACQUISITION_REQUEST_SCHEMA_VERSION",
+    "PODMAN_ROOTLESS_ADAPTER_ID",
+    "PODMAN_ROOTLESS_ADAPTER_VERSION",
     "OCI_RUNTIME_ADAPTER_IDENTITY_SCHEMA_VERSION",
     "OCI_RUNTIME_CONTROL_EVIDENCE_SCHEMA_VERSION",
     "TOOLCHAIN_RUNTIME_RECEIPT_SCHEMA_VERSION",
@@ -529,6 +539,9 @@ __all__ = [
     "NpmToolEvidence",
     "ObservedBuildFile",
     "PackageArtifact",
+    "PodmanCommandExecutor",
+    "PodmanCommandResult",
+    "PodmanRootlessOciRunner",
     "ProcessResult",
     "RetainedCleanupJournal",
     "RetainedCleanupPlan",
@@ -591,6 +604,7 @@ __all__ = [
     "ToolchainTool",
     "StreamCapture",
     "SubprocessBuildRunner",
+    "SubprocessPodmanCommandExecutor",
     "SubprocessNpmCommandRunner",
     "ToolIdentity",
     "VisibleBrowserExecution",
