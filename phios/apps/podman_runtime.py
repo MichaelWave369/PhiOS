@@ -215,7 +215,15 @@ class PodmanRootlessOciRunner:
 
     def _host_environment(self) -> dict[str, str]:
         env: dict[str, str] = {}
-        for key in ("HOME", "XDG_RUNTIME_DIR", "LANG", "LC_ALL", "PATH"):
+        for key in (
+            "HOME",
+            "XDG_RUNTIME_DIR",
+            "LANG",
+            "LC_ALL",
+            "PATH",
+            "USER",
+            "LOGNAME",
+        ):
             value = os.environ.get(key)
             if value:
                 env[key] = value
@@ -357,6 +365,8 @@ class PodmanRootlessOciRunner:
         if self.state_root.exists():
             if self.state_root.is_symlink():
                 raise ValueError("Podman state root must not be a symlink")
+            if not self.state_root.is_dir():
+                raise ValueError("Podman state root must be a directory")
             if any(self.state_root.iterdir()):
                 raise ValueError("Podman v0.55 requires a fresh empty state root")
         self.graph_root.mkdir(parents=True, exist_ok=True)
