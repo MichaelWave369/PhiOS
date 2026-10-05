@@ -1297,11 +1297,11 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     if args.command == "profile-github":
         try:
-            result = profile_public_github_repository(args.repository_url)
+            profile_result = profile_public_github_repository(args.repository_url)
         except ValueError as exc:
             print(json.dumps({"status": "blocked", "error": str(exc)}, sort_keys=True))
             return 2
-        print(json.dumps(result.to_dict(), sort_keys=True, indent=2))
+        print(json.dumps(profile_result.to_dict(), sort_keys=True, indent=2))
         return 0
 
     if args.command == "review-intake":
