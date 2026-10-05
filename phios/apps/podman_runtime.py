@@ -215,7 +215,7 @@ class PodmanRootlessOciRunner:
 
     def _host_environment(self) -> dict[str, str]:
         env: dict[str, str] = {}
-        for key in ("HOME", "XDG_RUNTIME_DIR", "LANG", "LC_ALL"):
+        for key in ("HOME", "XDG_RUNTIME_DIR", "LANG", "LC_ALL", "PATH"):
             value = os.environ.get(key)
             if value:
                 env[key] = value
@@ -231,8 +231,12 @@ class PodmanRootlessOciRunner:
         path = Path(raw)
         if not path.is_absolute():
             raise ValueError("Podman executable must resolve to an absolute path")
-        self._resolved_podman = path
-        return path
+        try:
+            resolved = path.resolve(strict=True)
+        except OSError as exc:
+            raise ValueError("Podman executable is unavailable") from exc
+        self._resolved_podman = resolved
+        return resolved
 
     def _base_argv(self) -> tuple[str, ...]:
         return (
