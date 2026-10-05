@@ -76,7 +76,7 @@ def test_mit_node_npm_repo_is_supported_after_operator_approval() -> None:
         )
     )
 
-    assert result.profile.license_state == "mit_confirmed"
+    assert result.profile.license_state == "mit_reported"
     assert result.profile.build_family == "node_npm"
     assert result.compatibility.status == "SUPPORTED_AFTER_OPERATOR_APPROVAL"
     assert result.compatibility.blocking_reasons == ()
@@ -311,3 +311,37 @@ def test_profile_and_assessment_detect_tamper_by_digest() -> None:
     tampered["next_gate"] = "tampered"
     with pytest.raises(ValueError, match="digest"):
         RepoCompatibilityAssessment.from_dict(tampered)
+
+
+def test_declared_mit_conflicting_with_github_license_requires_review() -> None:
+    declared = _file(
+        "phios-app.json",
+        json.dumps(
+            {
+                "schema_version": "phios.app_manifest.v0.1",
+                "app_id": "fixture.conflict",
+                "name": "Fixture Conflict",
+                "version": "1.0.0",
+                "description": "fixture",
+                "source": {
+                    "repository_url": "https://github.com/example/app",
+                    "license_expression": "MIT",
+                    "redistribution": "unknown",
+                },
+                "entrypoint": {"runtime": "static_web", "target": "index.html"},
+                "permissions": [],
+            }
+        ).encode("utf-8"),
+    )
+    result = profile_intake_result(
+        _analyze(
+            _snapshot(
+                files=(declared,),
+                root_paths=("phios-app.json", "index.html"),
+                license_spdx="GPL-3.0-only",
+            )
+        )
+    )
+
+    assert result.profile.license_state == "license_conflict"
+    assert result.compatibility.status == "LICENSE_REVIEW_REQUIRED"
