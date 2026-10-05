@@ -407,7 +407,12 @@ def test_podman_preflight_refuses_reused_state_root(
         runner.preflight()
 
 
-def test_podman_runner_refuses_python_module_locator(tmp_path: Path) -> None:
+@pytest.mark.skipif(not hasattr(os, "geteuid"), reason="requires POSIX uid semantics")
+def test_podman_runner_refuses_python_module_locator(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(os, "geteuid", lambda: 1000)
     request = _lineage(tmp_path)
     observations = list(request.attestation.observations)
     observations[0] = ToolProbeObservation(
@@ -429,12 +434,10 @@ def test_podman_runner_refuses_python_module_locator(tmp_path: Path) -> None:
         podman_path=str(_fake_podman_binary(tmp_path)),
         executor=FakePodmanExecutor(),
     )
-    runner._image_id = FakePodmanExecutor.image_id
-    runner._runtime_identity = runner.control_identity_for_test()
+    runner.preflight()
 
     with pytest.raises(ValueError, match="absolute subject locator"):
         runner.runtime_observations()
-
 
 def replace_attestation(
     request: ToolchainRuntimeRequest,
