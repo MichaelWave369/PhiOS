@@ -301,11 +301,13 @@ def test_profile_and_assessment_detect_tamper_by_digest() -> None:
 
     assessment_data = result.compatibility.to_dict()
     assert assessment_data["assessment_sha256"] == result.compatibility.sha256()
-    assert RepoProfile(**{
-        key: value
-        for key, value in result.profile.__dict__.items()
-    }) == result.profile
-    assert RepoCompatibilityAssessment(**{
-        key: value
-        for key, value in result.compatibility.__dict__.items()
-    }) == result.compatibility
+    assert RepoProfile.from_dict(result.profile.to_dict()) == result.profile
+    assert (
+        RepoCompatibilityAssessment.from_dict(result.compatibility.to_dict())
+        == result.compatibility
+    )
+
+    tampered = result.compatibility.to_dict()
+    tampered["next_gate"] = "tampered"
+    with pytest.raises(ValueError, match="digest"):
+        RepoCompatibilityAssessment.from_dict(tampered)
