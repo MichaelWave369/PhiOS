@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+
+from pathlib import Path
 
 import pytest
 
@@ -158,7 +160,7 @@ class FakeRuntimeRequest:
     capsule: ToolchainCapsule
     attestation: ToolchainAttestation
     execution_approval_id: str = "99999999-9999-9999-9999-999999999999"
-    build_plan: FakeBuildPlan = FakeBuildPlan()
+    build_plan: FakeBuildPlan = field(default_factory=FakeBuildPlan)
 
 
 @dataclass
