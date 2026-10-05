@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
 import json
 from pathlib import Path
 import subprocess
@@ -18,8 +17,10 @@ from phios.phivid_admission import (
     evaluate_phivid_admission,
 )
 from phios.phivid_evidence import validate_phivid_evidence_envelope
-from phios.phivid_ledger_admission import (
-    PHIVID_LEDGER_ADMIT_PERMISSION,
+from phios.phivid_ledger_admission import PHIVID_LEDGER_ADMIT_PERMISSION
+from phios.phivid_operator_approval import (
+    create_phivid_operator_approval,
+    load_or_create_operator_key,
 )
 
 
@@ -68,7 +69,9 @@ def _write_inputs(
     *,
     grant_permission: bool = True,
     expiry: str | None = None,
-) -> tuple[Path, Path, Path, Path]:
+    approval_operator: str = "operator:local",
+    approved_at: str = "2026-10-04T23:15:00+00:00",
+) -> tuple[Path, Path, Path, Path, Path, Path]:
     envelope = _envelope()
     intake = validate_phivid_evidence_envelope(envelope)
     admission = evaluate_phivid_admission(
@@ -80,6 +83,8 @@ def _write_inputs(
     envelope_path = root / "envelope.json"
     receipt_path = root / "admission.json"
     epoch_path = root / "authority-epoch.json"
+    proof_path = root / "operator-approval.json"
+    key_path = root / "authority" / "phivid.key"
     ledger_path = root / "ledger" / "reality-ledger.jsonl"
     envelope_path.write_text(
         json.dumps(envelope, indent=2),
@@ -114,7 +119,28 @@ def _write_inputs(
         json.dumps(epoch.to_dict(), indent=2),
         encoding="utf-8",
     )
-    return envelope_path, receipt_path, epoch_path, ledger_path
+
+    key = load_or_create_operator_key(key_path)
+    approval = create_phivid_operator_approval(
+        envelope_sha256=intake.envelope_sha256,
+        admission_receipt_sha256=admission.admission_receipt_sha256,
+        authority_epoch_sha256=epoch.authority_epoch_sha256,
+        operator_id=approval_operator,
+        approved_at=approved_at,
+        key=key,
+    )
+    proof_path.write_text(
+        json.dumps(approval.to_dict(), indent=2),
+        encoding="utf-8",
+    )
+    return (
+        envelope_path,
+        receipt_path,
+        epoch_path,
+        ledger_path,
+        proof_path,
+        key_path,
+    )
 
 
 def _run(
@@ -123,6 +149,8 @@ def _run(
     receipt: Path,
     epoch: Path,
     ledger: Path,
+    proof: Path,
+    key: Path,
     operator_id: str = "operator:local",
     confirmed_at: str = "2026-10-04T23:15:00+00:00",
     confirm: bool = True,
@@ -143,6 +171,10 @@ def _run(
         operator_id,
         "--confirmed-at",
         confirmed_at,
+        "--approval-proof",
+        str(proof),
+        "--operator-key",
+        str(key),
     ]
     if confirm:
         args.append("--confirm-admit")
@@ -157,12 +189,14 @@ def _run(
 def test_operator_cli_reconstructs_authority_and_admits(
     tmp_path: Path,
 ) -> None:
-    envelope, receipt, epoch, ledger = _write_inputs(tmp_path)
+    envelope, receipt, epoch, ledger, proof, key = _write_inputs(tmp_path)
     result = _run(
         envelope=envelope,
         receipt=receipt,
         epoch=epoch,
         ledger=ledger,
+        proof=proof,
+        key=key,
     )
 
     assert result.returncode == 0, result.stdout + result.stderr
@@ -185,12 +219,14 @@ def test_operator_cli_reconstructs_authority_and_admits(
 def test_cli_requires_explicit_confirmation_and_writes_nothing(
     tmp_path: Path,
 ) -> None:
-    envelope, receipt, epoch, ledger = _write_inputs(tmp_path)
+    envelope, receipt, epoch, ledger, proof, key = _write_inputs(tmp_path)
     result = _run(
         envelope=envelope,
         receipt=receipt,
         epoch=epoch,
         ledger=ledger,
+        proof=proof,
+        key=key,
         confirm=False,
     )
 
@@ -200,7 +236,7 @@ def test_cli_requires_explicit_confirmation_and_writes_nothing(
 
 
 def test_cli_refuses_epoch_without_required_grant(tmp_path: Path) -> None:
-    envelope, receipt, epoch, ledger = _write_inputs(
+    envelope, receipt, epoch, ledger, proof, key = _write_inputs(
         tmp_path,
         grant_permission=False,
     )
@@ -209,6 +245,8 @@ def test_cli_refuses_epoch_without_required_grant(tmp_path: Path) -> None:
         receipt=receipt,
         epoch=epoch,
         ledger=ledger,
+        proof=proof,
+        key=key,
     )
 
     assert result.returncode == 1
@@ -216,12 +254,17 @@ def test_cli_refuses_epoch_without_required_grant(tmp_path: Path) -> None:
 
 
 def test_cli_refuses_operator_principal_mismatch(tmp_path: Path) -> None:
-    envelope, receipt, epoch, ledger = _write_inputs(tmp_path)
+    envelope, receipt, epoch, ledger, proof, key = _write_inputs(
+        tmp_path,
+        approval_operator="operator:other",
+    )
     result = _run(
         envelope=envelope,
         receipt=receipt,
         epoch=epoch,
         ledger=ledger,
+        proof=proof,
+        key=key,
         operator_id="operator:other",
     )
 
@@ -230,18 +273,42 @@ def test_cli_refuses_operator_principal_mismatch(tmp_path: Path) -> None:
 
 
 def test_cli_refuses_stale_authority_epoch(tmp_path: Path) -> None:
-    envelope, receipt, epoch, ledger = _write_inputs(
+    confirmed_at = "2026-10-04T23:15:00+00:00"
+    envelope, receipt, epoch, ledger, proof, key = _write_inputs(
         tmp_path,
         expiry="2026-10-04T23:12:00+00:00",
+        approved_at=confirmed_at,
     )
     result = _run(
         envelope=envelope,
         receipt=receipt,
         epoch=epoch,
         ledger=ledger,
-        confirmed_at="2026-10-04T23:15:00+00:00",
+        proof=proof,
+        key=key,
+        confirmed_at=confirmed_at,
     )
 
     assert result.returncode == 1
     assert "stale" in json.loads(result.stdout)["error"]
+    assert not (ledger.parent / "phivid-evidence-admissions.jsonl").exists()
+
+
+def test_cli_refuses_proof_for_different_timestamp(tmp_path: Path) -> None:
+    envelope, receipt, epoch, ledger, proof, key = _write_inputs(
+        tmp_path,
+        approved_at="2026-10-04T23:14:00+00:00",
+    )
+    result = _run(
+        envelope=envelope,
+        receipt=receipt,
+        epoch=epoch,
+        ledger=ledger,
+        proof=proof,
+        key=key,
+        confirmed_at="2026-10-04T23:15:00+00:00",
+    )
+
+    assert result.returncode == 1
+    assert "does not bind this exact admission" in json.loads(result.stdout)["error"]
     assert not (ledger.parent / "phivid-evidence-admissions.jsonl").exists()
