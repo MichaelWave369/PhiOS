@@ -177,9 +177,9 @@ Current contract:
 The App Platform provides a governed lifecycle from public source intake through
 exact-commit acquisition, reviewed build planning, digest-bound toolchain capsule matching,
 verified capsule acquisition, toolchain attestation, network-denied sandbox planning, an
-explicit single-build OCI runtime boundary, and a concrete rootless Podman adapter,
-dependency staging, offline build, artifact installation, visible/persistent launch,
-app cataloging,
+explicit single-build OCI runtime boundary, a concrete rootless Podman adapter, and
+request-bound backend qualification/selection, dependency staging, offline build,
+artifact installation, visible/persistent launch, app cataloging,
 side-by-side update, separately authorized rollback, cleanup recovery, release discovery,
 human review, execution lineage, package lineage, and release-install proposal gating.
 
@@ -197,11 +197,11 @@ update            != rollback authority
 ```
 
 Current contract:
-[App Platform v0.55 rootless Podman runtime](docs/PHIOS_APP_PLATFORM_V0.55_PODMAN_RUNTIME.md).
+[App Platform v0.56 runtime backend selection](docs/PHIOS_APP_PLATFORM_V0.56_RUNTIME_BACKEND_SELECTION.md).
 
-v0.55 implements the first concrete OCI adapter with an isolated rootless Podman store
-and fixed network-denied container controls. Podman is never auto-selected merely
-because it is installed.
+v0.56 qualifies concrete adapters for one exact reviewed plan and produces advisory
+backend-selection proposals. Operator selection remains separate from execution
+authority.
 
 ### PhiReflex v0.10
 
