@@ -237,6 +237,11 @@ def main(argv: list[str] | None = None) -> int:
                 "output_evidence_ref": record.output_evidence_ref,
                 "operator_id": record.operator_id,
                 "permission": record.permission,
+                "authority_epoch_sha256": record.authority_epoch_sha256,
+                "operator_approval_sha256": record.operator_approval_sha256,
+                "operator_approval_payload_sha256": (
+                    record.operator_approval_payload_sha256
+                ),
                 "ledger_write_performed": (
                     record.ledger_write_performed
                 ),
