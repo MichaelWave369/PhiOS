@@ -76,6 +76,12 @@ def _bool(value: Any, label: str) -> bool:
     return value
 
 
+def _true(value: Any, label: str) -> bool:
+    if value is not True:
+        raise ValueError(f"{label} must remain true")
+    return True
+
+
 def _false(value: Any, label: str) -> bool:
     if value is not False:
         raise ValueError(f"{label} must remain false")
@@ -493,13 +499,7 @@ class RepoCompatibilityAssessment:
             license_policy=_string(
                 data["license_policy"], "license_policy", maximum=32
             ),
-            advisory_only=(
-                True
-                if data["advisory_only"] is True
-                else (_ for _ in ()).throw(
-                    ValueError("advisory_only must remain true")
-                )
-            ),
+            advisory_only=_true(data["advisory_only"], "advisory_only"),
             acquisition_authority=_false(
                 data["acquisition_authority"], "acquisition_authority"
             ),
