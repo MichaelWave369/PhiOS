@@ -265,7 +265,7 @@ class FakePodmanExecutor:
         del env, timeout_seconds
         self.calls.append(argv)
 
-        if argv[-1] == "--version":
+        if argv[-1] == "--version" and "run" not in argv:
             return self._result(stdout=b"podman version 6.1.3\n")
         if "info" in argv and "json" in argv:
             return self._result(
