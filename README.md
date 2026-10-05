@@ -53,7 +53,7 @@ identity does not inherit old authority merely because continuity was demonstrat
 |---|---:|---|
 | **Shell / MCP** | active | operator interface, workflows, resources, prompts, capability surfaces |
 | **Spine** | **v0.24** | authority-aware observation, verification, evidence, and receipts |
-| **App Platform** | **v0.56** | governed intake, toolchain capsules, runtime qualification/selection, build, install, launch, update, rollback, cleanup, and release lineage |
+| **App Platform** | **v0.57** | governed intake, toolchain capsules, selected-backend execution, build, install, launch, update, rollback, cleanup, and release lineage |
 | **PhiReflex** | **v0.10** | provider-neutral fast advisory layer with authenticated bounded routing influence |
 | **Governed Memory** | active | canonical local memory, derived semantic index, read admissibility, temporal horizon |
 | **Reality Ledger** | active | append-only evidence plus bounded read-only analytics |
@@ -172,14 +172,15 @@ unless the broader claim is separately observed and verified.
 Current contract:
 [Spine v0.24 numeric-transition verification](docs/PHIOS_SPINE_V0.24_NUMERIC_TRANSITION_CONTRACT.md).
 
-### App Platform v0.56
+### App Platform v0.57
 
 The App Platform provides a governed lifecycle from public source intake through
 exact-commit acquisition, reviewed build planning, digest-bound toolchain capsule matching,
 verified capsule acquisition, toolchain attestation, network-denied sandbox planning, an
-explicit single-build OCI runtime boundary, a concrete rootless Podman adapter, and
-request-bound backend qualification/selection, dependency staging, offline build,
-artifact installation, visible/persistent launch, app cataloging,
+explicit single-build OCI runtime boundary, a concrete rootless Podman adapter,
+request-bound backend qualification/selection, and a selected-backend execution gate,
+dependency staging, offline build, artifact installation, visible/persistent launch,
+app cataloging,
 side-by-side update, separately authorized rollback, cleanup recovery, release discovery,
 human review, execution lineage, package lineage, and release-install proposal gating.
 
@@ -197,11 +198,10 @@ update            != rollback authority
 ```
 
 Current contract:
-[App Platform v0.56 runtime backend selection](docs/PHIOS_APP_PLATFORM_V0.56_RUNTIME_BACKEND_SELECTION.md).
+[App Platform v0.57 selected backend execution gate](docs/PHIOS_APP_PLATFORM_V0.57_RUNTIME_SELECTION_GATE.md).
 
-v0.56 qualifies concrete adapters for one exact reviewed plan and produces advisory
-backend-selection proposals. Operator selection remains separate from execution
-authority.
+v0.57 requires the exact operator-confirmed backend selection at the current governed
+execution path while preserving the separate one-use v0.54 execution approval.
 
 ### PhiReflex v0.10
 

@@ -257,6 +257,15 @@ from .runtime import (
     plan_installed_runtime,
     review_installed_runtime,
 )
+from .runtime_selection_gate import (
+    RUNTIME_SELECTION_EXECUTION_RECEIPT_SCHEMA_VERSION,
+    SELECTED_TOOLCHAIN_RUNTIME_REQUEST_SCHEMA_VERSION,
+    RuntimeSelectionExecutionReceipt,
+    RuntimeSelectionExecutionStatus,
+    SelectedToolchainRuntimeExecutionResult,
+    SelectedToolchainRuntimeRequest,
+    SelectedToolchainRuntimeService,
+)
 from .runtime_backend_selection import (
     RUNTIME_BACKEND_QUALIFICATION_SCHEMA_VERSION,
     RUNTIME_BACKEND_SELECTION_PROPOSAL_SCHEMA_VERSION,
@@ -420,6 +429,8 @@ __all__ = [
     "NPM_OFFLINE_PLAN_SCHEMA_VERSION",
     "INSTALLED_RUNTIME_PLAN_SCHEMA_VERSION",
     "INSTALLED_RUNTIME_REVIEW_SCHEMA_VERSION",
+    "RUNTIME_SELECTION_EXECUTION_RECEIPT_SCHEMA_VERSION",
+    "SELECTED_TOOLCHAIN_RUNTIME_REQUEST_SCHEMA_VERSION",
     "RUNTIME_BACKEND_QUALIFICATION_SCHEMA_VERSION",
     "RUNTIME_BACKEND_SELECTION_PROPOSAL_SCHEMA_VERSION",
     "RUNTIME_BACKEND_SELECTION_RECEIPT_SCHEMA_VERSION",
@@ -567,6 +578,11 @@ __all__ = [
     "RetainedCleanupResult",
     "RetainedCleanupReview",
     "RetainedCleanupService",
+    "RuntimeSelectionExecutionReceipt",
+    "RuntimeSelectionExecutionStatus",
+    "SelectedToolchainRuntimeExecutionResult",
+    "SelectedToolchainRuntimeRequest",
+    "SelectedToolchainRuntimeService",
     "RuntimeBackendQualification",
     "RuntimeBackendQualificationStatus",
     "RuntimeBackendSelectionProposal",
