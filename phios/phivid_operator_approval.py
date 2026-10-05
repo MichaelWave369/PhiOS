@@ -292,7 +292,17 @@ def create_phivid_operator_approval(
         hashlib.sha256,
     ).hexdigest()
     return PHIVidOperatorApproval(
-        **unsigned.body_dict(),
+        envelope_sha256=unsigned.envelope_sha256,
+        admission_receipt_sha256=unsigned.admission_receipt_sha256,
+        authority_epoch_sha256=unsigned.authority_epoch_sha256,
+        operator_id=unsigned.operator_id,
+        approved_at=unsigned.approved_at,
+        payload_sha256=unsigned.payload_sha256,
+        permission=unsigned.permission,
+        operational_authority=unsigned.operational_authority,
+        action_authority=unsigned.action_authority,
+        execution_authority=unsigned.execution_authority,
+        schema_version=unsigned.schema_version,
         proof_hmac_sha256=proof,
     )
 
