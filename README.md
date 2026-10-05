@@ -53,7 +53,7 @@ identity does not inherit old authority merely because continuity was demonstrat
 |---|---:|---|
 | **Shell / MCP** | active | operator interface, workflows, resources, prompts, capability surfaces |
 | **Spine** | **v0.24** | authority-aware observation, verification, evidence, and receipts |
-| **App Platform** | **v0.54** | governed intake, toolchain matching/acquisition/attestation/runtime boundary, build, install, launch, update, rollback, cleanup, and release lineage |
+| **App Platform** | **v0.55** | governed intake, toolchain capsules, rootless Podman runtime, build, install, launch, update, rollback, cleanup, and release lineage |
 | **PhiReflex** | **v0.10** | provider-neutral fast advisory layer with authenticated bounded routing influence |
 | **Governed Memory** | active | canonical local memory, derived semantic index, read admissibility, temporal horizon |
 | **Reality Ledger** | active | append-only evidence plus bounded read-only analytics |
@@ -172,7 +172,7 @@ unless the broader claim is separately observed and verified.
 Current contract:
 [Spine v0.24 numeric-transition verification](docs/PHIOS_SPINE_V0.24_NUMERIC_TRANSITION_CONTRACT.md).
 
-### App Platform v0.54
+### App Platform v0.55
 
 The App Platform provides a governed lifecycle from public source intake through
 exact-commit acquisition, reviewed build planning, digest-bound toolchain capsule matching,
