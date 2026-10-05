@@ -107,7 +107,7 @@ class PHIVidLedgerAdmissionRecord:
             require_sha256(digest, field)
 
         if self.schema_version == PHIVID_LEDGER_ADMISSION_SCHEMA_VERSION:
-            for field, digest in (
+            proof_bindings = (
                 ("authority_epoch_sha256", self.authority_epoch_sha256),
                 ("operator_approval_sha256", self.operator_approval_sha256),
                 (
@@ -118,7 +118,12 @@ class PHIVidLedgerAdmissionRecord:
                     "operator_approval_proof_hmac_sha256",
                     self.operator_approval_proof_hmac_sha256,
                 ),
-            ):
+            )
+            for field, digest in proof_bindings:
+                if digest is None:
+                    raise PHIVidLedgerAdmissionError(
+                        f"{field} is required for v0.2 ledger admission"
+                    )
                 require_sha256(digest, field)
             if self.operator_approval_verified is not True:
                 raise PHIVidLedgerAdmissionError(
