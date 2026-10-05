@@ -129,6 +129,18 @@ class RuntimeBackendQualification:
         ):
             _sha256(value, label)
         _string(self.capsule_family, "capsule_family", maximum=64)
+        recognized = _RECOGNIZED_ADAPTERS.get(self.runtime_identity.adapter_id)
+        if recognized is None:
+            raise ValueError(
+                f"unrecognized runtime backend adapter: {self.runtime_identity.adapter_id}"
+            )
+        expected_version, expected_backend = recognized
+        if self.runtime_identity.adapter_version != expected_version:
+            raise ValueError("runtime backend adapter version is not recognized")
+        if self.runtime_identity.backend != expected_backend:
+            raise ValueError(
+                "runtime backend implementation does not match adapter contract"
+            )
         if self.status != "qualified_for_selection":
             raise ValueError("v0.56 qualification status must be qualified_for_selection")
         if any(
