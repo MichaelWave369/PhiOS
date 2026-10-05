@@ -153,6 +153,7 @@ class RepoProfile:
     runtime: str | None
     target: str | None
     license_expression: str
+    github_license_spdx: str | None
     license_state: str
     build_family: RepoBuildFamily
     root_markers: tuple[str, ...]
@@ -186,7 +187,14 @@ class RepoProfile:
         if self.target is not None:
             _string(self.target, "target", maximum=512)
         _string(self.license_expression, "license_expression", maximum=128)
-        if self.license_state not in {"mit_confirmed", "declared_other", "unasserted"}:
+        if self.github_license_spdx is not None:
+            _string(self.github_license_spdx, "github_license_spdx", maximum=128)
+        if self.license_state not in {
+            "mit_reported",
+            "license_conflict",
+            "declared_other",
+            "unasserted",
+        }:
             raise ValueError("unsupported license_state")
         if self.build_family not in {
             "static_web",
@@ -233,6 +241,7 @@ class RepoProfile:
             "runtime": self.runtime,
             "target": self.target,
             "license_expression": self.license_expression,
+            "github_license_spdx": self.github_license_spdx,
             "license_state": self.license_state,
             "build_family": self.build_family,
             "root_markers": list(self.root_markers),
@@ -273,6 +282,7 @@ class RepoProfile:
             "runtime",
             "target",
             "license_expression",
+            "github_license_spdx",
             "license_state",
             "build_family",
             "root_markers",
@@ -324,6 +334,15 @@ class RepoProfile:
             ),
             license_expression=_string(
                 data["license_expression"], "license_expression", maximum=128
+            ),
+            github_license_spdx=(
+                None
+                if data["github_license_spdx"] is None
+                else _string(
+                    data["github_license_spdx"],
+                    "github_license_spdx",
+                    maximum=128,
+                )
             ),
             license_state=_string(
                 data["license_state"], "license_state", maximum=32
@@ -530,11 +549,20 @@ class RepoProfileResult:
         }
 
 
-def _license_state(expression: str) -> str:
-    normalized = expression.strip()
-    if normalized in _MIT_LICENSE_IDS:
-        return "mit_confirmed"
-    if not normalized or normalized == "NOASSERTION":
+def _license_state(expression: str, github_spdx: str | None) -> str:
+    declared = expression.strip()
+    observed = github_spdx.strip() if github_spdx is not None else None
+
+    if declared in _MIT_LICENSE_IDS and observed in _MIT_LICENSE_IDS:
+        return "mit_reported"
+    if declared in _MIT_LICENSE_IDS and observed is None:
+        return "unasserted"
+    if observed in _MIT_LICENSE_IDS and declared in _MIT_LICENSE_IDS:
+        return "mit_reported"
+    if observed is not None and declared not in {"", "NOASSERTION"}:
+        if (observed in _MIT_LICENSE_IDS) != (declared in _MIT_LICENSE_IDS):
+            return "license_conflict"
+    if not declared or declared == "NOASSERTION":
         return "unasserted"
     return "declared_other"
 
@@ -558,7 +586,11 @@ def profile_intake_result(intake: AppIntakeResult) -> RepoProfileResult:
         runtime=runtime,
         target=target,
         license_expression=license_expression,
-        license_state=_license_state(license_expression),
+        github_license_spdx=intake.evidence.license_spdx,
+        license_state=_license_state(
+            license_expression,
+            intake.evidence.license_spdx,
+        ),
         build_family=_build_family(runtime, target, roots),
         root_markers=roots,
         submodule_marker_observed=".gitmodules" in roots,
@@ -583,10 +615,11 @@ def profile_intake_result(intake: AppIntakeResult) -> RepoProfileResult:
         status = "NOT_AN_APPLICATION"
         reasons.append("bounded intake found no supported root application marker")
         next_gate = "add_phios_app_manifest_or_supported_root_marker"
-    elif profile.license_state != "mit_confirmed":
+    elif profile.license_state != "mit_reported":
         status = "LICENSE_REVIEW_REQUIRED"
         reasons.append(
-            "v0.58 mit_only policy requires an MIT or MIT-0 license assertion"
+            "v0.58 mit_only policy requires matching MIT/MIT-0 repository "
+            "and manifest license evidence"
         )
         next_gate = "license_review"
     elif profile.submodule_marker_observed:
