@@ -13,7 +13,7 @@ It **does not install Vessie or ThinkTank into the real PhiOS system**. It does 
 | PhiOS v0.59 candidate set | loaded from current reviewed candidate JSON | application IDs, source repository, asset paths and denied authority |
 | SuperPhiVessel | `69a558ea2d1e8b361e05ded9bed4fc27b32e30cd` | genuine React build, **`--base ./`** rather than its public Pages subpath |
 | ThinkTank | `1e8084a684ccf400c37d05d8bfe992680a72e887` | genuine React build, **`--base ./`** rather than assuming root URLs |
-| Trellis | `142c7a272f265c9bea4560bb7494380c0fef3965` | actual compiled local-first package CLI in ephemeral CI |
+| Trellis | `c4036f38e8b635709d069e505506191dfccf8c5c` | reviewed Trellis PR #12 source (CI-green, not yet merged); actual compiled CLI in ephemeral CI |
 
 Trellis is a **separate repository licensed AGPL-3.0-only**. PhiOS v0.60 references its public, immutable commit for ephemeral CI testing, but does not copy its source into PhiOS, ship its binary in an ISO, or treat the declared MIT license of frontend projects as Trellis's license. Shipping a Trellis binary or modified Trellis source later requires deliberate AGPL compliance, notices and independent dependency/package review.
 
