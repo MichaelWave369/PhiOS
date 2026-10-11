@@ -81,23 +81,19 @@ jobs:
           python scripts/verify_frontend_locks.py --app thinktank-web \
             --checkout .ci-sources/think-tank --prepare \
             > "$RUNNER_TEMP/phios-closure-receipts/thinktank-verified-lock.json"
-      - name: Vessie locked npm ci and full React build
+      - name: Install Vessie frozen npm graph (before build outputs/caches exist)
         working-directory: .ci-sources/SuperPhiVessel/apps/vessie-web
         run: |
           npm ci --ignore-scripts --no-audit --no-fund
           npm ls --depth=0
-          npm run build -- --base ./
-          test -f ../../site/vessie/index.html
           test "$(sha256sum package-lock.json | cut -d' ' -f1)" = 4e0ac5153f3bc47cd78b4f5cfa42c2ede4dbfef8110a2d5deda49d5c81bd6c2a
-      - name: ThinkTank locked npm ci and full React build
+      - name: Install ThinkTank frozen npm graph (before build outputs/caches exist)
         working-directory: .ci-sources/think-tank
         run: |
           npm ci --ignore-scripts --no-audit --no-fund
           npm ls --depth=0
-          npm run build -- --base ./
-          test -f dist/index.html
           test "$(sha256sum package-lock.json | cut -d' ' -f1)" = 251e461cdd11acf49f5c25eb58f0400a66daef1e6bb76486fc7a5f1fb22feffd
-      - name: Inventory all installed npm packages and hash license evidence for human review
+      - name: Inventory installed npm packages and hash license evidence before React builds
         shell: bash
         run: |
           set -euo pipefail
@@ -107,6 +103,16 @@ jobs:
           python scripts/audit_frontend_license_evidence.py --app thinktank-web \
             --checkout .ci-sources/think-tank \
             --report "$RUNNER_TEMP/phios-closure-receipts/thinktank-license-evidence.json"
+      - name: Build Vessie from audited frozen npm graph
+        working-directory: .ci-sources/SuperPhiVessel/apps/vessie-web
+        run: |
+          npm run build -- --base ./
+          test -f ../../site/vessie/index.html
+      - name: Build ThinkTank from audited frozen npm graph
+        working-directory: .ci-sources/think-tank
+        run: |
+          npm run build -- --base ./
+          test -f dist/index.html
       - name: Make clean independent source trees from EXACT reviewed git commits
         shell: bash
         run: |

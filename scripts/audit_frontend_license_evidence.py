@@ -53,7 +53,8 @@ def installed_paths(source: Path) -> set[str]:
                 # npm creates executable symlinks in .bin. Those are deliberately
                 # not package identities and not a distribution-license claim.
                 continue
-            demand(not entry.name.startswith("."),"UNEXPECTED_HIDDEN_ENTRY")
+            demand(not entry.name.startswith("."),
+                   "UNEXPECTED_HIDDEN_ENTRY:"+entry.relative_to(source).as_posix())
             if entry.name.startswith("@"):
                 demand(entry.is_dir() and not entry.is_symlink(),"SCOPE_DIRECTORY_INVALID")
                 for package in sorted(entry.iterdir()):

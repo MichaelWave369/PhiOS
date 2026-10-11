@@ -8,7 +8,8 @@ This extends v0.65's exact pinned npm graphs and v0.66's same-runner
 two-clean-build comparison, for the same immutable Vessie/ThinkTank React
 frontends. The separate lockfile CI job runs on an Ubuntu GitHub runner
 with Node v24.21.0/npm v11.19.0 and the reviewed `npm ci --ignore-scripts`
-install. It inventories **the npm packages actually present under
+install, **immediately before any Vite build can create temporary
+cache files**. It inventories **the npm packages actually present under
 `node_modules`**, rather than treating all optional, platform-specific
 lockfile entries as installed.
 
