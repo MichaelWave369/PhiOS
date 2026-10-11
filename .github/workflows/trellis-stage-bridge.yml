@@ -93,15 +93,19 @@ jobs:
       - name: Build pinned actual Trellis executable from locked Rust dependencies
         working-directory: .ci-sources/Trellis
         run: cargo build --release --locked
-      - name: Build pinned actual Vessie React output at a relocatable relative asset base
+      - name: Evaluate Vessie frontend dependencies (upstream has no lockfile; NOT reproducible)
         working-directory: .ci-sources/SuperPhiVessel/apps/vessie-web
         run: |
-          npm ci --no-audit --no-fund
+          test ! -e package-lock.json
+          npm install --ignore-scripts --no-package-lock --no-save --no-audit --no-fund
+          npm ls --depth=0
           npm run build -- --base ./
-      - name: Build pinned actual ThinkTank React output at a relocatable relative asset base
+      - name: Evaluate ThinkTank frontend dependencies (upstream has no lockfile; NOT reproducible)
         working-directory: .ci-sources/think-tank
         run: |
-          npm ci --no-audit --no-fund
+          test ! -e package-lock.json
+          npm install --ignore-scripts --no-package-lock --no-save --no-audit --no-fund
+          npm ls --depth=0
           npm run build -- --base ./
       - name: Verify exact app source and construct two staged Trellis packages
         shell: bash
