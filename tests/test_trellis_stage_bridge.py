@@ -14,6 +14,23 @@ class TrellisBridgeTests(unittest.TestCase):
     def setUpClass(cls):
         cls.entries = bridge.candidates()
 
+    def test_pinned_trellis_upstream_is_merged_mit_revision(self):
+        # This is a deliberately frozen CI source contract, not a floating main branch.
+        root = Path(__file__).resolve().parents[1]
+        workflow = (root / ".github/workflows/trellis-stage-bridge.yml").read_text()
+        docs = (root / "docs/PHIOS_TRELLIS_BRIDGE_V0.60.md").read_text()
+        expected = "8c8f54f1539c688fd02247f82c9bd48d0b5444c1"
+        historic = "c4036f38e8b635709d069e505506191dfccf8c5c"
+        self.assertIn("ref: " + expected, workflow)
+        self.assertIn('rev-parse HEAD)\\" = ' + expected, workflow)
+        self.assertNotIn(historic, workflow)
+        self.assertIn('grep -Fxq \'license = "MIT"\' .ci-sources/Trellis/Cargo.toml', workflow)
+        self.assertIn("grep -Fxq 'MIT License' .ci-sources/Trellis/LICENSE", workflow)
+        self.assertIn("test -f .ci-sources/Trellis/docs/LICENSE_TRANSITION.md", workflow)
+        self.assertIn(expected, docs)
+        self.assertIn("AGPL-3.0-only", docs)  # historical revisions only
+        self.assertIn(historic, docs)
+
     def test_only_reviewed_candidates_are_plannable(self):
         for key in ("vessie-web", "thinktank-web"):
             p = bridge.plan(key)
