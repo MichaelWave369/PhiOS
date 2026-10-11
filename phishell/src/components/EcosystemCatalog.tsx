@@ -1,5 +1,6 @@
 import {useMemo,useState} from "react";
 import publicRepositories from "../ecosystem/public-repos.json";
+import appCandidates from "../ecosystem/app-candidates.json";
 
 type Entry=(typeof publicRepositories.entries)[number];
 type View="all"|"web";
@@ -34,6 +35,34 @@ export function EcosystemCatalog(){
       Nothing is fetched from GitHub on opening this screen, and no code is downloaded or executed.
       Actual application installation still requires PhiOS's separate governed intake and launch gates.
     </p>
+    <section className="ecosystem-candidates" aria-label="Reviewed PhiOS application candidates">
+      <div className="panel-title">FIRST WAVE · TWO GOVERNED APP CANDIDATES</div>
+      <p className="muted">These are pinned, schema-checked application <strong>proposals</strong>, not installed apps.
+        The established PhiOS App Platform must independently verify a reproducible Linux/offline build,
+        dependency and redistribution inventory, exact installed files, desktop entry, and operator launch grant.</p>
+      <div className="ecosystem-candidate-list">
+        {appCandidates.candidates.map(candidate => <article className="ecosystem-candidate" key={candidate.app_key}>
+          <div className="ecosystem-candidate-header">
+            <strong>{candidate.manifest.name}</strong>
+            <small>REVIEW HELD · NOT INSTALLED</small>
+          </div>
+          <p>{candidate.manifest.description}</p>
+          <dl>
+            <div><dt>APP ID</dt><dd>{candidate.manifest.app_id}</dd></div>
+            <div><dt>RUNTIME PROPOSAL</dt><dd>{candidate.manifest.entrypoint.runtime} · {candidate.manifest.entrypoint.target}</dd></div>
+            <div><dt>SOURCE COMMIT</dt><dd><code>{candidate.source_sha.slice(0,12)}</code> · pinned</dd></div>
+            <div><dt>SOURCE BUILD</dt><dd><code>{candidate.source_build.working_directory}</code> → <code>{candidate.source_build.current_output_from_repo_root}</code></dd></div>
+            <div><dt>OFFLINE READINESS</dt><dd>Unverified dependency closure, license inventory and bundled frontend</dd></div>
+          </dl>
+          <p className="muted">Current web bundle base: <code>{candidate.source_build.current_asset_base}</code>;
+            PhiOS offline target: <code>{candidate.source_build.required_offline_asset_base}</code>.
+            Website availability does not confer local launch or model permissions.</p>
+          <a href={candidate.manifest.source.repository_url+"/tree/"+candidate.source_sha} target="_blank" rel="noopener noreferrer">
+            REVIEW PINNED SOURCE ↗
+          </a>
+        </article>)}
+      </div>
+    </section>
     <div className="ecosystem-controls">
       <label>
         <span>SEARCH REPOSITORIES</span>
