@@ -8,6 +8,8 @@ on:
       - "phishell/src/components/AppLauncher.tsx"
       - "phishell/src/styles.css"
       - "scripts/sync_public_ecosystem_catalog.py"
+      - "scripts/verify_ecosystem_app_candidates.py"
+      - "tests/test_ecosystem_app_candidates.py"
       - "tests/test_public_ecosystem_catalog.py"
       - ".github/workflows/public-ecosystem-catalog.yml"
   push:
@@ -18,6 +20,8 @@ on:
       - "phishell/src/components/AppLauncher.tsx"
       - "phishell/src/styles.css"
       - "scripts/sync_public_ecosystem_catalog.py"
+      - "scripts/verify_ecosystem_app_candidates.py"
+      - "tests/test_ecosystem_app_candidates.py"
       - "tests/test_public_ecosystem_catalog.py"
       - ".github/workflows/public-ecosystem-catalog.yml"
   workflow_dispatch:
@@ -42,6 +46,10 @@ jobs:
         run: python scripts/sync_public_ecosystem_catalog.py --check
       - name: Reject private, foreign, malformed and permission-promoting entries
         run: python -m unittest discover -s tests -p "test_public_ecosystem_catalog.py" -v
+      - name: Verify v0.25 candidate manifests without registering, installing or executing apps
+        run: python scripts/verify_ecosystem_app_candidates.py
+      - name: Fail closed on forged candidate grants, source drift and invalid build claims
+        run: python -m unittest discover -s tests -p "test_ecosystem_app_candidates.py" -v
       - name: Set up Node 22
         uses: actions/setup-node@v4
         with:
@@ -63,7 +71,7 @@ jobs:
           import {join} from 'node:path';
           const dir='phishell/dist/assets';
           const js=readdirSync(dir).filter(x=>x.endsWith('.js')).map(x=>readFileSync(join(dir,x),'utf8')).join('\n');
-          for(const entry of ['SuperPhiVessel','think-tank','Domistika','SOURCE_ONLY','launch_authorized']){
+          for(const entry of ['SuperPhiVessel','think-tank','Domistika','SOURCE_ONLY','launch_authorized','phios.vessie-web','phios.thinktank-web','HELD_FOR_OPERATOR_REVIEW']){
             if(!js.includes(entry))throw Error('BUNDLED_ECOSYSTEM_MISSING_'+entry);
           }
           if(!readdirSync('phishell/dist').includes('index.html'))throw Error('PHISHELL_BUILD_MISSING');
