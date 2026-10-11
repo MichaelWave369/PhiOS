@@ -72,7 +72,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: MichaelWave369/Trellis
-          ref: 142c7a272f265c9bea4560bb7494380c0fef3965
+          ref: c4036f38e8b635709d069e505506191dfccf8c5c
           path: .ci-sources/Trellis
           persist-credentials: false
       - name: Validate pinned git checkouts, no default-branch drift
@@ -81,7 +81,7 @@ jobs:
           set -euo pipefail
           test "$(git -C .ci-sources/SuperPhiVessel rev-parse HEAD)" = 69a558ea2d1e8b361e05ded9bed4fc27b32e30cd
           test "$(git -C .ci-sources/think-tank rev-parse HEAD)" = 1e8084a684ccf400c37d05d8bfe992680a72e887
-          test "$(git -C .ci-sources/Trellis rev-parse HEAD)" = 142c7a272f265c9bea4560bb7494380c0fef3965
+          test "$(git -C .ci-sources/Trellis rev-parse HEAD)" = c4036f38e8b635709d069e505506191dfccf8c5c
       - name: Set up Node 24
         uses: actions/setup-node@v4
         with:
