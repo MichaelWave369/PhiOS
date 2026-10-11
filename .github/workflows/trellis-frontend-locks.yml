@@ -1,0 +1,76 @@
+name: PhiOS Trellis frontend dependency lock acquisition
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/trellis-frontend-locks.yml"
+      - "docs/PHIOS_TRELLIS_DEPENDENCY_LOCKS_V0.65.md"
+      - "dependency-locks/**"
+      - ".github/workflows/trellis-stage-bridge.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout reviewed PhiOS branch without write credentials
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Checkout exact Vessie revision
+        uses: actions/checkout@v4
+        with:
+          repository: MichaelWave369/SuperPhiVessel
+          ref: 69a558ea2d1e8b361e05ded9bed4fc27b32e30cd
+          path: .ci-sources/SuperPhiVessel
+          persist-credentials: false
+      - name: Checkout exact ThinkTank revision
+        uses: actions/checkout@v4
+        with:
+          repository: MichaelWave369/think-tank
+          ref: 1e8084a684ccf400c37d05d8bfe992680a72e887
+          path: .ci-sources/think-tank
+          persist-credentials: false
+      - name: Node 24 for deterministic npm metadata generation
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Capture exact lockfiles without running package scripts
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git -C .ci-sources/SuperPhiVessel rev-parse HEAD)" = 69a558ea2d1e8b361e05ded9bed4fc27b32e30cd
+          test "$(git -C .ci-sources/think-tank rev-parse HEAD)" = 1e8084a684ccf400c37d05d8bfe992680a72e887
+          node --version
+          npm --version
+          for entry in "vessie-web:.ci-sources/SuperPhiVessel/apps/vessie-web" "thinktank-web:.ci-sources/think-tank"; do
+            key="${entry%%:*}"
+            folder="${entry#*:}"
+            test ! -e "$folder/package-lock.json"
+            (cd "$folder" && npm install --package-lock-only --ignore-scripts --no-audit --no-fund)
+            python - "$key" "$folder/package-lock.json" "$folder/package.json" <<'PY'
+          import base64,hashlib,pathlib,sys
+          key,lock,manifest=sys.argv[1:]
+          data=pathlib.Path(lock).read_bytes()
+          source=pathlib.Path(manifest).read_bytes()
+          print("LOCK_META::"+key+"::"+hashlib.sha256(data).hexdigest()+"::"+str(len(data))+
+                "::"+hashlib.sha256(source).hexdigest())
+          text=base64.b64encode(data).decode("ascii")
+          for i in range(0,len(text),1000):
+              print("LOCK64::"+key+"::"+text[i:i+1000])
+          print("LOCK_END::"+key)
+          PY
+          done
+      - name: Retain raw lockfile metadata for review only
+        uses: actions/upload-artifact@v4
+        with:
+          name: phios-v065-npm-lock-candidates-${{ github.run_id }}
+          path: |
+            .ci-sources/SuperPhiVessel/apps/vessie-web/package-lock.json
+            .ci-sources/think-tank/package-lock.json
+          if-no-files-found: error
+          retention-days: 7
