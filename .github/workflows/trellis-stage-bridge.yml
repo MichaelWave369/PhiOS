@@ -5,6 +5,9 @@ on:
     paths:
       - "scripts/trellis_stage_bridge.py"
       - "tests/test_trellis_stage_bridge.py"
+      - "scripts/offline_web_smoke.mjs"
+      - "tests/test_offline_web_smoke.mjs"
+      - "docs/PHIOS_TRELLIS_BROWSER_SMOKE_V0.61.md"
       - "docs/PHIOS_TRELLIS_BRIDGE_V0.60.md"
       - ".github/workflows/trellis-stage-bridge.yml"
       - "phishell/src/ecosystem/app-candidates.json"
@@ -14,6 +17,9 @@ on:
     paths:
       - "scripts/trellis_stage_bridge.py"
       - "tests/test_trellis_stage_bridge.py"
+      - "scripts/offline_web_smoke.mjs"
+      - "tests/test_offline_web_smoke.mjs"
+      - "docs/PHIOS_TRELLIS_BROWSER_SMOKE_V0.61.md"
       - "docs/PHIOS_TRELLIS_BRIDGE_V0.60.md"
       - ".github/workflows/trellis-stage-bridge.yml"
       - "phishell/src/ecosystem/app-candidates.json"
@@ -44,6 +50,12 @@ jobs:
           python scripts/trellis_stage_bridge.py plan thinktank-web
       - name: Reject source drift, symlinks, unrelocatable assets and forged grants
         run: python -m unittest discover -s tests -p "test_trellis_stage_bridge.py" -v
+      - name: Node 24 for independent browser harness unit tests
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Unit-test read-only loopback server, path denial and app-root boundaries
+        run: node --test tests/test_offline_web_smoke.mjs
 
   real-trellis-two-apps:
     runs-on: ubuntu-latest
@@ -140,6 +152,24 @@ jobs:
             python scripts/trellis_stage_bridge.py verify-staged \
               --staging "$stage" --trellis-home "$home"
           done
+      - name: Prove Trellis-installed React shells mount in real Chromium with egress denied
+        shell: bash
+        run: |
+          set -euo pipefail
+          chrome="$(command -v google-chrome || command -v chromium || command -v chromium-browser)"
+          "$chrome" --version
+          mkdir -p "$RUNNER_TEMP/phios-playwright-core" "$RUNNER_TEMP/phios-browser-receipts"
+          # CI-only pinned test driver, never bundled in PhiOS or an app package.
+          npm install --prefix "$RUNNER_TEMP/phios-playwright-core" \
+            playwright-core@1.56.1 --ignore-scripts --no-package-lock --no-save --no-audit --no-fund
+          for key in vessie-web thinktank-web; do
+            node scripts/offline_web_smoke.mjs \
+              --app "$key" \
+              --trellis-home "$RUNNER_TEMP/trellis-home-$key" \
+              --chrome "$chrome" \
+              --playwright-root "$RUNNER_TEMP/phios-playwright-core" \
+              --report "$RUNNER_TEMP/phios-browser-receipts/$key.json"
+          done
       - name: Tampered Trellis-installed React files MUST be independently rejected
         shell: bash
         run: |
@@ -154,3 +184,12 @@ jobs:
             exit 1
           fi
           echo 'EXPECTED_FAIL_CLOSED: tampered staged app refused; PhiOS installation/launch never granted'
+
+      - name: Retain browser shell startup evidence for human review only
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phios-v061-browser-shell-evidence-${{ github.run_id }}
+          path: ${{ runner.temp }}/phios-browser-receipts/*.json
+          if-no-files-found: ignore
+          retention-days: 7
