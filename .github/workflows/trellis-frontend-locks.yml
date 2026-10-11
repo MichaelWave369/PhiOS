@@ -6,6 +6,9 @@ on:
       - ".github/workflows/trellis-frontend-locks.yml"
       - ".github/workflows/trellis-stage-bridge.yml"
       - "scripts/verify_frontend_locks.py"
+      - "scripts/verify_frontend_build_outputs.py"
+      - "tests/test_verify_frontend_build_outputs.py"
+      - "docs/PHIOS_TRELLIS_BUILD_REPLAY_V0.66.md"
       - "tests/test_verify_frontend_locks.py"
       - "docs/PHIOS_TRELLIS_DEPENDENCY_LOCKS_V0.65.md"
       - "dependency-locks/**"
@@ -15,6 +18,9 @@ on:
       - ".github/workflows/trellis-frontend-locks.yml"
       - ".github/workflows/trellis-stage-bridge.yml"
       - "scripts/verify_frontend_locks.py"
+      - "scripts/verify_frontend_build_outputs.py"
+      - "tests/test_verify_frontend_build_outputs.py"
+      - "docs/PHIOS_TRELLIS_BUILD_REPLAY_V0.66.md"
       - "tests/test_verify_frontend_locks.py"
       - "docs/PHIOS_TRELLIS_DEPENDENCY_LOCKS_V0.65.md"
       - "dependency-locks/**"
@@ -26,7 +32,7 @@ permissions:
 jobs:
   locked-frontends:
     runs-on: ubuntu-latest
-    timeout-minutes: 18
+    timeout-minutes: 28
     steps:
       - name: Checkout read-only PhiOS source
         uses: actions/checkout@v4
@@ -34,6 +40,8 @@ jobs:
           persist-credentials: false
       - name: Run deny-by-default npm closure contract tests
         run: python -m unittest discover -s tests -p "test_verify_frontend_locks.py" -v
+      - name: Reject mismatched, tampered, or linked replayed build outputs
+        run: python -m unittest discover -s tests -p "test_verify_frontend_build_outputs.py" -v
       - name: Checkout immutable Vessie source
         uses: actions/checkout@v4
         with:
@@ -81,11 +89,60 @@ jobs:
           npm run build -- --base ./
           test -f dist/index.html
           test "$(sha256sum package-lock.json | cut -d' ' -f1)" = 251e461cdd11acf49f5c25eb58f0400a66daef1e6bb76486fc7a5f1fb22feffd
-      - name: Keep bounded dependency integrity receipts for human review
+      - name: Make clean independent source trees from EXACT reviewed git commits
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/phios-replay-vessie" "$RUNNER_TEMP/phios-replay-thinktank"
+          test "$(git -C .ci-sources/SuperPhiVessel rev-parse HEAD)" = 69a558ea2d1e8b361e05ded9bed4fc27b32e30cd
+          test "$(git -C .ci-sources/think-tank rev-parse HEAD)" = 1e8084a684ccf400c37d05d8bfe992680a72e887
+          git -C .ci-sources/SuperPhiVessel archive 69a558ea2d1e8b361e05ded9bed4fc27b32e30cd | tar -xf - -C "$RUNNER_TEMP/phios-replay-vessie"
+          git -C .ci-sources/think-tank archive 1e8084a684ccf400c37d05d8bfe992680a72e887 | tar -xf - -C "$RUNNER_TEMP/phios-replay-thinktank"
+          test ! -e "$RUNNER_TEMP/phios-replay-vessie/apps/vessie-web/package-lock.json"
+          test ! -e "$RUNNER_TEMP/phios-replay-thinktank/package-lock.json"
+          test "$(sha256sum "$RUNNER_TEMP/phios-replay-vessie/apps/vessie-web/package.json" | cut -d' ' -f1)" = 6bdbd921cea13474fc2b6fd5cbe02765345a48e345a9cc57913e9b0693e9664e
+          test "$(sha256sum "$RUNNER_TEMP/phios-replay-thinktank/package.json" | cut -d' ' -f1)" = 2a593f3137545880115d0f2d112897038f52d0afeb01a144209947e59f49aaed
+          cp dependency-locks/vessie-web/package-lock.json "$RUNNER_TEMP/phios-replay-vessie/apps/vessie-web/package-lock.json"
+          cp dependency-locks/thinktank-web/package-lock.json "$RUNNER_TEMP/phios-replay-thinktank/package-lock.json"
+          test "$(sha256sum "$RUNNER_TEMP/phios-replay-vessie/apps/vessie-web/package-lock.json" | cut -d' ' -f1)" = 4e0ac5153f3bc47cd78b4f5cfa42c2ede4dbfef8110a2d5deda49d5c81bd6c2a
+          test "$(sha256sum "$RUNNER_TEMP/phios-replay-thinktank/package-lock.json" | cut -d' ' -f1)" = 251e461cdd11acf49f5c25eb58f0400a66daef1e6bb76486fc7a5f1fb22feffd
+      - name: Rebuild Vessie with clean npm ci in unrelated source tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/phios-replay-vessie/apps/vessie-web"
+          npm ci --ignore-scripts --no-audit --no-fund
+          npm ls --depth=0
+          npm run build -- --base ./
+          test -f ../../site/vessie/index.html
+      - name: Rebuild ThinkTank with clean npm ci in unrelated source tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/phios-replay-thinktank"
+          npm ci --ignore-scripts --no-audit --no-fund
+          npm ls --depth=0
+          npm run build -- --base ./
+          test -f dist/index.html
+      - name: Compare complete frontend output file sets and exact SHA-256 hashes
+        shell: bash
+        run: |
+          set -euo pipefail
+          failures=0
+          python scripts/verify_frontend_build_outputs.py --app vessie-web \
+            --first .ci-sources/SuperPhiVessel/site/vessie \
+            --second "$RUNNER_TEMP/phios-replay-vessie/site/vessie" \
+            --report "$RUNNER_TEMP/phios-closure-receipts/vessie-double-build.json" || failures=1
+          python scripts/verify_frontend_build_outputs.py --app thinktank-web \
+            --first .ci-sources/think-tank/dist \
+            --second "$RUNNER_TEMP/phios-replay-thinktank/dist" \
+            --report "$RUNNER_TEMP/phios-closure-receipts/thinktank-double-build.json" || failures=1
+          test "$failures" -eq 0
+      - name: Keep locked dependency and byte-comparison receipts for human review
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: phios-v065-locked-npm-receipts-${{ github.run_id }}
+          name: phios-v066-two-clean-builds-${{ github.run_id }}
           path: ${{ runner.temp }}/phios-closure-receipts/*.json
           if-no-files-found: ignore
           retention-days: 7
