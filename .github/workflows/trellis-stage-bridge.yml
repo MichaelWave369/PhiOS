@@ -7,6 +7,11 @@ on:
       - "tests/test_trellis_stage_bridge.py"
       - "scripts/offline_web_smoke.mjs"
       - "scripts/interaction_web_smoke.mjs"
+      - "scripts/offline_shell_profile.py"
+      - "scripts/disconnected_web_smoke.mjs"
+      - "tests/test_offline_shell_profile.py"
+      - "tests/test_disconnected_web_smoke.mjs"
+      - "docs/PHIOS_TRELLIS_DISCONNECTED_V0.63.md"
       - "tests/test_interaction_web_smoke.mjs"
       - "docs/PHIOS_TRELLIS_INTERACTION_V0.62.md"
       - "scripts/strip_remote_font.py"
@@ -24,6 +29,11 @@ on:
       - "tests/test_trellis_stage_bridge.py"
       - "scripts/offline_web_smoke.mjs"
       - "scripts/interaction_web_smoke.mjs"
+      - "scripts/offline_shell_profile.py"
+      - "scripts/disconnected_web_smoke.mjs"
+      - "tests/test_offline_shell_profile.py"
+      - "tests/test_disconnected_web_smoke.mjs"
+      - "docs/PHIOS_TRELLIS_DISCONNECTED_V0.63.md"
       - "tests/test_interaction_web_smoke.mjs"
       - "docs/PHIOS_TRELLIS_INTERACTION_V0.62.md"
       - "scripts/strip_remote_font.py"
@@ -62,6 +72,8 @@ jobs:
         run: python -m unittest discover -s tests -p "test_trellis_stage_bridge.py" -v
       - name: Reject unreviewed compiled CSS imports and preserve exact font adaptation
         run: python -m unittest discover -s tests -p "test_strip_remote_font.py" -v
+      - name: Verify derived offline profile bounds and digest manifest contracts
+        run: python -m unittest discover -s tests -p "test_offline_shell_profile.py" -v
       - name: Node 24 for independent browser harness unit tests
         uses: actions/setup-node@v4
         with:
@@ -70,6 +82,8 @@ jobs:
         run: node --test tests/test_offline_web_smoke.mjs
       - name: Verify exactly scoped UI interaction and reload contract
         run: node --test tests/test_interaction_web_smoke.mjs
+      - name: Deny unreviewed offline package keys and symlinked roots
+        run: node --test tests/test_disconnected_web_smoke.mjs
 
   real-trellis-two-apps:
     runs-on: ubuntu-latest
@@ -209,6 +223,44 @@ jobs:
               --report "$RUNNER_TEMP/phios-browser-receipts/$key-interaction.json" || failures=1
           done
           test "$failures" -eq 0
+      - name: Derive and verify separate Trellis offline-profile package identities
+        shell: bash
+        run: |
+          set -euo pipefail
+          bin="$GITHUB_WORKSPACE/.ci-sources/Trellis/target/release/trellis"
+          for key in vessie-web thinktank-web; do
+            if [ "$key" = "vessie-web" ]; then stage="$RUNNER_TEMP/vessie-trellis"
+            else stage="$RUNNER_TEMP/thinktank-trellis"; fi
+            source_home="$RUNNER_TEMP/trellis-home-$key"
+            offline_stage="$RUNNER_TEMP/offline-profile-$key"
+            offline_home="$RUNNER_TEMP/trellis-offline-$key"
+            python scripts/offline_shell_profile.py prepare \
+              --app "$key" --stage "$stage" --home "$source_home" \
+              --output "$offline_stage" \
+              > "$RUNNER_TEMP/phios-browser-receipts/$key-offline-prepare.json"
+            "$bin" --home "$offline_home" init
+            "$bin" --home "$offline_home" validate "$offline_stage/phios-$key-offline.trellis.yaml"
+            "$bin" --home "$offline_home" install --from "$offline_stage/phios-$key-offline.trellis.yaml"
+            "$bin" --home "$offline_home" verify
+            python scripts/offline_shell_profile.py verify \
+              --app "$key" --stage "$offline_stage" --home "$offline_home" \
+              > "$RUNNER_TEMP/phios-browser-receipts/$key-offline-verify.json"
+          done
+      - name: Prove service-worker reload after closing HTTP server and disconnecting Chromium
+        shell: bash
+        run: |
+          set -euo pipefail
+          chrome="$(command -v google-chrome || command -v chromium || command -v chromium-browser)"
+          failures=0
+          for key in vessie-web thinktank-web; do
+            node scripts/disconnected_web_smoke.mjs \
+              --app "$key" \
+              --trellis-home "$RUNNER_TEMP/trellis-offline-$key" \
+              --chrome "$chrome" \
+              --playwright-root "$RUNNER_TEMP/phios-playwright-core" \
+              --report "$RUNNER_TEMP/phios-browser-receipts/$key-disconnected.json" || failures=1
+          done
+          test "$failures" -eq 0
       - name: Tampered Trellis-installed React files MUST be independently rejected
         shell: bash
         run: |
@@ -224,11 +276,11 @@ jobs:
           fi
           echo 'EXPECTED_FAIL_CLOSED: tampered staged app refused; PhiOS installation/launch never granted'
 
-      - name: Retain browser startup and reviewed interaction evidence for human review
+      - name: Retain browser startup, local interaction and disconnected reload receipts
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: phios-v062-browser-interaction-evidence-${{ github.run_id }}
+          name: phios-v063-disconnected-browser-evidence-${{ github.run_id }}
           path: ${{ runner.temp }}/phios-browser-receipts/*.json
           if-no-files-found: ignore
           retention-days: 7
