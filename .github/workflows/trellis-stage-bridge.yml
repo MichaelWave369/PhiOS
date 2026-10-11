@@ -9,6 +9,9 @@ on:
       - "scripts/interaction_web_smoke.mjs"
       - "scripts/offline_shell_profile.py"
       - "scripts/disconnected_web_smoke.mjs"
+      - "scripts/cold_restart_web_smoke.mjs"
+      - "tests/test_cold_restart_web_smoke.mjs"
+      - "docs/PHIOS_TRELLIS_BROWSER_COLD_RESTART_V0.64.md"
       - "tests/test_offline_shell_profile.py"
       - "tests/test_disconnected_web_smoke.mjs"
       - "docs/PHIOS_TRELLIS_DISCONNECTED_V0.63.md"
@@ -31,6 +34,9 @@ on:
       - "scripts/interaction_web_smoke.mjs"
       - "scripts/offline_shell_profile.py"
       - "scripts/disconnected_web_smoke.mjs"
+      - "scripts/cold_restart_web_smoke.mjs"
+      - "tests/test_cold_restart_web_smoke.mjs"
+      - "docs/PHIOS_TRELLIS_BROWSER_COLD_RESTART_V0.64.md"
       - "tests/test_offline_shell_profile.py"
       - "tests/test_disconnected_web_smoke.mjs"
       - "docs/PHIOS_TRELLIS_DISCONNECTED_V0.63.md"
@@ -84,6 +90,8 @@ jobs:
         run: node --test tests/test_interaction_web_smoke.mjs
       - name: Deny unreviewed offline package keys and symlinked roots
         run: node --test tests/test_disconnected_web_smoke.mjs
+      - name: Verify strict persistent-profile browser cold-start contract
+        run: node --test tests/test_cold_restart_web_smoke.mjs
 
   real-trellis-two-apps:
     runs-on: ubuntu-latest
@@ -261,6 +269,21 @@ jobs:
               --report "$RUNNER_TEMP/phios-browser-receipts/$key-disconnected.json" || failures=1
           done
           test "$failures" -eq 0
+      - name: Prove fresh Chromium process starts cached shell with server off and clean profile refuses
+        shell: bash
+        run: |
+          set -euo pipefail
+          chrome="$(command -v google-chrome || command -v chromium || command -v chromium-browser)"
+          failures=0
+          for key in vessie-web thinktank-web; do
+            node scripts/cold_restart_web_smoke.mjs \
+              --app "$key" \
+              --trellis-home "$RUNNER_TEMP/trellis-offline-$key" \
+              --chrome "$chrome" \
+              --playwright-root "$RUNNER_TEMP/phios-playwright-core" \
+              --report "$RUNNER_TEMP/phios-browser-receipts/$key-cold-restart.json" || failures=1
+          done
+          test "$failures" -eq 0
       - name: Tampered Trellis-installed React files MUST be independently rejected
         shell: bash
         run: |
@@ -276,11 +299,11 @@ jobs:
           fi
           echo 'EXPECTED_FAIL_CLOSED: tampered staged app refused; PhiOS installation/launch never granted'
 
-      - name: Retain browser startup, local interaction and disconnected reload receipts
+      - name: Retain browser startup, disconnected reload and cold restart receipts
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: phios-v063-disconnected-browser-evidence-${{ github.run_id }}
+          name: phios-v064-cold-restart-evidence-${{ github.run_id }}
           path: ${{ runner.temp }}/phios-browser-receipts/*.json
           if-no-files-found: ignore
           retention-days: 7
