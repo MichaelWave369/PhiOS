@@ -10,8 +10,16 @@ The existing v0.60 path checks out fixed Vessie/ThinkTank source SHA pins,
 compiles their frontends with relative `./assets` paths, builds MIT-licensed
 Trellis from fixed commit `8c8f54f1539c688fd02247f82c9bd48d0b5444c1`,
 and installs both packages only into two isolated runner temporary Trellis homes.
-The pre-existing bridge then checks **every installed byte** against the package
-hashes, receipts and profile locks.
+Before packaging, the separate, explicitly labeled **Vessie offline CSS profile**
+removes **exactly one reviewed** Google Fonts `@import` from the *compiled
+output only* and records its before/after SHA-256. The pinned upstream source
+commit is unchanged. System font fallbacks render the UI without trying to
+reach Google Fonts. A changed import, additional external CSS URL or absent
+expected import fails closed. This is a **derived build profile**, not an
+unmodified upstream compiled artifact, and not a redistribution/license approval.
+
+The pre-existing bridge then checks **every installed byte** of those resulting
+built assets against its payload hashes, receipts and profile locks.
 
 After byte verification, v0.61 runs each **actual Trellis-installed**
 `index.html` using a temporary HTTP server bound **only to 127.0.0.1** and
@@ -21,6 +29,10 @@ All non-loopback HTTP requests and all WebSockets are blocked. Each app must
 mount a nonempty React root, load at least one compiled JS resource, and have
 no uncaught page exceptions, local 4xx/5xx asset responses or attempted
 external requests. The browser and HTTP server are stopped after each probe.
+
+The CI job runs both applications even if one browser check fails, so a
+failure for Vessie does not conceal ThinkTank evidence. The separate font
+adaptation receipt is captured next to the browser reports.
 
 Two small JSON reports are retained as CI **diagnostics only**. They include
 status, browser version, visible-text digest (not page text), attempted egress,
