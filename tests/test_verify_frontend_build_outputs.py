@@ -41,6 +41,9 @@ class ReplayOutputContracts(unittest.TestCase):
                 compare("vessie-web", a, b)
             (b / "assets" / "unexpected.txt").unlink()
             (b / "assets" / "index.js").unlink()
+            # Retain a second valid static file, so this probes specifically
+            # for missing compiled JS instead of the incomplete-file-set gate.
+            (b / "assets" / "base.css").write_text("body{}")
             with self.assertRaisesRegex(ValueError, "COMPILED_SCRIPT_MISSING"):
                 compare("vessie-web", a, b)
 
