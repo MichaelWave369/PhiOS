@@ -33,6 +33,10 @@ Architecture = x86_64
 SigLevel = Required DatabaseOptional
 LocalFileSigLevel = Optional
 CheckSpace
+# mkarchiso performs its own package download, independent of the initial
+# builder prefetch. Don't reject verified signed packages solely for low
+# transfer speed from the exact frozen Arch archive.
+DisableDownloadTimeout
 ParallelDownloads = 5
 [core]
 Server = https://archive.archlinux.org/repos/{snapshot}/$repo/os/$arch

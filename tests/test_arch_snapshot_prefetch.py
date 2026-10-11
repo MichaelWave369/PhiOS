@@ -48,6 +48,14 @@ exit 0
         self.assertIn('pacman --disable-download-timeout -S --needed --noconfirm "${snapshot_packages[@]}"', script)
         self.assertLess(script.index("phios_prefetch_snapshot_packages"), script.index("pacman --disable-download-timeout -S"))
 
+    def test_archiso_uses_same_signed_snapshot_but_survives_slow_archive(self):
+        profile = (ROOT / "packaging/linux/prepare_profile.py").read_text()
+        self.assertIn("DisableDownloadTimeout", profile)
+        self.assertIn("SigLevel = Required DatabaseOptional", profile)
+        self.assertIn("archive.archlinux.org/repos/{snapshot}/$repo/os/$arch", profile)
+        self.assertIn("ParallelDownloads = 5", profile)
+        self.assertNotIn("SigLevel = Never", profile)
+
     def test_success_first_attempt(self):
         code, out, log, sleeps = self.mock(0)
         self.assertEqual(code, 0, out)
