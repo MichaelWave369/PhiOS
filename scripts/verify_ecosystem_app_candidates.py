@@ -7,9 +7,17 @@ from __future__ import annotations
 
 import json
 import re
+import sys
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
+
+# Running `python scripts/verify_ecosystem_app_candidates.py` sets sys.path[0]
+# to scripts/. Make the repository's existing phios package visible without
+# installing anything or requiring network access.
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 from phios.apps.manifest import AppManifest
 from phios.apps.registry import AppRegistry
