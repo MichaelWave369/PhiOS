@@ -12,7 +12,19 @@ cat > /etc/pacman.d/mirrorlist <<MIRRORS
 Server = https://archive.archlinux.org/repos/$snapshot/\$repo/os/\$arch
 MIRRORS
 pacman -Syyuu --noconfirm
-pacman -S --needed --noconfirm archiso base-devel python python-build python-installer python-setuptools python-wheel python-psutil python-mcp nodejs npm git wayfire waybar wofi foot chromium ttf-dejavu mesa pipewire pipewire-audio pipewire-pulse pipewire-alsa wireplumber swaylock lxqt-policykit qt6-wayland
+# Stage signed packages from the exact locked archive before modifying installed
+# packages. Transient archive transport failures retry; signature checks remain on.
+source "$repo/packaging/linux/prefetch-snapshot-packages.sh"
+snapshot_packages=(
+    archiso base-devel python python-build python-installer python-setuptools
+    python-wheel python-psutil python-mcp nodejs npm git wayfire waybar wofi
+    foot chromium ttf-dejavu mesa pipewire pipewire-audio pipewire-pulse
+    pipewire-alsa wireplumber swaylock lxqt-policykit qt6-wayland
+)
+phios_prefetch_snapshot_packages "${snapshot_packages[@]}"
+# Installation is deliberately single-shot. Retrying a package commit after a
+# partial install would obscure failure evidence; transport was retried above.
+pacman --disable-download-timeout -S --needed --noconfirm "${snapshot_packages[@]}"
 [[ $(pacman -Q archiso) == "archiso $expected_archiso" ]] || { echo 'Archiso version differs from locked release input.' >&2; exit 1; }
 [[ -n ${PHIOS_SOURCE_COMMIT:-} ]] || { echo 'PHIOS_SOURCE_COMMIT is required.' >&2; exit 1; }
 [[ $(git -c safe.directory="$repo" -C "$repo" rev-parse HEAD) == "$PHIOS_SOURCE_COMMIT" ]] || { echo 'Source commit mismatch.' >&2; exit 1; }
