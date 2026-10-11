@@ -22,7 +22,7 @@ class TrellisBridgeTests(unittest.TestCase):
         expected = "8c8f54f1539c688fd02247f82c9bd48d0b5444c1"
         historic = "c4036f38e8b635709d069e505506191dfccf8c5c"
         self.assertIn("ref: " + expected, workflow)
-        self.assertIn('rev-parse HEAD)\\" = ' + expected, workflow)
+        self.assertIn('rev-parse HEAD)" = ' + expected, workflow)
         self.assertNotIn(historic, workflow)
         self.assertIn('grep -Fxq \'license = "MIT"\' .ci-sources/Trellis/Cargo.toml', workflow)
         self.assertIn("grep -Fxq 'MIT License' .ci-sources/Trellis/LICENSE", workflow)
