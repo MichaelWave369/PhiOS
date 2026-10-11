@@ -1,0 +1,91 @@
+name: PhiOS Trellis frontend dependency locks
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/trellis-frontend-locks.yml"
+      - ".github/workflows/trellis-stage-bridge.yml"
+      - "scripts/verify_frontend_locks.py"
+      - "tests/test_verify_frontend_locks.py"
+      - "docs/PHIOS_TRELLIS_DEPENDENCY_LOCKS_V0.65.md"
+      - "dependency-locks/**"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/trellis-frontend-locks.yml"
+      - ".github/workflows/trellis-stage-bridge.yml"
+      - "scripts/verify_frontend_locks.py"
+      - "tests/test_verify_frontend_locks.py"
+      - "docs/PHIOS_TRELLIS_DEPENDENCY_LOCKS_V0.65.md"
+      - "dependency-locks/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  locked-frontends:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - name: Checkout read-only PhiOS source
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Run deny-by-default npm closure contract tests
+        run: python -m unittest discover -s tests -p "test_verify_frontend_locks.py" -v
+      - name: Checkout immutable Vessie source
+        uses: actions/checkout@v4
+        with:
+          repository: MichaelWave369/SuperPhiVessel
+          ref: 69a558ea2d1e8b361e05ded9bed4fc27b32e30cd
+          path: .ci-sources/SuperPhiVessel
+          persist-credentials: false
+      - name: Checkout immutable ThinkTank source
+        uses: actions/checkout@v4
+        with:
+          repository: MichaelWave369/think-tank
+          ref: 1e8084a684ccf400c37d05d8bfe992680a72e887
+          path: .ci-sources/think-tank
+          persist-credentials: false
+      - name: Node/npm versions used for the reviewed graph capture
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24.21.0"
+      - name: Validate exact source manifests and stage reviewed lock snapshots only
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(node --version)" = "v24.21.0"
+          test "$(npm --version)" = "11.19.0"
+          mkdir -p "$RUNNER_TEMP/phios-closure-receipts"
+          python scripts/verify_frontend_locks.py --app vessie-web \
+            --checkout .ci-sources/SuperPhiVessel --prepare \
+            > "$RUNNER_TEMP/phios-closure-receipts/vessie-verified-lock.json"
+          python scripts/verify_frontend_locks.py --app thinktank-web \
+            --checkout .ci-sources/think-tank --prepare \
+            > "$RUNNER_TEMP/phios-closure-receipts/thinktank-verified-lock.json"
+      - name: Vessie locked npm ci and full React build
+        working-directory: .ci-sources/SuperPhiVessel/apps/vessie-web
+        run: |
+          npm ci --ignore-scripts --no-audit --no-fund
+          npm ls --depth=0
+          npm run build -- --base ./
+          test -f ../../site/vessie/index.html
+          test "$(sha256sum package-lock.json | cut -d' ' -f1)" = 4e0ac5153f3bc47cd78b4f5cfa42c2ede4dbfef8110a2d5deda49d5c81bd6c2a
+      - name: ThinkTank locked npm ci and full React build
+        working-directory: .ci-sources/think-tank
+        run: |
+          npm ci --ignore-scripts --no-audit --no-fund
+          npm ls --depth=0
+          npm run build -- --base ./
+          test -f dist/index.html
+          test "$(sha256sum package-lock.json | cut -d' ' -f1)" = 251e461cdd11acf49f5c25eb58f0400a66daef1e6bb76486fc7a5f1fb22feffd
+      - name: Keep bounded dependency integrity receipts for human review
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phios-v065-locked-npm-receipts-${{ github.run_id }}
+          path: ${{ runner.temp }}/phios-closure-receipts/*.json
+          if-no-files-found: ignore
+          retention-days: 7
