@@ -4,6 +4,10 @@ on:
   pull_request:
     paths:
       - "scripts/trellis_stage_bridge.py"
+      - "scripts/verify_frontend_locks.py"
+      - "tests/test_verify_frontend_locks.py"
+      - "dependency-locks/**"
+      - "docs/PHIOS_TRELLIS_DEPENDENCY_LOCKS_V0.65.md"
       - "tests/test_trellis_stage_bridge.py"
       - "scripts/offline_web_smoke.mjs"
       - "scripts/interaction_web_smoke.mjs"
@@ -29,6 +33,10 @@ on:
     branches: [main]
     paths:
       - "scripts/trellis_stage_bridge.py"
+      - "scripts/verify_frontend_locks.py"
+      - "tests/test_verify_frontend_locks.py"
+      - "dependency-locks/**"
+      - "docs/PHIOS_TRELLIS_DEPENDENCY_LOCKS_V0.65.md"
       - "tests/test_trellis_stage_bridge.py"
       - "scripts/offline_web_smoke.mjs"
       - "scripts/interaction_web_smoke.mjs"
@@ -76,6 +84,8 @@ jobs:
           python scripts/trellis_stage_bridge.py plan thinktank-web
       - name: Reject source drift, symlinks, unrelocatable assets and forged grants
         run: python -m unittest discover -s tests -p "test_trellis_stage_bridge.py" -v
+      - name: Reject forged npm lockfiles and unreviewed registries
+        run: python -m unittest discover -s tests -p "test_verify_frontend_locks.py" -v
       - name: Reject unreviewed compiled CSS imports and preserve exact font adaptation
         run: python -m unittest discover -s tests -p "test_strip_remote_font.py" -v
       - name: Verify derived offline profile bounds and digest manifest contracts
@@ -83,7 +93,7 @@ jobs:
       - name: Node 24 for independent browser harness unit tests
         uses: actions/setup-node@v4
         with:
-          node-version: "24"
+          node-version: "24.21.0"
       - name: Unit-test read-only loopback server, path denial and app-root boundaries
         run: node --test tests/test_offline_web_smoke.mjs
       - name: Verify exactly scoped UI interaction and reload contract
@@ -141,7 +151,7 @@ jobs:
       - name: Set up Node 24
         uses: actions/setup-node@v4
         with:
-          node-version: "24"
+          node-version: "24.21.0"
       - name: Set up Rust
         run: |
           rustc --version
@@ -149,20 +159,30 @@ jobs:
       - name: Build pinned actual Trellis executable from locked Rust dependencies
         working-directory: .ci-sources/Trellis
         run: cargo build --release --locked
-      - name: Evaluate Vessie frontend dependencies (upstream has no lockfile; NOT reproducible)
+      - name: Verify exact frontend source and pin reviewed npm lockfiles in CI checkouts
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(node --version)" = "v24.21.0"
+          test "$(npm --version)" = "11.19.0"
+          python scripts/verify_frontend_locks.py --app vessie-web \
+            --checkout .ci-sources/SuperPhiVessel --prepare
+          python scripts/verify_frontend_locks.py --app thinktank-web \
+            --checkout .ci-sources/think-tank --prepare
+      - name: Build Vessie from frozen npm dependency graph only
         working-directory: .ci-sources/SuperPhiVessel/apps/vessie-web
         run: |
-          test ! -e package-lock.json
-          npm install --ignore-scripts --no-package-lock --no-save --no-audit --no-fund
+          npm ci --ignore-scripts --no-audit --no-fund
           npm ls --depth=0
           npm run build -- --base ./
-      - name: Evaluate ThinkTank frontend dependencies (upstream has no lockfile; NOT reproducible)
+          test "$(sha256sum package-lock.json | cut -d' ' -f1)" = 4e0ac5153f3bc47cd78b4f5cfa42c2ede4dbfef8110a2d5deda49d5c81bd6c2a
+      - name: Build ThinkTank from frozen npm dependency graph only
         working-directory: .ci-sources/think-tank
         run: |
-          test ! -e package-lock.json
-          npm install --ignore-scripts --no-package-lock --no-save --no-audit --no-fund
+          npm ci --ignore-scripts --no-audit --no-fund
           npm ls --depth=0
           npm run build -- --base ./
+          test "$(sha256sum package-lock.json | cut -d' ' -f1)" = 251e461cdd11acf49f5c25eb58f0400a66daef1e6bb76486fc7a5f1fb22feffd
       - name: Prepare explicitly reviewed Vessie offline CSS profile and hash its transformation
         shell: bash
         run: |
