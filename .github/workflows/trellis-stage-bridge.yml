@@ -6,6 +6,9 @@ on:
       - "scripts/trellis_stage_bridge.py"
       - "tests/test_trellis_stage_bridge.py"
       - "scripts/offline_web_smoke.mjs"
+      - "scripts/interaction_web_smoke.mjs"
+      - "tests/test_interaction_web_smoke.mjs"
+      - "docs/PHIOS_TRELLIS_INTERACTION_V0.62.md"
       - "scripts/strip_remote_font.py"
       - "tests/test_strip_remote_font.py"
       - "tests/test_offline_web_smoke.mjs"
@@ -20,6 +23,9 @@ on:
       - "scripts/trellis_stage_bridge.py"
       - "tests/test_trellis_stage_bridge.py"
       - "scripts/offline_web_smoke.mjs"
+      - "scripts/interaction_web_smoke.mjs"
+      - "tests/test_interaction_web_smoke.mjs"
+      - "docs/PHIOS_TRELLIS_INTERACTION_V0.62.md"
       - "scripts/strip_remote_font.py"
       - "tests/test_strip_remote_font.py"
       - "tests/test_offline_web_smoke.mjs"
@@ -62,6 +68,8 @@ jobs:
           node-version: "24"
       - name: Unit-test read-only loopback server, path denial and app-root boundaries
         run: node --test tests/test_offline_web_smoke.mjs
+      - name: Verify exactly scoped UI interaction and reload contract
+        run: node --test tests/test_interaction_web_smoke.mjs
 
   real-trellis-two-apps:
     runs-on: ubuntu-latest
@@ -186,6 +194,21 @@ jobs:
               --report "$RUNNER_TEMP/phios-browser-receipts/$key.json" || failures=1
           done
           test "$failures" -eq 0
+      - name: Verify real UI interactions and HTTP reload in staged apps
+        shell: bash
+        run: |
+          set -euo pipefail
+          chrome="$(command -v google-chrome || command -v chromium || command -v chromium-browser)"
+          failures=0
+          for key in vessie-web thinktank-web; do
+            node scripts/interaction_web_smoke.mjs \
+              --app "$key" \
+              --trellis-home "$RUNNER_TEMP/trellis-home-$key" \
+              --chrome "$chrome" \
+              --playwright-root "$RUNNER_TEMP/phios-playwright-core" \
+              --report "$RUNNER_TEMP/phios-browser-receipts/$key-interaction.json" || failures=1
+          done
+          test "$failures" -eq 0
       - name: Tampered Trellis-installed React files MUST be independently rejected
         shell: bash
         run: |
@@ -201,11 +224,11 @@ jobs:
           fi
           echo 'EXPECTED_FAIL_CLOSED: tampered staged app refused; PhiOS installation/launch never granted'
 
-      - name: Retain browser shell startup evidence for human review only
+      - name: Retain browser startup and reviewed interaction evidence for human review
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: phios-v061-browser-shell-evidence-${{ github.run_id }}
+          name: phios-v062-browser-interaction-evidence-${{ github.run_id }}
           path: ${{ runner.temp }}/phios-browser-receipts/*.json
           if-no-files-found: ignore
           retention-days: 7
