@@ -107,6 +107,11 @@ class TrellisBridgeTests(unittest.TestCase):
             (stage / "bridge-receipt.json").write_text(json.dumps(altered))
             with self.assertRaisesRegex(ValueError, "RECEIPT_AUTHORITY"):
                 bridge.verify_staged(stage, home)
+            altered = dict(report)
+            altered["spec"] = "../untrusted.yaml"
+            (stage / "bridge-receipt.json").write_text(json.dumps(altered))
+            with self.assertRaisesRegex(ValueError, "SPEC_PATH"):
+                bridge.verify_staged(stage, home)
             (stage / "bridge-receipt.json").write_text(json.dumps(report))
             (stage / "payload/assets/main.js").write_text("tampered output!")
             with self.assertRaisesRegex(ValueError, "STAGED_PAYLOAD_DRIFT"):
