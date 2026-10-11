@@ -3,7 +3,7 @@ import publicRepositories from "../ecosystem/public-repos.json";
 
 type Entry=(typeof publicRepositories.entries)[number];
 type View="all"|"web";
-const publicWebDestinations:ReadOnly<Record<string,{label:string;url:string}>>={
+const publicWebDestinations:Readonly<Record<string,{label:string;url:string}>>={
   SuperPhiVessel:{label:"Vessie React (public website)",url:"https://michaelwave369.github.io/SuperPhiVessel/vessie/"},
   "think-tank":{label:"ThinkTank (public website)",url:"https://michaelwave369.github.io/think-tank/"}
 };
