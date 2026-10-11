@@ -25,10 +25,16 @@ After byte verification, v0.61 runs each **actual Trellis-installed**
 `index.html` using a temporary HTTP server bound **only to 127.0.0.1** and
 the GitHub-hosted Chromium/Chrome browser through a pinned CI-only
 `playwright-core@1.56.1` driver. Browser service workers are disabled.
-All non-loopback HTTP requests and all WebSockets are blocked. Each app must
-mount a nonempty React root, load at least one compiled JS resource, and have
-no uncaught page exceptions, local 4xx/5xx asset responses or attempted
-external requests. The browser and HTTP server are stopped after each probe.
+Only the static app HTTP origin is served. **All other HTTP calls and all
+WebSockets are blocked.** ThinkTank at its pinned source revision automatically
+tries eight *read-only local* provider-status URLs on `127.0.0.1:3691`.
+These exact GET paths are recognized and logged separately, but **never
+allowed through**. Any other port, path, query string, request method, external
+origin or WebSocket attempt fails the browser smoke. A status-check attempt is
+not a provider execution grant or evidence of a working local backend.
+
+Each app must mount a nonempty React root, load compiled JS, and have no
+uncaught page exceptions, local asset failures or **unreviewed** requests. The browser and HTTP server are stopped after each probe.
 
 The CI job runs both applications even if one browser check fails, so a
 failure for Vessie does not conceal ThinkTank evidence. The separate font
@@ -49,6 +55,9 @@ names, symlinked home roots, hidden files and path traversal are refused.
   model execution or a functional desktop launcher.
 - This is a **hosted Chrome browser with loopback-only serving and network
   interception**; it is not a production PhiOS graphical session.
+- ThinkTank's eight fixed local provider-status probes are **deliberately
+  blocked and logged**, so its startup PASS means the UI renders **with
+  backend health unavailable**, not that the local provider bridge works.
 - The React source pins are immutable, but the upstream checkouts do not
   contain npm lockfiles. Frontend transitive dependency resolution and the
   temporary test-driver install are not reproducible from this evidence.

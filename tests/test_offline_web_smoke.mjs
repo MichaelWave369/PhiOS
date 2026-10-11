@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import {mkdtemp,mkdir,writeFile,symlink,rm} from "node:fs/promises";
 import {tmpdir} from "node:os";
 import {join} from "node:path";
-import {options,localPath,installedRoot,loopbackServer} from "../scripts/offline_web_smoke.mjs";
+import {options,localPath,installedRoot,loopbackServer,classifyStartupRequest} from "../scripts/offline_web_smoke.mjs";
 
 test("strict five-argument CLI and reviewed keys",()=>{
   const valid=["--app","vessie-web","--trellis-home","/tmp/a","--chrome","/usr/bin/chromium",
@@ -49,4 +49,22 @@ test("loopback serves bytes but blocks hidden files and missing paths",async()=>
     if (server) await new Promise(done=>server.close(done));
     await rm(dir,{recursive:true,force:true});
   }
+});
+
+test("only fixed read-only local provider status routes are classified separately",()=>{
+  const origin="http://127.0.0.1:55555";
+  assert.equal(classifyStartupRequest(origin+"/assets/main.js",origin),"static");
+  for(const path of ["/providers/status","/research/status","/dossier/seal/status",
+    "/dossier/transparency/status","/dossier/timestamp/status","/dossier/publication/status",
+    "/dossier/release/seal/status","/dossier/release/publication/status"]) {
+    assert.equal(classifyStartupRequest("http://127.0.0.1:3691"+path,origin),
+      "blocked-local-status-probe");
+  }
+  for(const bad of ["https://fonts.googleapis.com/a","http://127.0.0.1:3691/models/run",
+    "http://localhost:3691/providers/status","http://127.0.0.1:3692/providers/status",
+    "http://127.0.0.1:3691/providers/status?run=1"]) {
+    assert.equal(classifyStartupRequest(bad,origin),"external",bad);
+  }
+  assert.equal(classifyStartupRequest("http://127.0.0.1:3691/providers/status",origin,"POST"),
+    "external");
 });

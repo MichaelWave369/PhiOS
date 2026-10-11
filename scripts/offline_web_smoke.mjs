@@ -9,6 +9,26 @@ import {pathToFileURL} from "node:url";
 import {createHash} from "node:crypto";
 
 const APPS = new Set(["vessie-web", "thinktank-web"]);
+const REVIEWED_STATUS_PROBES = new Set([
+  "/providers/status", "/research/status", "/dossier/seal/status",
+  "/dossier/transparency/status", "/dossier/timestamp/status",
+  "/dossier/publication/status", "/dossier/release/seal/status",
+  "/dossier/release/publication/status"
+]);
+
+// An unavailable local provider can be observed without granting it execution.
+// All these requests are still blocked; the initial UI may render in degraded mode.
+export function classifyStartupRequest(raw, staticOrigin, method = "GET") {
+  let url;
+  try {url = new URL(raw);} catch {return "external";}
+  if (url.protocol === "http:" && url.origin === staticOrigin) return "static";
+  if (url.protocol === "http:" && url.hostname === "127.0.0.1" &&
+      url.port === "3691" && method === "GET" && !url.username &&
+      !url.password && !url.search && REVIEWED_STATUS_PROBES.has(url.pathname)) {
+    return "blocked-local-status-probe";
+  }
+  return "external";
+}
 const TYPES = {".html":"text/html; charset=utf-8", ".js":"text/javascript; charset=utf-8",
   ".css":"text/css; charset=utf-8", ".json":"application/json; charset=utf-8",
   ".svg":"image/svg+xml", ".png":"image/png", ".jpg":"image/jpeg",
@@ -82,7 +102,7 @@ async function probe(o) {
   const requireInTemp=createRequire(join(resolve(o["--playwright-root"]),"package.json"));
   const {chromium}=requireInTemp("playwright-core");
   const {server,origin}=await loopbackServer(root);
-  const outside=[],wsAttempts=[],missing=[],pageErrors=[];
+  const outside=[],blockedLocalStatusProbes=[],wsAttempts=[],missing=[],pageErrors=[];
   let browser;
   try {
     browser=await chromium.launch({executablePath:resolve(o["--chrome"]),headless:true,
@@ -92,10 +112,12 @@ async function probe(o) {
       acceptDownloads:false,viewport:{width:1280,height:800}});
     await context.route("**/*",async route=>{
       const raw=route.request().url();
-      let url;
-      try {url=new URL(raw);} catch {outside.push(raw);await route.abort();return;}
-      if (url.protocol==="http:" && url.origin===origin) await route.continue();
-      else {outside.push(raw);await route.abort("blockedbyclient");}
+      const kind=classifyStartupRequest(raw,origin,route.request().method());
+      if (kind==="static") await route.continue();
+      else if (kind==="blocked-local-status-probe") {
+        blockedLocalStatusProbes.push(raw);
+        await route.abort("blockedbyclient");
+      } else {outside.push(raw);await route.abort("blockedbyclient");}
     });
     await context.routeWebSocket("**/*", socket=>{wsAttempts.push(socket.url());socket.close();});
     const page=await context.newPage();
@@ -127,9 +149,10 @@ async function probe(o) {
       status:errors.length?"FAIL":"PASS",browser_version:browser.version(),
       visible_character_count:dom.chars,root_children:dom.children,js_resources:dom.scripts,
       visible_text_sha256:createHash("sha256").update(dom.text).digest("hex"),
-      external_requests:outside,websocket_attempts:wsAttempts,local_asset_failures:missing,
+      external_requests:outside,denied_local_provider_status_probes:blockedLocalStatusProbes,
+      local_provider_backend_verified:false,websocket_attempts:wsAttempts,local_asset_failures:missing,
       uncaught_errors:pageErrors,issues:errors,
-      scope:"initial React shell from Trellis-installed static files via loopback-only HTTP; egress blocked",
+      scope:"initial React shell from Trellis-installed static files; external egress and fixed local provider-health probes blocked",
       not_verified:["full physical-offline restart","runtime AI/provider operations",
         "reproducible npm dependency closure","PhiOS installation","desktop launch","ISO packaging"],
       phios_install_authorized:false,phios_launch_authorized:false,external_done:false};
