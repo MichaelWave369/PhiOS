@@ -1,4 +1,5 @@
 import { SHELL_APPS, type ShellApp } from "../shell/appLauncher";
+import { EcosystemCatalog } from "./EcosystemCatalog";
 
 export function AppTiles({ openApp, pinned = false }: {
   openApp: (id: string) => void;
@@ -47,6 +48,7 @@ export function AppLibrary({ openApp }: { openApp: (id: string) => void }) {
           <div><dt>Governed installed apps</dt><dd>Use the desktop menu for approved launchers. In Foot, phi-app catalog-desktop-apps inspects the existing catalog.</dd></div>
         </dl>
       </div>
+      <EcosystemCatalog />
       <p className="muted">This list describes the shipped image, not a scan of apps you added separately.</p>
     </section>
   );
