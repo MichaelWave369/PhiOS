@@ -57,7 +57,7 @@ export function EcosystemCatalog(){
           <p className="muted">Current web bundle base: <code>{candidate.source_build.current_asset_base}</code>;
             PhiOS offline target: <code>{candidate.source_build.required_offline_asset_base}</code>.
             Website availability does not confer local launch or model permissions.</p>
-          <a href={candidate.manifest.source.repository_url} target="_blank" rel="noopener noreferrer">
+          <a href={candidate.manifest.source.repository_url+"/tree/"+candidate.source_sha} target="_blank" rel="noopener noreferrer">
             REVIEW PINNED SOURCE ↗
           </a>
         </article>)}
