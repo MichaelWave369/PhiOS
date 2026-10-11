@@ -1,0 +1,71 @@
+name: PhiOS public ecosystem catalog
+
+on:
+  pull_request:
+    paths:
+      - "phishell/src/ecosystem/**"
+      - "phishell/src/components/EcosystemCatalog.tsx"
+      - "phishell/src/components/AppLauncher.tsx"
+      - "phishell/src/styles.css"
+      - "scripts/sync_public_ecosystem_catalog.py"
+      - "tests/test_public_ecosystem_catalog.py"
+      - ".github/workflows/public-ecosystem-catalog.yml"
+  push:
+    branches: [main]
+    paths:
+      - "phishell/src/ecosystem/**"
+      - "phishell/src/components/EcosystemCatalog.tsx"
+      - "phishell/src/components/AppLauncher.tsx"
+      - "phishell/src/styles.css"
+      - "scripts/sync_public_ecosystem_catalog.py"
+      - "tests/test_public_ecosystem_catalog.py"
+      - ".github/workflows/public-ecosystem-catalog.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  offline-catalog-acceptance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout immutable PR source
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Check bundled public-only offline catalog WITHOUT network
+        run: python scripts/sync_public_ecosystem_catalog.py --check
+      - name: Reject private, foreign, malformed and permission-promoting entries
+        run: python -m unittest discover -s tests -p "test_public_ecosystem_catalog.py" -v
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install PhiShell only
+        working-directory: phishell
+        run: npm ci --no-audit --no-fund
+      - name: Run existing shell tests
+        working-directory: phishell
+        run: npm test
+      - name: Type-check and bundle entire offline ecosystem into PhiShell
+        working-directory: phishell
+        run: npm run build
+      - name: Confirm public catalog is embedded in compiled ISO-bound shell assets
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          import {readFileSync,readdirSync} from 'node:fs';
+          import {join} from 'node:path';
+          const dir='phishell/dist/assets';
+          const js=readdirSync(dir).filter(x=>x.endsWith('.js')).map(x=>readFileSync(join(dir,x),'utf8')).join('\n');
+          for(const entry of ['SuperPhiVessel','think-tank','Domistika','SOURCE_ONLY','launch_authorized']){
+            if(!js.includes(entry))throw Error('BUNDLED_ECOSYSTEM_MISSING_'+entry);
+          }
+          if(!readdirSync('phishell/dist').includes('index.html'))throw Error('PHISHELL_BUILD_MISSING');
+          console.log('PHIOS_PUBLIC_ECOSYSTEM_EMBEDDED: SOURCE_ONLY; no installed/execution authority');
+          NODE
