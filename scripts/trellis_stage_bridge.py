@@ -204,6 +204,7 @@ def verify_staged(stage_dir: Path, trellis_home: Path) -> dict[str, Any]:
            entry["manifest"]["app_id"] == report["manifest_app_id"], "CANDIDATE_DRIFT")
     demand(report["package"] == "phios-" + key and report["version"] == VERSION,
            "PACKAGE_IDENTITY")
+    demand(report["spec"] == report["package"] + ".trellis.yaml", "SPEC_PATH")
     spec = stage_dir / report["spec"]
     demand(spec.is_file() and not spec.is_symlink() and
            hashlib.sha256(spec.read_bytes()).hexdigest() == report["spec_sha256"],
