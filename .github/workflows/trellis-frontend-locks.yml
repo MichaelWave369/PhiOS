@@ -8,6 +8,10 @@ on:
       - "scripts/verify_frontend_locks.py"
       - "scripts/verify_frontend_build_outputs.py"
       - "scripts/audit_frontend_license_evidence.py"
+      - "scripts/review_native_license_sources.py"
+      - "tests/test_review_native_license_sources.py"
+      - "dependency-locks/native-license-source-evidence.v0.68.json"
+      - "docs/PHIOS_NATIVE_LICENSE_SOURCE_REVIEW_V0.68.md"
       - "tests/test_audit_frontend_license_evidence.py"
       - "docs/PHIOS_FRONTEND_LICENSE_EVIDENCE_V0.67.md"
       - "tests/test_verify_frontend_build_outputs.py"
@@ -23,6 +27,10 @@ on:
       - "scripts/verify_frontend_locks.py"
       - "scripts/verify_frontend_build_outputs.py"
       - "scripts/audit_frontend_license_evidence.py"
+      - "scripts/review_native_license_sources.py"
+      - "tests/test_review_native_license_sources.py"
+      - "dependency-locks/native-license-source-evidence.v0.68.json"
+      - "docs/PHIOS_NATIVE_LICENSE_SOURCE_REVIEW_V0.68.md"
       - "tests/test_audit_frontend_license_evidence.py"
       - "docs/PHIOS_FRONTEND_LICENSE_EVIDENCE_V0.67.md"
       - "tests/test_verify_frontend_build_outputs.py"
@@ -50,6 +58,8 @@ jobs:
         run: python -m unittest discover -s tests -p "test_verify_frontend_build_outputs.py" -v
       - name: Reject untracked npm packages, missing dependency bytes and forged license evidence
         run: python -m unittest discover -s tests -p "test_audit_frontend_license_evidence.py" -v
+      - name: Reject forged native license source pins and unreviewed release grants
+        run: python -m unittest discover -s tests -p "test_review_native_license_sources.py" -v
       - name: Checkout immutable Vessie source
         uses: actions/checkout@v4
         with:
@@ -103,6 +113,14 @@ jobs:
           python scripts/audit_frontend_license_evidence.py --app thinktank-web \
             --checkout .ci-sources/think-tank \
             --report "$RUNNER_TEMP/phios-closure-receipts/thinktank-license-evidence.json"
+      - name: Resolve immutable upstream license files and preserve unresolved LZMA declaration
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/review_native_license_sources.py \
+            --vessie-census "$RUNNER_TEMP/phios-closure-receipts/vessie-license-evidence.json" \
+            --thinktank-census "$RUNNER_TEMP/phios-closure-receipts/thinktank-license-evidence.json" \
+            --report "$RUNNER_TEMP/phios-closure-receipts/native-license-source-review.json"
       - name: Build Vessie from audited frozen npm graph
         working-directory: .ci-sources/SuperPhiVessel/apps/vessie-web
         run: |
@@ -162,11 +180,11 @@ jobs:
             --second "$RUNNER_TEMP/phios-replay-thinktank/dist" \
             --report "$RUNNER_TEMP/phios-closure-receipts/thinktank-double-build.json" || failures=1
           test "$failures" -eq 0
-      - name: Keep lock, byte-comparison and licensing-evidence receipts for human review
+      - name: Retain dependency, build replay, and immutable license source evidence for review
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: phios-v067-frontends-provenance-${{ github.run_id }}
+          name: phios-v068-native-license-review-${{ github.run_id }}
           path: ${{ runner.temp }}/phios-closure-receipts/*.json
           if-no-files-found: ignore
           retention-days: 7
