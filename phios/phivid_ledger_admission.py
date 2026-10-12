@@ -119,12 +119,12 @@ class PHIVidLedgerAdmissionRecord:
                     self.operator_approval_proof_hmac_sha256,
                 ),
             )
-            for field, digest in proof_bindings:
-                if digest is None:
+            for proof_field, proof_digest in proof_bindings:
+                if proof_digest is None:
                     raise PHIVidLedgerAdmissionError(
-                        f"{field} is required for v0.2 ledger admission"
+                        f"{proof_field} is required for v0.2 ledger admission"
                     )
-                require_sha256(digest, field)
+                require_sha256(proof_digest, proof_field)
             if self.operator_approval_verified is not True:
                 raise PHIVidLedgerAdmissionError(
                     "v0.2 admission must record verified operator approval"

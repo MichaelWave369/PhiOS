@@ -1,0 +1,103 @@
+{
+  "schema_version": "phios.ecosystem_app_candidates.v0.1",
+  "source_catalog_owner": "MichaelWave369",
+  "provenance": "FOUNDER_REVIEW_CANDIDATE_PROPOSALS_NOT_EXECUTION_GRANTS",
+  "candidates": [
+    {
+      "app_key": "vessie-web",
+      "source_sha": "69a558ea2d1e8b361e05ded9bed4fc27b32e30cd",
+      "manifest": {
+        "schema_version": "phios.app_manifest.v0.1",
+        "app_id": "phios.vessie-web",
+        "name": "Vessie Web",
+        "version": "0.1.0",
+        "description": "Founder-reviewed PhiOS candidate for the Super Phi.Vessel React UI. Not installed or authorized.",
+        "source": {
+          "repository_url": "https://github.com/MichaelWave369/SuperPhiVessel",
+          "license_expression": "MIT",
+          "redistribution": "unknown"
+        },
+        "entrypoint": {
+          "runtime": "static_web",
+          "target": "index.html"
+        },
+        "permissions": []
+      },
+      "source_build": {
+        "working_directory": "apps/vessie-web",
+        "command": [
+          "npm",
+          "run",
+          "build"
+        ],
+        "current_output_from_repo_root": "site/vessie",
+        "current_asset_base": "/SuperPhiVessel/vessie/",
+        "required_offline_asset_base": "/",
+        "build_verified_for_phios": false,
+        "offline_dependency_closure_verified": false,
+        "license_inventory_verified": false
+      },
+      "web": {
+        "url": "https://michaelwave369.github.io/SuperPhiVessel/vessie/",
+        "status": "PUBLIC_SITE_LINK_ONLY"
+      },
+      "review": {
+        "state": "HELD_FOR_OPERATOR_REVIEW",
+        "manifest_authoritative": false,
+        "execution_authorized": false,
+        "installed": false,
+        "offline_bundle_verified": false,
+        "desktop_launch_grant_verified": false,
+        "external_done": false
+      }
+    },
+    {
+      "app_key": "thinktank-web",
+      "source_sha": "1e8084a684ccf400c37d05d8bfe992680a72e887",
+      "manifest": {
+        "schema_version": "phios.app_manifest.v0.1",
+        "app_id": "phios.thinktank-web",
+        "name": "Phi ThinkTank",
+        "version": "0.1.0",
+        "description": "Founder-reviewed PhiOS candidate for the ThinkTank React control room. Local provider bridge excluded.",
+        "source": {
+          "repository_url": "https://github.com/MichaelWave369/think-tank",
+          "license_expression": "MIT",
+          "redistribution": "unknown"
+        },
+        "entrypoint": {
+          "runtime": "static_web",
+          "target": "index.html"
+        },
+        "permissions": []
+      },
+      "source_build": {
+        "working_directory": ".",
+        "command": [
+          "npm",
+          "run",
+          "build"
+        ],
+        "current_output_from_repo_root": "dist",
+        "current_asset_base": "/",
+        "required_offline_asset_base": "/",
+        "build_verified_for_phios": false,
+        "offline_dependency_closure_verified": false,
+        "license_inventory_verified": false
+      },
+      "web": {
+        "url": "https://michaelwave369.github.io/think-tank/",
+        "status": "PUBLIC_SITE_LINK_ONLY"
+      },
+      "review": {
+        "state": "HELD_FOR_OPERATOR_REVIEW",
+        "manifest_authoritative": false,
+        "execution_authorized": false,
+        "installed": false,
+        "offline_bundle_verified": false,
+        "desktop_launch_grant_verified": false,
+        "external_done": false
+      }
+    }
+  ]
+}
