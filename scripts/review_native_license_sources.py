@@ -13,11 +13,11 @@ import sys
 from pathlib import Path
 from urllib.request import Request, build_opener, HTTPSHandler, HTTPRedirectHandler
 
-from scripts.verify_frontend_locks import APPROVED
-
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
+from scripts.verify_frontend_locks import APPROVED
+
 LOCK = ROOT / "dependency-locks/native-license-source-evidence.v0.68.json"
 SCHEMA = "phios.native_license_sources_verified.v0.1"
 EXPECTED = {
