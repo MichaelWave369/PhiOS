@@ -162,6 +162,9 @@ def admit_from_files(
         intake,
         admission_receipt=admission_receipt,
         authority=authority,
+        authority_epoch_sha256=epoch.authority_epoch_sha256,
+        operator_approval=approval,
+        operator_key=key,
         ledger=RealityLedger(ledger_path),
         operator_id=operator_id,
         operator_confirmed=True,
@@ -234,6 +237,11 @@ def main(argv: list[str] | None = None) -> int:
                 "output_evidence_ref": record.output_evidence_ref,
                 "operator_id": record.operator_id,
                 "permission": record.permission,
+                "authority_epoch_sha256": record.authority_epoch_sha256,
+                "operator_approval_sha256": record.operator_approval_sha256,
+                "operator_approval_payload_sha256": (
+                    record.operator_approval_payload_sha256
+                ),
                 "ledger_write_performed": (
                     record.ledger_write_performed
                 ),

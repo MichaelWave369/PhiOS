@@ -27,7 +27,7 @@ from phios.covenant.models import (
     require_sha256,
     require_text,
 )
-from phios.phivid_ledger_admission import PHIVID_LEDGER_ADMIT_PERMISSION
+from phios.phivid_permissions import PHIVID_LEDGER_ADMIT_PERMISSION
 
 PHIVID_OPERATOR_APPROVAL_SCHEMA_VERSION = (
     "phios.phivid_operator_approval.v0.1"
