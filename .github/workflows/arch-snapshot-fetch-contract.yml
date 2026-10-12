@@ -1,0 +1,38 @@
+name: Pinned Arch snapshot fetch contract
+
+on:
+  pull_request:
+    paths:
+      - "packaging/linux/build-linux.sh"
+      - "packaging/linux/prepare_profile.py"
+      - "packaging/linux/prefetch-snapshot-packages.sh"
+      - "tests/test_arch_snapshot_prefetch.py"
+      - ".github/workflows/arch-snapshot-fetch-contract.yml"
+  push:
+    branches: [main]
+    paths:
+      - "packaging/linux/build-linux.sh"
+      - "packaging/linux/prepare_profile.py"
+      - "packaging/linux/prefetch-snapshot-packages.sh"
+      - "tests/test_arch_snapshot_prefetch.py"
+      - ".github/workflows/arch-snapshot-fetch-contract.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  signed-archive-prefetch-mock:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Validate snapshot prefetch and Linux builder bash syntax
+        run: |
+          bash -n packaging/linux/prefetch-snapshot-packages.sh
+          bash -n packaging/linux/build-linux.sh
+      - name: Test bounded signed-package download retry contract without network
+        run: python3 -m unittest discover -s tests -p 'test_arch_snapshot_prefetch.py' -v

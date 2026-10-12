@@ -1,0 +1,329 @@
+name: PhiOS Trellis staged app bridge
+
+on:
+  pull_request:
+    paths:
+      - "scripts/trellis_stage_bridge.py"
+      - "scripts/verify_frontend_locks.py"
+      - "tests/test_verify_frontend_locks.py"
+      - "dependency-locks/**"
+      - "docs/PHIOS_TRELLIS_DEPENDENCY_LOCKS_V0.65.md"
+      - "tests/test_trellis_stage_bridge.py"
+      - "scripts/offline_web_smoke.mjs"
+      - "scripts/interaction_web_smoke.mjs"
+      - "scripts/offline_shell_profile.py"
+      - "scripts/disconnected_web_smoke.mjs"
+      - "scripts/cold_restart_web_smoke.mjs"
+      - "tests/test_cold_restart_web_smoke.mjs"
+      - "docs/PHIOS_TRELLIS_BROWSER_COLD_RESTART_V0.64.md"
+      - "tests/test_offline_shell_profile.py"
+      - "tests/test_disconnected_web_smoke.mjs"
+      - "docs/PHIOS_TRELLIS_DISCONNECTED_V0.63.md"
+      - "tests/test_interaction_web_smoke.mjs"
+      - "docs/PHIOS_TRELLIS_INTERACTION_V0.62.md"
+      - "scripts/strip_remote_font.py"
+      - "tests/test_strip_remote_font.py"
+      - "tests/test_offline_web_smoke.mjs"
+      - "docs/PHIOS_TRELLIS_BROWSER_SMOKE_V0.61.md"
+      - "docs/PHIOS_TRELLIS_BRIDGE_V0.60.md"
+      - ".github/workflows/trellis-stage-bridge.yml"
+      - "phishell/src/ecosystem/app-candidates.json"
+      - "scripts/verify_ecosystem_app_candidates.py"
+  push:
+    branches: [main]
+    paths:
+      - "scripts/trellis_stage_bridge.py"
+      - "scripts/verify_frontend_locks.py"
+      - "tests/test_verify_frontend_locks.py"
+      - "dependency-locks/**"
+      - "docs/PHIOS_TRELLIS_DEPENDENCY_LOCKS_V0.65.md"
+      - "tests/test_trellis_stage_bridge.py"
+      - "scripts/offline_web_smoke.mjs"
+      - "scripts/interaction_web_smoke.mjs"
+      - "scripts/offline_shell_profile.py"
+      - "scripts/disconnected_web_smoke.mjs"
+      - "scripts/cold_restart_web_smoke.mjs"
+      - "tests/test_cold_restart_web_smoke.mjs"
+      - "docs/PHIOS_TRELLIS_BROWSER_COLD_RESTART_V0.64.md"
+      - "tests/test_offline_shell_profile.py"
+      - "tests/test_disconnected_web_smoke.mjs"
+      - "docs/PHIOS_TRELLIS_DISCONNECTED_V0.63.md"
+      - "tests/test_interaction_web_smoke.mjs"
+      - "docs/PHIOS_TRELLIS_INTERACTION_V0.62.md"
+      - "scripts/strip_remote_font.py"
+      - "tests/test_strip_remote_font.py"
+      - "tests/test_offline_web_smoke.mjs"
+      - "docs/PHIOS_TRELLIS_BROWSER_SMOKE_V0.61.md"
+      - "docs/PHIOS_TRELLIS_BRIDGE_V0.60.md"
+      - ".github/workflows/trellis-stage-bridge.yml"
+      - "phishell/src/ecosystem/app-candidates.json"
+      - "scripts/verify_ecosystem_app_candidates.py"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  offline-bridge-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout read-only PhiOS source
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Existing founder-reviewed manifests are mandatory
+        run: python scripts/verify_ecosystem_app_candidates.py
+      - name: Show two strictly non-authoritative Trellis plans
+        run: |
+          python scripts/trellis_stage_bridge.py plan vessie-web
+          python scripts/trellis_stage_bridge.py plan thinktank-web
+      - name: Reject source drift, symlinks, unrelocatable assets and forged grants
+        run: python -m unittest discover -s tests -p "test_trellis_stage_bridge.py" -v
+      - name: Reject forged npm lockfiles and unreviewed registries
+        run: python -m unittest discover -s tests -p "test_verify_frontend_locks.py" -v
+      - name: Reject unreviewed compiled CSS imports and preserve exact font adaptation
+        run: python -m unittest discover -s tests -p "test_strip_remote_font.py" -v
+      - name: Verify derived offline profile bounds and digest manifest contracts
+        run: python -m unittest discover -s tests -p "test_offline_shell_profile.py" -v
+      - name: Node 24 for independent browser harness unit tests
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24.21.0"
+      - name: Unit-test read-only loopback server, path denial and app-root boundaries
+        run: node --test tests/test_offline_web_smoke.mjs
+      - name: Verify exactly scoped UI interaction and reload contract
+        run: node --test tests/test_interaction_web_smoke.mjs
+      - name: Deny unreviewed offline package keys and symlinked roots
+        run: node --test tests/test_disconnected_web_smoke.mjs
+      - name: Verify strict persistent-profile browser cold-start contract
+        run: node --test tests/test_cold_restart_web_smoke.mjs
+
+  real-trellis-two-apps:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    needs: offline-bridge-contract
+    steps:
+      - name: Checkout reviewed PhiOS staging adapter
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Checkout immutable Vessie source
+        uses: actions/checkout@v4
+        with:
+          repository: MichaelWave369/SuperPhiVessel
+          ref: 69a558ea2d1e8b361e05ded9bed4fc27b32e30cd
+          path: .ci-sources/SuperPhiVessel
+          persist-credentials: false
+      - name: Checkout immutable ThinkTank source
+        uses: actions/checkout@v4
+        with:
+          repository: MichaelWave369/think-tank
+          ref: 1e8084a684ccf400c37d05d8bfe992680a72e887
+          path: .ci-sources/think-tank
+          persist-credentials: false
+      - name: Checkout immutable native Trellis 1.0-rc1
+        uses: actions/checkout@v4
+        with:
+          repository: MichaelWave369/Trellis
+          ref: 8c8f54f1539c688fd02247f82c9bd48d0b5444c1
+          path: .ci-sources/Trellis
+          persist-credentials: false
+      - name: Validate pinned git checkouts, no default-branch drift
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git -C .ci-sources/SuperPhiVessel rev-parse HEAD)" = 69a558ea2d1e8b361e05ded9bed4fc27b32e30cd
+          test "$(git -C .ci-sources/think-tank rev-parse HEAD)" = 1e8084a684ccf400c37d05d8bfe992680a72e887
+          test "$(git -C .ci-sources/Trellis rev-parse HEAD)" = 8c8f54f1539c688fd02247f82c9bd48d0b5444c1
+      - name: Confirm immutable Trellis revision is MIT-licensed
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Fxq 'license = "MIT"' .ci-sources/Trellis/Cargo.toml
+          grep -Fxq 'MIT License' .ci-sources/Trellis/LICENSE
+          test -f .ci-sources/Trellis/docs/LICENSE_TRANSITION.md
+          echo 'Trellis project MIT license verified at the exact pinned checkout; dependency licenses remain separate'
+      - name: Set up Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24.21.0"
+      - name: Set up Rust
+        run: |
+          rustc --version
+          cargo --version
+      - name: Build pinned actual Trellis executable from locked Rust dependencies
+        working-directory: .ci-sources/Trellis
+        run: cargo build --release --locked
+      - name: Verify exact frontend source and pin reviewed npm lockfiles in CI checkouts
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(node --version)" = "v24.21.0"
+          test "$(npm --version)" = "11.19.0"
+          python scripts/verify_frontend_locks.py --app vessie-web \
+            --checkout .ci-sources/SuperPhiVessel --prepare
+          python scripts/verify_frontend_locks.py --app thinktank-web \
+            --checkout .ci-sources/think-tank --prepare
+      - name: Build Vessie from frozen npm dependency graph only
+        working-directory: .ci-sources/SuperPhiVessel/apps/vessie-web
+        run: |
+          npm ci --ignore-scripts --no-audit --no-fund
+          npm ls --depth=0
+          npm run build -- --base ./
+          test "$(sha256sum package-lock.json | cut -d' ' -f1)" = 4e0ac5153f3bc47cd78b4f5cfa42c2ede4dbfef8110a2d5deda49d5c81bd6c2a
+      - name: Build ThinkTank from frozen npm dependency graph only
+        working-directory: .ci-sources/think-tank
+        run: |
+          npm ci --ignore-scripts --no-audit --no-fund
+          npm ls --depth=0
+          npm run build -- --base ./
+          test "$(sha256sum package-lock.json | cut -d' ' -f1)" = 251e461cdd11acf49f5c25eb58f0400a66daef1e6bb76486fc7a5f1fb22feffd
+      - name: Prepare explicitly reviewed Vessie offline CSS profile and hash its transformation
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/phios-browser-receipts"
+          python scripts/strip_remote_font.py \
+            --output-root .ci-sources/SuperPhiVessel/site/vessie \
+            --report "$RUNNER_TEMP/phios-browser-receipts/vessie-font-adaptation.json"
+      - name: Verify exact app source and construct two staged Trellis packages
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/trellis_stage_bridge.py stage vessie-web \
+            --checkout .ci-sources/SuperPhiVessel --output "$RUNNER_TEMP/vessie-trellis"
+          python scripts/trellis_stage_bridge.py stage thinktank-web \
+            --checkout .ci-sources/think-tank --output "$RUNNER_TEMP/thinktank-trellis"
+      - name: Run REAL Trellis validate/install/verify only in disposable staging homes
+        shell: bash
+        run: |
+          set -euo pipefail
+          bin="$GITHUB_WORKSPACE/.ci-sources/Trellis/target/release/trellis"
+          for entry in "vessie-web:vessie-trellis" "thinktank-web:thinktank-trellis"; do
+            key="${entry%%:*}"
+            suffix="${entry#*:}"
+            stage="$RUNNER_TEMP/$suffix"
+            home="$RUNNER_TEMP/trellis-home-$key"
+            "$bin" --home "$home" init
+            "$bin" --home "$home" validate "$stage/phios-$key.trellis.yaml"
+            "$bin" --home "$home" install --from "$stage/phios-$key.trellis.yaml"
+            "$bin" --home "$home" verify
+            python scripts/trellis_stage_bridge.py verify-staged \
+              --staging "$stage" --trellis-home "$home"
+          done
+      - name: Prove Trellis-installed React shells mount in real Chromium with egress denied
+        shell: bash
+        run: |
+          set -euo pipefail
+          chrome="$(command -v google-chrome || command -v chromium || command -v chromium-browser)"
+          "$chrome" --version
+          mkdir -p "$RUNNER_TEMP/phios-playwright-core" "$RUNNER_TEMP/phios-browser-receipts"
+          # CI-only pinned test driver, never bundled in PhiOS or an app package.
+          npm install --prefix "$RUNNER_TEMP/phios-playwright-core" \
+            playwright-core@1.56.1 --ignore-scripts --no-package-lock --no-save --no-audit --no-fund
+          failures=0
+          for key in vessie-web thinktank-web; do
+            node scripts/offline_web_smoke.mjs \
+              --app "$key" \
+              --trellis-home "$RUNNER_TEMP/trellis-home-$key" \
+              --chrome "$chrome" \
+              --playwright-root "$RUNNER_TEMP/phios-playwright-core" \
+              --report "$RUNNER_TEMP/phios-browser-receipts/$key.json" || failures=1
+          done
+          test "$failures" -eq 0
+      - name: Verify real UI interactions and HTTP reload in staged apps
+        shell: bash
+        run: |
+          set -euo pipefail
+          chrome="$(command -v google-chrome || command -v chromium || command -v chromium-browser)"
+          failures=0
+          for key in vessie-web thinktank-web; do
+            node scripts/interaction_web_smoke.mjs \
+              --app "$key" \
+              --trellis-home "$RUNNER_TEMP/trellis-home-$key" \
+              --chrome "$chrome" \
+              --playwright-root "$RUNNER_TEMP/phios-playwright-core" \
+              --report "$RUNNER_TEMP/phios-browser-receipts/$key-interaction.json" || failures=1
+          done
+          test "$failures" -eq 0
+      - name: Derive and verify separate Trellis offline-profile package identities
+        shell: bash
+        run: |
+          set -euo pipefail
+          bin="$GITHUB_WORKSPACE/.ci-sources/Trellis/target/release/trellis"
+          for key in vessie-web thinktank-web; do
+            if [ "$key" = "vessie-web" ]; then stage="$RUNNER_TEMP/vessie-trellis"
+            else stage="$RUNNER_TEMP/thinktank-trellis"; fi
+            source_home="$RUNNER_TEMP/trellis-home-$key"
+            offline_stage="$RUNNER_TEMP/offline-profile-$key"
+            offline_home="$RUNNER_TEMP/trellis-offline-$key"
+            python scripts/offline_shell_profile.py prepare \
+              --app "$key" --stage "$stage" --home "$source_home" \
+              --output "$offline_stage" \
+              > "$RUNNER_TEMP/phios-browser-receipts/$key-offline-prepare.json"
+            "$bin" --home "$offline_home" init
+            "$bin" --home "$offline_home" validate "$offline_stage/phios-$key-offline.trellis.yaml"
+            "$bin" --home "$offline_home" install --from "$offline_stage/phios-$key-offline.trellis.yaml"
+            "$bin" --home "$offline_home" verify
+            python scripts/offline_shell_profile.py verify \
+              --app "$key" --stage "$offline_stage" --home "$offline_home" \
+              > "$RUNNER_TEMP/phios-browser-receipts/$key-offline-verify.json"
+          done
+      - name: Prove service-worker reload after closing HTTP server and disconnecting Chromium
+        shell: bash
+        run: |
+          set -euo pipefail
+          chrome="$(command -v google-chrome || command -v chromium || command -v chromium-browser)"
+          failures=0
+          for key in vessie-web thinktank-web; do
+            node scripts/disconnected_web_smoke.mjs \
+              --app "$key" \
+              --trellis-home "$RUNNER_TEMP/trellis-offline-$key" \
+              --chrome "$chrome" \
+              --playwright-root "$RUNNER_TEMP/phios-playwright-core" \
+              --report "$RUNNER_TEMP/phios-browser-receipts/$key-disconnected.json" || failures=1
+          done
+          test "$failures" -eq 0
+      - name: Prove fresh Chromium process starts cached shell with server off and clean profile refuses
+        shell: bash
+        run: |
+          set -euo pipefail
+          chrome="$(command -v google-chrome || command -v chromium || command -v chromium-browser)"
+          failures=0
+          for key in vessie-web thinktank-web; do
+            node scripts/cold_restart_web_smoke.mjs \
+              --app "$key" \
+              --trellis-home "$RUNNER_TEMP/trellis-offline-$key" \
+              --chrome "$chrome" \
+              --playwright-root "$RUNNER_TEMP/phios-playwright-core" \
+              --report "$RUNNER_TEMP/phios-browser-receipts/$key-cold-restart.json" || failures=1
+          done
+          test "$failures" -eq 0
+      - name: Tampered Trellis-installed React files MUST be independently rejected
+        shell: bash
+        run: |
+          set -euo pipefail
+          home="$RUNNER_TEMP/trellis-home-vessie-web"
+          stage="$RUNNER_TEMP/vessie-trellis"
+          # Fixture mutation ONLY inside GitHub's ephemeral Trellis home.
+          printf '\nCI_TAMPER\n' >> "$home/cellar/phios-vessie-web/0.1.0/index.html"
+          if python scripts/trellis_stage_bridge.py verify-staged \
+             --staging "$stage" --trellis-home "$home"; then
+            echo 'UNSAFE: mutated Trellis staged files were accepted' >&2
+            exit 1
+          fi
+          echo 'EXPECTED_FAIL_CLOSED: tampered staged app refused; PhiOS installation/launch never granted'
+
+      - name: Retain browser startup, disconnected reload and cold restart receipts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phios-v064-cold-restart-evidence-${{ github.run_id }}
+          path: ${{ runner.temp }}/phios-browser-receipts/*.json
+          if-no-files-found: ignore
+          retention-days: 7

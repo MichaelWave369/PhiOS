@@ -685,7 +685,7 @@ def profile_intake_result(intake: AppIntakeResult) -> RepoProfileResult:
         if status == "SUPPORTED_AFTER_OPERATOR_APPROVAL":
             status = "ARCHIVED_REPOSITORY_REVIEW"
             reasons.append(
-                "archived repositories require explicit operator review before acquisition"
+                "archived=true: explicit operator review is required before acquisition"
             )
             next_gate = "archived_repository_review"
 

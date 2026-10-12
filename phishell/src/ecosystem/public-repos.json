@@ -1,0 +1,1196 @@
+{
+  "schema_version": "phios.public_ecosystem_catalog.v0.1",
+  "owner": "MichaelWave369",
+  "source": "GITHUB_PUBLIC_REPOSITORY_SEARCH_SNAPSHOT",
+  "snapshot_status": "OFFLINE_SOURCE_LISTING_ONLY",
+  "entries": [
+    {
+      "name": "12fold",
+      "repository_url": "https://github.com/MichaelWave369/12fold",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "Agentora",
+      "repository_url": "https://github.com/MichaelWave369/Agentora",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "Aidora",
+      "repository_url": "https://github.com/MichaelWave369/Aidora",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "ANC",
+      "repository_url": "https://github.com/MichaelWave369/ANC",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "aqlen-quantum-ledger",
+      "repository_url": "https://github.com/MichaelWave369/aqlen-quantum-ledger",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "AquaCymatics369",
+      "repository_url": "https://github.com/MichaelWave369/AquaCymatics369",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "atomspace-rocks",
+      "repository_url": "https://github.com/MichaelWave369/atomspace-rocks",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "atomspace-storage",
+      "repository_url": "https://github.com/MichaelWave369/atomspace-storage",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "Auralith369",
+      "repository_url": "https://github.com/MichaelWave369/Auralith369",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "axiomforge-ledger",
+      "repository_url": "https://github.com/MichaelWave369/axiomforge-ledger",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "BizHaven",
+      "repository_url": "https://github.com/MichaelWave369/BizHaven",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "Blinker",
+      "repository_url": "https://github.com/MichaelWave369/Blinker",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "BounceDeck",
+      "repository_url": "https://github.com/MichaelWave369/BounceDeck",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "BrainC",
+      "repository_url": "https://github.com/MichaelWave369/BrainC",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "brainsweatstudios",
+      "repository_url": "https://github.com/MichaelWave369/brainsweatstudios",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "Browsallax",
+      "repository_url": "https://github.com/MichaelWave369/Browsallax",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "bubblenest",
+      "repository_url": "https://github.com/MichaelWave369/bubblenest",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "BudgetGenius",
+      "repository_url": "https://github.com/MichaelWave369/BudgetGenius",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "cannabis-as-sacred-medicine",
+      "repository_url": "https://github.com/MichaelWave369/cannabis-as-sacred-medicine",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "Cannabiverse",
+      "repository_url": "https://github.com/MichaelWave369/Cannabiverse",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "chronolattice",
+      "repository_url": "https://github.com/MichaelWave369/chronolattice",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "CineSwarm",
+      "repository_url": "https://github.com/MichaelWave369/CineSwarm",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "codeveil369",
+      "repository_url": "https://github.com/MichaelWave369/codeveil369",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "Codex",
+      "repository_url": "https://github.com/MichaelWave369/Codex",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "CoEvo",
+      "repository_url": "https://github.com/MichaelWave369/CoEvo",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "ComicRelief",
+      "repository_url": "https://github.com/MichaelWave369/ComicRelief",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "Commonline",
+      "repository_url": "https://github.com/MichaelWave369/Commonline",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "concrete-atlas",
+      "repository_url": "https://github.com/MichaelWave369/concrete-atlas",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "consent_mirror_369",
+      "repository_url": "https://github.com/MichaelWave369/consent_mirror_369",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "datacenter-ledger-explorer",
+      "repository_url": "https://github.com/MichaelWave369/datacenter-ledger-explorer",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "DCL",
+      "repository_url": "https://github.com/MichaelWave369/DCL",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "Domistika",
+      "repository_url": "https://github.com/MichaelWave369/Domistika",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "DropZone",
+      "repository_url": "https://github.com/MichaelWave369/DropZone",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "ebpf-for-windows",
+      "repository_url": "https://github.com/MichaelWave369/ebpf-for-windows",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "EmberFlow369",
+      "repository_url": "https://github.com/MichaelWave369/EmberFlow369",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "enter-the-field-research",
+      "repository_url": "https://github.com/MichaelWave369/enter-the-field-research",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "EVIE",
+      "repository_url": "https://github.com/MichaelWave369/EVIE",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "FamilyVault",
+      "repository_url": "https://github.com/MichaelWave369/FamilyVault",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "FieldAccord",
+      "repository_url": "https://github.com/MichaelWave369/FieldAccord",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "FieldAtlas",
+      "repository_url": "https://github.com/MichaelWave369/FieldAtlas",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "FieldCloudWorker",
+      "repository_url": "https://github.com/MichaelWave369/FieldCloudWorker",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "FieldDeck",
+      "repository_url": "https://github.com/MichaelWave369/FieldDeck",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "FieldHaven",
+      "repository_url": "https://github.com/MichaelWave369/FieldHaven",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "FieldMedic",
+      "repository_url": "https://github.com/MichaelWave369/FieldMedic",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "flow-covenant-runtime",
+      "repository_url": "https://github.com/MichaelWave369/flow-covenant-runtime",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "focusbridge21",
+      "repository_url": "https://github.com/MichaelWave369/focusbridge21",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "FrontPorchAI",
+      "repository_url": "https://github.com/MichaelWave369/FrontPorchAI",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "GiltHouse",
+      "repository_url": "https://github.com/MichaelWave369/GiltHouse",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "GLO",
+      "repository_url": "https://github.com/MichaelWave369/GLO",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "goldenjoy369",
+      "repository_url": "https://github.com/MichaelWave369/goldenjoy369",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "governance-drift-rsdc",
+      "repository_url": "https://github.com/MichaelWave369/governance-drift-rsdc",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "Growora",
+      "repository_url": "https://github.com/MichaelWave369/Growora",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "GypsyAI",
+      "repository_url": "https://github.com/MichaelWave369/GypsyAI",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "hidden-equations-of-feeling",
+      "repository_url": "https://github.com/MichaelWave369/hidden-equations-of-feeling",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "HomeBass",
+      "repository_url": "https://github.com/MichaelWave369/HomeBass",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "Infinite-Commons",
+      "repository_url": "https://github.com/MichaelWave369/Infinite-Commons",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "Infinite-Porch",
+      "repository_url": "https://github.com/MichaelWave369/Infinite-Porch",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "infinitylens369",
+      "repository_url": "https://github.com/MichaelWave369/infinitylens369",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "inspection-closeout-pilot",
+      "repository_url": "https://github.com/MichaelWave369/inspection-closeout-pilot",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "JukeBot",
+      "repository_url": "https://github.com/MichaelWave369/JukeBot",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "kindbridge369",
+      "repository_url": "https://github.com/MichaelWave369/kindbridge369",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "LabelFit",
+      "repository_url": "https://github.com/MichaelWave369/LabelFit",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "langarian-math",
+      "repository_url": "https://github.com/MichaelWave369/langarian-math",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "LittUp",
+      "repository_url": "https://github.com/MichaelWave369/LittUp",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "lumen_sword_369",
+      "repository_url": "https://github.com/MichaelWave369/lumen_sword_369",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "MemeForge",
+      "repository_url": "https://github.com/MichaelWave369/MemeForge",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "Memoria",
+      "repository_url": "https://github.com/MichaelWave369/Memoria",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "mempalace",
+      "repository_url": "https://github.com/MichaelWave369/mempalace",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "MichaelWave369",
+      "repository_url": "https://github.com/MichaelWave369/MichaelWave369",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "michaelwhughes-portfolio",
+      "repository_url": "https://github.com/MichaelWave369/michaelwhughes-portfolio",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "mictek-house",
+      "repository_url": "https://github.com/MichaelWave369/mictek-house",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "Mindora",
+      "repository_url": "https://github.com/MichaelWave369/Mindora",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "MoreBounceLabs",
+      "repository_url": "https://github.com/MichaelWave369/MoreBounceLabs",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "NestedBubbleGear",
+      "repository_url": "https://github.com/MichaelWave369/NestedBubbleGear",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "nevora-codex",
+      "repository_url": "https://github.com/MichaelWave369/nevora-codex",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "Nevora-Translator",
+      "repository_url": "https://github.com/MichaelWave369/Nevora-Translator",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "NightCircuit",
+      "repository_url": "https://github.com/MichaelWave369/NightCircuit",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "OakStreetRumble",
+      "repository_url": "https://github.com/MichaelWave369/OakStreetRumble",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "OpenBlueprintStudio",
+      "repository_url": "https://github.com/MichaelWave369/OpenBlueprintStudio",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "openfield",
+      "repository_url": "https://github.com/MichaelWave369/openfield",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "OverStrings",
+      "repository_url": "https://github.com/MichaelWave369/OverStrings",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "pain-joy-continuum",
+      "repository_url": "https://github.com/MichaelWave369/pain-joy-continuum",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "ParaCalc369",
+      "repository_url": "https://github.com/MichaelWave369/ParaCalc369",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "paracut",
+      "repository_url": "https://github.com/MichaelWave369/paracut",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "parallax-369-public-primer",
+      "repository_url": "https://github.com/MichaelWave369/parallax-369-public-primer",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "parallax-arc",
+      "repository_url": "https://github.com/MichaelWave369/parallax-arc",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "parallax-gran-prix",
+      "repository_url": "https://github.com/MichaelWave369/parallax-gran-prix",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "parallax-pixelforge",
+      "repository_url": "https://github.com/MichaelWave369/parallax-pixelforge",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "parallax-watchtower",
+      "repository_url": "https://github.com/MichaelWave369/parallax-watchtower",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "particleforge369",
+      "repository_url": "https://github.com/MichaelWave369/particleforge369",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "Peekaboo",
+      "repository_url": "https://github.com/MichaelWave369/Peekaboo",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "personamirror369",
+      "repository_url": "https://github.com/MichaelWave369/personamirror369",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "Phi-Morph",
+      "repository_url": "https://github.com/MichaelWave369/Phi-Morph",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "phi369-element-spiral-atlas",
+      "repository_url": "https://github.com/MichaelWave369/phi369-element-spiral-atlas",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "PHIAudio",
+      "repository_url": "https://github.com/MichaelWave369/PHIAudio",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "phibot",
+      "repository_url": "https://github.com/MichaelWave369/phibot",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "PhiCade",
+      "repository_url": "https://github.com/MichaelWave369/PhiCade",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "Phiform",
+      "repository_url": "https://github.com/MichaelWave369/Phiform",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "PhiKernel",
+      "repository_url": "https://github.com/MichaelWave369/PhiKernel",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "PhiMirrorHex",
+      "repository_url": "https://github.com/MichaelWave369/PhiMirrorHex",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "phioffice369",
+      "repository_url": "https://github.com/MichaelWave369/phioffice369",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "PhiOS",
+      "repository_url": "https://github.com/MichaelWave369/PhiOS",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "PhiPie",
+      "repository_url": "https://github.com/MichaelWave369/PhiPie",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "PHircQ",
+      "repository_url": "https://github.com/MichaelWave369/PHircQ",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "PHIVid",
+      "repository_url": "https://github.com/MichaelWave369/PHIVid",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "PocketBrain",
+      "repository_url": "https://github.com/MichaelWave369/PocketBrain",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "PorchQuest369",
+      "repository_url": "https://github.com/MichaelWave369/PorchQuest369",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "PrivateSpark",
+      "repository_url": "https://github.com/MichaelWave369/PrivateSpark",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "ProofArcade",
+      "repository_url": "https://github.com/MichaelWave369/ProofArcade",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "public-apis-search",
+      "repository_url": "https://github.com/MichaelWave369/public-apis-search",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "Pulse369",
+      "repository_url": "https://github.com/MichaelWave369/Pulse369",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "ravedial-archive-explorer",
+      "repository_url": "https://github.com/MichaelWave369/ravedial-archive-explorer",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "ReceiptRipper",
+      "repository_url": "https://github.com/MichaelWave369/ReceiptRipper",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "RecoM3ndo",
+      "repository_url": "https://github.com/MichaelWave369/RecoM3ndo",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "Reconnect",
+      "repository_url": "https://github.com/MichaelWave369/Reconnect",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "reporider",
+      "repository_url": "https://github.com/MichaelWave369/reporider",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "SCAM-A-LAX",
+      "repository_url": "https://github.com/MichaelWave369/SCAM-A-LAX",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "schumann-live-react",
+      "repository_url": "https://github.com/MichaelWave369/schumann-live-react",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "SIcologist",
+      "repository_url": "https://github.com/MichaelWave369/SIcologist",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "SIGLStudio",
+      "repository_url": "https://github.com/MichaelWave369/SIGLStudio",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "SiliconLouvre",
+      "repository_url": "https://github.com/MichaelWave369/SiliconLouvre",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "SponsorRail",
+      "repository_url": "https://github.com/MichaelWave369/SponsorRail",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "SuperPhiVessel",
+      "repository_url": "https://github.com/MichaelWave369/SuperPhiVessel",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "think-tank",
+      "repository_url": "https://github.com/MichaelWave369/think-tank",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "Trellis",
+      "repository_url": "https://github.com/MichaelWave369/Trellis",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "Triad369-Launchpad",
+      "repository_url": "https://github.com/MichaelWave369/Triad369-Launchpad",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "VAL",
+      "repository_url": "https://github.com/MichaelWave369/VAL",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "Vibe",
+      "repository_url": "https://github.com/MichaelWave369/Vibe",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "WaveForgeStudio",
+      "repository_url": "https://github.com/MichaelWave369/WaveForgeStudio",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "WaveRider",
+      "repository_url": "https://github.com/MichaelWave369/WaveRider",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "WizardWebb",
+      "repository_url": "https://github.com/MichaelWave369/WizardWebb",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "xi-vessel-bridge",
+      "repository_url": "https://github.com/MichaelWave369/xi-vessel-bridge",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    }
+  ]
+}

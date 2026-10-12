@@ -369,3 +369,42 @@ linear-gradient(135deg,rgba(13,32,42,.92),rgba(5,13,17,.96));box-shadow:inset 0 
 .ghostwalk-auth-console-message{padding:7px 8px;border:1px solid rgba(243,182,75,.24);border-radius:6px;background:rgba(243,182,75,.025);color:#d7c18f;font-size:7px;line-height:1.45}
 .ghostwalk-auth-console-boundary{padding:7px 8px;border:1px solid rgba(255,184,77,.2);border-radius:6px;background:rgba(255,184,77,.02);color:#ffc26d;font:6px ui-monospace,monospace;letter-spacing:.04em;line-height:1.45}
 @media(max-width:780px){.ghostwalk-auth-actions,.ghostwalk-auth-trust-grid{grid-template-columns:1fr}}
+
+
+/* v0.58: read-only ecosystem source catalog, never an install/launch grant */
+.ecosystem-catalog{display:grid;gap:12px;margin-top:18px;padding:16px;border:1px solid var(--border);border-radius:12px;background:linear-gradient(130deg,rgba(39,223,255,.04),rgba(215,174,97,.035))}
+.ecosystem-catalog>p{margin:0;max-width:900px;font-size:12px;line-height:1.7;color:var(--secondary)}
+.ecosystem-catalog .panel-title{color:var(--gold)}
+.ecosystem-controls{display:flex;flex-wrap:wrap;gap:10px}
+.ecosystem-controls label{display:grid;flex:1 1 200px;gap:5px;font-size:10px;letter-spacing:.08em;color:var(--muted)}
+.ecosystem-controls input,.ecosystem-controls select{width:100%;padding:10px;border:1px solid var(--border);border-radius:7px;background:var(--abyss);color:var(--text);min-height:40px}
+.ecosystem-controls input:focus-visible,.ecosystem-controls select:focus-visible,.ecosystem-more:focus-visible,.ecosystem-repo-actions a:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+.ecosystem-summary{font-size:11px;color:var(--muted)}
+.ecosystem-summary strong{color:var(--amber)}
+.ecosystem-repos{max-height:360px;overflow-y:auto;border-top:1px solid var(--soft);border-bottom:1px solid var(--soft)}
+.ecosystem-repo{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 8px;border-bottom:1px solid rgba(39,223,255,.09)}
+.ecosystem-repo:last-child{border-bottom:0}
+.ecosystem-repo-name{display:grid;gap:4px;min-width:0}
+.ecosystem-repo-name strong{font-size:12px;overflow-wrap:anywhere}
+.ecosystem-repo-name small{font-size:9px;letter-spacing:.06em;color:var(--muted)}
+.ecosystem-repo-actions{display:flex;gap:7px;flex-wrap:wrap;flex-shrink:0}
+.ecosystem-repo-actions a,.ecosystem-more{border:1px solid var(--border);border-radius:5px;color:var(--cyan);background:transparent;padding:7px 9px;text-decoration:none;cursor:pointer;font-size:10px;letter-spacing:.08em}
+.ecosystem-repo-actions a:hover,.ecosystem-more:hover{border-color:var(--cyan);color:var(--text)}
+@media(max-width:620px){.ecosystem-repo{align-items:flex-start;flex-direction:column}.ecosystem-repo-actions{flex-shrink:1}}
+
+
+/* v0.59: immutable-source app candidates, not executable app launchers. */
+.ecosystem-candidates{display:grid;gap:9px;border:1px solid var(--border);background:rgba(18,35,44,.32);padding:12px;border-radius:9px}
+.ecosystem-candidates>.muted{margin:0;font-size:11px;line-height:1.6}
+.ecosystem-candidate-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,270px),1fr));gap:10px}
+.ecosystem-candidate{border:1px solid var(--border);padding:12px;border-radius:8px;display:grid;gap:8px;background:rgba(8,17,22,.5);min-width:0}
+.ecosystem-candidate-header{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+.ecosystem-candidate-header strong{font-size:13px}
+.ecosystem-candidate-header small{font-size:9px;color:var(--amber);text-align:right}
+.ecosystem-candidate p{font-size:11px;line-height:1.5;margin:0;overflow-wrap:anywhere}
+.ecosystem-candidate dl{margin:0;display:grid;gap:6px}
+.ecosystem-candidate dl div{display:grid;gap:2px}
+.ecosystem-candidate dt{color:var(--muted);font-size:9px;letter-spacing:.08em}
+.ecosystem-candidate dd{margin:0;font-size:11px;overflow-wrap:anywhere}
+.ecosystem-candidate a{color:var(--cyan);font-size:11px;text-decoration:underline;text-underline-offset:3px}
+.ecosystem-candidate a:focus-visible{outline:2px solid var(--cyan);outline-offset:3px}
