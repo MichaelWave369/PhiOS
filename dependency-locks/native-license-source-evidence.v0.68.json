@@ -1,0 +1,63 @@
+{
+  "schema": "phios.native_license_source_lock.v0.1",
+  "review_scope": "four Linux x64 native package flags produced by PhiOS v0.67",
+  "entries": [
+    {
+      "app": "vessie-web",
+      "package": "@esbuild/linux-x64",
+      "version": "0.25.12",
+      "upstream_repo": "evanw/esbuild",
+      "upstream_commit": "208f539945b145e7c9d6d844290f81c3fe5af320",
+      "reviewed_tag": "v0.25.12",
+      "source_path": "LICENSE.md",
+      "source_git_blob_sha": "2027e8dcf3787f5aac9fcd835e2b80cb75a39211",
+      "source_bytes": 1069,
+      "evidence_class": "IMMUTABLE_ROOT_LICENSE_FILE",
+      "review_required": true
+    },
+    {
+      "app": "vessie-web",
+      "package": "@napi-rs/lzma-linux-x64-gnu",
+      "version": "1.5.1",
+      "upstream_repo": "Brooooooklyn/lzma",
+      "upstream_commit": "f164df92d83e095f195d628b1a68a141ae2eb638",
+      "reviewed_tag": "v1.5.1",
+      "source_path": "package.json",
+      "source_git_blob_sha": "9a9236b1fa29ee472c3bf5efcabf9e7a194a6356",
+      "source_bytes": 4372,
+      "evidence_class": "DECLARATION_ONLY_NO_ROOT_LICENSE_FILE_AT_TAG",
+      "review_required": true
+    },
+    {
+      "app": "vessie-web",
+      "package": "@rollup/rollup-linux-x64-gnu",
+      "version": "4.64.5",
+      "upstream_repo": "rollup/rollup",
+      "upstream_commit": "05a293809848a3d772e7ff2ba44adcbd23bd84b8",
+      "reviewed_tag": "v4.64.5",
+      "source_path": "LICENSE.md",
+      "source_git_blob_sha": "7b806824370697048284c1726fc4d1b567bfea68",
+      "source_bytes": 35231,
+      "evidence_class": "IMMUTABLE_ROOT_LICENSE_FILE",
+      "review_required": true,
+      "composite_notice_review": true
+    },
+    {
+      "app": "thinktank-web",
+      "package": "@rolldown/binding-linux-x64-gnu",
+      "version": "1.2.13",
+      "upstream_repo": "rolldown/rolldown",
+      "upstream_commit": "f7de35f45bcd4cb8e4b6d8d11e74fbfb20b03127",
+      "reviewed_tag": "v1.2.13",
+      "source_path": "LICENSE",
+      "source_git_blob_sha": "afc0cdbabfb99ed4030bf9be2b852977f1ed72a0",
+      "source_bytes": 1302,
+      "evidence_class": "IMMUTABLE_ROOT_LICENSE_FILE",
+      "review_required": true
+    }
+  ],
+  "redistribution_approved": false,
+  "license_notice_obligations_reviewed": false,
+  "native_binary_provenance_established": false,
+  "external_done": false
+}
