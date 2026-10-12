@@ -7,6 +7,9 @@ on:
       - ".github/workflows/trellis-stage-bridge.yml"
       - "scripts/verify_frontend_locks.py"
       - "scripts/verify_frontend_build_outputs.py"
+      - "scripts/audit_frontend_license_evidence.py"
+      - "tests/test_audit_frontend_license_evidence.py"
+      - "docs/PHIOS_FRONTEND_LICENSE_EVIDENCE_V0.67.md"
       - "tests/test_verify_frontend_build_outputs.py"
       - "docs/PHIOS_TRELLIS_BUILD_REPLAY_V0.66.md"
       - "tests/test_verify_frontend_locks.py"
@@ -19,6 +22,9 @@ on:
       - ".github/workflows/trellis-stage-bridge.yml"
       - "scripts/verify_frontend_locks.py"
       - "scripts/verify_frontend_build_outputs.py"
+      - "scripts/audit_frontend_license_evidence.py"
+      - "tests/test_audit_frontend_license_evidence.py"
+      - "docs/PHIOS_FRONTEND_LICENSE_EVIDENCE_V0.67.md"
       - "tests/test_verify_frontend_build_outputs.py"
       - "docs/PHIOS_TRELLIS_BUILD_REPLAY_V0.66.md"
       - "tests/test_verify_frontend_locks.py"
@@ -42,6 +48,8 @@ jobs:
         run: python -m unittest discover -s tests -p "test_verify_frontend_locks.py" -v
       - name: Reject mismatched, tampered, or linked replayed build outputs
         run: python -m unittest discover -s tests -p "test_verify_frontend_build_outputs.py" -v
+      - name: Reject untracked npm packages, missing dependency bytes and forged license evidence
+        run: python -m unittest discover -s tests -p "test_audit_frontend_license_evidence.py" -v
       - name: Checkout immutable Vessie source
         uses: actions/checkout@v4
         with:
@@ -73,22 +81,38 @@ jobs:
           python scripts/verify_frontend_locks.py --app thinktank-web \
             --checkout .ci-sources/think-tank --prepare \
             > "$RUNNER_TEMP/phios-closure-receipts/thinktank-verified-lock.json"
-      - name: Vessie locked npm ci and full React build
+      - name: Install Vessie frozen npm graph (before build outputs/caches exist)
         working-directory: .ci-sources/SuperPhiVessel/apps/vessie-web
         run: |
           npm ci --ignore-scripts --no-audit --no-fund
           npm ls --depth=0
-          npm run build -- --base ./
-          test -f ../../site/vessie/index.html
           test "$(sha256sum package-lock.json | cut -d' ' -f1)" = 4e0ac5153f3bc47cd78b4f5cfa42c2ede4dbfef8110a2d5deda49d5c81bd6c2a
-      - name: ThinkTank locked npm ci and full React build
+      - name: Install ThinkTank frozen npm graph (before build outputs/caches exist)
         working-directory: .ci-sources/think-tank
         run: |
           npm ci --ignore-scripts --no-audit --no-fund
           npm ls --depth=0
+          test "$(sha256sum package-lock.json | cut -d' ' -f1)" = 251e461cdd11acf49f5c25eb58f0400a66daef1e6bb76486fc7a5f1fb22feffd
+      - name: Inventory installed npm packages and hash license evidence before React builds
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/audit_frontend_license_evidence.py --app vessie-web \
+            --checkout .ci-sources/SuperPhiVessel \
+            --report "$RUNNER_TEMP/phios-closure-receipts/vessie-license-evidence.json"
+          python scripts/audit_frontend_license_evidence.py --app thinktank-web \
+            --checkout .ci-sources/think-tank \
+            --report "$RUNNER_TEMP/phios-closure-receipts/thinktank-license-evidence.json"
+      - name: Build Vessie from audited frozen npm graph
+        working-directory: .ci-sources/SuperPhiVessel/apps/vessie-web
+        run: |
+          npm run build -- --base ./
+          test -f ../../site/vessie/index.html
+      - name: Build ThinkTank from audited frozen npm graph
+        working-directory: .ci-sources/think-tank
+        run: |
           npm run build -- --base ./
           test -f dist/index.html
-          test "$(sha256sum package-lock.json | cut -d' ' -f1)" = 251e461cdd11acf49f5c25eb58f0400a66daef1e6bb76486fc7a5f1fb22feffd
       - name: Make clean independent source trees from EXACT reviewed git commits
         shell: bash
         run: |
@@ -138,11 +162,11 @@ jobs:
             --second "$RUNNER_TEMP/phios-replay-thinktank/dist" \
             --report "$RUNNER_TEMP/phios-closure-receipts/thinktank-double-build.json" || failures=1
           test "$failures" -eq 0
-      - name: Keep locked dependency and byte-comparison receipts for human review
+      - name: Keep lock, byte-comparison and licensing-evidence receipts for human review
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: phios-v066-two-clean-builds-${{ github.run_id }}
+          name: phios-v067-frontends-provenance-${{ github.run_id }}
           path: ${{ runner.temp }}/phios-closure-receipts/*.json
           if-no-files-found: ignore
           retention-days: 7
