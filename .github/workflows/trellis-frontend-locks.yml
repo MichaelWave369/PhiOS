@@ -9,6 +9,9 @@ on:
       - "scripts/verify_frontend_build_outputs.py"
       - "scripts/audit_frontend_license_evidence.py"
       - "scripts/review_native_license_sources.py"
+      - "scripts/frontend_release_preflight.py"
+      - "tests/test_frontend_release_preflight.py"
+      - "docs/PHIOS_RELEASE_PREFLIGHT_V0.69.md"
       - "tests/test_review_native_license_sources.py"
       - "dependency-locks/native-license-source-evidence.v0.68.json"
       - "docs/PHIOS_NATIVE_LICENSE_SOURCE_REVIEW_V0.68.md"
@@ -28,6 +31,9 @@ on:
       - "scripts/verify_frontend_build_outputs.py"
       - "scripts/audit_frontend_license_evidence.py"
       - "scripts/review_native_license_sources.py"
+      - "scripts/frontend_release_preflight.py"
+      - "tests/test_frontend_release_preflight.py"
+      - "docs/PHIOS_RELEASE_PREFLIGHT_V0.69.md"
       - "tests/test_review_native_license_sources.py"
       - "dependency-locks/native-license-source-evidence.v0.68.json"
       - "docs/PHIOS_NATIVE_LICENSE_SOURCE_REVIEW_V0.68.md"
@@ -60,6 +66,8 @@ jobs:
         run: python -m unittest discover -s tests -p "test_audit_frontend_license_evidence.py" -v
       - name: Reject forged native license source pins and unreviewed release grants
         run: python -m unittest discover -s tests -p "test_review_native_license_sources.py" -v
+      - name: Reject mismatched evidence and forged release/installer authority
+        run: python -m unittest discover -s tests -p "test_frontend_release_preflight.py" -v
       - name: Checkout immutable Vessie source
         uses: actions/checkout@v4
         with:
@@ -180,11 +188,49 @@ jobs:
             --second "$RUNNER_TEMP/phios-replay-thinktank/dist" \
             --report "$RUNNER_TEMP/phios-closure-receipts/thinktank-double-build.json" || failures=1
           test "$failures" -eq 0
-      - name: Retain dependency, build replay, and immutable license source evidence for review
+      - name: Compose fail-closed frontend release review packet from same-run CI receipts
+        shell: bash
+        run: |
+          set -euo pipefail
+          evidence="$RUNNER_TEMP/phios-closure-receipts"
+          python scripts/frontend_release_preflight.py \
+            --receipts-dir "$evidence" \
+            --report "$evidence/frontend-release-hold.json"
+          python - "$evidence/frontend-release-hold.json" <<'PY'
+          import json,sys
+          packet=json.load(open(sys.argv[1],encoding="utf-8"))
+          assert packet["status"]=="HOLD_FOR_OPERATOR_REVIEW"
+          assert packet["release_blocker_count"]==7
+          assert packet["license_redistribution_cleared"] is False
+          assert packet["installer_packaging_authorized"] is False
+          assert packet["external_done"] is False
+          PY
+      - name: Negative control forbids converting evidence into release authorization
+        shell: bash
+        run: |
+          set -euo pipefail
+          evidence="$RUNNER_TEMP/phios-closure-receipts"
+          if python scripts/frontend_release_preflight.py \
+            --receipts-dir "$evidence" \
+            --report "$evidence/frontend-release-denied.json" \
+            --require-release-authority; then
+            echo "UNSAFE: evidence preflight granted release authority" >&2
+            exit 1
+          fi
+          python - "$evidence/frontend-release-denied.json" <<'PY'
+          import json,sys
+          p=json.load(open(sys.argv[1],encoding="utf-8"))
+          assert p["status"]=="HOLD_FOR_OPERATOR_REVIEW"
+          assert not any(p[k] for k in ("release_authority_present",
+              "license_redistribution_cleared","installer_packaging_authorized",
+              "phios_launch_authorized","external_done"))
+          PY
+          echo "EXPECTED_FAIL_CLOSED: evidence not release authorization"
+      - name: Retain release hold packet and dependency evidence for human review
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: phios-v068-native-license-review-${{ github.run_id }}
+          name: phios-v069-evidence-release-hold-${{ github.run_id }}
           path: ${{ runner.temp }}/phios-closure-receipts/*.json
           if-no-files-found: ignore
           retention-days: 7
