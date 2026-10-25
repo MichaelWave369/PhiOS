@@ -180,3 +180,58 @@ def test_import_or_stop_failure_cannot_start_services_and_start_failure_is_repor
                     'XDG_CURRENT_DESKTOP': 'Wayfire', 'FAIL_COMMAND': failure})
     assert result.returncode == 19
     assert len(recorded(events)) == calls
+
+
+def test_logout_cleanup_only_clears_browser_after_target_stop(tmp_path):
+    """The compositor exit race must never clear failures before stopping services."""
+    script = (SESSION / 'phios-session').read_text()
+    cleanup = script.split('cleanup() {', 1)[1].split('\ntrap cleanup EXIT', 1)[0]
+    program = 'cleanup() {' + cleanup + '''
+systemctl() {
+  printf '%s\\n' "$*" >> "$EVENTS"
+  case "$*" in
+    '--user stop phios-session.target') [[ "${STOP_FAIL:-0}" != 1 ]] ;;
+    '--user is-failed --quiet phios-browser.service') [[ "${BROWSER_FAILED:-0}" == 1 ]] ;;
+    '--user reset-failed phios-browser.service') [[ "${RESET_FAIL:-0}" != 1 ]] ;;
+    *) return 0 ;;
+  esac
+}
+cleanup
+'''
+    events = tmp_path / 'logout-events'
+    base = {**os.environ, 'EVENTS': str(events)}
+
+    def probe(**flags):
+        events.write_text('')
+        result = subprocess.run(
+            ['bash', '-c', program],
+            env={**base, **flags},
+            capture_output=True, text=True, timeout=10,
+        )
+        return result, events.read_text().splitlines()
+
+    normal, rows = probe()
+    assert normal.returncode == 0, normal.stderr
+    assert rows == [
+        '--user stop phios-session.target',
+        '--user is-failed --quiet phios-browser.service',
+    ]
+
+    browser, rows = probe(BROWSER_FAILED='1')
+    assert browser.returncode == 0, browser.stderr
+    assert rows == [
+        '--user stop phios-session.target',
+        '--user is-failed --quiet phios-browser.service',
+        '--user show phios-browser.service --property=Result --property=ExecMainStatus',
+        '--user reset-failed phios-browser.service',
+    ]
+
+    stop_failure, rows = probe(STOP_FAIL='1', BROWSER_FAILED='1')
+    assert stop_failure.returncode != 0
+    assert rows == ['--user stop phios-session.target']
+    assert 'preserving failure' in stop_failure.stderr
+
+    reset_failure, rows = probe(BROWSER_FAILED='1', RESET_FAIL='1')
+    assert reset_failure.returncode != 0
+    assert rows[-1] == '--user reset-failed phios-browser.service'
+    assert 'could not be cleared' in reset_failure.stderr
