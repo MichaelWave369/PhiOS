@@ -1,6 +1,6 @@
 # PhiOS R0.6: PhiARK read-only integration and governance boundary
 
-**Status:** PhiARK source/vault adapter plus PhiShell advisory tile, not a governed installation or running service.
+**Historical note (R0.8):** The broad `runtime.network.inherit` manifest proposal described below has been superseded by the [network-denied R0.8 candidate](PHIOS_PHIARK_R08_INSTALL_REVIEW.md). The rest of this document describes the original R0.6 observer, not an installed service.\n\n**Status:** PhiARK source/vault adapter plus PhiShell advisory tile, not a governed installation or running service.
 Reference issue: [PhiOS #321](https://github.com/MichaelWave369/PhiOS/issues/321)
 
 ## What was implemented
