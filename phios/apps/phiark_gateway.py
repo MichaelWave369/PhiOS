@@ -17,7 +17,6 @@ import secrets
 import socket
 import stat
 import sys
-from http import HTTPStatus
 from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
@@ -255,6 +254,7 @@ class _Handler(BaseHTTPRequestHandler):
         if not self._socket_unchanged():
             return self._answer(503, "Private socket changed", head=head)
         conn = _UnixHTTPConnection(self.server.plan["socket_path"])
+        headers_sent = False
         try:
             conn.request("HEAD" if head else "GET", route, headers={"Accept": "*/*"})
             response = conn.getresponse()
@@ -284,6 +284,7 @@ class _Handler(BaseHTTPRequestHandler):
             for key, value in forwarded.items():
                 self.send_header(key, value)
             self.end_headers()
+            headers_sent = True
             if not head:
                 read_total = 0
                 while True:
@@ -296,7 +297,7 @@ class _Handler(BaseHTTPRequestHandler):
                         break
                     self.wfile.write(chunk)
         except (ValueError, OSError, http.client.HTTPException):
-            if not self._headers_buffer:
+            if not headers_sent:
                 # Fail closed before emitting status headers; no arbitrary upstream.
                 self._answer(502, "Private upstream unavailable", head=head)
             else:
