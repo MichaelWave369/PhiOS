@@ -478,3 +478,15 @@ PhiOS is trying to make powerful local computation easier to use without allowin
 capability, inference, convenience, or recovery to silently become authority.
 
 **Sovereign. Coherent. Local. Free.**
+
+## Φ PhiARK Knowledge Vault: read-only PhiOS integration probe (R0.6)
+
+The PhiShell app library includes an advisory **PhiARK Knowledge Vault** tile, explicitly **not bundled / not installed**. PhiOS can independently inspect a configured local PhiARK data folder without requiring cloud AI or repository access:
+
+```bash
+phi-app phiark-status --data-root /absolute/path/to/PhiARKVault
+phi-app phiark-status --data-root /absolute/path/to/PhiARKVault --verify-kiwix
+phi-app phiark-status --data-root /absolute/path/to/PhiARKVault --probe-loopback
+```
+
+The default probe accesses **only local files**, verifies SHA-256 stored document bytes, and never launches the PhiARK Node server or Kiwix. The optional Kiwix check reads archive files to recheck their stored checksums; the optional network probe contacts **127.0.0.1:3691 only**, and is not proof of process identity. There are no authority grants, installs or bootable images. See [the R0.6 governance contract](docs/PHIOS_PHIARK_R06_LOCAL_BRIDGE.md) and [PhiOS #321](https://github.com/MichaelWave369/PhiOS/issues/321).

@@ -73,6 +73,7 @@ from .retained_cleanup import (
     plan_retained_cleanup,
     review_retained_cleanup,
 )
+from .phiark_bridge import observe_phiark
 from .registry import AppRegistry
 from .repo_profile import profile_public_github_repository
 from .release_advancement import advance_release_candidate
@@ -1174,11 +1175,32 @@ def _parser() -> argparse.ArgumentParser:
         type=Path,
         default=Path.home() / ".phios" / "apps" / "runtime-receipts",
     )
+    phiark_parser = subparsers.add_parser(
+        "phiark-status",
+        help="Observe PhiARK local bytes and optional loopback status; never install or launch.",
+    )
+    phiark_parser.add_argument("--data-root", type=Path, required=True)
+    phiark_parser.add_argument("--verify-kiwix", action="store_true")
+    phiark_parser.add_argument("--probe-loopback", action="store_true")
+    phiark_parser.add_argument("--port", type=int, default=3691)
+
     return parser
 
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = _parser().parse_args(argv)
+
+    if args.command == "phiark-status":
+        try:
+            phiark_observation = observe_phiark(
+                args.data_root, verify_kiwix=args.verify_kiwix,
+                probe_loopback=args.probe_loopback, port=args.port,
+            )
+        except (OSError, ValueError) as exc:
+            print(json.dumps({"status": "BLOCKED", "error": str(exc)}, sort_keys=True))
+            return 2
+        print(json.dumps(phiark_observation, sort_keys=True, indent=2))
+        return 0 if phiark_observation["status"] == "LOCAL_BYTES_OBSERVED" else 1
 
     if args.command == "discover-releases":
         try:

@@ -19,7 +19,7 @@ function tileButtons(node: ReactNode): Array<{ label: string; click: () => void 
 
 const destinations: Record<string, string> = {
   "Browsallax": "app:browsallax", "PhiVessel": "app:phivessel", "BrainC": "app:brainc",
-  "PhiOffice": "app:phioffice", "Domistika": "app:domistika", "SOMA": "app:soma",
+  "PhiOffice": "app:phioffice", "PhiARK Knowledge Vault": "app:phiark", "Domistika": "app:domistika", "SOMA": "app:soma",
   "Professor Φ": "app:professor", "Reality Ledger": "ledger-window",
   "Builder": "build-window", "System Inspector": "system-window",
   "ΦDream": "dream-window", "Apps": "apps-window",
@@ -34,7 +34,7 @@ describe("rendered app launcher clicks", () => {
         const event = shellAppEvent(id);
         if (event) state = shellReducer(state, event);
       } }));
-      expect(tiles).toHaveLength(pinned ? 6 : 12);
+      expect(tiles).toHaveLength(pinned ? 6 : 13);
       for (const tile of tiles) {
         tile.click();
         const name = tile.label.split(" · ")[0];
@@ -78,6 +78,7 @@ describe("shipped integration status", () => {
     ["browsallax", "Not bundled", "Chromium"],
     ["phivessel", "Advisory only", "cannot answer prompts"],
     ["brainc", "Client only", "Ollama and model weights are not bundled"],
+    ["phiark", "Integration probe", "not bundled or installed"],
   ])("explains why %s does not launch a full runtime", (id, status, detail) => {
     const app = findShellApp(id);
     if (!app) throw new Error("missing integration");
