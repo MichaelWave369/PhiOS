@@ -5,12 +5,12 @@ from __future__ import annotations
 import hashlib
 import json
 import shutil
-import socket
 import ssl
 import subprocess
 import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
+from typing import Iterator
 
 import pytest
 
@@ -19,7 +19,6 @@ from phios.network.homenode import (
     HomeNodeTrustError,
     config_from_env,
     load_trust,
-    probe_gateway,
     select_mode,
 )
 from phios.network.homenode_cli import main as cli_main
@@ -113,7 +112,7 @@ def test_missing_credentials_never_leak_private_paths() -> None:
 
 
 @pytest.fixture()
-def tls_server(tmp_path: Path) -> tuple[dict[str, str], dict[str, object]]:
+def tls_server(tmp_path: Path) -> Iterator[tuple[dict[str, str], dict[str, object]]]:
     if shutil.which("openssl") is None:
         pytest.skip("OpenSSL CLI unavailable")
     result = subprocess.run(
@@ -213,10 +212,8 @@ def test_symlink_token_refused_when_supported(
         load_trust(config)
 
 
-def test_unreachable_lan_does_not_claim_offline_health(tmp_path: Path) -> None:
-    if shutil.which("openssl") is None:
-        pytest.skip("OpenSSL CLI unavailable")
-    # Fail before network on untrusted cert, regardless of address availability.
+def test_missing_local_credentials_do_not_claim_offline_health(tmp_path: Path) -> None:
+    # Missing credentials fail before network, regardless of address availability.
     result = select_mode("local", env=_env(tmp_path, "0" * 64, 3743))
     assert result["effectiveMode"] == "OFFLINE"
     assert result["gatewayVerified"] is False
