@@ -1,0 +1,59 @@
+.infinite-home-dock {
+  grid-column: 1 / -1;
+}
+.infinite-home-intro,
+.infinite-home-caution {
+  font-size: 11px;
+  line-height: 1.55;
+  color: var(--secondary);
+  margin: 9px 0 13px;
+}
+.infinite-home-caution {
+  color: var(--muted);
+  margin-bottom: 0;
+}
+.infinite-home-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.infinite-home-door {
+  border: 1px solid var(--soft);
+  border-radius: 8px;
+  padding: 12px;
+  background: rgba(39, 223, 255, .025);
+}
+.infinite-home-door-header {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: space-between;
+}
+.infinite-home-door-header strong {
+  color: var(--gold);
+  font-size: 13px;
+}
+.infinite-home-door-header small {
+  color: var(--muted);
+  font-size: 9px;
+}
+.infinite-home-door p {
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--secondary);
+}
+.infinite-home-door a {
+  display: inline-block;
+  margin-top: 3px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 10px;
+  color: var(--cyan);
+  text-decoration: none;
+  font-size: 10px;
+  font-weight: 700;
+}
+.infinite-home-door a:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 3px;
+}
