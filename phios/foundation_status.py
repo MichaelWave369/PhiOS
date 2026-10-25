@@ -105,7 +105,7 @@ def observe_foundation(
 
     blocked = (home_status["status"] == "LOCAL_FAILED_OFFLINE_MODE_SELECTED" or
                ark["status"] == "BLOCKED" or
-               int(ark["documentsFailed"]) > 0 or int(ark["archivesFailed"]) > 0)
+               ark["documentsFailed"] != 0 or ark["archivesFailed"] != 0)
     partial = trusted_gateway or ark["status"] == "LOCAL_BYTES_OBSERVED"
     verdict = "BLOCKED" if blocked else "PARTIAL_EVIDENCE" if partial else "UNVERIFIED"
     return {
