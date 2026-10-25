@@ -75,6 +75,8 @@ jobs:
               "phios/network/__init__.py",
               "phios/network/discovery.py",
               "phios/network/exchange.py",
+              "phios/network/homenode.py",
+              "phios/network/homenode_cli.py",
               "phios/shell/phi_session.py",
           }
           missing = sorted(required - names)
