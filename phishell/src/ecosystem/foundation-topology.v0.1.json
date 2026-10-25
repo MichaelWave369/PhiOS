@@ -1,0 +1,306 @@
+{
+  "schema_version": "phios.foundation_topology.v0.1",
+  "snapshot_date": "2026-10-24",
+  "provenance": "SOURCE_REVIEW_AND_ARCHITECTURE_PROPOSAL_ONLY",
+  "authority": {
+    "install": false,
+    "launch": false,
+    "model_execute": false,
+    "network_connect": false,
+    "grant": false,
+    "publish": false,
+    "native_boot": false
+  },
+  "nodes": [
+    {
+      "id": "PhiOS",
+      "repository_url": "https://github.com/MichaelWave369/PhiOS",
+      "role": "os_shell",
+      "assessment": "SOURCE_REVIEW_ONLY",
+      "installed_in_phios": false,
+      "launch_authorized": false,
+      "model_execution_authorized": false,
+      "redistribution_approved": false,
+      "note": "Governed app lifecycle and current Linux-based OS candidate"
+    },
+    {
+      "id": "PhiKernel",
+      "repository_url": "https://github.com/MichaelWave369/PhiKernel",
+      "role": "governance_runtime",
+      "assessment": "SOURCE_REVIEW_ONLY",
+      "installed_in_phios": false,
+      "launch_authorized": false,
+      "model_execution_authorized": false,
+      "redistribution_approved": false,
+      "note": "Constitutional runtime above the current host OS; future native substrate is not implemented"
+    },
+    {
+      "id": "Infinite-Porch",
+      "repository_url": "https://github.com/MichaelWave369/Infinite-Porch",
+      "role": "ai_home",
+      "assessment": "SOURCE_REVIEW_ONLY",
+      "installed_in_phios": false,
+      "launch_authorized": false,
+      "model_execution_authorized": false,
+      "redistribution_approved": false,
+      "note": "Local-first peer identity, Ollama sharing and permissioned AI-home candidate"
+    },
+    {
+      "id": "Infinite-Commons",
+      "repository_url": "https://github.com/MichaelWave369/Infinite-Commons",
+      "role": "commons",
+      "assessment": "SOURCE_REVIEW_ONLY",
+      "installed_in_phios": false,
+      "launch_authorized": false,
+      "model_execution_authorized": false,
+      "redistribution_approved": false,
+      "note": "Deterministic artifact contracts and experimental world/portal experience"
+    },
+    {
+      "id": "InfiniteInterconnects",
+      "repository_url": "https://github.com/MichaelWave369/InfiniteInterconnects",
+      "role": "bridge_lab",
+      "assessment": "SOURCE_REVIEW_ONLY",
+      "installed_in_phios": false,
+      "launch_authorized": false,
+      "model_execution_authorized": false,
+      "redistribution_approved": false,
+      "note": "Routing and authorization simulator only; no production network connection"
+    },
+    {
+      "id": "Trellis",
+      "repository_url": "https://github.com/MichaelWave369/Trellis",
+      "role": "package_manager",
+      "assessment": "SOURCE_REVIEW_ONLY",
+      "installed_in_phios": false,
+      "launch_authorized": false,
+      "model_execution_authorized": false,
+      "redistribution_approved": false,
+      "note": "Separate deterministic package manager; PhiOS has unqualified staged-app experiments"
+    },
+    {
+      "id": "SuperPhiVessel",
+      "repository_url": "https://github.com/MichaelWave369/SuperPhiVessel",
+      "role": "cognitive_ui",
+      "assessment": "SOURCE_REVIEW_ONLY",
+      "installed_in_phios": false,
+      "launch_authorized": false,
+      "model_execution_authorized": false,
+      "redistribution_approved": false,
+      "note": "Cognitive UI and review-only local-console surfaces; runtime approvals separate"
+    },
+    {
+      "id": "BrainC",
+      "repository_url": "https://github.com/MichaelWave369/BrainC",
+      "role": "model_service",
+      "assessment": "SOURCE_REVIEW_ONLY",
+      "installed_in_phios": false,
+      "launch_authorized": false,
+      "model_execution_authorized": false,
+      "redistribution_approved": false,
+      "note": "Local Ollama-backed assistant and model switcher; no automatic PhiOS service enrollment"
+    },
+    {
+      "id": "BudgetGenius",
+      "repository_url": "https://github.com/MichaelWave369/BudgetGenius",
+      "role": "resource_policy",
+      "assessment": "SOURCE_REVIEW_ONLY",
+      "installed_in_phios": false,
+      "launch_authorized": false,
+      "model_execution_authorized": false,
+      "redistribution_approved": false,
+      "note": "Budget/route policy research; not a kernel scheduler or authority source"
+    },
+    {
+      "id": "PhiStream",
+      "repository_url": "https://github.com/MichaelWave369/PhiStream",
+      "role": "weight_engine_lab",
+      "assessment": "SOURCE_REVIEW_ONLY",
+      "installed_in_phios": false,
+      "launch_authorized": false,
+      "model_execution_authorized": false,
+      "redistribution_approved": false,
+      "note": "Experimental layer-streamed inference; narrow weights and hardware evidence"
+    },
+    {
+      "id": "PocketBrain",
+      "repository_url": "https://github.com/MichaelWave369/PocketBrain",
+      "role": "portable_ai_client",
+      "assessment": "SOURCE_REVIEW_ONLY",
+      "installed_in_phios": false,
+      "launch_authorized": false,
+      "model_execution_authorized": false,
+      "redistribution_approved": false,
+      "note": "Browser-local WebLLM and opt-in provider bridge; not host control"
+    },
+    {
+      "id": "think-tank",
+      "repository_url": "https://github.com/MichaelWave369/think-tank",
+      "role": "council_app",
+      "assessment": "SOURCE_REVIEW_ONLY",
+      "installed_in_phios": false,
+      "launch_authorized": false,
+      "model_execution_authorized": false,
+      "redistribution_approved": false,
+      "note": "Multi-model governed council; browser UI alone does not execute local models"
+    },
+    {
+      "id": "parallax-pixelforge",
+      "repository_url": "https://github.com/MichaelWave369/parallax-pixelforge",
+      "role": "creative_source",
+      "assessment": "SOURCE_REVIEW_ONLY",
+      "installed_in_phios": false,
+      "launch_authorized": false,
+      "model_execution_authorized": false,
+      "redistribution_approved": false,
+      "note": "Private local Unreal-to-GLB integrity handoff with operator approval"
+    },
+    {
+      "id": "FramefieldStudio",
+      "repository_url": "https://github.com/MichaelWave369/FramefieldStudio",
+      "role": "animation_editor",
+      "assessment": "SOURCE_REVIEW_ONLY",
+      "installed_in_phios": false,
+      "launch_authorized": false,
+      "model_execution_authorized": false,
+      "redistribution_approved": false,
+      "note": "3D keyframe editor; external 3D model import and skeletal rigging unqualified"
+    },
+    {
+      "id": "paracut",
+      "repository_url": "https://github.com/MichaelWave369/paracut",
+      "role": "media_finishing",
+      "assessment": "SOURCE_REVIEW_ONLY",
+      "installed_in_phios": false,
+      "launch_authorized": false,
+      "model_execution_authorized": false,
+      "redistribution_approved": false,
+      "note": "Timeline and media finishing; proposed creative bridge not installed"
+    },
+    {
+      "id": "PhiCade",
+      "repository_url": "https://github.com/MichaelWave369/PhiCade",
+      "role": "game_runtime",
+      "assessment": "SOURCE_REVIEW_ONLY",
+      "installed_in_phios": false,
+      "launch_authorized": false,
+      "model_execution_authorized": false,
+      "redistribution_approved": false,
+      "note": "Governed games launcher and external PixelForge runtime bridge candidate"
+    }
+  ],
+  "links": [
+    {
+      "from": "PhiKernel",
+      "to": "PhiOS",
+      "kind": "governance_contract",
+      "status": "DOCUMENTED",
+      "evidence_url": "https://github.com/MichaelWave369/PhiOS/blob/main/AGENTS.md",
+      "note": "Consume normalized stable contract, never proprietary kernel internals"
+    },
+    {
+      "from": "PhiOS",
+      "to": "Infinite-Porch",
+      "kind": "ai_home_adapter",
+      "status": "PROPOSED",
+      "evidence_url": "https://github.com/MichaelWave369/Infinite-Porch/blob/main/README.md",
+      "note": "Add read-only companion status before model or peer control"
+    },
+    {
+      "from": "PhiOS",
+      "to": "Infinite-Commons",
+      "kind": "world_portal",
+      "status": "PROPOSED",
+      "evidence_url": "https://github.com/MichaelWave369/Infinite-Commons/blob/main/README.md",
+      "note": "Portal navigation first; no filesystem or grant bridge"
+    },
+    {
+      "from": "Infinite-Porch",
+      "to": "InfiniteInterconnects",
+      "kind": "governed_interop",
+      "status": "PROPOSED",
+      "evidence_url": "https://github.com/MichaelWave369/InfiniteInterconnects/blob/main/README.md",
+      "note": "Simulator is not a network implementation"
+    },
+    {
+      "from": "PhiOS",
+      "to": "Trellis",
+      "kind": "staged_package_bridge",
+      "status": "STAGED_UNQUALIFIED",
+      "evidence_url": "https://github.com/MichaelWave369/PhiOS/blob/main/docs/PHIOS_RELEASE_PREFLIGHT_V0.69.md",
+      "note": "Do not bypass the established App Platform or release hold"
+    },
+    {
+      "from": "PhiOS",
+      "to": "SuperPhiVessel",
+      "kind": "app_candidate",
+      "status": "STAGED_UNQUALIFIED",
+      "evidence_url": "https://github.com/MichaelWave369/PhiOS/blob/main/docs/PHIOS_GOVERNED_APP_CANDIDATES_V0.59.md",
+      "note": "Source-pinned frontend candidate, not installed"
+    },
+    {
+      "from": "PhiOS",
+      "to": "think-tank",
+      "kind": "app_candidate",
+      "status": "STAGED_UNQUALIFIED",
+      "evidence_url": "https://github.com/MichaelWave369/PhiOS/blob/main/docs/PHIOS_GOVERNED_APP_CANDIDATES_V0.59.md",
+      "note": "Source-pinned frontend candidate, not installed"
+    },
+    {
+      "from": "PhiOS",
+      "to": "BrainC",
+      "kind": "model_service_adapter",
+      "status": "PROPOSED",
+      "evidence_url": "https://github.com/MichaelWave369/BrainC/blob/main/README.md",
+      "note": "Local provider process must have an independent approved service contract"
+    },
+    {
+      "from": "PhiOS",
+      "to": "BudgetGenius",
+      "kind": "budget_advisory",
+      "status": "PROPOSED",
+      "evidence_url": "https://github.com/MichaelWave369/BudgetGenius/blob/main/README.md",
+      "note": "Route choices cannot mint action authority"
+    },
+    {
+      "from": "PhiOS",
+      "to": "PhiStream",
+      "kind": "weight_execution_adapter",
+      "status": "PROPOSED",
+      "evidence_url": "https://github.com/MichaelWave369/PhiStream/blob/main/README.md",
+      "note": "Explicit experimental weight streaming; no production or all-model support"
+    },
+    {
+      "from": "PhiOS",
+      "to": "PocketBrain",
+      "kind": "portable_client_adapter",
+      "status": "PROPOSED",
+      "evidence_url": "https://github.com/MichaelWave369/PocketBrain/blob/main/README.md",
+      "note": "Optional signed, read-only identity/status integration first"
+    },
+    {
+      "from": "parallax-pixelforge",
+      "to": "FramefieldStudio",
+      "kind": "glb_animation_handoff",
+      "status": "PROPOSED",
+      "evidence_url": "https://github.com/MichaelWave369/parallax-pixelforge/blob/main/docs/V5_42_UNREAL_ASSET_HANDOFF.md",
+      "note": "PixelForge verifies private GLB; Framefield import is not implemented"
+    },
+    {
+      "from": "FramefieldStudio",
+      "to": "paracut",
+      "kind": "rendered_media_handoff",
+      "status": "PROPOSED",
+      "evidence_url": "https://github.com/MichaelWave369/FramefieldStudio/blob/main/README.md",
+      "note": "Test bounded PNG/image-sequence handoff before claiming interoperability"
+    },
+    {
+      "from": "parallax-pixelforge",
+      "to": "PhiCade",
+      "kind": "bridged_game_runtime",
+      "status": "DOCUMENTED",
+      "evidence_url": "https://github.com/MichaelWave369/PhiCade/blob/main/README.md",
+      "note": "Existing bounded runtime bridge does not qualify PhiOS app installation"
+    }
+  ]
+}

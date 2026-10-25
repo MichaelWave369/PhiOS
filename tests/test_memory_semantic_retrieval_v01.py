@@ -120,7 +120,7 @@ def _record(record_id: str, *, scope: str, text: str) -> MemoryRecord:
         scope_id=scope,
         classification="operator",
         retention_policy_id="retain",
-        expires_at="2026-10-20T20:00:00+00:00",
+        expires_at=None,  # Non-expiring fixture: this test does not exercise TTL.
         epistemic_kind="source",
         text=text,
     )
