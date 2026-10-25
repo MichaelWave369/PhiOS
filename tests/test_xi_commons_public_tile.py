@@ -10,9 +10,11 @@ class XiCommonsPublicTileTests(unittest.TestCase):
         text=TILE.read_text()
         for fragment in (
             'https://github.com/MichaelWave369/xi-vessel-bridge',
+            'https://michaelwave369.github.io/xi-vessel-bridge/',
+            'https://github.com/MichaelWave369/xi-vessel-bridge/actions/runs/40243474173',
             'status: "SOURCE_ONLY"',
             'localSnapshotAvailableOffline: true',
-            'externalSiteVerified: false',
+            'externalSiteVerified: true',
             'installed: false',
             'bundledWebApp: false',
             'launchAuthorized: false',
@@ -21,6 +23,9 @@ class XiCommonsPublicTileTests(unittest.TestCase):
             'r17ExternalPilot: "BLOCKED"',
             'r18TwoHostTest: "NOT_RUN"',
             'NOT INSTALLED',
+            'PUBLIC HTTPS VERIFIED',
+            'OPEN PUBLIC COMMONS GATEWAY',
+            'OPEN CANONICAL GITHUB SOURCE',
             'no gateway web app or Xi data is cached'
         ):
             self.assertIn(fragment,text)
