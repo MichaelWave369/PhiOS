@@ -245,7 +245,8 @@ class _Handler(BaseHTTPRequestHandler):
             return self._answer(403, "Local origin required", head=head)
         if self.path == "/_phiark/activate" and not head:
             self._headers(200, "text/html; charset=utf-8", len(_ACTIVATOR))
-            return self.wfile.write(_ACTIVATOR)
+            self.wfile.write(_ACTIVATOR)
+            return
         if not self._authorized():
             return self._answer(403, "Approved local session required", head=head)
         route = self._route()
