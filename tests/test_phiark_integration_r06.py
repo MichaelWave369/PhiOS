@@ -139,5 +139,29 @@ def test_declared_compatibility_manifest_is_a_candidate_not_a_grant() -> None:
     assert manifest.app_id == "phi.phiark"
     assert manifest.entrypoint.runtime == "node"
     assert manifest.entrypoint.target == "src/server.mjs"
-    assert "runtime.network.inherit" in manifest.permissions
-    assert "runtime.data.persist" in manifest.permissions
+    assert "runtime.network.inherit" not in manifest.permissions
+    assert manifest.permissions == ("runtime.data.persist",)
+    assert manifest.source.redistribution == "unknown"
+
+
+def test_r08_source_pin_is_non_authoritative_and_tracks_exact_observed_commit() -> None:
+    import re
+    base = Path(__file__).parents[1] / "integrations" / "phiark"
+    review = json.loads((base / "r08-install-review-candidate.json").read_text(encoding="utf-8"))
+    manifest = AppManifest.from_dict(
+        json.loads((base / "manifest-candidate.json").read_text(encoding="utf-8"))
+    )
+    assert review["schema"] == "phios.phiark_install_review.v0.1"
+    assert review["status"] == "HELD_FOR_OPERATOR_REVIEW"
+    assert review["app_id"] == manifest.app_id
+    assert review["repository_url"] == manifest.source.repository_url
+    assert re.fullmatch("[a-f0-9]{40}", review["observed_source_commit"])
+    assert review["requested_network_mode"] == "deny"
+    assert review["requested_permissions"] == list(manifest.permissions)
+    assert "runtime.network.inherit" not in manifest.permissions
+    assert review["required_guest_environment"] == {
+        "PHIARK_DATA_DIR": "/phios/app-data",
+        "PHIARK_SOCKET_PATH": "/phios/app-data/.phiark.sock",
+    }
+    assert review["open_blockers"]
+    assert all(not value for key, value in review.items() if key.endswith(("_verified", "_attested", "_authority")))
