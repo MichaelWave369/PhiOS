@@ -16,6 +16,8 @@ def main(argv: list[str] | None = None) -> int:
     status = command.add_parser("status")
     status.add_argument("--mode", choices=("offline", "public", "local"), default="offline")
     status.add_argument("--phiark-data-root", default=None)
+    status.add_argument("--git-mirror", default=None,
+                        help="Absolute path to an existing local GitPorch bare .git mirror")
     status.add_argument("--verify-kiwix", action="store_true")
     status.add_argument("--probe-phiark-loopback", action="store_true")
     args = parser.parse_args(argv)
@@ -23,6 +25,7 @@ def main(argv: list[str] | None = None) -> int:
         result = observe_foundation(
             mode=args.mode,
             phiark_data_root=args.phiark_data_root,
+            git_mirror=args.git_mirror,
             verify_kiwix=args.verify_kiwix,
             probe_phiark_loopback=args.probe_phiark_loopback,
         )
