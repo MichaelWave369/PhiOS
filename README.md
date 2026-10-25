@@ -293,6 +293,22 @@ The current hardening line adds explicit contracts for:
 
 See [ENTER THE FIELD → PhiOS research hardening](docs/ENTER_THE_FIELD_PHIOS_HARDENING.md).
 
+## GitPorch HomeNode native connection (R1-H6)
+
+PhiOS now includes a **read-only, explicitly invoked native HomeNode client** for GitPorch's authenticated TLS capability gateway. It's a small standard-library Python adapter, not a LAN server, Git remote, automated deployment, or browser token bridge.
+
+```bash
+phi-homenode status --mode offline
+phi-homenode status --mode public
+# Only after operator-controlled certificate pin and secret files are configured:
+phi-homenode preflight
+phi-homenode status --mode local
+```
+
+Public and Offline do not probe a network. Local uses a verified, SHA-256-pinned certificate and bearer token from private files for one `GET /v1/capabilities`. Any failure selects OFFLINE **without claiming local services work**, or silently contacting public GitHub. Nothing starts automatically, and no connection confers install, execution, Git push or identity authority. **Do not place tokens in PhiOS Pages, EnterTheField.org or browser JavaScript.**
+
+See [R1-H6 HomeNode trust and operation](docs/PHIOS_GITPORCH_HOMENODE_R1H6.md).
+
 ## Quick start
 
 ### Requirements
