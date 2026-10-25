@@ -1,6 +1,7 @@
 import {useMemo,useState} from "react";
 import publicRepositories from "../ecosystem/public-repos.json";
 import appCandidates from "../ecosystem/app-candidates.json";
+import { XiCommonsSourceTile } from "./XiCommonsSourceTile";
 
 type Entry=(typeof publicRepositories.entries)[number];
 type View="all"|"web";
@@ -35,6 +36,7 @@ export function EcosystemCatalog(){
       Nothing is fetched from GitHub on opening this screen, and no code is downloaded or executed.
       Actual application installation still requires PhiOS's separate governed intake and launch gates.
     </p>
+    <XiCommonsSourceTile />
     <section className="ecosystem-candidates" aria-label="Reviewed PhiOS application candidates">
       <div className="panel-title">FIRST WAVE · TWO GOVERNED APP CANDIDATES</div>
       <p className="muted">These are pinned, schema-checked application <strong>proposals</strong>, not installed apps.
