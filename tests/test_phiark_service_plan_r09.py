@@ -115,7 +115,7 @@ def test_command_preview_denies_network_and_binds_executable_read_only(tmp_path:
     assert "--clearenv" in command
     assert "--die-with-parent" in command
     assert "--ro-bind" in command
-    assert command[-3:] == ("--", "/usr/bin/node", "/app/src/server.mjs")
+    assert command[-3:] == ("--", str(Path("/usr/bin/node").resolve()), "/app/src/server.mjs")
     assert command.count("--bind") == 1
     assert command[command.index("--bind") + 1:command.index("--bind") + 3] == (
         str(data), "/phios/app-data",
@@ -176,6 +176,10 @@ def test_service_preview_blocks_unprivate_or_replaced_data_roots(tmp_path: Path)
     with pytest.raises(ValueError, match="already exists"):
         inspect_phiark_service(receipt, data_directory=data, **expected)
     (data / ".phiark.sock").unlink()
+    symlinked_parent = tmp_path / "alias-parent"
+    symlinked_parent.symlink_to(tmp_path, target_is_directory=True)
+    with pytest.raises(ValueError, match="symlink"):
+        inspect_phiark_service(receipt, data_directory=symlinked_parent / data.name, **expected)
     with pytest.raises(ValueError, match="40-character SHA"):
         inspect_phiark_service(receipt, data_directory=data, install_root=installed,
                                source_commit_candidate="abc")
