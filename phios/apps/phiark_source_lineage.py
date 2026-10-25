@@ -27,7 +27,10 @@ def _read_package_plan(path: Path) -> BuildPackagePlan:
     info = metadata.lstat()
     if not stat.S_ISDIR(info.st_mode) or stat.S_ISLNK(info.st_mode):
         raise ValueError("PhiARK installed metadata directory is unsafe")
-    info = path.lstat()
+    try:
+        info = path.lstat()
+    except FileNotFoundError as exc:
+        raise ValueError("PhiARK package plan is missing; cannot attest source lineage") from exc
     if (
         not stat.S_ISREG(info.st_mode) or stat.S_ISLNK(info.st_mode)
         or info.st_size <= 0 or info.st_size > _MAX_PLAN_BYTES
