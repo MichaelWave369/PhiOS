@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import shutil
+import socket
 import ssl
 import subprocess
 import threading
@@ -218,3 +219,21 @@ def test_missing_local_credentials_do_not_claim_offline_health(tmp_path: Path) -
     assert result["effectiveMode"] == "OFFLINE"
     assert result["gatewayVerified"] is False
     assert result["offlineServicesVerified"] is False
+
+
+def test_unavailable_gateway_stays_offline(
+    tls_server: tuple[dict[str, str], dict[str, object]]
+) -> None:
+    env, _ = tls_server
+    # Reserve and release a loopback port, then prove that a missing gateway
+    # never becomes an authenticated observation or a public fallback.
+    with socket.socket() as sock:
+        sock.bind(("127.0.0.1", 0))
+        unavailable_port = sock.getsockname()[1]
+    failed = select_mode(
+        "local", env={**env, "PHIOS_HOMENODE_PORT": str(unavailable_port)}
+    )
+    assert failed["effectiveMode"] == "OFFLINE"
+    assert failed["failure"] == "LOCAL_UNAVAILABLE"
+    assert failed["gatewayVerified"] is False
+    assert failed["offlineServicesVerified"] is False
