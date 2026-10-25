@@ -11,6 +11,7 @@ import { SystemStatePanel } from "./components/SystemStatePanel";
 import { SymbolLab } from "./components/SymbolLab";
 import { PersistentHistoryPanel } from "./components/PersistentHistoryPanel";
 import { AppDetails, AppLibrary, AppTiles } from "./components/AppLauncher";
+import { InfiniteHomeDock } from "./components/InfiniteHomeDock";
 import { findShellApp, SHELL_APPS, shellAppEvent, windowTemplates } from "./shell/appLauncher";
 import {
   INITIAL_SHELL_STATE,
@@ -246,6 +247,7 @@ function Home({ openApp }: { openApp: (id: string) => void }) {
           </div>
         ))}
       </section>
+      <InfiniteHomeDock />
     </div>
   );
 }
