@@ -163,7 +163,7 @@ def observe_foundation(
         },
         "note": (
             "Git object verification, if requested, is read-only and excludes LFS or restore. "
-            "This is an observation summary, not a verified offline installation, 
+            "This is an observation summary, not a verified offline installation, "
             "hardware test, authenticated Porch session or release grant."
         ),
     }
