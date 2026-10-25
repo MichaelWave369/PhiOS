@@ -110,12 +110,19 @@ def test_corruption_does_not_result_in_verified_mirror(mirror: Path) -> None:
     loose = [p for p in (mirror / "objects").glob("*/*")
              if p.is_file() and len(p.parent.name) == 2]
     if loose:
-        loose[0].write_bytes(b"corrupted")
+        # Git deliberately creates immutable-looking loose objects (0444).
+        # Only relax permissions on this disposable test fixture before
+        # corrupting it. Never chmod objects in the production observer.
+        damaged = loose[0]
+        damaged.chmod(damaged.stat().st_mode | 0o200)
+        damaged.write_bytes(b"corrupted")
     else:
         packs = list((mirror / "objects" / "pack").glob("*.pack"))
         assert packs
-        original = packs[0].read_bytes()
-        packs[0].write_bytes(b"BAD!" + original[4:])
+        damaged = packs[0]
+        original = damaged.read_bytes()
+        damaged.chmod(damaged.stat().st_mode | 0o200)
+        damaged.write_bytes(b"BAD!" + original[4:])
     failed = observe_git_mirror(mirror)
     assert failed["objectIntegrityPassed"] is False
     assert failed["status"] != "OBJECTS_VERIFIED"
