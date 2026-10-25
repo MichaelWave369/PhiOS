@@ -33,6 +33,7 @@ def _private_directory(value: Path) -> tuple[Path, os.stat_result]:
     if not value.is_absolute():
         raise ValueError("PhiARK data directory must be absolute")
     path = Path(os.path.abspath(value))
+    root_info: os.stat_result | None = None
     for component in (path, *path.parents):
         info = component.lstat()
         if not stat.S_ISDIR(info.st_mode) or stat.S_ISLNK(info.st_mode):
@@ -40,8 +41,10 @@ def _private_directory(value: Path) -> tuple[Path, os.stat_result]:
         if component == path:
             if info.st_uid != os.getuid() or info.st_mode & 0o077:
                 raise ValueError("PhiARK data directory must be private (0700) and owner-controlled")
-            return path, info
-    raise ValueError("PhiARK private directory validation failed")
+            root_info = info
+    if root_info is None:
+        raise ValueError("PhiARK private directory validation failed")
+    return path, root_info
 
 
 def _socket_absent(directory: Path) -> None:
