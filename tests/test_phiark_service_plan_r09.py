@@ -257,8 +257,9 @@ def test_r10_package_lineage_tracks_an_exact_local_commit_claim(tmp_path: Path) 
 def test_r10_missing_package_plan_is_blocked_even_when_app_receipt_claims_installed(tmp_path: Path) -> None:
     from phios.apps.phiark_source_lineage import review_phiark_source_lineage
 
-    receipt, root, data, _ = _installed(tmp_path)
-    with pytest.raises(ValueError, match="regular file|No such file"):
+    receipt, root, data, installed_path = _installed(tmp_path)
+    (installed_path / ".phios" / "package-plan.json").unlink()
+    with pytest.raises(ValueError, match="installed tree changed"):
         review_phiark_source_lineage(
             receipt, install_root=root, data_directory=data, expected_commit=COMMIT,
         )
