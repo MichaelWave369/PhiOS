@@ -11,13 +11,13 @@ The existing PhiShell `Φ ECOSYSTEM` public-source catalog now includes a clearl
 - **Unresolved external evidence:** R17 partner crossing **BLOCKED**; R18 real two-host pilot **NOT RUN**.
 - **Launch status:** `installed=false`, `launchAuthorized=false`, `bundledWebApp=false`, `repoWriteAuthorized=false`, `liveXiConnected=false`.
 
-This is intentionally not inserted into `app-candidates.json`, the v0.25–v0.58 App Platform lifecycle, XDG desktop entries or runtime permission broker. A public catalog entry is not proof of a deployed GitHub Pages app or permission for PhiOS to invoke an Xi-side function.
+This is intentionally not inserted into `app-candidates.json`, the v0.25–v0.58 App Platform lifecycle, XDG desktop entries or runtime permission broker. The public static Gateway is now independently verified through R17.5, but that does not permit PhiOS to install, bundle, or invoke any Xi-side function.
 
 ## Human-led future promotion
 
-Only once the Commons Gateway is publicly deployed and independently verified should PhiOS consider an **additional** web destination link. Only after complete source/dependency/install review and explicit operator consent can a separate process propose a native offline PhiOS app.
+**R17.6 update (2026-10-25):** The website is now verified at `https://michaelwave369.github.io/xi-vessel-bridge/` by GitHub Actions run `40243474173` (both deploy and verify jobs succeeded; public handoff manifest SHA-256 `a85309f577e73d20b96fb1442f1f6d0628195805033b456fa81aa39fda9647f3`). PhiOS provides the verified website **as an ordinary user-clicked external link**, alongside the canonical GitHub source. This does not add a web app to the PhiOS offline bundle. Complete source/dependency/install review and explicit operator consent remain prerequisites for any future native app promotion.
 
-Nothing from Hunter's side is required to view this source tile, and an offline PhiOS boot can display the catalog text without making network requests. Following the GitHub source link while offline naturally requires internet connectivity.
+Nothing from Hunter's side is required to view this source tile, and an offline PhiOS boot can display the catalog text without making network requests. Following either the public website or GitHub source link while offline naturally requires internet connectivity.
 
 The `public-ecosystem-catalog.yml` GitHub Action now checks this tile's scope, refuses accidental installation/authority claims, and requires the tile's honest labels in the bundled offline shell JavaScript.
 
