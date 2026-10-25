@@ -247,7 +247,9 @@ def test_r10_package_lineage_tracks_an_exact_local_commit_claim(tmp_path: Path) 
         )
     metadata_file.unlink()
     metadata_file.symlink_to(installed_path / ".phios" / "manifest.json")
-    with pytest.raises(ValueError, match="installed tree changed"):
+    # Snapshot rejects symlinks explicitly before reaching its tree-hash check.
+    # Both paths must fail closed; expect the more precise security rejection.
+    with pytest.raises(ValueError, match="installed payload contains a symlink"):
         review_phiark_source_lineage(
             receipt.to_dict(), install_root=root, data_directory=data, expected_commit=COMMIT,
         )
