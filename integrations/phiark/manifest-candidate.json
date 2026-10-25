@@ -1,0 +1,20 @@
+{
+  "schema_version": "phios.app_manifest.v0.1",
+  "app_id": "phi.phiark",
+  "name": "PhiARK Knowledge Vault",
+  "version": "0.5.0",
+  "description": "Proposed governed Node server, loopback knowledge vault and operator-controlled Kiwix reader. This is a non-executable candidate, not an installation.",
+  "source": {
+    "repository_url": "https://github.com/MichaelWave369/PhiARK",
+    "license_expression": "MIT",
+    "redistribution": "unknown"
+  },
+  "entrypoint": {
+    "runtime": "node",
+    "target": "src/server.mjs"
+  },
+  "permissions": [
+    "runtime.data.persist",
+    "runtime.network.inherit"
+  ]
+}

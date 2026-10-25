@@ -17,6 +17,8 @@ export const SHELL_APPS: readonly ShellApp[] = [
     description: "The PhiVessel dock shows read-only runtime context. A conversational PhiVessel runtime is not connected, so the dock cannot answer prompts." },
   { id: "brainc", name: "BrainC", icon: "Φ", status: "Client only",
     description: "PhiOS includes BrainC client code and the brainc status terminal command. Ollama and model weights are not bundled; local inference needs a separately configured runtime. Open the Phi terminal with Super+Enter and enter brainc status to check the configured endpoint." },
+  { id: "phiark", name: "PhiARK Knowledge Vault", icon: "▤", status: "Integration probe",
+    description: "PhiARK is not bundled or installed by PhiOS. Its local knowledge vault can be inspected read-only with phi-app phiark-status --data-root /absolute/path/to/PhiARKVault. Add --verify-kiwix for costly archive checksum inspection, or --probe-loopback to check a separately started localhost service. This tile does not launch a reader, grant permissions, or claim archives are installed." },
   { id: "phioffice", name: "PhiOffice", icon: "▧", status: "Not bundled",
     description: "PhiOffice is not included in this image." },
   { id: "domistika", name: "Domistika", icon: "⌂", status: "Not bundled",
