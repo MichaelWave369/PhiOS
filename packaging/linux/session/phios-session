@@ -28,7 +28,7 @@ cleanup() {
         # Preserve Chromium's actual failure details in the systemd journal.
         # Only this known compositor-dependent unit is normalized, and only
         # after the session target has been explicitly stopped.
-        systemctl --user show phios-browser.service --property=Result             --property=ExecMainStatus >&2 || true
+        systemctl --user show phios-browser.service --property=Result --property=ExecMainStatus >&2 || true
         if ! systemctl --user reset-failed phios-browser.service; then
             echo 'PhiOS browser failure could not be cleared after logout.' >&2
             return 1
