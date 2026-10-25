@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Mapping
 
 from phios.apps.phiark_bridge import observe_phiark
+from phios.git_mirror_observer import observe_git_mirror
 from phios.network.homenode import select_mode
 
 SCHEMA = "phios.foundation_observation.v0.1"
@@ -27,6 +28,7 @@ def observe_foundation(
     *,
     mode: str = "offline",
     phiark_data_root: str | Path | None = None,
+    git_mirror: str | Path | None = None,
     verify_kiwix: bool = False,
     probe_phiark_loopback: bool = False,
     env: Mapping[str, str] | None = None,
@@ -43,6 +45,10 @@ def observe_foundation(
         raise ValueError("PhiARK archive/server probes require --phiark-data-root")
     if probe_phiark_loopback and mode != "local":
         raise ValueError("PhiARK loopback probe requires explicit local mode")
+    if git_mirror is not None:
+        mirror = Path(git_mirror)
+        if not mirror.is_absolute():
+            raise ValueError("Git mirror path must be absolute")
     if phiark_data_root is not None:
         root = Path(phiark_data_root)
         if not root.is_absolute():
@@ -103,10 +109,26 @@ def observe_foundation(
             "licenseApproved": False,
         }
 
-    blocked = (home_status["status"] == "LOCAL_FAILED_OFFLINE_MODE_SELECTED" or
+    if git_mirror is None:
+        git: dict[str, object] = {
+            "status": "NOT_REQUESTED",
+            "headCommit": None,
+            "objectIntegrityPassed": False,
+            "remoteFetchPerformed": False,
+            "backupRestored": False,
+            "lfsObjectsVerified": False,
+            "offlineNetworkStateVerified": False,
+            "effectAuthority": False,
+        }
+    else:
+        git = observe_git_mirror(git_mirror)
+
+    blocked = (git_mirror is not None and git["status"] != "OBJECTS_VERIFIED") or (
+               home_status["status"] == "LOCAL_FAILED_OFFLINE_MODE_SELECTED" or
                ark["status"] == "BLOCKED" or
                ark["documentsFailed"] != 0 or ark["archivesFailed"] != 0)
-    partial = trusted_gateway or ark["status"] == "LOCAL_BYTES_OBSERVED"
+    partial = (trusted_gateway or ark["status"] == "LOCAL_BYTES_OBSERVED" or
+               git["status"] == "OBJECTS_VERIFIED")
     verdict = "BLOCKED" if blocked else "PARTIAL_EVIDENCE" if partial else "UNVERIFIED"
     return {
         "schema": SCHEMA,
@@ -114,6 +136,7 @@ def observe_foundation(
         "mode": mode.upper(),
         "homenode": home_status,
         "phiark": ark,
+        "gitMirror": git,
         "porch": {
             "status": "SEPARATE_MANUAL_PHIOS_HOME_PREFLIGHT",
             "identityVerified": False,
@@ -139,6 +162,7 @@ def observe_foundation(
             "peerConnect": False,
         },
         "note": (
+            "Git object verification, if requested, is read-only and excludes LFS or restore. "
             "This is an observation summary, not a verified offline installation, "
             "hardware test, authenticated Porch session or release grant."
         ),
