@@ -49,6 +49,7 @@ import {
   fetchPersistRequest,
 } from "./curiosityAuthorityProxy.mjs";
 import { readBoundedJsonObject } from "./boundedJsonBody.mjs";
+import { probeLocalPorchCandidateHealth } from "./porchHealthPreflight.mjs";
 import {
   validateCuriosityPersistRequestId,
   validateCuriosityPersistRequestPayload,
@@ -132,6 +133,7 @@ export function createLocalObservationServer({
   distDir = DEFAULT_DIST_DIR,
   serveShell = true,
   historyProjectionFetcher = fetchPersistentHistoryProjection,
+  porchHealthProber = probeLocalPorchCandidateHealth,
   historyComparisonFetcher = fetchHistoryComparison,
   curiosityProjectionFetcher = fetchCuriosityProjection,
   curiosityAuthorityHealthFetcher = fetchBrokerHealth,
@@ -549,6 +551,25 @@ export function createLocalObservationServer({
           executionAuthority: false,
           effectPerformed: false,
         });
+        return;
+      }
+
+      if (url.pathname === "/api/v1/porch-health-preflight") {
+        // Operator button supplies this non-secret header. Cross-site requests
+        // cannot silently use this same-origin, read-only loopback preflight.
+        const fetchSite = request.headers["sec-fetch-site"];
+        if (url.search || request.headers["x-phios-porch-preflight"] !== "1" ||
+            (request.headers.origin !== undefined &&
+             request.headers.origin !== expectedOrigin) ||
+            (fetchSite !== undefined && !["same-origin", "none"].includes(fetchSite))) {
+          jsonResponse(response, 403, {
+            error: "operator_preflight_required",
+            executionAuthority: false,
+            effectPerformed: false,
+          });
+          return;
+        }
+        jsonResponse(response, 200, await porchHealthProber());
         return;
       }
 

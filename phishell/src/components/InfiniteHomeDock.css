@@ -57,3 +57,33 @@
   outline: 2px solid var(--cyan);
   outline-offset: 3px;
 }
+
+.infinite-porch-preflight {
+  margin-top: 12px;
+  padding-top: 11px;
+  border-top: 1px solid var(--soft);
+  display: grid;
+  justify-items: start;
+  gap: 7px;
+}
+.infinite-porch-preflight button {
+  padding: 7px 10px;
+  color: var(--cyan);
+  background: var(--abyss);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 10px;
+  cursor: pointer;
+}
+.infinite-porch-preflight button:disabled {
+  opacity: .65;
+  cursor: wait;
+}
+.infinite-porch-preflight button:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 3px;
+}
+.infinite-porch-preflight small {
+  color: var(--muted);
+  font-size: 9px;
+}
