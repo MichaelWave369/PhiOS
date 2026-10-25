@@ -1,0 +1,32 @@
+{
+  "schema": "phios.phiark_install_review.v0.1",
+  "status": "HELD_FOR_OPERATOR_REVIEW",
+  "app_id": "phi.phiark",
+  "repository_url": "https://github.com/MichaelWave369/PhiARK",
+  "observed_source_commit": "d0c01e7200d07ae4c5448375878e5188048a6a40",
+  "candidate_manifest_path": "integrations/phiark/manifest-candidate.json",
+  "requested_network_mode": "deny",
+  "requested_permissions": ["runtime.data.persist"],
+  "required_guest_environment": {
+    "PHIARK_DATA_DIR": "/phios/app-data",
+    "PHIARK_SOCKET_PATH": "/phios/app-data/.phiark.sock"
+  },
+  "source_commit_attested": false,
+  "toolchain_attested": false,
+  "installed_tree_receipt_verified": false,
+  "guest_environment_mapping_verified": false,
+  "network_namespace_enforced_on_real_host": false,
+  "service_supervision_verified": false,
+  "offline_cold_start_verified": false,
+  "install_authority": false,
+  "launch_authority": false,
+  "gateway_authority": false,
+  "open_blockers": [
+    "operator-reviewed exact-commit acquisition and license/source review",
+    "Node 20+ reviewed runtime/toolchain on target PhiOS device",
+    "inject explicit PhiARK data/socket environment into network-denied runtime",
+    "supervise long-running service with bounded stop and restart receipt",
+    "prove physical Linux namespace and local-socket connection isolation",
+    "prove actual WAN-disconnected cold start, document search/read and hash validation"
+  ]
+}
