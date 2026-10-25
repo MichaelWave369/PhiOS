@@ -5,6 +5,8 @@ on:
     paths:
       - "phishell/src/ecosystem/**"
       - "phishell/src/components/EcosystemCatalog.tsx"
+      - "phishell/src/components/XiCommonsSourceTile.tsx"
+      - "tests/test_xi_commons_public_tile.py"
       - "phishell/src/components/AppLauncher.tsx"
       - "phishell/src/styles.css"
       - "scripts/sync_public_ecosystem_catalog.py"
@@ -17,6 +19,8 @@ on:
     paths:
       - "phishell/src/ecosystem/**"
       - "phishell/src/components/EcosystemCatalog.tsx"
+      - "phishell/src/components/XiCommonsSourceTile.tsx"
+      - "tests/test_xi_commons_public_tile.py"
       - "phishell/src/components/AppLauncher.tsx"
       - "phishell/src/styles.css"
       - "scripts/sync_public_ecosystem_catalog.py"
@@ -50,6 +54,8 @@ jobs:
         run: python scripts/verify_ecosystem_app_candidates.py
       - name: Fail closed on forged candidate grants, source drift and invalid build claims
         run: python -m unittest discover -s tests -p "test_ecosystem_app_candidates.py" -v
+      - name: Verify Xi-Phi public-only launch boundary
+        run: python -m unittest discover -s tests -p "test_xi_commons_public_tile.py" -v
       - name: Set up Node 22
         uses: actions/setup-node@v4
         with:
@@ -75,5 +81,8 @@ jobs:
             if(!js.includes(entry))throw Error('BUNDLED_ECOSYSTEM_MISSING_'+entry);
           }
           if(!readdirSync('phishell/dist').includes('index.html'))throw Error('PHISHELL_BUILD_MISSING');
+          for(const invariant of ['Sovereign Commons Gateway','R17: BLOCKED','R18: NOT RUN','xi-vessel-bridge']) {
+            if(!js.includes(invariant))throw Error('XI_PUBLIC_SOURCE_TILE_MISSING_'+invariant);
+          }
           console.log('PHIOS_PUBLIC_ECOSYSTEM_EMBEDDED: SOURCE_ONLY; no installed/execution authority');
           NODE
