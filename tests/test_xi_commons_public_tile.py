@@ -32,5 +32,5 @@ class XiCommonsPublicTileTests(unittest.TestCase):
         self.assertIn('import { XiCommonsSourceTile } from "./XiCommonsSourceTile";',shell)
         self.assertIn('<XiCommonsSourceTile />',shell)
         self.assertIn('SOURCE_ONLY',shell)
-        self.assertNotIn('xi-phi-commons',str(ROOT/'phishell/src/ecosystem/app-candidates.json'))
+        self.assertNotIn('xi-phi-commons', (ROOT/'phishell/src/ecosystem/app-candidates.json').read_text().lower())
 if __name__=='__main__':unittest.main()
