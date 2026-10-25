@@ -1192,15 +1192,15 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     if args.command == "phiark-status":
         try:
-            observation = observe_phiark(
+            phiark_observation = observe_phiark(
                 args.data_root, verify_kiwix=args.verify_kiwix,
                 probe_loopback=args.probe_loopback, port=args.port,
             )
         except (OSError, ValueError) as exc:
             print(json.dumps({"status": "BLOCKED", "error": str(exc)}, sort_keys=True))
             return 2
-        print(json.dumps(observation, sort_keys=True, indent=2))
-        return 0 if observation["status"] == "LOCAL_BYTES_OBSERVED" else 1
+        print(json.dumps(phiark_observation, sort_keys=True, indent=2))
+        return 0 if phiark_observation["status"] == "LOCAL_BYTES_OBSERVED" else 1
 
     if args.command == "discover-releases":
         try:
