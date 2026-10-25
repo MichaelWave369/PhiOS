@@ -15,7 +15,30 @@ export PHIOS_STATE_ROOT="$HOME/.local/state/phios"
 export PHIOS_CURIOSITY_ROOT="$PHIOS_STATE_ROOT/curiosity"
 mkdir -p "$PHIOS_STATE_ROOT"
 systemctl --user import-environment PHIOS_STATE_ROOT PHIOS_CURIOSITY_ROOT XDG_CURRENT_DESKTOP XDG_SESSION_DESKTOP XDG_SESSION_TYPE
-cleanup() { systemctl --user stop phios-session.target; }
-trap cleanup EXIT HUP INT TERM
+cleanup() {
+    local previous_status=$?
+    # Once Wayfire exits, stop its supervised user services. Chromium may have
+    # already lost the Wayland socket and entered failed during normal logout.
+    # PartOf stops running units but does not necessarily clear that failed state.
+    if ! systemctl --user stop phios-session.target; then
+        echo 'PhiOS session target stop failed; preserving failure for review.' >&2
+        return 1
+    fi
+    if systemctl --user is-failed --quiet phios-browser.service; then
+        # Preserve Chromium's actual failure details in the systemd journal.
+        # Only this known compositor-dependent unit is normalized, and only
+        # after the session target has been explicitly stopped.
+        systemctl --user show phios-browser.service --property=Result --property=ExecMainStatus >&2 || true
+        if ! systemctl --user reset-failed phios-browser.service; then
+            echo 'PhiOS browser failure could not be cleared after logout.' >&2
+            return 1
+        fi
+    fi
+    return "$previous_status"
+}
+trap cleanup EXIT
+trap 'exit 129' HUP
+trap 'exit 130' INT
+trap 'exit 143' TERM
 # Autostart starts the user services only after WAYLAND_DISPLAY exists.
 wayfire -c /etc/xdg/phios/wayfire.ini >> "$PHIOS_STATE_ROOT/wayfire.log" 2>&1
