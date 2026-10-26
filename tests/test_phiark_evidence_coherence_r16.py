@@ -149,6 +149,14 @@ def test_canonical_but_conflicting_evidence_is_rejected(
 ) -> None:
     evidence = list(_samples())
     evidence[index] = _recompute(kind, evidence[index], **update)
+    if kind == "peer" and "boot_id" in update:
+        # Rebind the executable to the changed peer receipt so the test
+        # reaches the *boot ID* comparison instead of failing earlier on
+        # the intentionally stale peer_receipt_sha256 integrity link.
+        evidence[3] = _recompute(
+            "executable", evidence[3],
+            peer_receipt_sha256=evidence[2]["receipt_sha256"],
+        )
     with pytest.raises(ValueError, match=problem):
         review_phiark_evidence_coherence(*evidence)
 
