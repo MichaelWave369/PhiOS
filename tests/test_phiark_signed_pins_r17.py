@@ -232,3 +232,28 @@ def test_declared_pins_never_trigger_binary_checks_or_new_subprocesses() -> None
     )
     assert result["bubblewrap_pin_authenticated_to_installed_host"] is False
     assert result["launch_authority"] is False
+
+def test_extra_fields_in_historical_receipts_are_rejected_even_if_rehashed() -> None:
+    statement, archive, coherence, executable, _, public, signature = _case()
+    args = dict(
+        statement=statement, signature_b64=signature,
+        pinned_publisher_public_key=public,
+        pinned_publisher_key_sha256=hashlib.sha256(public).hexdigest(),
+        pinned_publisher_key_id="reviewer-lab",
+    )
+    changed_archive = {**archive, "unauthorized_launch_note": True}
+    changed_archive.pop("review_sha256")
+    changed_archive["review_sha256"] = hashlib.sha256(_json(changed_archive)).hexdigest()
+    with pytest.raises(ValueError, match="prior archive"):
+        verify_phiark_offline_signed_pins(
+            **args, archive_report=changed_archive,
+            coherence_report=coherence, executable_report=executable,
+        )
+    changed_executable = {**executable, "claimed_supervised": True}
+    changed_executable.pop("receipt_sha256")
+    changed_executable["receipt_sha256"] = hashlib.sha256(_json(changed_executable)).hexdigest()
+    with pytest.raises(ValueError, match="prior executable"):
+        verify_phiark_offline_signed_pins(
+            **args, archive_report=archive, coherence_report=coherence,
+            executable_report=changed_executable,
+        )
