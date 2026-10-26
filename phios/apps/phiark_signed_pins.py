@@ -14,6 +14,7 @@ import json
 import re
 from typing import Any
 
+from .phiark_evidence_coherence import _SCHEMAS
 from .phiark_service_plan import APP_ID, SOURCE
 
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
@@ -79,7 +80,8 @@ def _previous_reports(
         _required(type(value) is dict, label + " report required")
         _required(value.get("app_id") == APP_ID, label + " app identity")
     _required(
-        archive.get("schema") == "phios.phiark_archive_chain.v0.1"
+        set(archive) == _SCHEMAS["archive"][3]
+        and archive.get("schema") == "phios.phiark_archive_chain.v0.1"
         and archive.get("status") == "ARCHIVE_BYTES_MATCHED_LOCAL_RECEIPTS"
         and archive.get("repository_url") == SOURCE
         and _sha(archive.get("review_sha256"))
@@ -114,7 +116,8 @@ def _previous_reports(
         "prior evidence coherence receipt or unsupported authority",
     )
     _required(
-        executable.get("schema") == "phios.phiark_process_executable_observation.v0.1"
+        set(executable) == _SCHEMAS["executable"][3]
+        and executable.get("schema") == "phios.phiark_process_executable_observation.v0.1"
         and executable.get("status") == "EXECUTABLE_HASH_MATCHES_CALLER_INPUT_UNQUALIFIED"
         and _sha(executable.get("receipt_sha256"))
         and executable["receipt_sha256"] == _hash_without(executable, "receipt_sha256")
