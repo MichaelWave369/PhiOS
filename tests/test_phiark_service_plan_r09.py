@@ -1,6 +1,7 @@
 """PhiARK R0.9 synthetic installed-tree command tests. No launch or network."""
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import uuid
