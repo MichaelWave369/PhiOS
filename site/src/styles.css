@@ -230,3 +230,11 @@ footer { border-top: 1px solid var(--line); color: var(--muted); padding: 24px c
   .giant { display: none; }
   footer { flex-direction: column; }
 }
+
+.sovereignty-site-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.sovereignty-site-grid article{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:22px}
+.sovereignty-site-grid span{font-size:.7rem;color:var(--brass);font-weight:700;letter-spacing:.1em}
+.sovereignty-site-grid h3{font-size:1.3rem;line-height:1.25}
+.sovereignty-site-grid p{color:var(--muted);line-height:1.65}
+.sovereignty-site-grid a{color:var(--teal);font-size:.86rem;font-weight:700}
+@media(max-width:900px){.sovereignty-site-grid{grid-template-columns:1fr}}

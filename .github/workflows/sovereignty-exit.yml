@@ -1,0 +1,40 @@
+name: Sovereignty Exit v0.1 (scoped)
+
+on:
+  pull_request:
+    paths:
+      - "SOVEREIGNTY_CONTRACT.md"
+      - "docs/PHIOS_SOVEREIGNTY_EXIT_V01.md"
+      - "scripts/sovereignty_exit_v01.py"
+      - "tests/test_sovereignty_exit_v01.py"
+      - ".github/workflows/sovereignty-exit.yml"
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  independent-archive-roundtrip:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Portable tool tests (no service credentials or dependencies)
+        run: python -m unittest discover -s tests -p "test_sovereignty_exit_v01.py" -v
+      - name: CLI smoke roundtrip
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/phi-exit-data
+          printf 'test-only\n' >/tmp/phi-exit-data/fixture.txt
+          python scripts/sovereignty_exit_v01.py pack --source /tmp/phi-exit-data --output /tmp/phi-exit-demo.zip
+          python scripts/sovereignty_exit_v01.py verify --bundle /tmp/phi-exit-demo.zip
+          python scripts/sovereignty_exit_v01.py unpack --bundle /tmp/phi-exit-demo.zip --output /tmp/phi-exit-restored
+          cmp /tmp/phi-exit-data/fixture.txt /tmp/phi-exit-restored/fixture.txt
