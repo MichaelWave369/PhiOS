@@ -186,7 +186,7 @@ def test_reject_unrecognized_fields_bad_signature_and_profile() -> None:
         verify_phiark_offline_signed_pins(
             statement={**statement, "profile": "host-network"}, signature_b64=signature, **kw,
         )
-    with pytest.raises(ValueError, match="canonical Ed25519"):
+    with pytest.raises(ValueError, match="canonical base64"):
         verify_phiark_offline_signed_pins(
             statement=statement, signature_b64="%%%%", **kw,
         )
