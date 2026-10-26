@@ -28,3 +28,29 @@ phios_prefetch_snapshot_packages() {
     echo 'PHIOS_ARCH_PREFETCH_FAILED: all 3 attempts failed; signed image build HELD' >&2
     return 1
 }
+
+# Download all packages required for the full *pinned snapshot* upgrade before
+# allowing one installation transaction. -w / --downloadonly forbids installs.
+# The whole snapshot (including eligible downgrades) is selected by -uu.
+# Retrying this transport-only stage is safe; never retry a partially applied
+# upgrade, disable package signatures, or change the reviewed mirror.
+phios_prefetch_snapshot_upgrade() {
+    local attempt status
+    for attempt in 1 2 3; do
+        echo "PHIOS_ARCH_UPGRADE_PREFETCH_ATTEMPT: ${attempt}/3 (pinned archive; no installation)"
+        if timeout --signal=TERM --kill-after=15s 600s \
+            pacman --disable-download-timeout -Syyuu --downloadonly --noconfirm; then
+            echo "PHIOS_ARCH_UPGRADE_PREFETCH_OK: attempt ${attempt}/3"
+            return 0
+        else
+            status=$?
+            echo "PHIOS_ARCH_UPGRADE_PREFETCH_RETRY: attempt=${attempt}/3 exit=${status}" >&2
+        fi
+        if [[ $attempt -lt 3 ]]; then
+            sleep 5
+        fi
+    done
+    echo 'PHIOS_ARCH_UPGRADE_PREFETCH_FAILED: signed pinned-snapshot prefetch exhausted; image build HELD' >&2
+    return 1
+}
+
