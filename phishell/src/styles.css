@@ -408,3 +408,28 @@ linear-gradient(135deg,rgba(13,32,42,.92),rgba(5,13,17,.96));box-shadow:inset 0 
 .ecosystem-candidate dd{margin:0;font-size:11px;overflow-wrap:anywhere}
 .ecosystem-candidate a{color:var(--cyan);font-size:11px;text-decoration:underline;text-underline-offset:3px}
 .ecosystem-candidate a:focus-visible{outline:2px solid var(--cyan);outline-offset:3px}
+
+/* v0.1 independent user exit center. Status is intentionally not a host attestation. */
+.sovereignty-center{display:grid;gap:18px;padding:18px;color:var(--text)}
+.sovereignty-intro h2{font-size:clamp(19px,2.4vw,30px);line-height:1.15;margin:8px 0}
+.sovereignty-intro p,.sovereignty-group p,.sovereignty-self p{color:var(--secondary);line-height:1.6;font-size:12px}
+.sovereignty-eyebrow{color:var(--gold);font-size:10px;letter-spacing:.13em;font-weight:800}
+.sovereignty-banner{display:flex;flex-wrap:wrap;gap:12px;margin-top:12px;padding:12px;border:1px solid var(--amber);background:rgba(243,182,75,.06);font-size:11px}
+.sovereignty-banner strong{color:var(--amber)}
+.sovereignty-banner span{color:var(--secondary)}
+.sovereignty-columns{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.sovereignty-group,.sovereignty-self{padding:16px;background:var(--abyss);border:1px solid var(--border);border-radius:10px;min-width:0}
+.sovereignty-group h3,.sovereignty-self h3{font-size:15px;margin:0 0 10px}
+.sovereignty-pillars{display:grid;gap:8px}
+.sovereignty-pillar{padding:9px;background:var(--panel);border-left:2px solid var(--brass)}
+.sovereignty-pillar strong{font-size:12px}
+.sovereignty-pillar p{margin:4px 0;font-size:11px}
+.sovereignty-pillar span{font-size:9px;letter-spacing:.05em;color:var(--amber)}
+.sovereignty-commands{white-space:pre-wrap;overflow-wrap:anywhere;background:#020608;padding:12px;border:1px solid var(--border);color:var(--cyan);font-size:11px;line-height:1.6}
+.sovereignty-warning{color:var(--amber)!important}
+.sovereignty-link{display:block;color:var(--cyan);text-decoration:underline;margin:9px 0;font-size:12px}
+.sovereignty-check{display:flex;align-items:flex-start;gap:10px;margin:10px 0;color:var(--secondary);font-size:12px;line-height:1.5;cursor:pointer}
+.sovereignty-check input{accent-color:var(--teal);margin-top:3px}
+.sovereignty-self-footer{display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;align-items:center;margin-top:14px;font-size:11px}
+.sovereignty-self-footer button{padding:9px 12px;border:1px solid var(--teal);border-radius:6px;background:var(--raised);color:var(--teal);cursor:pointer}
+@media(max-width:700px){.sovereignty-columns{grid-template-columns:1fr}}

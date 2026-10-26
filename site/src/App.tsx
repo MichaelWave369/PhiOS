@@ -197,6 +197,7 @@ export default function App() {
         </a>
         <nav className="navlinks" aria-label="Primary navigation">
           <a href="#architecture">Architecture</a>
+          <a href="#sovereignty">Sovereignty</a>
           <a href="#hardening">Hardening</a>
           <a href="#status">Live Project</a>
           <a href="https://github.com/MichaelWave369/PhiOS">GitHub</a>
@@ -237,6 +238,39 @@ export default function App() {
           {laws.map((law) => (
             <div className="law" key={law}>{law}</div>
           ))}
+        </section>
+
+        <section className="section" id="sovereignty">
+          <div className="section-heading">
+            <div>
+              <span className="kicker">THE Φ EXIT TEST</span>
+              <h2>Build a system people can leave.</h2>
+            </div>
+            <p>
+              Seven rights. Independently verifiable restoration. No mandatory cloud account,
+              no artificial export barrier, and no platform self-certification.
+            </p>
+          </div>
+          <div className="sovereignty-site-grid">
+            <article>
+              <span>PUBLIC CONTRACT</span>
+              <h3>Your data and capability remain yours</h3>
+              <p>The right to inspect, migrate, fork, operate offline, and leave is a release requirement, not a marketing badge.</p>
+              <a href={repoDocUrl("SOVEREIGNTY_CONTRACT.md")}>Read the Φ Sovereignty Contract →</a>
+            </article>
+            <article>
+              <span>FIRST EXECUTABLE RUNG</span>
+              <h3>Portable directory backup</h3>
+              <p>Standalone Python creates verifiable ZIP archives and restores ordinary files without PhiOS. Archives are unencrypted.</p>
+              <a href={repoDocUrl("docs/PHIOS_SOVEREIGNTY_EXIT_V01.md")}>See independent export commands →</a>
+            </article>
+            <article>
+              <span>OVERALL STATUS: UNVERIFIED</span>
+              <h3>No imaginary green checkmarks</h3>
+              <p>OS cold boot, application state completeness, provider swaps, and identity recovery need independent evidence.</p>
+              <a href="https://github.com/MichaelWave369/PhiOS/issues">Track the remaining engineering work →</a>
+            </article>
+          </div>
         </section>
 
         <section className="section" id="architecture">

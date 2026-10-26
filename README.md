@@ -22,6 +22,20 @@ the actual final signed transition, source/license delivery and public release
 remain open; Secure Boot is unsupported. See the [OS release contract](docs/os/RELEASE_CONTRACT.md),
 [exact evidence](docs/os/IMPLEMENTATION_STATUS.md) and [release handoff](docs/os/RELEASE_HANDOFF.md).
 
+## Φ Sovereignty by Design (first executable rung)
+
+The [Φ Sovereignty Contract](SOVEREIGNTY_CONTRACT.md) makes user exit, data portability, offline operation, and independently auditable claims explicit design requirements. The PhiShell **Sovereignty Center** is a user-facing, **UNVERIFIED** status and self-assessment panel, not a machine audit.
+
+A standalone Python 3.11+ utility can pack, verify, and restore an operator-selected local directory in ordinary ZIP + SHA-256 format without running PhiOS:
+
+```sh
+python scripts/sovereignty_exit_v01.py pack --source my-data --output backup.zip
+python scripts/sovereignty_exit_v01.py verify --bundle backup.zip
+python scripts/sovereignty_exit_v01.py unpack --bundle backup.zip --output restored-data
+```
+
+Archives are **unencrypted**. This tool is not yet a complete PhiOS app-state export. See [scope and exit tests](docs/PHIOS_SOVEREIGNTY_EXIT_V01.md).
+
 ## What PhiOS is
 
 PhiOS is designed for systems that can observe, reason, retrieve, plan, and act without

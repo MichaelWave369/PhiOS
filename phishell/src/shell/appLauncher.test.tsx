@@ -22,7 +22,7 @@ const destinations: Record<string, string> = {
   "PhiOffice": "app:phioffice", "PhiARK Knowledge Vault": "app:phiark", "Domistika": "app:domistika", "SOMA": "app:soma",
   "Professor Φ": "app:professor", "Reality Ledger": "ledger-window",
   "Builder": "build-window", "System Inspector": "system-window",
-  "ΦDream": "dream-window", "Apps": "apps-window",
+  "ΦDream": "dream-window", "Apps": "apps-window", "Sovereignty Center": "sovereignty-window",
 };
 
 describe("rendered app launcher clicks", () => {
@@ -34,7 +34,7 @@ describe("rendered app launcher clicks", () => {
         const event = shellAppEvent(id);
         if (event) state = shellReducer(state, event);
       } }));
-      expect(tiles).toHaveLength(pinned ? 6 : 13);
+      expect(tiles).toHaveLength(pinned ? 6 : 14);
       for (const tile of tiles) {
         tile.click();
         const name = tile.label.split(" · ")[0];
