@@ -1,6 +1,7 @@
 """PhiARK R0.9 synthetic installed-tree command tests. No launch or network."""
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import uuid
@@ -265,3 +266,178 @@ def test_r10_missing_package_plan_is_blocked_even_when_app_receipt_claims_instal
         review_phiark_source_lineage(
             receipt, install_root=root, data_directory=data, expected_commit=COMMIT,
         )
+
+
+
+def _r11_chain_fixture(tmp_path: Path):
+    """Self-consistent synthetic archive/build/install records, never real source."""
+    from dataclasses import replace
+    import io
+    import zipfile
+
+    from phios.apps.build_execution import BuildArtifact, BuildExecutionReceipt
+    from phios.apps.npm_offline import NpmOfflineBuildReceipt
+    from phios.apps.package_install import BuildPackagePlan, PackageArtifact
+    from phios.apps.phiark_archive_chain import verify_archive_bytes
+
+    receipt_data, root, data, install = _installed(tmp_path)
+    receipt = AppInstallReceipt.from_dict(receipt_data)
+    source = (install / "payload" / "src" / "server.mjs").read_bytes()
+    wire = io.BytesIO()
+    with zipfile.ZipFile(wire, "w") as zf:
+        zf.writestr("PhiARK-" + COMMIT + "/", b"")
+        zf.writestr("PhiARK-" + COMMIT + "/src/server.mjs", source)
+    archive = wire.getvalue()
+    inspection = verify_archive_bytes(archive)
+    artifact = BuildArtifact(
+        path="src/server.mjs", byte_count=len(source),
+        sha256=hashlib.sha256(source).hexdigest(),
+    )
+    artifact_digest = hashlib.sha256(artifact.canonical_line()).hexdigest()
+    acquired_path = tmp_path / "acquired" / COMMIT
+    acquired_path.mkdir(parents=True)
+    acquisition = {
+        "schema_version": "phios.source_acquisition_receipt.v0.1",
+        "receipt_id": str(uuid.uuid4()),
+        "timestamp_utc": "2026-10-25T20:00:00+00:00",
+        "app_id": "phi.phiark",
+        "repository_url": "https://github.com/MichaelWave369/PhiARK",
+        "commit_sha": COMMIT,
+        "manifest_sha256": receipt.manifest_sha256,
+        "archive_sha256": inspection["archive_sha256"],
+        "tree_sha256": inspection["acquisition_tree_sha256"],
+        "file_count": inspection["file_count"],
+        "total_bytes": inspection["total_bytes"],
+        "workspace_path": str(acquired_path),
+        "status": "acquired",
+    }
+    execution = BuildExecutionReceipt(
+        execution_id=str(uuid.uuid4()),
+        timestamp_utc="2026-10-25T20:01:00+00:00",
+        app_id="phi.phiark",
+        repository_url="https://github.com/MichaelWave369/PhiARK",
+        commit_sha=COMMIT,
+        plan_sha256=receipt.build_plan_sha256,
+        source_snapshot_sha256=inspection["source_snapshot_sha256"],
+        acquisition_tree_sha256=inspection["acquisition_tree_sha256"],
+        approved_permissions=("build.process.execute", "build.workspace.write"),
+        isolation_mode="bubblewrap_linux_namespaces",
+        network_sandbox_enforced=True,
+        source_workspace_path=str(acquired_path),
+        execution_workspace_path=str(tmp_path / "build"),
+        tool_identities=(),
+        steps=(),
+        artifacts=(artifact,),
+        artifact_set_sha256=artifact_digest,
+        status="success",
+        failure_reason=None,
+    )
+    offline = NpmOfflineBuildReceipt(
+        receipt_id=str(uuid.uuid4()),
+        timestamp_utc="2026-10-25T20:02:00+00:00",
+        app_id="phi.phiark",
+        commit_sha=COMMIT,
+        npm_offline_plan_sha256="a" * 64,
+        original_build_plan_sha256="b" * 64,
+        derived_build_plan_sha256=receipt.build_plan_sha256,
+        npm_cache_receipt_sha256="c" * 64,
+        cache_tree_sha256="d" * 64,
+        cache_mount_target="/phios/npm-cache",
+        build_execution_receipt_sha256=execution.sha256(),
+        sandbox_receipt_sha256="e" * 64,
+        network_mode="deny",
+        network_namespace_enforced=True,
+        build_status="success",
+    )
+    package_artifact = PackageArtifact(
+        path=artifact.path, byte_count=artifact.byte_count, sha256=artifact.sha256
+    )
+    package = BuildPackagePlan(
+        app_id="phi.phiark", app_version="0.5.0",
+        manifest_sha256=receipt.manifest_sha256,
+        registry_snapshot_sha256=receipt.registry_snapshot_sha256,
+        repository_url="https://github.com/MichaelWave369/PhiARK",
+        commit_sha=COMMIT,
+        build_plan_sha256=receipt.build_plan_sha256,
+        execution_receipt_sha256=execution.sha256(),
+        offline_build_receipt_sha256=offline.sha256(),
+        artifact_set_sha256=artifact_digest,
+        artifacts=(package_artifact,),
+        install_relative_path="phi.phiark/0.5.0/digest",
+    )
+    (install / ".phios" / "package-plan.json").write_text(
+        json.dumps(package.to_dict()), encoding="utf-8"
+    )
+    tree_sha, _, _ = snapshot_installed_tree(install)
+    receipt = replace(
+        receipt,
+        package_plan_sha256=package.sha256(),
+        execution_receipt_sha256=execution.sha256(),
+        offline_build_receipt_sha256=offline.sha256(),
+        artifact_set_sha256=artifact_digest,
+        installed_tree_sha256=tree_sha,
+    )
+    return receipt.to_dict(), acquisition, execution.to_dict(), offline.to_dict(), archive, root, data
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX local installed-tree proof")
+def test_r11_archive_bytes_match_acquisition_build_and_install_receipts(tmp_path: Path) -> None:
+    from phios.apps.phiark_archive_chain import review_phiark_archive_chain
+
+    receipt, acquisition, execution, offline, archive, root, data = _r11_chain_fixture(tmp_path)
+    report = review_phiark_archive_chain(
+        receipt, acquisition, execution, offline, archive,
+        install_root=root, data_directory=data, expected_commit=COMMIT,
+    )
+    assert report["status"] == "ARCHIVE_BYTES_MATCHED_LOCAL_RECEIPTS"
+    assert report["source_archive_bytes_matched_local_receipt"] is True
+    assert report["acquisition_build_install_crosschecked"] is True
+    assert report["source_authenticated_against_github"] is False
+    assert report["launch_authority"] is False
+    assert not (data / ".phiark.sock").exists()
+
+    with pytest.raises(ValueError, match="acquired ZIP hash"):
+        review_phiark_archive_chain(
+            receipt, acquisition, execution, offline, archive + b"changed",
+            install_root=root, data_directory=data, expected_commit=COMMIT,
+        )
+    altered = dict(acquisition, commit_sha="f" * 40)
+    with pytest.raises(ValueError, match="acquisition identity"):
+        review_phiark_archive_chain(
+            receipt, altered, execution, offline, archive,
+            install_root=root, data_directory=data, expected_commit=COMMIT,
+        )
+    corrupt = dict(execution, source_snapshot_sha256="0" * 64)
+    with pytest.raises(ValueError):
+        review_phiark_archive_chain(
+            receipt, acquisition, corrupt, offline, archive,
+            install_root=root, data_directory=data, expected_commit=COMMIT,
+        )
+
+
+def test_r11_archive_refuses_duplicate_traversal_and_symlink_members() -> None:
+    import io
+    import stat
+    import zipfile
+
+    from phios.apps.phiark_archive_chain import verify_archive_bytes
+
+    def zip_of(*members):
+        wire = io.BytesIO()
+        with zipfile.ZipFile(wire, "w") as archive:
+            for item in members:
+                if isinstance(item, tuple):
+                    archive.writestr(item[0], item[1])
+                else:
+                    archive.writestr(item, b"good")
+        return wire.getvalue()
+
+    with pytest.raises(ValueError, match="duplicate"):
+        verify_archive_bytes(zip_of(("root/file.txt", b"x"), ("root/file.txt", b"y")))
+    with pytest.raises(ValueError, match="unsafe"):
+        verify_archive_bytes(zip_of(("root/../out.txt", b"x")))
+    symlink = zipfile.ZipInfo("root/shortcut")
+    symlink.create_system = 3
+    symlink.external_attr = (stat.S_IFLNK | 0o777) << 16
+    with pytest.raises(ValueError, match="symlink"):
+        verify_archive_bytes(zip_of((symlink, b"outside")))

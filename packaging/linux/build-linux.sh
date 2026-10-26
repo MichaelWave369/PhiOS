@@ -11,10 +11,13 @@ expected_archiso=$(sed -n 's/.*"archiso_version": "\([0-9-]\+\)".*/\1/p' "$repo/
 cat > /etc/pacman.d/mirrorlist <<MIRRORS
 Server = https://archive.archlinux.org/repos/$snapshot/\$repo/os/\$arch
 MIRRORS
-pacman -Syyuu --noconfirm
-# Stage signed packages from the exact locked archive before modifying installed
-# packages. Transient archive transport failures retry; signature checks remain on.
+# Stage the signed full-upgrade package set before any installation. The pinned
+# archive can be slow; only this download-only stage is retried. The upgrade
+# transaction remains single-shot and fail-closed if any package is unavailable.
 source "$repo/packaging/linux/prefetch-snapshot-packages.sh"
+phios_prefetch_snapshot_upgrade
+pacman --disable-download-timeout -Suu --noconfirm
+# Stage signed application packages before modifying installed packages.
 snapshot_packages=(
     archiso base-devel python python-build python-installer python-setuptools
     python-wheel python-psutil python-mcp nodejs npm git wayfire waybar wofi
