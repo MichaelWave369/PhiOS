@@ -46,7 +46,16 @@ exit 0
         self.assertIn("archive.archlinux.org/repos/$snapshot/", script)
         self.assertIn('phios_prefetch_snapshot_packages "${snapshot_packages[@]}"', script)
         self.assertIn('pacman --disable-download-timeout -S --needed --noconfirm "${snapshot_packages[@]}"', script)
-        self.assertLess(script.index("phios_prefetch_snapshot_packages"), script.index("pacman --disable-download-timeout -S"))
+        self.assertIn("phios_prefetch_snapshot_upgrade", script)
+        self.assertIn("pacman --disable-download-timeout -Suu --noconfirm", script)
+        self.assertLess(
+            script.index("phios_prefetch_snapshot_upgrade"),
+            script.index("pacman --disable-download-timeout -Suu --noconfirm"),
+        )
+        self.assertLess(
+            script.index("phios_prefetch_snapshot_packages"),
+            script.index('pacman --disable-download-timeout -S --needed --noconfirm'),
+        )
 
     def test_archiso_uses_same_signed_snapshot_but_survives_slow_archive(self):
         profile = (ROOT / "packaging/linux/prepare_profile.py").read_text()
