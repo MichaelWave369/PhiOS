@@ -5,6 +5,13 @@ import {
   type ReceiptKind,
   type SecurityReceiptView,
 } from "../security/receiptPreview";
+import {
+  MANIFEST_LIMIT,
+  PACK_LIMIT,
+  TRUST_LIMIT,
+  verifyFieldShieldInBrowser,
+  type BrowserPackReview,
+} from "../security/browserPackVerification";
 import "./SecurityCenter.css";
 
 const LOCAL_COMMANDS = [
@@ -23,6 +30,43 @@ export function SecurityCenter() {
   const [sentinel, setSentinel] = useState<SecurityReceiptView | null>(null);
   const [review, setReview] = useState<SecurityReceiptView | null>(null);
   const [error, setError] = useState("");
+  const [packFile, setPackFile] = useState<File | null>(null);
+  const [manifestFile, setManifestFile] = useState<File | null>(null);
+  const [trustFile, setTrustFile] = useState<File | null>(null);
+  const [fingerprint, setFingerprint] = useState("");
+  const [keyConfirmed, setKeyConfirmed] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [cryptoResult, setCryptoResult] = useState<BrowserPackReview | null>(null);
+  const [cryptoError, setCryptoError] = useState("");
+
+  async function verifySelectedPack() {
+    setCryptoResult(null);
+    setCryptoError("");
+    if (!keyConfirmed || !packFile || !manifestFile || !trustFile) {
+      setCryptoError("Select all three files and confirm independent key-fingerprint review.");
+      return;
+    }
+    if (packFile.size > PACK_LIMIT || manifestFile.size > MANIFEST_LIMIT ||
+        trustFile.size > TRUST_LIMIT) {
+      setCryptoError("Selected files exceed the bounded local verification limits.");
+      return;
+    }
+    setBusy(true);
+    try {
+      const [pack, manifest, trust] = await Promise.all([
+        packFile.arrayBuffer(), manifestFile.arrayBuffer(), trustFile.arrayBuffer(),
+      ]);
+      const result = await verifyFieldShieldInBrowser(
+        new Uint8Array(pack), new Uint8Array(manifest), new Uint8Array(trust),
+        fingerprint.trim(),
+      );
+      setCryptoResult(result);
+    } catch (cause) {
+      setCryptoError(cause instanceof Error ? cause.message : "Browser verification failed.");
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function importReceipt(kind: ReceiptKind, event: ChangeEvent<HTMLInputElement>) {
     const file = event.currentTarget.files?.[0];
@@ -51,9 +95,9 @@ export function SecurityCenter() {
       <header className="security-center-heading">
         <span className="security-kicker">Φ FIELD SHIELD / SENTINEL / PHIARK</span>
         <h2>Security Center</h2>
-        <p>Inspect locally selected verification receipts. The browser does not
-          verify signatures, scan a device, inspect running processes, or contact
-          FieldShield and PhiARK runtimes.</p>
+        <p>Inspect historical local receipts or independently verify the exact bytes
+          of an operator-selected signed intelligence pack using browser WebCrypto.
+          No device scan, process inspection, or PhiARK service connection occurs.</p>
         <strong className="security-hold">HOST SECURITY STATUS: NOT OBSERVED</strong>
       </header>
       <div className="security-flow" aria-label="Offline security pipeline">
@@ -62,6 +106,81 @@ export function SecurityCenter() {
         <span>03 · PHIARK LOCAL VAULT</span>
         <span>04 · PHIOS RECEIPT REVIEW</span>
       </div>
+
+      <section className="security-section security-crypto">
+        <div className="security-crypto-head">
+          <div>
+            <span className="security-kicker">SECURITY CENTER v0.3 · LOCAL WEBCRYPTO</span>
+            <h3>Verify signed intelligence bytes</h3>
+          </div>
+          <strong className="security-hold">NO HOST SCAN / NO DEVICE SAFETY CLAIM</strong>
+        </div>
+        <p>Select the exact FieldShield pack, detached signature manifest and local
+          trust policy. Enter the raw Ed25519 public-key SHA-256 fingerprint obtained
+          through an independent trusted channel. Nothing is uploaded or saved.</p>
+        <div className="security-file-grid">
+          <label className="security-import">
+            Pack (max 2 MB)
+            <input type="file" accept=".json,application/json" disabled={busy}
+              aria-label="Select signed IOC pack"
+              onChange={e => { setPackFile(e.currentTarget.files?.[0] ?? null); setCryptoResult(null); }} />
+          </label>
+          <label className="security-import">
+            Detached signature manifest (max 16 KiB)
+            <input type="file" accept=".json,application/json" disabled={busy}
+              aria-label="Select signed IOC manifest"
+              onChange={e => { setManifestFile(e.currentTarget.files?.[0] ?? null); setCryptoResult(null); }} />
+          </label>
+          <label className="security-import">
+            Manually reviewed trust policy (max 128 KiB)
+            <input type="file" accept=".json,application/json" disabled={busy}
+              aria-label="Select local trust policy"
+              onChange={e => { setTrustFile(e.currentTarget.files?.[0] ?? null); setCryptoResult(null); }} />
+          </label>
+        </div>
+        <label className="security-pin">
+          Independently authenticated public-key SHA-256 (64 lowercase hex digits)
+          <input type="text" value={fingerprint} disabled={busy}
+            spellCheck={false} autoComplete="off" maxLength={64}
+            placeholder="64 lowercase hexadecimal characters"
+            aria-label="Independent Ed25519 public-key SHA-256 fingerprint"
+            onChange={e => { setFingerprint(e.currentTarget.value); setCryptoResult(null); }} />
+        </label>
+        <label className="security-acknowledge">
+          <input type="checkbox" checked={keyConfirmed} disabled={busy}
+            onChange={e => { setKeyConfirmed(e.currentTarget.checked); setCryptoResult(null); }} />
+          I independently checked this signing-key fingerprint, outside these three files.
+        </label>
+        <button className="security-verify-button" type="button"
+          disabled={busy || !packFile || !manifestFile || !trustFile ||
+            !keyConfirmed || !/^[0-9a-f]{64}$/.test(fingerprint.trim())}
+          onClick={() => void verifySelectedPack()}>
+          {busy ? "VERIFYING LOCALLY…" : "VERIFY SELECTED PACK · IN THIS BROWSER"}
+        </button>
+        {cryptoError && <p className="security-warning" role="alert">
+          VERIFICATION REFUSED: {cryptoError}
+        </p>}
+        {cryptoResult && (
+          <div className="security-preview" role="status">
+            <strong>SIGNATURE VERIFIED AGAINST OPERATOR-PINNED KEY ONLY</strong>
+            <dl>
+              <div><dt>Claimed publisher</dt><dd>{cryptoResult.publisherClaim}</dd></div>
+              <div><dt>Key ID</dt><dd>{cryptoResult.keyId}</dd></div>
+              <div><dt>Pack SHA-256</dt><dd>{cryptoResult.packSha256}</dd></div>
+              <div><dt>Public-key SHA-256</dt><dd>{cryptoResult.publicKeySha256}</dd></div>
+              <div><dt>Claimed indicators</dt><dd>{cryptoResult.indicatorsClaimed}</dd></div>
+              <div><dt>Signature expires</dt><dd>{cryptoResult.signatureExpiresAt}</dd></div>
+              <div><dt>Reviewed at (browser clock)</dt><dd>{cryptoResult.checkedAt}</dd></div>
+            </dl>
+            <p className="security-warning">
+              The selected pack and manifest match the operator-supplied key pin.
+              No independent publisher identity, indicator accuracy, host health,
+              secure-clock integrity or device scan is established. Trust is only
+              as strong as your independent key verification and this browser.
+            </p>
+          </div>
+        )}
+      </section>
 
       <div className="security-columns">
         <article className="security-section">
@@ -165,8 +284,8 @@ export function SecurityCenter() {
         <pre>{LOCAL_COMMANDS.join("\n")}</pre>
         <p className="security-warning">
           No automatic telemetry, host probing, remote downloads, file upload,
-          remediation, or authority grants are present in Security Center v0.1.
-          Browser selections stay in memory and are discarded on reload.
+          remediation, or authority grants are present in Security Center.
+          Browser selections and verification results stay in memory until reload.
         </p>
       </section>
     </section>

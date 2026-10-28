@@ -22,3 +22,16 @@
 .security-indicators{overflow-wrap:anywhere}
 .security-procedure pre{white-space:pre-wrap;overflow-wrap:anywhere;padding:12px;margin:0;color:var(--cyan);background:#04090c;border:1px solid var(--border);font-size:11px;line-height:1.6}
 @media(max-width:760px){.security-columns{grid-template-columns:1fr}.security-flow{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+.security-crypto{border-left:3px solid var(--teal)}
+.security-crypto-head{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center}
+.security-crypto-head h3{margin:6px 0 0}
+.security-file-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.security-file-grid .security-import{min-width:0;word-break:break-word}
+.security-pin{display:grid;gap:8px;color:var(--secondary);font-size:12px}
+.security-pin input{width:100%;min-width:0;padding:11px;border:1px solid var(--border);border-radius:6px;background:var(--panel);color:var(--cyan);font:inherit;font-size:12px;font-family:monospace}
+.security-acknowledge{display:flex;gap:10px;align-items:flex-start;color:var(--secondary);font-size:12px;line-height:1.5}
+.security-acknowledge input{margin-top:2px;accent-color:var(--teal)}
+.security-verify-button{border:1px solid var(--teal);color:var(--cyan);background:var(--raised);border-radius:8px;padding:12px 16px;font-weight:700;font-size:12px;cursor:pointer}
+.security-verify-button:disabled{cursor:not-allowed;opacity:.45}
+@media(max-width:760px){.security-file-grid{grid-template-columns:1fr}}
