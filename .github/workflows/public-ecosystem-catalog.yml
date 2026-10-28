@@ -10,9 +10,11 @@ on:
       - "phishell/src/components/AppLauncher.tsx"
       - "phishell/src/styles.css"
       - "scripts/sync_public_ecosystem_catalog.py"
+      - "scripts/verify_ecosystem_source_reviews.py"
       - "scripts/verify_ecosystem_app_candidates.py"
       - "tests/test_ecosystem_app_candidates.py"
       - "tests/test_public_ecosystem_catalog.py"
+      - "tests/test_ecosystem_source_reviews.py"
       - ".github/workflows/public-ecosystem-catalog.yml"
   push:
     branches: [main]
@@ -24,9 +26,11 @@ on:
       - "phishell/src/components/AppLauncher.tsx"
       - "phishell/src/styles.css"
       - "scripts/sync_public_ecosystem_catalog.py"
+      - "scripts/verify_ecosystem_source_reviews.py"
       - "scripts/verify_ecosystem_app_candidates.py"
       - "tests/test_ecosystem_app_candidates.py"
       - "tests/test_public_ecosystem_catalog.py"
+      - "tests/test_ecosystem_source_reviews.py"
       - ".github/workflows/public-ecosystem-catalog.yml"
   workflow_dispatch:
 
@@ -48,8 +52,12 @@ jobs:
           python-version: "3.12"
       - name: Check bundled public-only offline catalog WITHOUT network
         run: python scripts/sync_public_ecosystem_catalog.py --check
+      - name: Validate pinned source-family notes and refuse readiness promotion
+        run: python scripts/verify_ecosystem_source_reviews.py
       - name: Reject private, foreign, malformed and permission-promoting entries
         run: python -m unittest discover -s tests -p "test_public_ecosystem_catalog.py" -v
+      - name: Negative tests for forged source-family review authority and foreign sources
+        run: python -m unittest discover -s tests -p "test_ecosystem_source_reviews.py" -v
       - name: Verify v0.25 candidate manifests without registering, installing or executing apps
         run: python scripts/verify_ecosystem_app_candidates.py
       - name: Fail closed on forged candidate grants, source drift and invalid build claims
@@ -77,7 +85,7 @@ jobs:
           import {join} from 'node:path';
           const dir='phishell/dist/assets';
           const js=readdirSync(dir).filter(x=>x.endsWith('.js')).map(x=>readFileSync(join(dir,x),'utf8')).join('\n');
-          for(const entry of ['SuperPhiVessel','think-tank','Domistika','SOURCE_ONLY','launch_authorized','phios.vessie-web','phios.thinktank-web','HELD_FOR_OPERATOR_REVIEW']){
+          for(const entry of ['SuperPhiVessel','think-tank','Domistika','SOURCE_ONLY','launch_authorized','phios.vessie-web','phios.thinktank-web','HELD_FOR_OPERATOR_REVIEW','SOURCE FAMILY: UNREVIEWED','README ONLY','PhiARK','GitPorch','LENZ']){
             if(!js.includes(entry))throw Error('BUNDLED_ECOSYSTEM_MISSING_'+entry);
           }
           if(!readdirSync('phishell/dist').includes('index.html'))throw Error('PHISHELL_BUILD_MISSING');
