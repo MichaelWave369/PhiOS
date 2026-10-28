@@ -75,6 +75,9 @@ describe("PhiOS Security Center", () => {
     expect(html).toContain("HOST SECURITY STATUS: NOT OBSERVED");
     expect(html).toContain("No local PhiARK receipt selected");
     expect(html).toContain("No local Sentinel report selected");
+    expect(html).toContain("Select consented FieldShield observations JSON");
+    expect(html).toContain("VERIFY PACK AND COMPARE SELECTED OBSERVATIONS");
+    expect(html).toContain("permission to inspect it");
     expect(html).toContain("NOT");
     expect(html).toContain("Import PhiARK intelligence verification JSON");
     expect(html).toContain("Import Sentinel scan report JSON");
