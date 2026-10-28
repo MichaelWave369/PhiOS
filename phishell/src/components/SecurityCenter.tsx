@@ -11,6 +11,7 @@ const LOCAL_COMMANDS = [
   "npm run intel -- verify ./my-trust.json              # in PhiARK directory",
   "python sentinel_verified.py verify --pack ./pack.json --signature ./pack.sig.json --trust ./my-trust.json",
   "python sentinel_verified.py scan --pack ./pack.json --signature ./pack.sig.json --trust ./my-trust.json observations ./observations.json",
+  "phi-sentinel-review --pack ./pack.json --signature ./pack.sig.json --trust ./my-trust.json --expected-public-key-sha256 <INDEPENDENT-PIN> --i-approve-local-review",
 ] as const;
 
 /**
@@ -20,6 +21,7 @@ const LOCAL_COMMANDS = [
 export function SecurityCenter() {
   const [phiark, setPhiark] = useState<SecurityReceiptView | null>(null);
   const [sentinel, setSentinel] = useState<SecurityReceiptView | null>(null);
+  const [review, setReview] = useState<SecurityReceiptView | null>(null);
   const [error, setError] = useState("");
 
   async function importReceipt(kind: ReceiptKind, event: ChangeEvent<HTMLInputElement>) {
@@ -28,7 +30,8 @@ export function SecurityCenter() {
     setError("");
     if (!file) return;
     if (kind === "phiark") setPhiark(null);
-    else setSentinel(null);
+    else if (kind === "sentinel") setSentinel(null);
+    else setReview(null);
     if (file.size > MAX_SECURITY_RECEIPT_BYTES) {
       setError("Receipt exceeds 1 MiB. No file was loaded.");
       return;
@@ -36,7 +39,8 @@ export function SecurityCenter() {
     try {
       const parsed = parseSecurityReceipt(kind, await file.text());
       if (kind === "phiark") setPhiark(parsed);
-      else setSentinel(parsed);
+      else if (kind === "sentinel") setSentinel(parsed);
+      else setReview(parsed);
     } catch {
       setError("Unsupported or malformed receipt. Nothing was verified or uploaded.");
     }
@@ -119,6 +123,38 @@ export function SecurityCenter() {
           ) : <p className="security-empty">No local Sentinel report selected.</p>}
         </article>
       </div>
+
+      <article className="security-section">
+        <h3>Offline signed-pack review · PhiOS v0.2</h3>
+        <p>The PhiOS CLI can verify a FieldShield pack using an independently
+          checked Ed25519 public-key fingerprint. Choose its generated JSON
+          to inspect the historical result here. The browser cannot revalidate
+          this file or establish that the source really belongs to the claimed publisher.</p>
+        <label className="security-import">
+          Select PhiOS offline verification JSON
+          <input type="file" accept=".json,application/json"
+            aria-label="Import PhiOS offline review JSON"
+            onChange={(event) => void importReceipt("phios-review", event)} />
+        </label>
+        {review?.kind === "phios-review" ? (
+          <div className="security-preview" aria-live="polite">
+            <strong>{review.label}</strong>
+            <dl>
+              <div><dt>Publisher claim</dt><dd>{review.publisherClaim}</dd></div>
+              <div><dt>IOC entries claimed</dt><dd>{review.indicatorCount}</dd></div>
+              <div><dt>Review timestamp</dt><dd>{review.reviewedAt}</dd></div>
+              <div><dt>Signature expiration</dt><dd>{review.manifestExpiresAt}</dd></div>
+              <div><dt>Pack SHA-256</dt><dd>{review.packSha256}</dd></div>
+              <div><dt>External key pin SHA-256</dt><dd>{review.pinnedKeySha256}</dd></div>
+            </dl>
+            <p className="security-warning">
+              This is a user-selected historical JSON claim, not a live verified
+              cryptographic result. No host scan, source authenticity confirmation,
+              or authority grant has occurred through this viewer.
+            </p>
+          </div>
+        ) : <p className="security-empty">No PhiOS offline review selected.</p>}
+      </article>
 
       {error && <p role="alert" className="security-warning">{error}</p>}
       <section className="security-procedure">
