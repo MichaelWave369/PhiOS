@@ -146,7 +146,9 @@ export function parseStrictJson(bytes: Uint8Array, maxBytes: number): JsonObject
     } else if (src[i] === '"') {
       quoted();
     } else {
-      const tail = src.slice(i);
+      // Bound token lookahead: do not repeatedly copy the entire remaining
+      // file for a hostile array with thousands of tiny primitive values.
+      const tail = src.slice(i, i + 128);
       const token = /^(?:true|false|null|-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?)/.exec(tail);
       if (!token) throw new Error("Invalid JSON literal");
       i += token[0].length;
