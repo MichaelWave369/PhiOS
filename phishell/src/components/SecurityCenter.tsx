@@ -12,6 +12,11 @@ import {
   verifyFieldShieldInBrowser,
   type BrowserPackReview,
 } from "../security/browserPackVerification";
+import {
+  OBSERVATION_LIMIT,
+  verifyAndMatchSelectedObservations,
+  type EvidenceMatchSummary,
+} from "../security/browserObservationMatch";
 import "./SecurityCenter.css";
 
 const LOCAL_COMMANDS = [
@@ -38,6 +43,47 @@ export function SecurityCenter() {
   const [busy, setBusy] = useState(false);
   const [cryptoResult, setCryptoResult] = useState<BrowserPackReview | null>(null);
   const [cryptoError, setCryptoError] = useState("");
+  const [observationsFile, setObservationsFile] = useState<File | null>(null);
+  const [matchConsent, setMatchConsent] = useState(false);
+  const [matchResult, setMatchResult] = useState<EvidenceMatchSummary | null>(null);
+  const [matchError, setMatchError] = useState("");
+
+  async function matchSelectedObservations() {
+    setMatchResult(null);
+    setMatchError("");
+    if (!matchConsent || !keyConfirmed || !observationsFile ||
+        !packFile || !manifestFile || !trustFile) {
+      setMatchError("Explicit evidence consent and all four local files are required.");
+      return;
+    }
+    if (packFile.size > PACK_LIMIT || manifestFile.size > MANIFEST_LIMIT ||
+        trustFile.size > TRUST_LIMIT || observationsFile.size > OBSERVATION_LIMIT) {
+      setMatchError("Selected evidence or intelligence files exceed the bounded size limits.");
+      return;
+    }
+    setBusy(true);
+    try {
+      // Freshly reverify exact source bytes on every scan. Earlier UI receipts
+      // never authorize a new match, and no host collection happens.
+      const [pack, manifest, trust, observations] = await Promise.all([
+        packFile.arrayBuffer(), manifestFile.arrayBuffer(),
+        trustFile.arrayBuffer(), observationsFile.arrayBuffer(),
+      ]);
+      const result = await verifyAndMatchSelectedObservations({
+        packRaw: new Uint8Array(pack),
+        manifestRaw: new Uint8Array(manifest),
+        trustRaw: new Uint8Array(trust),
+        observationsRaw: new Uint8Array(observations),
+        independentPublicKeySha256: fingerprint.trim(),
+      });
+      setMatchResult(result);
+    } catch (error) {
+      setMatchError(error instanceof Error ? error.message : "Evidence matching refused.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
 
   async function verifySelectedPack() {
     setCryptoResult(null);
@@ -123,19 +169,19 @@ export function SecurityCenter() {
             Pack (max 2 MB)
             <input type="file" accept=".json,application/json" disabled={busy}
               aria-label="Select signed IOC pack"
-              onChange={e => { setPackFile(e.currentTarget.files?.[0] ?? null); setCryptoResult(null); }} />
+              onChange={e => { setPackFile(e.currentTarget.files?.[0] ?? null); setCryptoResult(null); setMatchResult(null); }} />
           </label>
           <label className="security-import">
             Detached signature manifest (max 16 KiB)
             <input type="file" accept=".json,application/json" disabled={busy}
               aria-label="Select signed IOC manifest"
-              onChange={e => { setManifestFile(e.currentTarget.files?.[0] ?? null); setCryptoResult(null); }} />
+              onChange={e => { setManifestFile(e.currentTarget.files?.[0] ?? null); setCryptoResult(null); setMatchResult(null); }} />
           </label>
           <label className="security-import">
             Manually reviewed trust policy (max 128 KiB)
             <input type="file" accept=".json,application/json" disabled={busy}
               aria-label="Select local trust policy"
-              onChange={e => { setTrustFile(e.currentTarget.files?.[0] ?? null); setCryptoResult(null); }} />
+              onChange={e => { setTrustFile(e.currentTarget.files?.[0] ?? null); setCryptoResult(null); setMatchResult(null); }} />
           </label>
         </div>
         <label className="security-pin">
@@ -144,11 +190,11 @@ export function SecurityCenter() {
             spellCheck={false} autoComplete="off" maxLength={64}
             placeholder="64 lowercase hexadecimal characters"
             aria-label="Independent Ed25519 public-key SHA-256 fingerprint"
-            onChange={e => { setFingerprint(e.currentTarget.value); setCryptoResult(null); }} />
+            onChange={e => { setFingerprint(e.currentTarget.value); setCryptoResult(null); setMatchResult(null); }} />
         </label>
         <label className="security-acknowledge">
           <input type="checkbox" checked={keyConfirmed} disabled={busy}
-            onChange={e => { setKeyConfirmed(e.currentTarget.checked); setCryptoResult(null); }} />
+            onChange={e => { setKeyConfirmed(e.currentTarget.checked); setCryptoResult(null); setMatchResult(null); }} />
           I independently checked this signing-key fingerprint, outside these three files.
         </label>
         <button className="security-verify-button" type="button"
@@ -177,6 +223,77 @@ export function SecurityCenter() {
               No independent publisher identity, indicator accuracy, host health,
               secure-clock integrity or device scan is established. Trust is only
               as strong as your independent key verification and this browser.
+            </p>
+          </div>
+        )}
+      </section>
+
+      <section className="security-section security-crypto">
+        <span className="security-kicker">SECURITY CENTER v0.4 · OPT-IN OFFLINE EVIDENCE MATCHING</span>
+        <h3>Compare selected observations with a freshly verified pack</h3>
+        <p>Use the signed IOC pack, manifest, local trust policy and independently
+          authenticated key fingerprint selected above. Then select an
+          observations JSON file that you own or are authorized to inspect.
+          A fresh signature verification is mandatory on every comparison.
+          No live processes, device files or directories are searched.</p>
+        <label className="security-import">
+          Select observations.v1 JSON (max 8 MB)
+          <input type="file" accept=".json,application/json" disabled={busy}
+            aria-label="Select consented FieldShield observations JSON"
+            onChange={event => {
+              setObservationsFile(event.currentTarget.files?.[0] ?? null);
+              setMatchResult(null);
+              setMatchError("");
+              setMatchConsent(false);
+            }} />
+        </label>
+        <label className="security-acknowledge">
+          <input type="checkbox" checked={matchConsent} disabled={busy}
+            onChange={event => {
+              setMatchConsent(event.currentTarget.checked);
+              setMatchResult(null);
+            }} />
+          I own this evidence or have permission to inspect it, and authorize
+          only an in-browser exact-indicator comparison of this selected JSON file.
+        </label>
+        <button type="button" className="security-verify-button"
+          disabled={busy || !packFile || !manifestFile || !trustFile ||
+            !observationsFile || !keyConfirmed || !matchConsent ||
+            !/^[0-9a-f]{64}$/.test(fingerprint.trim())}
+          onClick={() => void matchSelectedObservations()}>
+          {busy ? "VERIFYING AND MATCHING LOCALLY…" :
+            "VERIFY PACK AND COMPARE SELECTED OBSERVATIONS"}
+        </button>
+        {matchError && <p role="alert" className="security-warning">
+          COMPARISON REFUSED: {matchError}
+        </p>}
+        {matchResult && (
+          <div className="security-preview" role="status">
+            <strong>SELECTED EVIDENCE ONLY · {matchResult.decision}</strong>
+            <dl>
+              <div><dt>Observations in file</dt><dd>{matchResult.observationsSupplied}</dd></div>
+              <div><dt>Inspected</dt><dd>{matchResult.inspected}</dd></div>
+              <div><dt>Uninspected / coverage gaps</dt><dd>{matchResult.uninspected}</dd></div>
+              <div><dt>Exact indicator matches</dt><dd>{matchResult.matches}</dd></div>
+              <div><dt>Signed indicators loaded</dt><dd>{matchResult.indicatorsLoaded}</dd></div>
+              <div><dt>Match cap reached</dt><dd>{matchResult.limitReached ? "YES" : "NO"}</dd></div>
+              <div><dt>Pack SHA-256</dt><dd>{matchResult.verifiedPackSha256}</dd></div>
+              <div><dt>Evidence JSON SHA-256</dt><dd>{matchResult.observationFileSha256}</dd></div>
+            </dl>
+            {matchResult.findingIds.length > 0 && (
+              <div className="security-match-details">
+                <strong>Matching indicator IDs (first 24)</strong>
+                <ul>{matchResult.findingIds.map((item, index) =>
+                  <li key={index}>#{item.observationIndex} · {item.kind} ·
+                    {item.indicatorId} · {item.confidence}</li>)}</ul>
+              </div>
+            )}
+            <p className="security-warning">
+              No source evidence values are included in this summary.
+              Matches alone do not establish infection. Zero matches
+              do not prove the computer is clean. Only the specifically
+              selected JSON observations were inspected; no host scan
+              or automatic acquisition occurred.
             </p>
           </div>
         )}
