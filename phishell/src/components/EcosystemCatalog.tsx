@@ -1,15 +1,17 @@
 import {useMemo,useState} from "react";
 import publicRepositories from "../ecosystem/public-repos.json";
 import appCandidates from "../ecosystem/app-candidates.json";
+import sourceReviews from "../ecosystem/source-reviews.json";
 import { XiCommonsSourceTile } from "./XiCommonsSourceTile";
 
 type Entry=(typeof publicRepositories.entries)[number];
-type View="all"|"web";
+type View="all"|"web"|"reviewed"|"unreviewed";
 const publicWebDestinations:Readonly<Record<string,{label:string;url:string}>>={
   SuperPhiVessel:{label:"Vessie React (public website)",url:"https://michaelwave369.github.io/SuperPhiVessel/vessie/"},
   "think-tank":{label:"ThinkTank (public website)",url:"https://michaelwave369.github.io/think-tank/"}
 };
 const entries=publicRepositories.entries as Entry[];
+const reviewByName=new Map(sourceReviews.reviews.map(review=>[review.name,review] as const));
 
 export function EcosystemCatalog(){
   const [query,setQuery]=useState("");
@@ -19,6 +21,8 @@ export function EcosystemCatalog(){
     const q=query.trim().toLocaleLowerCase();
     return entries.filter(entry=>{
       if(view==="web"&&!Object.hasOwn(publicWebDestinations,entry.name))return false;
+      if(view==="reviewed"&&!reviewByName.has(entry.name))return false;
+      if(view==="unreviewed"&&reviewByName.has(entry.name))return false;
       return !q||entry.name.toLocaleLowerCase().includes(q);
     });
   },[query,view]);
@@ -28,7 +32,7 @@ export function EcosystemCatalog(){
     <div className="panel-title">Φ ECOSYSTEM · PUBLIC SOURCE CATALOG</div>
     <p>
       {entries.length} public GitHub repositories are listed in this <strong>offline-bundled snapshot</strong>.
-      These entries are <strong>not installed apps</strong>. Listing a repository does not establish
+      These entries are <strong>not installed apps</strong>. {sourceReviews.reviews.length} entries have pinned README-only source-family notes; {entries.length-sourceReviews.reviews.length} remain <strong>UNREVIEWED</strong>. Source-family labels are not verified runtimes. Listing a repository does not establish
       a runnable application, redistribution license, device compatibility, or execution permission.
     </p>
     <p className="muted">
@@ -77,6 +81,8 @@ export function EcosystemCatalog(){
           onChange={event=>setFilter(event.target.value as View)}>
           <option value="all">ALL PUBLIC SOURCE</option>
           <option value="web">KNOWN WEB DESTINATIONS</option>
+          <option value="reviewed">README-CLASSIFIED SOURCE</option>
+          <option value="unreviewed">UNREVIEWED SOURCE</option>
         </select>
       </label>
     </div>
@@ -87,16 +93,20 @@ export function EcosystemCatalog(){
     <div className="ecosystem-repos">
       {matching.slice(0,visible).map(entry=>{
         const site=publicWebDestinations[entry.name];
+        const review=reviewByName.get(entry.name);
         return <article className="ecosystem-repo" key={entry.name}>
           <div className="ecosystem-repo-name">
             <strong>{entry.name}</strong>
             <small>{site?"WEB LINK AVAILABLE · NOT BUNDLED":"SOURCE LISTING · REVIEW REQUIRED"}</small>
+            <small>{review?`SOURCE FAMILY: ${review.family.replaceAll("_"," ")} · README ONLY`:"SOURCE FAMILY: UNREVIEWED"}</small>
           </div>
           <div className="ecosystem-repo-actions">
             <a href={entry.repository_url} target="_blank" rel="noopener noreferrer"
               aria-label={"Open GitHub source for "+entry.name}>SOURCE ↗</a>
             {site&&<a href={site.url} target="_blank" rel="noopener noreferrer"
               aria-label={"Open public website for "+entry.name}>WEB SITE ↗</a>}
+            {review&&<a href={review.evidence_url} target="_blank" rel="noopener noreferrer"
+              aria-label={"Review pinned README source for "+entry.name}>REVIEW BASIS ↗</a>}
           </div>
         </article>
       })}

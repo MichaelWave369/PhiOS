@@ -1,7 +1,7 @@
 {
   "schema_version": "phios.public_ecosystem_catalog.v0.1",
   "owner": "MichaelWave369",
-  "source": "GITHUB_PUBLIC_REPOSITORY_SEARCH_SNAPSHOT",
+  "source": "GITHUB_CONNECTED_OWNER_PUBLIC_FILTERED_SNAPSHOT",
   "snapshot_status": "OFFLINE_SOURCE_LISTING_ONLY",
   "entries": [
     {
@@ -59,6 +59,15 @@
       "redistribution_reviewed": false
     },
     {
+      "name": "AquaPhi",
+      "repository_url": "https://github.com/MichaelWave369/AquaPhi",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
       "name": "atomspace-rocks",
       "repository_url": "https://github.com/MichaelWave369/atomspace-rocks",
       "kind": "source_catalog_entry",
@@ -88,6 +97,33 @@
     {
       "name": "axiomforge-ledger",
       "repository_url": "https://github.com/MichaelWave369/axiomforge-ledger",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "BackyardProductionCompany",
+      "repository_url": "https://github.com/MichaelWave369/BackyardProductionCompany",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "BeyondtheBuzz",
+      "repository_url": "https://github.com/MichaelWave369/BeyondtheBuzz",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "BioPhi369",
+      "repository_url": "https://github.com/MichaelWave369/BioPhi369",
       "kind": "source_catalog_entry",
       "availability": "SOURCE_ONLY",
       "installed": false,
@@ -149,6 +185,15 @@
       "redistribution_reviewed": false
     },
     {
+      "name": "BTM",
+      "repository_url": "https://github.com/MichaelWave369/BTM",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
       "name": "bubblenest",
       "repository_url": "https://github.com/MichaelWave369/bubblenest",
       "kind": "source_catalog_entry",
@@ -185,6 +230,24 @@
       "redistribution_reviewed": false
     },
     {
+      "name": "CFD",
+      "repository_url": "https://github.com/MichaelWave369/CFD",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "ChippyDip",
+      "repository_url": "https://github.com/MichaelWave369/ChippyDip",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
       "name": "chronolattice",
       "repository_url": "https://github.com/MichaelWave369/chronolattice",
       "kind": "source_catalog_entry",
@@ -196,6 +259,15 @@
     {
       "name": "CineSwarm",
       "repository_url": "https://github.com/MichaelWave369/CineSwarm",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "Codedex",
+      "repository_url": "https://github.com/MichaelWave369/Codedex",
       "kind": "source_catalog_entry",
       "availability": "SOURCE_ONLY",
       "installed": false,
@@ -230,6 +302,15 @@
       "redistribution_reviewed": false
     },
     {
+      "name": "CollaborationJunction",
+      "repository_url": "https://github.com/MichaelWave369/CollaborationJunction",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
       "name": "ComicRelief",
       "repository_url": "https://github.com/MichaelWave369/ComicRelief",
       "kind": "source_catalog_entry",
@@ -241,6 +322,15 @@
     {
       "name": "Commonline",
       "repository_url": "https://github.com/MichaelWave369/Commonline",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "CommonTable",
+      "repository_url": "https://github.com/MichaelWave369/CommonTable",
       "kind": "source_catalog_entry",
       "availability": "SOURCE_ONLY",
       "installed": false,
@@ -374,6 +464,15 @@
       "redistribution_reviewed": false
     },
     {
+      "name": "FieldConstellation",
+      "repository_url": "https://github.com/MichaelWave369/FieldConstellation",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
       "name": "FieldDeck",
       "repository_url": "https://github.com/MichaelWave369/FieldDeck",
       "kind": "source_catalog_entry",
@@ -392,8 +491,26 @@
       "redistribution_reviewed": false
     },
     {
+      "name": "FieldManual369",
+      "repository_url": "https://github.com/MichaelWave369/FieldManual369",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
       "name": "FieldMedic",
       "repository_url": "https://github.com/MichaelWave369/FieldMedic",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "FieldShield",
+      "repository_url": "https://github.com/MichaelWave369/FieldShield",
       "kind": "source_catalog_entry",
       "availability": "SOURCE_ONLY",
       "installed": false,
@@ -419,6 +536,15 @@
       "redistribution_reviewed": false
     },
     {
+      "name": "FramefieldStudio",
+      "repository_url": "https://github.com/MichaelWave369/FramefieldStudio",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
       "name": "FrontPorchAI",
       "repository_url": "https://github.com/MichaelWave369/FrontPorchAI",
       "kind": "source_catalog_entry",
@@ -428,8 +554,35 @@
       "redistribution_reviewed": false
     },
     {
+      "name": "FutureArchive",
+      "repository_url": "https://github.com/MichaelWave369/FutureArchive",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "GBRM",
+      "repository_url": "https://github.com/MichaelWave369/GBRM",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
       "name": "GiltHouse",
       "repository_url": "https://github.com/MichaelWave369/GiltHouse",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "GitPorch",
+      "repository_url": "https://github.com/MichaelWave369/GitPorch",
       "kind": "source_catalog_entry",
       "availability": "SOURCE_ONLY",
       "installed": false,
@@ -500,6 +653,15 @@
       "redistribution_reviewed": false
     },
     {
+      "name": "HueHatch",
+      "repository_url": "https://github.com/MichaelWave369/HueHatch",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
       "name": "Infinite-Commons",
       "repository_url": "https://github.com/MichaelWave369/Infinite-Commons",
       "kind": "source_catalog_entry",
@@ -511,6 +673,24 @@
     {
       "name": "Infinite-Porch",
       "repository_url": "https://github.com/MichaelWave369/Infinite-Porch",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "InfiniteAfterHours",
+      "repository_url": "https://github.com/MichaelWave369/InfiniteAfterHours",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "InfiniteInterconnects",
+      "repository_url": "https://github.com/MichaelWave369/InfiniteInterconnects",
       "kind": "source_catalog_entry",
       "availability": "SOURCE_ONLY",
       "installed": false,
@@ -572,8 +752,44 @@
       "redistribution_reviewed": false
     },
     {
+      "name": "LAU",
+      "repository_url": "https://github.com/MichaelWave369/LAU",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "LENZ",
+      "repository_url": "https://github.com/MichaelWave369/LENZ",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "LightBridge",
+      "repository_url": "https://github.com/MichaelWave369/LightBridge",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
       "name": "LittUp",
       "repository_url": "https://github.com/MichaelWave369/LittUp",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "LoopCatch",
+      "repository_url": "https://github.com/MichaelWave369/LoopCatch",
       "kind": "source_catalog_entry",
       "availability": "SOURCE_ONLY",
       "installed": false,
@@ -655,6 +871,51 @@
     {
       "name": "MoreBounceLabs",
       "repository_url": "https://github.com/MichaelWave369/MoreBounceLabs",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "MoreBounceMethod",
+      "repository_url": "https://github.com/MichaelWave369/MoreBounceMethod",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "MRIPHI",
+      "repository_url": "https://github.com/MichaelWave369/MRIPHI",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "MuseVault",
+      "repository_url": "https://github.com/MichaelWave369/MuseVault",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "MythSplicer",
+      "repository_url": "https://github.com/MichaelWave369/MythSplicer",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "NBGPocketMesh",
+      "repository_url": "https://github.com/MichaelWave369/NBGPocketMesh",
       "kind": "source_catalog_entry",
       "availability": "SOURCE_ONLY",
       "installed": false,
@@ -851,8 +1112,35 @@
       "redistribution_reviewed": false
     },
     {
+      "name": "Phi5",
+      "repository_url": "https://github.com/MichaelWave369/Phi5",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "PhiARK",
+      "repository_url": "https://github.com/MichaelWave369/PhiARK",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
       "name": "PHIAudio",
       "repository_url": "https://github.com/MichaelWave369/PHIAudio",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "Phiax",
+      "repository_url": "https://github.com/MichaelWave369/Phiax",
       "kind": "source_catalog_entry",
       "availability": "SOURCE_ONLY",
       "installed": false,
@@ -869,8 +1157,53 @@
       "redistribution_reviewed": false
     },
     {
+      "name": "PhiBox",
+      "repository_url": "https://github.com/MichaelWave369/PhiBox",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
       "name": "PhiCade",
       "repository_url": "https://github.com/MichaelWave369/PhiCade",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "PhiCleanroom",
+      "repository_url": "https://github.com/MichaelWave369/PhiCleanroom",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "PhiCompile",
+      "repository_url": "https://github.com/MichaelWave369/PhiCompile",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "PhiField",
+      "repository_url": "https://github.com/MichaelWave369/PhiField",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "PhiFieldLab",
+      "repository_url": "https://github.com/MichaelWave369/PhiFieldLab",
       "kind": "source_catalog_entry",
       "availability": "SOURCE_ONLY",
       "installed": false,
@@ -887,8 +1220,53 @@
       "redistribution_reviewed": false
     },
     {
+      "name": "PhiGrooveDrive",
+      "repository_url": "https://github.com/MichaelWave369/PhiGrooveDrive",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
       "name": "PhiKernel",
       "repository_url": "https://github.com/MichaelWave369/PhiKernel",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "PhiKeyhole369",
+      "repository_url": "https://github.com/MichaelWave369/PhiKeyhole369",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "PhiLearn",
+      "repository_url": "https://github.com/MichaelWave369/PhiLearn",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "PhiMapper369",
+      "repository_url": "https://github.com/MichaelWave369/PhiMapper369",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "PhiMathAtelier",
+      "repository_url": "https://github.com/MichaelWave369/PhiMathAtelier",
       "kind": "source_catalog_entry",
       "availability": "SOURCE_ONLY",
       "installed": false,
@@ -923,8 +1301,26 @@
       "redistribution_reviewed": false
     },
     {
+      "name": "PhiOS-XR",
+      "repository_url": "https://github.com/MichaelWave369/PhiOS-XR",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
       "name": "PhiPie",
       "repository_url": "https://github.com/MichaelWave369/PhiPie",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "PhiPortal",
+      "repository_url": "https://github.com/MichaelWave369/PhiPortal",
       "kind": "source_catalog_entry",
       "availability": "SOURCE_ONLY",
       "installed": false,
@@ -941,8 +1337,53 @@
       "redistribution_reviewed": false
     },
     {
+      "name": "PhiScribe",
+      "repository_url": "https://github.com/MichaelWave369/PhiScribe",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "PhiSkrit",
+      "repository_url": "https://github.com/MichaelWave369/PhiSkrit",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "PhiStream",
+      "repository_url": "https://github.com/MichaelWave369/PhiStream",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "Phithon",
+      "repository_url": "https://github.com/MichaelWave369/Phithon",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
       "name": "PHIVid",
       "repository_url": "https://github.com/MichaelWave369/PHIVid",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "PockeRec",
+      "repository_url": "https://github.com/MichaelWave369/PockeRec",
       "kind": "source_catalog_entry",
       "availability": "SOURCE_ONLY",
       "installed": false,
@@ -961,6 +1402,15 @@
     {
       "name": "PorchQuest369",
       "repository_url": "https://github.com/MichaelWave369/PorchQuest369",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "PorchTalk",
+      "repository_url": "https://github.com/MichaelWave369/PorchTalk",
       "kind": "source_catalog_entry",
       "availability": "SOURCE_ONLY",
       "installed": false,
@@ -1004,6 +1454,24 @@
       "redistribution_reviewed": false
     },
     {
+      "name": "PuzzlePen",
+      "repository_url": "https://github.com/MichaelWave369/PuzzlePen",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "RastaPhi",
+      "repository_url": "https://github.com/MichaelWave369/RastaPhi",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
       "name": "ravedial-archive-explorer",
       "repository_url": "https://github.com/MichaelWave369/ravedial-archive-explorer",
       "kind": "source_catalog_entry",
@@ -1033,6 +1501,33 @@
     {
       "name": "Reconnect",
       "repository_url": "https://github.com/MichaelWave369/Reconnect",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "ReelCommons",
+      "repository_url": "https://github.com/MichaelWave369/ReelCommons",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "RegenerationAtlas",
+      "repository_url": "https://github.com/MichaelWave369/RegenerationAtlas",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "RepoReady",
+      "repository_url": "https://github.com/MichaelWave369/RepoReady",
       "kind": "source_catalog_entry",
       "availability": "SOURCE_ONLY",
       "installed": false,
@@ -1094,6 +1589,33 @@
       "redistribution_reviewed": false
     },
     {
+      "name": "Smergeon",
+      "repository_url": "https://github.com/MichaelWave369/Smergeon",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "SovereignBodyMethod",
+      "repository_url": "https://github.com/MichaelWave369/SovereignBodyMethod",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "SparkTheSubstrate",
+      "repository_url": "https://github.com/MichaelWave369/SparkTheSubstrate",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
       "name": "SponsorRail",
       "repository_url": "https://github.com/MichaelWave369/SponsorRail",
       "kind": "source_catalog_entry",
@@ -1112,8 +1634,26 @@
       "redistribution_reviewed": false
     },
     {
+      "name": "The-MDF-Files",
+      "repository_url": "https://github.com/MichaelWave369/The-MDF-Files",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
       "name": "think-tank",
       "repository_url": "https://github.com/MichaelWave369/think-tank",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "TMC",
+      "repository_url": "https://github.com/MichaelWave369/TMC",
       "kind": "source_catalog_entry",
       "availability": "SOURCE_ONLY",
       "installed": false,
@@ -1157,6 +1697,15 @@
       "redistribution_reviewed": false
     },
     {
+      "name": "WastelandWorkshopStudio",
+      "repository_url": "https://github.com/MichaelWave369/WastelandWorkshopStudio",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
       "name": "WaveForgeStudio",
       "repository_url": "https://github.com/MichaelWave369/WaveForgeStudio",
       "kind": "source_catalog_entry",
@@ -1168,6 +1717,15 @@
     {
       "name": "WaveRider",
       "repository_url": "https://github.com/MichaelWave369/WaveRider",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "WhiteHatLedger369",
+      "repository_url": "https://github.com/MichaelWave369/WhiteHatLedger369",
       "kind": "source_catalog_entry",
       "availability": "SOURCE_ONLY",
       "installed": false,
