@@ -53,7 +53,7 @@ jobs:
       - name: Check bundled public-only offline catalog WITHOUT network
         run: python scripts/sync_public_ecosystem_catalog.py --check
       - name: Validate pinned source-family notes and refuse readiness promotion
-        run: python scripts/verify_ecosystem_source_reviews.py
+        run: python -m scripts.verify_ecosystem_source_reviews
       - name: Reject private, foreign, malformed and permission-promoting entries
         run: python -m unittest discover -s tests -p "test_public_ecosystem_catalog.py" -v
       - name: Negative tests for forged source-family review authority and foreign sources
