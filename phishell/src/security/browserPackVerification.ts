@@ -64,6 +64,12 @@ function decodeBase64(value: unknown, expected: number, field: string): Uint8Arr
   }
   return Uint8Array.from(raw, char => char.charCodeAt(0));
 }
+/** Copy into an owned ArrayBuffer for WebCrypto's strict BufferSource typing. */
+function ownedBuffer(bytes: Uint8Array): ArrayBuffer {
+  const out = new ArrayBuffer(bytes.byteLength);
+  new Uint8Array(out).set(bytes);
+  return out;
+}
 function toHex(bytes: Uint8Array): string {
   return Array.from(bytes, byte => byte.toString(16).padStart(2, "0")).join("");
 }
@@ -194,7 +200,7 @@ export async function verifyFieldShieldInBrowser(
     throw new Error("Signature manifest is expired or not yet valid");
   }
   if (packRaw.byteLength > PACK_LIMIT) throw new Error("IOC pack exceeds size limit");
-  const packSha256 = toHex(new Uint8Array(await subtle.digest("SHA-256", packRaw)));
+  const packSha256 = toHex(new Uint8Array(await subtle.digest("SHA-256", ownedBuffer(packRaw))));
   if (packSha256 !== signedDigest) throw new Error("Signed IOC pack SHA256 mismatch");
 
   const trust = parseStrictJson(trustRaw, TRUST_LIMIT);
@@ -245,7 +251,7 @@ export async function verifyFieldShieldInBrowser(
     }
   }
   if (!publicKey) throw new Error("Unknown signing key; no automatic enrollment");
-  const computedPin = toHex(new Uint8Array(await subtle.digest("SHA-256", publicKey)));
+  const computedPin = toHex(new Uint8Array(await subtle.digest("SHA-256", ownedBuffer(publicKey))));
   if (computedPin !== pin) throw new Error("Public key fails independent SHA256 pin");
 
   const authHeader = Object.fromEntries(HEADER_FIELDS.map(key => [key, manifest[key]]));
@@ -256,8 +262,8 @@ export async function verifyFieldShieldInBrowser(
   const signature = decodeBase64(manifest.signature_b64, 64, "Ed25519 signature");
   let valid = false;
   try {
-    const imported = await subtle.importKey("raw", publicKey, { name: "Ed25519" }, false, ["verify"]);
-    valid = await subtle.verify({ name: "Ed25519" }, imported, signature, message);
+    const imported = await subtle.importKey("raw", ownedBuffer(publicKey), { name: "Ed25519" }, false, ["verify"]);
+    valid = await subtle.verify({ name: "Ed25519" }, imported, ownedBuffer(signature), ownedBuffer(message));
   } catch {
     throw new Error("Ed25519 not supported by this secure browser or verification failed");
   }
@@ -278,8 +284,8 @@ export async function verifyFieldShieldInBrowser(
     publisherClaim: publisher,
     keyId,
     packSha256,
-    manifestSha256: toHex(new Uint8Array(await subtle.digest("SHA-256", manifestRaw))),
-    trustSha256: toHex(new Uint8Array(await subtle.digest("SHA-256", trustRaw))),
+    manifestSha256: toHex(new Uint8Array(await subtle.digest("SHA-256", ownedBuffer(manifestRaw)))),
+    trustSha256: toHex(new Uint8Array(await subtle.digest("SHA-256", ownedBuffer(trustRaw)))),
     publicKeySha256: computedPin,
     signatureExpiresAt: manifest.expires_at as string,
     indicatorsClaimed: pack.indicators.length,
