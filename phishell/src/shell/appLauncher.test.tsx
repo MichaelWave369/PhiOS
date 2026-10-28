@@ -23,6 +23,7 @@ const destinations: Record<string, string> = {
   "Professor Φ": "app:professor", "Reality Ledger": "ledger-window",
   "Builder": "build-window", "System Inspector": "system-window",
   "ΦDream": "dream-window", "Apps": "apps-window", "Sovereignty Center": "sovereignty-window",
+  "Security Center": "security-window",
 };
 
 describe("rendered app launcher clicks", () => {
@@ -34,7 +35,7 @@ describe("rendered app launcher clicks", () => {
         const event = shellAppEvent(id);
         if (event) state = shellReducer(state, event);
       } }));
-      expect(tiles).toHaveLength(pinned ? 6 : 14);
+      expect(tiles).toHaveLength(pinned ? 6 : SHELL_APPS.length);
       for (const tile of tiles) {
         tile.click();
         const name = tile.label.split(" · ")[0];
