@@ -32,7 +32,7 @@ Run without network access from repo root:
 
 ```sh
 python scripts/sync_public_ecosystem_catalog.py --check
-python scripts/verify_ecosystem_source_reviews.py
+python -m scripts.verify_ecosystem_source_reviews
 python -m unittest discover -s tests -p "test_public_ecosystem_catalog.py" -v
 python -m unittest discover -s tests -p "test_ecosystem_source_reviews.py" -v
 python scripts/verify_ecosystem_app_candidates.py
