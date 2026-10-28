@@ -1,0 +1,107 @@
+{
+  "schema_version": "phios.public_ecosystem_source_reviews.v0.1",
+  "source_catalog_owner": "MichaelWave369",
+  "default_family": "UNREVIEWED",
+  "status": "ADVISORY_SOURCE_CLASSIFICATION_ONLY",
+  "reviews": [
+    {
+      "name": "BTM",
+      "source_sha": "6e1a41b13e04bc3910d72d2eab1abdd015150ee1",
+      "family": "GAME",
+      "evidence_url": "https://github.com/MichaelWave369/BTM/blob/6e1a41b13e04bc3910d72d2eab1abdd015150ee1/README.md",
+      "review_basis": "README_DECLARATION_ONLY",
+      "offline_runnable_verified": false,
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "GitPorch",
+      "source_sha": "fec5a23dfa570c6c5d45b68d57b5cd04f60e3c22",
+      "family": "LOCAL_SERVICE",
+      "evidence_url": "https://github.com/MichaelWave369/GitPorch/blob/fec5a23dfa570c6c5d45b68d57b5cd04f60e3c22/README.md",
+      "review_basis": "README_DECLARATION_ONLY",
+      "offline_runnable_verified": false,
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "Infinite-Porch",
+      "source_sha": "95c924092dc626e4380c8b47df647a315cc711c1",
+      "family": "LOCAL_SERVICE",
+      "evidence_url": "https://github.com/MichaelWave369/Infinite-Porch/blob/95c924092dc626e4380c8b47df647a315cc711c1/README.md",
+      "review_basis": "README_DECLARATION_ONLY",
+      "offline_runnable_verified": false,
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "LENZ",
+      "source_sha": "222eb9aadbaa4ecafa30d3ffbb4b97d0bad4fc9d",
+      "family": "GAME",
+      "evidence_url": "https://github.com/MichaelWave369/LENZ/blob/222eb9aadbaa4ecafa30d3ffbb4b97d0bad4fc9d/README.md",
+      "review_basis": "README_DECLARATION_ONLY",
+      "offline_runnable_verified": false,
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "PhiARK",
+      "source_sha": "d0c01e7200d07ae4c5448375878e5188048a6a40",
+      "family": "KNOWLEDGE_TOOL",
+      "evidence_url": "https://github.com/MichaelWave369/PhiARK/blob/d0c01e7200d07ae4c5448375878e5188048a6a40/README.md",
+      "review_basis": "README_DECLARATION_ONLY",
+      "offline_runnable_verified": false,
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "PhiOS",
+      "source_sha": "8fccedabcfef2e21a71942ec297e4f23b233d5b2",
+      "family": "OS_CORE",
+      "evidence_url": "https://github.com/MichaelWave369/PhiOS/blob/8fccedabcfef2e21a71942ec297e4f23b233d5b2/README.md",
+      "review_basis": "README_DECLARATION_ONLY",
+      "offline_runnable_verified": false,
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "PhiOS-XR",
+      "source_sha": "59148667f523392a614b782c68479b8bbde3dad3",
+      "family": "XR_APP",
+      "evidence_url": "https://github.com/MichaelWave369/PhiOS-XR/blob/59148667f523392a614b782c68479b8bbde3dad3/README.md",
+      "review_basis": "README_DECLARATION_ONLY",
+      "offline_runnable_verified": false,
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "SuperPhiVessel",
+      "source_sha": "90f832716b7ea52f8c233589bdb4d96afbcdeeac",
+      "family": "WEB_APP",
+      "evidence_url": "https://github.com/MichaelWave369/SuperPhiVessel/blob/90f832716b7ea52f8c233589bdb4d96afbcdeeac/README.md",
+      "review_basis": "README_DECLARATION_ONLY",
+      "offline_runnable_verified": false,
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "think-tank",
+      "source_sha": "ab60e9066917877c12dd3f416fb3c8f11a8f4049",
+      "family": "WEB_APP",
+      "evidence_url": "https://github.com/MichaelWave369/think-tank/blob/ab60e9066917877c12dd3f416fb3c8f11a8f4049/README.md",
+      "review_basis": "README_DECLARATION_ONLY",
+      "offline_runnable_verified": false,
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    }
+  ]
+}
