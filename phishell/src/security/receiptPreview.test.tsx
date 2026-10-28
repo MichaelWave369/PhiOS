@@ -24,7 +24,52 @@ const sentinel = () => ({
   indicator_pack: { verification: { status: "ed25519-verified", publisher: "test-lab" } },
 });
 
+const offlineReview = () => ({
+  schema: "phios.security_center.offline_pack_review.v0.2",
+  status: "ED25519_VALID_UNDER_CALLER_SUPPLIED_PIN_NO_HOST_SCAN",
+  reviewed_at: "2026-10-28T18:00:00+00:00",
+  pack_sha256: "1".repeat(64),
+  external_pinned_key_sha256: "2".repeat(64),
+  publisher_claim: "synthetic-lab",
+  manifest_expires_at: "2027-01-01T00:00:00+00:00",
+  indicators_claimed: 2,
+  signature_valid_for_pinned_key: true,
+  external_key_pin_independently_authenticated_by_phios: false,
+  publisher_real_world_identity_authenticated: false,
+  indicator_accuracy_verified: false,
+  host_security_observed: false,
+  scan_performed: false,
+  network_access_performed: false,
+  launch_authority: false,
+  gateway_authority: false,
+  effects_performed: [],
+});
+
 describe("PhiOS Security Center", () => {
+  it("previews only a claimed, historical offline cryptographic review", () => {
+    const view = parseSecurityReceipt("phios-review", JSON.stringify(offlineReview()));
+    expect(view.kind).toBe("phios-review");
+    if (view.kind !== "phios-review") throw new Error("wrong receipt kind");
+    expect(view.label).toContain("NOT REVERIFIED");
+    expect(view.packSha256).toBe("1".repeat(64));
+    expect(view.indicatorCount).toBe(2);
+    const html = renderToStaticMarkup(<SecurityCenter />);
+    expect(html).toContain("Import PhiOS offline review JSON");
+    expect(html).toContain("HOST SECURITY STATUS: NOT OBSERVED");
+  });
+
+  it("rejects forged authority in a historical cryptographic review", () => {
+    const fake = offlineReview();
+    fake.host_security_observed = true;
+    expect(() => parseSecurityReceipt("phios-review", JSON.stringify(fake)))
+      .toThrow("offline signed-pack review");
+    fake.host_security_observed = false;
+    fake.external_pinned_key_sha256 = "unverified";
+    expect(() => parseSecurityReceipt("phios-review", JSON.stringify(fake)))
+      .toThrow("offline signed-pack review");
+  });
+
+
   it("is a read-only desktop panel with no scan or live-verification controls", () => {
     const html = renderToStaticMarkup(<SecurityCenter />);
     expect(html).toContain("HOST SECURITY STATUS: NOT OBSERVED");
