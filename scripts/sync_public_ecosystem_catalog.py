@@ -19,6 +19,7 @@ OWNER = "MichaelWave369"
 SCHEMA = "phios.public_ecosystem_catalog.v0.1"
 SOURCE_SEARCH = "GITHUB_PUBLIC_REPOSITORY_SEARCH_SNAPSHOT"
 SOURCE_API = "GITHUB_PUBLIC_OWNER_API_SNAPSHOT"
+SOURCE_CONNECTED = "GITHUB_CONNECTED_OWNER_PUBLIC_FILTERED_SNAPSHOT"
 DEST = Path(__file__).resolve().parents[1] / "phishell/src/ecosystem/public-repos.json"
 NAME = re.compile(r"^[A-Za-z0-9._-]{1,100}$")
 MAX_REPOS = 2000
@@ -40,7 +41,7 @@ def make_entry(name: str) -> dict[str, Any]:
 
 
 def create_snapshot(names: list[str], *, source: str = SOURCE_API) -> dict[str, Any]:
-    if source not in (SOURCE_SEARCH, SOURCE_API):
+    if source not in (SOURCE_SEARCH, SOURCE_API, SOURCE_CONNECTED):
         raise ValueError("unsupported source")
     seen: set[str] = set()
     entries = []
