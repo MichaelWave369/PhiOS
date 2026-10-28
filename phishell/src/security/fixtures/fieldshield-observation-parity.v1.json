@@ -1,0 +1,269 @@
+{
+  "schema": "fieldshield.phios.observations-parity.v1",
+  "purpose": "Public synthetic golden vectors. No device acquisition or live threat intelligence.",
+  "pack": {
+    "schema": "fieldshield.ioc-pack.v1",
+    "source": "Synthetic cross-runtime contract only; not real threat intelligence",
+    "issued_at": "2026-01-01T00:00:00Z",
+    "indicators": [
+      {
+        "id": "synthetic-domain",
+        "kind": "domain",
+        "value": "tracker.example.invalid",
+        "confidence": "low",
+        "reference": "https://www.rfc-editor.org/rfc/rfc2606"
+      },
+      {
+        "id": "synthetic-url",
+        "kind": "url",
+        "value": "https://tracker.example.invalid/path?token=demo",
+        "confidence": "medium",
+        "reference": "https://www.rfc-editor.org/rfc/rfc2606"
+      },
+      {
+        "id": "synthetic-hash",
+        "kind": "sha256",
+        "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "confidence": "high",
+        "reference": "https://www.rfc-editor.org/rfc/rfc6234"
+      },
+      {
+        "id": "synthetic-path",
+        "kind": "path",
+        "value": "docs/record.txt",
+        "confidence": "medium",
+        "reference": "https://www.rfc-editor.org/rfc/rfc2606"
+      },
+      {
+        "id": "synthetic-process",
+        "kind": "process",
+        "value": "ServiceHelper",
+        "confidence": "low",
+        "reference": "https://www.rfc-editor.org/rfc/rfc2606"
+      },
+      {
+        "id": "synthetic-bundle",
+        "kind": "bundle_id",
+        "value": "org.example.client",
+        "confidence": "medium",
+        "reference": "https://www.rfc-editor.org/rfc/rfc2606"
+      },
+      {
+        "id": "synthetic-extra-domain",
+        "kind": "domain",
+        "value": "extra.example.invalid",
+        "confidence": "high",
+        "reference": "https://www.rfc-editor.org/rfc/rfc2606"
+      }
+    ]
+  },
+  "cases": [
+    {
+      "id": "six-kinds-exact-and-url-host",
+      "observations": [
+        {
+          "kind": "domain",
+          "value": "TRACKER.Example.INVALID."
+        },
+        {
+          "kind": "url",
+          "value": "https://tracker.example.invalid/path?token=demo"
+        },
+        {
+          "kind": "sha256",
+          "value": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+        },
+        {
+          "kind": "path",
+          "value": "docs\\record.txt"
+        },
+        {
+          "kind": "process",
+          "value": " ServiceHelper "
+        },
+        {
+          "kind": "bundle_id",
+          "value": "org.example.client"
+        }
+      ],
+      "expected": {
+        "decision": "INDICATORS_FOUND",
+        "inspected": 6,
+        "uninspected": 0,
+        "findings": [
+          {
+            "indicatorId": "synthetic-domain",
+            "kind": "domain",
+            "observationIndex": 0
+          },
+          {
+            "indicatorId": "synthetic-url",
+            "kind": "url",
+            "observationIndex": 1
+          },
+          {
+            "indicatorId": "synthetic-domain",
+            "kind": "domain",
+            "observationIndex": 1
+          },
+          {
+            "indicatorId": "synthetic-hash",
+            "kind": "sha256",
+            "observationIndex": 2
+          },
+          {
+            "indicatorId": "synthetic-path",
+            "kind": "path",
+            "observationIndex": 3
+          },
+          {
+            "indicatorId": "synthetic-process",
+            "kind": "process",
+            "observationIndex": 4
+          },
+          {
+            "indicatorId": "synthetic-bundle",
+            "kind": "bundle_id",
+            "observationIndex": 5
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-misses-case-sensitive-and-no-fuzzy",
+      "observations": [
+        {
+          "kind": "domain",
+          "value": "attackertracker.example.invalid"
+        },
+        {
+          "kind": "url",
+          "value": "https://other.example.invalid/path?token=demo"
+        },
+        {
+          "kind": "sha256",
+          "value": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        },
+        {
+          "kind": "path",
+          "value": "docs/record.txt.bak"
+        },
+        {
+          "kind": "process",
+          "value": "servicehelper"
+        },
+        {
+          "kind": "bundle_id",
+          "value": "org.example.other"
+        }
+      ],
+      "expected": {
+        "decision": "NO_MATCHES_IN_SCOPE",
+        "inspected": 6,
+        "uninspected": 0,
+        "findings": []
+      }
+    },
+    {
+      "id": "partial-invalid-observation",
+      "observations": [
+        {
+          "kind": "domain",
+          "value": "tracker.example.invalid"
+        },
+        {
+          "kind": "domain",
+          "value": "-bad.example"
+        },
+        {
+          "kind": "url",
+          "value": "ftp://other.example.invalid/"
+        },
+        {
+          "wrong": "shape"
+        },
+        {
+          "kind": "unrecognized",
+          "value": "whatever"
+        }
+      ],
+      "expected": {
+        "decision": "INCOMPLETE",
+        "inspected": 1,
+        "uninspected": 4,
+        "findings": [
+          {
+            "indicatorId": "synthetic-domain",
+            "kind": "domain",
+            "observationIndex": 0
+          }
+        ]
+      }
+    },
+    {
+      "id": "empty-scope-is-incomplete",
+      "observations": [],
+      "expected": {
+        "decision": "INCOMPLETE",
+        "inspected": 0,
+        "uninspected": 0,
+        "findings": []
+      }
+    },
+    {
+      "id": "url-hostname-exact-fallback-without-raw-value",
+      "observations": [
+        {
+          "kind": "url",
+          "value": "https://extra.example.invalid/private?token=only-in-evidence"
+        }
+      ],
+      "expected": {
+        "decision": "INDICATORS_FOUND",
+        "inspected": 1,
+        "uninspected": 0,
+        "findings": [
+          {
+            "indicatorId": "synthetic-extra-domain",
+            "kind": "domain",
+            "observationIndex": 0
+          }
+        ]
+      }
+    },
+    {
+      "id": "no-match-with-trailing-domain-dot-normalization",
+      "observations": [
+        {
+          "kind": "domain",
+          "value": "unrelated.example.invalid."
+        }
+      ],
+      "expected": {
+        "decision": "NO_MATCHES_IN_SCOPE",
+        "inspected": 1,
+        "uninspected": 0,
+        "findings": []
+      }
+    },
+    {
+      "id": "partial-no-match-never-says-clean",
+      "observations": [
+        {
+          "kind": "process",
+          "value": "NotServiceHelper"
+        },
+        {
+          "kind": "path",
+          "value": "../private.txt"
+        }
+      ],
+      "expected": {
+        "decision": "INCOMPLETE",
+        "inspected": 1,
+        "uninspected": 1,
+        "findings": []
+      }
+    }
+  ]
+}
