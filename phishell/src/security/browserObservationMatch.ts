@@ -148,8 +148,10 @@ function matchObservations(
   let inspected = 0, uninspected = 0, matches = 0, limitReached = false;
   const findingIds: EvidenceMatchSummary["findingIds"] = [];
 
-  function record(kind: Kind, value: string, observationIndex: number) {
-    const lookupKey = JSON.stringify([kind, normalizeFieldShield(kind, value)]);
+  function record(kind: Kind, normalizedValue: string, observationIndex: number) {
+    // Receives a previously validated normalized value, so matching cannot
+    // unexpectedly reject an observation after it was counted as inspected.
+    const lookupKey = JSON.stringify([kind, normalizedValue]);
     for (const entry of index.get(lookupKey) ?? []) {
       if (matches >= MAX_MATCHES) {
         if (!limitReached) { limitReached = true; uninspected += 1; }
@@ -174,20 +176,24 @@ function matchObservations(
         typeof item.value !== "string") {
       uninspected++; continue;
     }
+    const kind = item.kind as Kind;
+    let normalized: string;
     try {
-      const kind = item.kind as Kind;
-      normalizeFieldShield(kind, item.value);
-      inspected++;
-      record(kind, item.value, i);
-      if (kind === "url") {
-        const hostname = new URL(item.value.trim()).hostname;
-        if (hostname) {
-          try { record("domain", hostname, i); }
-          catch { /* Domain fallback is best-effort, just like FieldShield. */ }
-        }
-      }
+      normalized = normalizeFieldShield(kind, item.value);
     } catch {
       uninspected++;
+      continue;
+    }
+    // The observation has passed validation: increment inspected exactly once.
+    inspected++;
+    record(kind, normalized, i);
+    if (kind === "url") {
+      // Domain fallback is best effort; rejected fallback normalization cannot
+      // reclassify an otherwise valid URL observation as uninspected.
+      try {
+        const hostname = new URL(normalized).hostname;
+        if (hostname) record("domain", normalizeFieldShield("domain", hostname), i);
+      } catch { /* Unsupported fallback domain; the URL itself remains inspected. */ }
     }
   }
   return {
