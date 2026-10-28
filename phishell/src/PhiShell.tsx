@@ -13,6 +13,7 @@ import { PersistentHistoryPanel } from "./components/PersistentHistoryPanel";
 import { AppDetails, AppLibrary, AppTiles } from "./components/AppLauncher";
 import { InfiniteHomeDock } from "./components/InfiniteHomeDock";
 import { SovereigntyCenter } from "./components/SovereigntyCenter";
+import { SecurityCenter } from "./components/SecurityCenter";
 import { findShellApp, SHELL_APPS, shellAppEvent, windowTemplates } from "./shell/appLauncher";
 import {
   INITIAL_SHELL_STATE,
@@ -310,6 +311,7 @@ function Center({ view, openApp }: { view: View; openApp: (id: string) => void }
 function WindowBody({ item, openApp }: { item: WindowModel; openApp: (id: string) => void }) {
   if (item.id === "apps-window") return <AppLibrary openApp={openApp} />;
   if (item.id === "sovereignty-window") return <SovereigntyCenter />;
+  if (item.id === "security-window") return <SecurityCenter />;
   if (item.id === "dream-window") return <SymbolLab />;
   if (item.id.startsWith("app:")) {
     const app = findShellApp(item.id.slice(4));

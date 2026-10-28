@@ -37,6 +37,8 @@ export const SHELL_APPS: readonly ShellApp[] = [
     description: "Open the included Symbol Lab curiosity workspace.", windowId: "dream-window" },
   { id: "sovereignty", name: "Sovereignty Center", icon: "◇", status: "Exit readiness: unverified",
     description: "Review user rights, use the independent archive utility, and export your own manual exit rehearsal. This does not attest the host.", windowId: "sovereignty-window" },
+  { id: "security", name: "Security Center", icon: "▣", status: "Read-only receipt review",
+    description: "Review operator-selected FieldShield Sentinel and PhiARK JSON receipts in browser memory. No host scanning, signature verification, files uploaded, or execution authority.", windowId: "security-window" },
   { id: "apps", name: "Apps", icon: "⊞", status: "App status",
     description: "See what this image includes and how to open ordinary Linux apps.", windowId: "apps-window" },
 ];
@@ -53,6 +55,7 @@ function appWindow(id: string, title: string, subtitle: string): ShellWindow {
 export const appWindowTemplates: Record<string, ShellWindow> = {
   "apps-window": appWindow("apps-window", "Apps", "Included tools and integration status."),
   "sovereignty-window": appWindow("sovereignty-window", "Sovereignty Center", "Independence rights and self-reported exit rehearsal."),
+  "security-window": appWindow("security-window", "Security Center", "Offline intelligence and scan-receipt review; host status unobserved."),
   "dream-window": appWindow("dream-window", "ΦDream / Symbol Lab", "Curiosity workspace."),
 };
 
