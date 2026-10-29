@@ -83,10 +83,15 @@ function concat(a: Uint8Array, b: Uint8Array): Uint8Array {
 export function parseStrictJson(bytes: Uint8Array, maxBytes: number): JsonObject {
   if (bytes.length > maxBytes) throw new Error("JSON file exceeds local size limit");
   let src: string;
-  try { src = new TextDecoder("utf-8", { fatal: true }).decode(bytes); }
+  // Preserve, then reject, BOM explicitly (Python JSON loads also refuses it).
+  try { src = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(bytes); }
   catch { throw new Error("JSON file must be valid UTF-8"); }
   let i = 0;
-  const ws = () => { while (/\s/.test(src[i] ?? "") && i < src.length) i++; };
+  // RFC 8259 JSON whitespace only; JS \s accepts extra Unicode separators.
+  const ws = () => {
+    while (i < src.length && (src[i] === " " || src[i] === "\t" ||
+           src[i] === "\n" || src[i] === "\r")) i++;
+  };
   const expect = (token: string) => {
     if (src[i] !== token) throw new Error("Malformed JSON token");
     i++;
@@ -129,12 +134,13 @@ export function parseStrictJson(bytes: Uint8Array, maxBytes: number): JsonObject
       while (i < src.length) {
         ws();
         const key = quoted();
-        if (used.has(key)) throw new Error("Duplicate JSON key: " + key);
+        if (used.has(key)) throw new Error("Duplicate JSON key");
         used.add(key);
         ws(); expect(":"); value(depth + 1); ws();
         if (src[i] === "}") { i++; return; }
         expect(",");
       }
+      throw new Error("Unterminated JSON object");
     } else if (src[i] === "[") {
       i++; ws();
       if (src[i] === "]") { i++; return; }
@@ -143,6 +149,7 @@ export function parseStrictJson(bytes: Uint8Array, maxBytes: number): JsonObject
         if (src[i] === "]") { i++; return; }
         expect(",");
       }
+      throw new Error("Unterminated JSON array");
     } else if (src[i] === '"') {
       quoted();
     } else {
@@ -151,13 +158,23 @@ export function parseStrictJson(bytes: Uint8Array, maxBytes: number): JsonObject
       const tail = src.slice(i, i + 128);
       const token = /^(?:true|false|null|-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?)/.exec(tail);
       if (!token) throw new Error("Invalid JSON literal");
+      if (/^-?(?:0|[1-9][0-9]*)$/.test(token[0]) &&
+          !Number.isSafeInteger(Number(token[0]))) {
+        throw new Error("JSON integer exceeds shared exactness limit");
+      }
       i += token[0].length;
     }
   };
   value(0); ws();
   if (i !== src.length) throw new Error("Trailing or invalid JSON characters");
-  try { return object(JSON.parse(src) as unknown); }
-  catch { throw new Error("Invalid JSON document"); }
+  try {
+    return object(JSON.parse(src, (_key: string, value: unknown): unknown => {
+      if (typeof value === "number" && !Number.isFinite(value)) {
+        throw new Error("Non-finite JSON number");
+      }
+      return value;
+    }) as unknown);
+  } catch { throw new Error("Invalid or ambiguous JSON document"); }
 }
 
 export interface BrowserPackReview {

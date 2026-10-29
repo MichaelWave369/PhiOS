@@ -1,0 +1,125 @@
+{
+  "schema": "fieldshield.phios.strict-json-parity.v1",
+  "purpose": "Golden parsing contract, untrusted JSON only. No actual intelligence, private records or keys.",
+  "maxNestingDepth": 48,
+  "accepted": [
+    {
+      "id": "empty-object",
+      "raw": "{}"
+    },
+    {
+      "id": "nested-values",
+      "raw": "{\"schema\":\"example\",\"items\":[true,false,null,{\"name\":\"x\"}],\"count\":2}"
+    },
+    {
+      "id": "unicode-escaped-unique-key",
+      "raw": "{\"\\u0061\":1,\"b\":2}"
+    },
+    {
+      "id": "exact-safe-integer-bounds",
+      "raw": "{\"max\":9007199254740991,\"min\":-9007199254740991}"
+    },
+    {
+      "id": "finite-floating-point",
+      "raw": "{\"number\":1e20,\"ratio\":0.125,\"negative\":-0.5}"
+    },
+    {
+      "id": "rfc-json-whitespace",
+      "raw": " \t\n{\"a\":1}\r\n"
+    }
+  ],
+  "rejected": [
+    {
+      "id": "duplicate-top-level",
+      "raw": "{\"schema\":\"a\",\"schema\":\"b\"}"
+    },
+    {
+      "id": "escaped-duplicate-alias",
+      "raw": "{\"a\":1,\"\\u0061\":2}"
+    },
+    {
+      "id": "duplicate-nested-object",
+      "raw": "{\"nested\":{\"id\":1,\"id\":2}}"
+    },
+    {
+      "id": "duplicate-in-array-element",
+      "raw": "{\"items\":[{\"key\":1,\"key\":2} ]}"
+    },
+    {
+      "id": "nonfinite-nan",
+      "raw": "{\"number\":NaN}"
+    },
+    {
+      "id": "nonfinite-infinity",
+      "raw": "{\"number\":Infinity}"
+    },
+    {
+      "id": "nonfinite-negative-infinity",
+      "raw": "{\"number\":-Infinity}"
+    },
+    {
+      "id": "overflow-positive-float",
+      "raw": "{\"number\":1e9999}"
+    },
+    {
+      "id": "overflow-negative-float",
+      "raw": "{\"number\":-1e9999}"
+    },
+    {
+      "id": "integer-above-js-exactness",
+      "raw": "{\"number\":9007199254740992}"
+    },
+    {
+      "id": "negative-integer-below-js-exactness",
+      "raw": "{\"number\":-9007199254740992}"
+    },
+    {
+      "id": "truncated-object",
+      "raw": "{\"a\":1"
+    },
+    {
+      "id": "truncated-array",
+      "raw": "{\"a\":[1,2"
+    },
+    {
+      "id": "trailing-comma",
+      "raw": "{\"a\":[1,2,]}"
+    },
+    {
+      "id": "trailing-document",
+      "raw": "{\"a\":1}{\"b\":2}"
+    },
+    {
+      "id": "top-level-array",
+      "raw": "[{\"a\":1}]"
+    },
+    {
+      "id": "leading-bom",
+      "raw": "﻿{\"a\":1}"
+    },
+    {
+      "id": "unicode-nbsp-whitespace",
+      "raw": " {\"a\":1}"
+    },
+    {
+      "id": "unicode-nbsp-trailing",
+      "raw": "{\"a\":1} "
+    },
+    {
+      "id": "too-deep-nesting",
+      "raw": "{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":true}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}"
+    },
+    {
+      "id": "invalid-unquoted-key",
+      "raw": "{a:1}"
+    },
+    {
+      "id": "invalid-leading-plus",
+      "raw": "{\"a\":+1}"
+    },
+    {
+      "id": "leading-zero-number",
+      "raw": "{\"a\":01}"
+    }
+  ]
+}
