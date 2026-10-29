@@ -1,0 +1,116 @@
+{
+  "schema": "fieldshield.phios.url-authority-parity.v1",
+  "purpose": "Synthetic cross-runtime exact URL authority compatibility; reject parser ambiguity, do not silently repair.",
+  "accepted": [
+    {
+      "value": "https://example.invalid/path",
+      "hostname": "example.invalid"
+    },
+    {
+      "value": "HTTP://EXAMPLE.INVALID:8080/path",
+      "hostname": "example.invalid"
+    },
+    {
+      "value": "https://example.invalid./abc",
+      "hostname": "example.invalid."
+    },
+    {
+      "value": "https://api.example.invalid:443/path?token=synthetic",
+      "hostname": "api.example.invalid"
+    },
+    {
+      "value": "https://example.invalid:00080/p",
+      "hostname": "example.invalid"
+    },
+    {
+      "value": "http://localhost/test",
+      "hostname": "localhost"
+    },
+    {
+      "value": "https://xn--tst-bma.invalid/path",
+      "hostname": "xn--tst-bma.invalid"
+    },
+    {
+      "value": "https://example.invalid:0/a",
+      "hostname": "example.invalid"
+    },
+    {
+      "value": "https://example.invalid/%2F%2e",
+      "hostname": "example.invalid"
+    }
+  ],
+  "rejected": [
+    {
+      "value": "https://ex%61mple.invalid/path",
+      "why": "percent encoded hostname"
+    },
+    {
+      "value": "https://example.invalid\\other.invalid/path",
+      "why": "backslash in authority"
+    },
+    {
+      "value": "https://127.1/path",
+      "why": "abbreviated IPv4 spelling"
+    },
+    {
+      "value": "https://0x7f.1/path",
+      "why": "hex IPv4 shorthand"
+    },
+    {
+      "value": "https://256.256.256.256/path",
+      "why": "invalid numeric IPv4 hostname"
+    },
+    {
+      "value": "https://tést.invalid/path",
+      "why": "Unicode IDN requires explicit canonical policy"
+    },
+    {
+      "value": "https://[::1]/path",
+      "why": "bracket IPv6 excluded from DNS-only profile"
+    },
+    {
+      "value": "https://user@example.invalid/path",
+      "why": "userinfo in authority"
+    },
+    {
+      "value": "https://example.invalid:99999/path",
+      "why": "out of range port"
+    },
+    {
+      "value": "https://example.invalid:bad/path",
+      "why": "non numeric port"
+    },
+    {
+      "value": "https://example.invalid:123456/path",
+      "why": "ambiguous overly long decimal port"
+    },
+    {
+      "value": "https://-bad.invalid/path",
+      "why": "leading dash DNS label"
+    },
+    {
+      "value": "https://example..invalid/path",
+      "why": "empty DNS label"
+    },
+    {
+      "value": "ftp://example.invalid/path",
+      "why": "unsupported protocol"
+    },
+    {
+      "value": "https://example.invalid/path with spaces",
+      "why": "whitespace in URL"
+    },
+    {
+      "value": "https://example.invalid\u0000/path",
+      "why": "embedded NUL"
+    },
+    {
+      "value": "https://example.invalid\n/path",
+      "why": "embedded newline"
+    },
+    {
+      "value": "https://example.invalid:８０/path",
+      "why": "non ASCII port"
+    }
+  ]
+}

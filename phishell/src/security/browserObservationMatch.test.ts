@@ -195,7 +195,7 @@ describe("browser-only FieldShield observations matching", () => {
     expect(normalizeFieldShield("path","foo\\bar")).toBe("foo/bar");
     expect(normalizeFieldShield("process","  SomeProcess  ")).toBe("SomeProcess");
     expect(()=>normalizeFieldShield("path","../../secret")).toThrow("relative");
-    expect(()=>normalizeFieldShield("url","ftp://example.invalid")).toThrow("HTTP");
+    expect(()=>normalizeFieldShield("url","ftp://example.invalid")).toThrow("URL");
     expect(()=>normalizeFieldShield("domain","-bad.example")).toThrow("labels");
   });
 });

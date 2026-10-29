@@ -44,6 +44,41 @@ export interface EvidenceMatchSummary {
   evidenceValuesIncluded: false;
 }
 
+/**
+ * The stable URL-host profile intentionally excludes parser-repaired host forms
+ * (numeric IP shorthand, IDNs, percent-encoded hosts, IPv6 brackets,
+ * backslashes and invalid ports). Python urlsplit and WHATWG URL disagree
+ * on several of these; reject both sides instead of choosing one silently.
+ */
+export function safeFieldShieldUrlHostname(value: string): string {
+  if (!/^https?:\/\//i.test(value) || /[\u0000-\u001f\u007f\s]/.test(value)) {
+    throw new Error("Unsafe URL scheme, whitespace or control character");
+  }
+  const match = /^https?:\/\/([^/?#]+)/i.exec(value);
+  if (!match) throw new Error("URL authority required");
+  const authority = /^([A-Za-z0-9.-]+)(?::([0-9]{1,5}))?$/.exec(match[1]);
+  if (!authority) throw new Error("Ambiguous or non-DNS URL authority");
+  const host = authority[1].endsWith(".") ? authority[1].slice(0, -1) : authority[1];
+  if (!host || host.length > 253) throw new Error("Invalid URL DNS host");
+  const labels = host.split(".");
+  if (labels.some(label => !label || label.length > 63 || label.startsWith("-") ||
+       label.endsWith("-")) || !/^[A-Za-z][A-Za-z0-9-]*$/.test(labels[labels.length - 1])) {
+    throw new Error("URL host outside stable DNS profile");
+  }
+  if (authority[2] !== undefined && Number(authority[2]) > 65535) {
+    throw new Error("Invalid URL port");
+  }
+  let parsed: URL;
+  try { parsed = new URL(value); }
+  catch { throw new Error("Invalid URL"); }
+  if (!["http:", "https:"].includes(parsed.protocol) ||
+      !parsed.hostname || parsed.username || parsed.password ||
+      parsed.hostname.replace(/\.$/, "").toLowerCase() !== host.toLowerCase()) {
+    throw new Error("URL hostname parsing mismatch");
+  }
+  return parsed.hostname;
+}
+
 /** Preserve FieldShield's exact, typed matching semantics, with no fuzzy inference. */
 export function normalizeFieldShield(kind: Kind, input: string): string {
   if (typeof input !== "string" || input.length === 0 || input.length > 2048) {
@@ -65,16 +100,7 @@ export function normalizeFieldShield(kind: Kind, input: string): string {
     return lower;
   }
   if (kind === "url") {
-    if (!/^https?:\/\//i.test(value) || /\s/.test(value)) {
-      throw new Error("Only whitespace-free HTTP(S) URLs are supported");
-    }
-    let parsed: URL;
-    try { parsed = new URL(value); }
-    catch { throw new Error("Invalid URL"); }
-    if (!["http:", "https:"].includes(parsed.protocol.toLowerCase()) ||
-        !parsed.hostname || parsed.username || parsed.password) {
-      throw new Error("Invalid URL scheme or credentials");
-    }
+    safeFieldShieldUrlHostname(value);
     return value; // exact URL text, not canonicalized as a different IOC
   }
   if (kind === "path") {
@@ -191,7 +217,7 @@ function matchObservations(
       // Domain fallback is best effort; rejected fallback normalization cannot
       // reclassify an otherwise valid URL observation as uninspected.
       try {
-        const hostname = new URL(normalized).hostname;
+        const hostname = safeFieldShieldUrlHostname(normalized);
         if (hostname) record("domain", normalizeFieldShield("domain", hostname), i);
       } catch { /* Unsupported fallback domain; the URL itself remains inspected. */ }
     }
