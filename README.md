@@ -36,6 +36,12 @@ python scripts/sovereignty_exit_v01.py unpack --bundle backup.zip --output resto
 
 Archives are **unencrypted**. This tool is not yet a complete PhiOS app-state export. See [scope and exit tests](docs/PHIOS_SOVEREIGNTY_EXIT_V01.md).
 
+## Public website browser smoke gate
+
+The public [PhiOS website](https://michaelwave369.github.io/PhiOS/) can be used and tested **without installing anything locally**. The `PhiOS Site` GitHub Actions workflow now builds the Vite frontend and runs real headless Chromium smoke tests on a temporary GitHub-hosted runner before allowing Pages deployment. The checks cover rendered content, navigation, the architecture controls, CRT mode, the public project-status payload and a small-screen viewport. Failure traces are saved in the CI run.
+
+This is **online CI of the website**, not a test of your PC's offline recovery, the Python operator environment, or the Linux PhiOS OS. See the [browser smoke contract](docs/PHIOS_SITE_BROWSER_SMOKE_R01.md).
+
 ## What PhiOS is
 
 PhiOS is designed for systems that can observe, reason, retrieve, plan, and act without

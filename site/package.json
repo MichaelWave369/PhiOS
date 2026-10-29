@@ -7,7 +7,8 @@
     "dev": "vite",
     "status": "node scripts/generate-status.mjs",
     "build": "node scripts/generate-status.mjs && tsc -b && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:browser": "playwright test"
   },
   "dependencies": {
     "react": "19.1.1",
@@ -17,6 +18,7 @@
     "@types/react": "19.1.12",
     "@types/react-dom": "19.1.9",
     "typescript": "5.9.2",
-    "vite": "7.1.5"
+    "vite": "7.1.5",
+    "@playwright/test": "1.64.1"
   }
 }
