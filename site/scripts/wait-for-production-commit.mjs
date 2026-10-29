@@ -1,6 +1,7 @@
 // PhiOS Site R0.2: exact-commit GitHub Pages rollout check.
 // Read-only, fixed public origin, no GitHub token, no write or authority minting.
 import { fileURLToPath } from "node:url";
+import { resolve } from "node:path";
 
 export const PUBLIC_STATUS_URL =
   "https://michaelwave369.github.io/PhiOS/project-status.json";
@@ -85,9 +86,7 @@ export async function waitForPublicPhiOSCommit(
     " bounded checks; last observation: " + lastReason);
 }
 
-if (process.argv[1] && fileURLToPath(import.meta.url) === fileURLToPath(new URL(
-  "file://" + process.argv[1].replace(/\\/g, "/").replace(/^([A-Za-z]):/, "/$1:"),
-))) {
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const expected = process.env.GITHUB_SHA ?? process.argv[2];
   waitForPublicPhiOSCommit(expected, { log: s => console.log(s) })
     .then(result => console.log(JSON.stringify(result, null, 2)))
