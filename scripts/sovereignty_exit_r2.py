@@ -12,6 +12,7 @@ import hashlib
 import json
 import os
 import re
+import shutil
 import tempfile
 from pathlib import Path, PurePosixPath
 
@@ -72,7 +73,10 @@ def verify_bundle(path: Path) -> dict[str, object]:
     This verifies internal integrity, not authenticity, live DB semantics or
     whether the producer actually captured every relevant application store.
     """
-    content = dict(verified_files(path))
+    members = verified_files(path)
+    if any(not name.startswith("phi-state/") for name, _ in members):
+        raise ValueError("archive contains members outside phi-state snapshot")
+    content = {name.removeprefix("phi-state/"): data for name, data in members}
     if "manifest.json" not in content:
         raise ValueError("missing embedded phi-state manifest")
     try:
@@ -139,9 +143,25 @@ def bundle(backup_dir: Path, output: Path) -> dict[str, object]:
     output = output.expanduser().absolute()
     if output.is_relative_to(backup_dir):
         raise ValueError("output archive must be outside the phi-state backup")
-    verify_backup(backup_dir)  # verifies canonical DB, receipts, hashes, custody
-    pack(backup_dir, output)
-    return verify_bundle(output)
+    manifest = verify_backup(backup_dir)  # validates DB, receipts, custody
+    output.parent.mkdir(parents=True, exist_ok=True)
+    # The v0.1 ZIP reserves root manifest.json. Nest producer's manifest
+    # under phi-state/, copying ONLY the separately verified listed files.
+    with tempfile.TemporaryDirectory(dir=output.parent, prefix=".phi-r2-pack-") as stage:
+        snapshot = Path(stage) / "phi-state"
+        for name in ["manifest.json", *sorted(manifest["files"])]:
+            source = backup_dir / name
+            if source.is_symlink():
+                raise ValueError("symlink source refused")
+            target = snapshot / name
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(source, target, follow_symlinks=False)
+        try:
+            pack(Path(stage), output)
+            return verify_bundle(output)
+        except BaseException:
+            output.unlink(missing_ok=True)
+            raise
 
 
 def restore_snapshot(bundle_path: Path, output: Path) -> dict[str, object]:
@@ -150,7 +170,10 @@ def restore_snapshot(bundle_path: Path, output: Path) -> dict[str, object]:
     destination = output.expanduser().absolute()
     if destination.exists() or destination.is_symlink():
         raise ValueError("restore destination already exists")
-    items = verified_files(bundle_path)
+    items = [
+        (name.removeprefix("phi-state/"), data)
+        for name, data in verified_files(bundle_path)
+    ]
     destination.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(dir=destination.parent, prefix=".phi-exit-r2-") as staging:
         root = Path(staging) / "snapshot"
