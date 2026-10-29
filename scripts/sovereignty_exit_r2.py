@@ -39,8 +39,8 @@ REQUIRED_MANIFEST = frozenset({
     "configuration_restored", "derived_indexes_restored", "encrypted",
     "incomplete_audit_files", "files",
 })
-AUDIT_RE = re.compile(r"audit/[a-z0-9][a-z0-9-]{0,150}\\.jsonl(?:\\.bin)?\\Z")
-HASH_RE = re.compile(r"[0-9a-f]{64}\\Z")
+AUDIT_RE = re.compile(r"audit/[a-z0-9][a-z0-9-]{0,150}\.jsonl(?:\.bin)?\Z")
+HASH_RE = re.compile(r"[0-9a-f]{64}\Z")
 
 
 def _digest(data: bytes) -> str:
@@ -198,7 +198,7 @@ def main() -> int:
         else:
             result = restore_snapshot(args.bundle, args.output)
     except (OSError, ValueError, KeyError, TypeError, OverflowError) as exc:
-        parser.exit(1, "HELD: " + str(exc) + "\\n")
+        parser.exit(1, "HELD: " + str(exc) + "\n")
     print(json.dumps(result, indent=2, sort_keys=True))
     return 0
 
