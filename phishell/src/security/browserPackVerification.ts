@@ -119,8 +119,10 @@ export function parseStrictJson(bytes: Uint8Array, maxBytes: number): JsonObject
     while (i < src.length) {
       if (src[i] === '"') {
         i++;
-        try { return scalarString(JSON.parse(src.slice(start, i)) as string); }
+        let decoded: string;
+        try { decoded = JSON.parse(src.slice(start, i)) as string; }
         catch { throw new Error("Malformed JSON string"); }
+        return scalarString(decoded);
       }
       if (src[i] === "\\") {
         i++;
