@@ -38,6 +38,8 @@ jobs:
         run: npm run build
       - name: Test exact-commit production rollout checker (no live network)
         run: npm run test:rollout
+      - name: Parse production Playwright suite without contacting Pages
+        run: npx playwright test --config=playwright.production.config.mjs --list
       - name: Install Chromium for isolated browser smoke tests
         run: npx playwright install --with-deps chromium
       - name: Exercise built site in Chromium on runner loopback
