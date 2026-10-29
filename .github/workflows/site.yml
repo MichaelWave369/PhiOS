@@ -36,6 +36,8 @@ jobs:
         run: npm install --no-audit --no-fund
       - name: Build site
         run: npm run build
+      - name: Test exact-commit production rollout checker (no live network)
+        run: npm run test:rollout
       - name: Install Chromium for isolated browser smoke tests
         run: npx playwright install --with-deps chromium
       - name: Exercise built site in Chromium on runner loopback
@@ -83,3 +85,46 @@ jobs:
       - name: Deploy GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v5
+
+  production-smoke:
+    # This runs AFTER deployment; failure marks the workflow red and does not
+    # retroactively undo the Pages release.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: site
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          package-manager-cache: false
+      - name: Install site test dependencies on ephemeral GitHub runner
+        run: npm install --no-audit --no-fund
+      - name: Wait for exact deployed commit to appear on public Pages
+        env:
+          GITHUB_SHA: ${{ github.sha }}
+        run: node scripts/wait-for-production-commit.mjs
+      - name: Install Chromium on ephemeral GitHub runner
+        run: npx playwright install --with-deps chromium
+      - name: Real public-site browser smoke after deployment
+        env:
+          EXPECTED_DEPLOY_SHA: ${{ github.sha }}
+        run: npm run test:production
+      - name: Upload failed production smoke browser evidence
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phios-production-browser-failure
+          path: |
+            site/test-results/
+            site/playwright-report/
+          if-no-files-found: ignore
+          retention-days: 7
