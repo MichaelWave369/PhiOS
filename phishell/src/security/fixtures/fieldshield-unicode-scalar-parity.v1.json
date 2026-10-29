@@ -1,0 +1,84 @@
+{
+  "schema": "fieldshield.phios.unicode-scalar-parity.v1",
+  "purpose": "Synthetic adversarial Unicode escapes; stable UTF-8 interpretation for signed IOC/evidence JSON.",
+  "accepted": [
+    {
+      "id": "escaped-valid-surrogate-pair-value",
+      "raw": "{\"value\":\"\\ud83d\\ude00\"}"
+    },
+    {
+      "id": "escaped-valid-surrogate-pair-key",
+      "raw": "{\"\\ud83d\\ude00\":\"ok\"}"
+    },
+    {
+      "id": "literal-utf8-emoji",
+      "raw": "{\"value\":\"😀\"}"
+    },
+    {
+      "id": "escaped-valid-bmp-value",
+      "raw": "{\"value\":\"\\u2603 \\u00e9\"}"
+    },
+    {
+      "id": "escaped-valid-latin-key",
+      "raw": "{\"\\u00e9\":1}"
+    },
+    {
+      "id": "nested-valid-unicode",
+      "raw": "{\"items\":[{\"name\":\"\\ud83d\\ude03\"},[\"\\u20ac\"]]}"
+    },
+    {
+      "id": "literal-escape-sequence-as-text",
+      "raw": "{\"value\":\"\\\\ud800 is a literal backslash sequence\"}"
+    }
+  ],
+  "rejected": [
+    {
+      "id": "high-alone-value",
+      "raw": "{\"value\":\"\\ud800\"}"
+    },
+    {
+      "id": "low-alone-value",
+      "raw": "{\"value\":\"\\udc00\"}"
+    },
+    {
+      "id": "high-alone-key",
+      "raw": "{\"\\ud83d\":\"value\"}"
+    },
+    {
+      "id": "low-alone-key",
+      "raw": "{\"\\ude00\":\"value\"}"
+    },
+    {
+      "id": "high-followed-by-bmp",
+      "raw": "{\"value\":\"\\ud800\\u0061\"}"
+    },
+    {
+      "id": "low-followed-by-high",
+      "raw": "{\"value\":\"\\udc00\\ud800\"}"
+    },
+    {
+      "id": "two-high-surrogates",
+      "raw": "{\"value\":\"\\ud800\\ud801\"}"
+    },
+    {
+      "id": "two-low-surrogates",
+      "raw": "{\"value\":\"\\udc00\\udc01\"}"
+    },
+    {
+      "id": "broken-pair-in-nested-list",
+      "raw": "{\"items\":[{\"nested\":[\"ok\",\"\\ud83d\"]}]}"
+    },
+    {
+      "id": "broken-pair-in-array-object-key",
+      "raw": "{\"items\":[{\"\\ude01\":2}]}"
+    },
+    {
+      "id": "high-at-end-after-valid-emoji",
+      "raw": "{\"value\":\"\\ud83d\\ude00\\ud800\"}"
+    },
+    {
+      "id": "high-followed-by-escaped-slash",
+      "raw": "{\"value\":\"\\ud800\\/\"}"
+    }
+  ]
+}
