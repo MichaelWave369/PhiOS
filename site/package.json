@@ -8,7 +8,9 @@
     "status": "node scripts/generate-status.mjs",
     "build": "node scripts/generate-status.mjs && tsc -b && vite build",
     "preview": "vite preview",
-    "test:browser": "playwright test"
+    "test:browser": "playwright test",
+    "test:rollout": "node --test tests/unit/*.test.mjs",
+    "test:production": "playwright test --config=playwright.production.config.mjs"
   },
   "dependencies": {
     "react": "19.1.1",
