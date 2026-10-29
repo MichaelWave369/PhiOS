@@ -38,9 +38,11 @@ Archives are **unencrypted**. This tool is not yet a complete PhiOS app-state ex
 
 ## Public website browser smoke gate
 
-The public [PhiOS website](https://michaelwave369.github.io/PhiOS/) can be used and tested **without installing anything locally**. The `PhiOS Site` GitHub Actions workflow now builds the Vite frontend and runs real headless Chromium smoke tests on a temporary GitHub-hosted runner before allowing Pages deployment. The checks cover rendered content, navigation, the architecture controls, CRT mode, the public project-status payload and a small-screen viewport. Failure traces are saved in the CI run.
+The public [PhiOS website](https://michaelwave369.github.io/PhiOS/) can be used and tested **without installing anything locally**. The `PhiOS Site` GitHub Actions workflow builds the Vite frontend and runs real headless Chromium smoke tests on a temporary GitHub-hosted runner **before** Pages deployment. The checks cover rendered content, navigation, the architecture controls, CRT mode, the public project-status payload and a small-screen viewport. Failure traces are saved in the CI run. See the [browser smoke contract](docs/PHIOS_SITE_BROWSER_SMOKE_R01.md).
 
-This is **online CI of the website**, not a test of your PC's offline recovery, the Python operator environment, or the Linux PhiOS OS. See the [browser smoke contract](docs/PHIOS_SITE_BROWSER_SMOKE_R01.md).
+A separate **post-deployment public Pages browser check** now waits for `project-status.json` at the real GitHub Pages address to report the exact shipped commit, then tests rendered public navigation in Chromium. This can mark an already deployed release red and produce failure evidence, but it **cannot automatically undo a Pages deployment**. See [production smoke contract](docs/PHIOS_SITE_PRODUCTION_SMOKE_R02.md).
+
+Both checks are **online website testing**, not offline recovery of your PC, Python operator runtime, or Linux PhiOS OS.
 
 ## What PhiOS is
 
