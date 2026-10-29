@@ -81,12 +81,18 @@ jobs:
       - name: Build Pages artifact
         working-directory: site
         run: npm run build
+      # A failed deployment may be rerun within the SAME Actions run.
+      # Artifact names must be unique per attempt; otherwise deploy-pages
+      # refuses the duplicate matching "github-pages" artifacts.
       - uses: actions/upload-pages-artifact@v5
         with:
+          name: github-pages-${{ github.run_attempt }}
           path: site/dist
       - name: Deploy GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v5
+        with:
+          artifact_name: github-pages-${{ github.run_attempt }}
 
   production-smoke:
     # This runs AFTER deployment; failure marks the workflow red and does not
