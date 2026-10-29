@@ -96,14 +96,33 @@ export function parseStrictJson(bytes: Uint8Array, maxBytes: number): JsonObject
     if (src[i] !== token) throw new Error("Malformed JSON token");
     i++;
   };
+  const scalarString = (value: string): string => {
+    // Lone escaped surrogates survive JSON.parse, but TextEncoder silently
+    // replaces them with U+FFFD. Reject before any security interpretation.
+    for (let k = 0; k < value.length; k++) {
+      const code = value.charCodeAt(k);
+      if (code >= 0xd800 && code <= 0xdbff) {
+        const next = value.charCodeAt(k + 1);
+        if (!(next >= 0xdc00 && next <= 0xdfff)) {
+          throw new Error("Unpaired Unicode surrogate");
+        }
+        k++;
+      } else if (code >= 0xdc00 && code <= 0xdfff) {
+        throw new Error("Unpaired Unicode surrogate");
+      }
+    }
+    return value;
+  };
   const quoted = (): string => {
     const start = i;
     expect('"');
     while (i < src.length) {
       if (src[i] === '"') {
         i++;
-        try { return JSON.parse(src.slice(start, i)) as string; }
+        let decoded: string;
+        try { decoded = JSON.parse(src.slice(start, i)) as string; }
         catch { throw new Error("Malformed JSON string"); }
+        return scalarString(decoded);
       }
       if (src[i] === "\\") {
         i++;
