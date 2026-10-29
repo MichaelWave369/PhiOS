@@ -38,6 +38,41 @@ The public metadata has no cryptographic publisher signature. Exact \`project-st
 
 Do not suppress actual failures with indefinite retries or silently accept a previous commit. A stale CDN result on a bounded observation window is a red check with its exact expected and observed SHA prefixes.
 
+## Known Pages deployment incident and safe retry
+
+On October 28, 2026 Pacific time, the PhiOS Site `main` workflow run
+[40811513630](https://github.com/MichaelWave369/PhiOS/actions/runs/40811513630)
+built and validated successfully, uploaded `github-pages`, then GitHub's Pages
+deployment API returned **HTTP 500**. That was a Pages-server response, not a
+frontend compilation or Chromium failure.
+
+A retry of only failed jobs in the same workflow run then uploaded another
+`github-pages` artifact. The official `actions/deploy-pages@v5` correctly
+refused: **multiple artifacts named "github-pages"** existed in one run.
+
+The deploy job now uses a per-attempt artifact name in both official actions:
+
+```yaml
+- uses: actions/upload-pages-artifact@v5
+  with:
+    name: github-pages-${{ github.run_attempt }}
+    path: site/dist
+- uses: actions/deploy-pages@v5
+  with:
+    artifact_name: github-pages-${{ github.run_attempt }}
+```
+
+The artifact name `github-pages-1` differs from `github-pages-2` if the
+same run is retried, so the deploy action sees only one exact named artifact
+for the current attempt. This does **not** cure an upstream GitHub Pages HTTP 500;
+it makes subsequent retry attempts unambiguous and preserves proper failure
+reporting.
+
+For the already failed historical run (which used the old artifact naming),
+use a **fresh** `PhiOS Site` workflow dispatch on `main`, or merge a reviewed
+fix PR to generate a fresh `main` push. Repeating the old failed run with the
+original workflow configuration cannot fix its duplicate artifact.
+
 ## Repository tests
 
 - \`npm run test:rollout\`: network-free Node tests of the bounded commit-identity probe, stale cache retry, forged metadata refusal and invalid inputs.
