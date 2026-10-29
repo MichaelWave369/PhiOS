@@ -1,12 +1,16 @@
-name: Sovereignty Exit v0.1 (scoped)
+name: Sovereignty Exit (scoped v0.1 + R2)
 
 on:
   pull_request:
     paths:
       - "SOVEREIGNTY_CONTRACT.md"
       - "docs/PHIOS_SOVEREIGNTY_EXIT_V01.md"
+      - "docs/PHIOS_SOVEREIGNTY_EXIT_R2.md"
       - "scripts/sovereignty_exit_v01.py"
+      - "scripts/sovereignty_exit_r2.py"
       - "tests/test_sovereignty_exit_v01.py"
+      - "tests/test_sovereignty_exit_r2.py"
+      - "phios/state_recovery.py"
       - ".github/workflows/sovereignty-exit.yml"
   push:
     branches: [main]
@@ -38,3 +42,20 @@ jobs:
           python scripts/sovereignty_exit_v01.py verify --bundle /tmp/phi-exit-demo.zip
           python scripts/sovereignty_exit_v01.py unpack --bundle /tmp/phi-exit-demo.zip --output /tmp/phi-exit-restored
           cmp /tmp/phi-exit-data/fixture.txt /tmp/phi-exit-restored/fixture.txt
+
+  independent-state-snapshot-r2:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install producer-only PhiOS dependencies for synthetic backup tests
+        run: python -m pip install -e .
+      - name: Compile scoped portable verifier
+        run: python -m py_compile scripts/sovereignty_exit_r2.py
+      - name: Real producer backup and independent stdlib portability regression
+        run: python -m unittest discover -s tests -p "test_sovereignty_exit_r2.py" -v
