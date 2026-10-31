@@ -151,7 +151,7 @@ jobs:
           test ! -e "$RUNNER_TEMP/phios-replay-vessie/apps/vessie-web/package-lock.json"
           test -s "$RUNNER_TEMP/phios-replay-thinktank/package-lock.json"
           test "$(sha256sum "$RUNNER_TEMP/phios-replay-vessie/apps/vessie-web/package.json" | cut -d' ' -f1)" = 6bdbd921cea13474fc2b6fd5cbe02765345a48e345a9cc57913e9b0693e9664e
-          test "$(sha256sum "$RUNNER_TEMP/phios-replay-thinktank/package.json" | cut -d' ' -f1)" = 2a593f3137545880115d0f2d112897038f52d0afeb01a144209947e59f49aaed
+          test "$(sha256sum "$RUNNER_TEMP/phios-replay-thinktank/package.json" | cut -d' ' -f1)" = 1ca7b23585f4bbb6cbd83a5248c03bb106568cb0af9d69faf138b8d3191f2eb7
           cp dependency-locks/vessie-web/package-lock.json "$RUNNER_TEMP/phios-replay-vessie/apps/vessie-web/package-lock.json"
           cmp -s dependency-locks/thinktank-web/package-lock.json "$RUNNER_TEMP/phios-replay-thinktank/package-lock.json"
           test "$(sha256sum "$RUNNER_TEMP/phios-replay-vessie/apps/vessie-web/package-lock.json" | cut -d' ' -f1)" = 4e0ac5153f3bc47cd78b4f5cfa42c2ede4dbfef8110a2d5deda49d5c81bd6c2a
