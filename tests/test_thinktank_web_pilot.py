@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 import json
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
 
-from scripts.thinktank_web_pilot import verify_dist
+from scripts.thinktank_web_pilot import verify_committed_lock, verify_dist
 from scripts.verify_ecosystem_app_candidates import CANDIDATES
 
 
@@ -58,6 +59,73 @@ class ThinkTankHostedPilotTests(unittest.TestCase):
             self.skipTest("symlinks unavailable")
         with self.assertRaisesRegex(ValueError, "symlink"):
             verify_dist(self.dist)
+
+    def prepare_source(self) -> tuple[Path, Path]:
+        source = Path(self.tmp.name) / "source"
+        source.mkdir()
+        manifest = {
+            "name": "phi-think-tank",
+            "version": "0.1.0",
+            "dependencies": {"react": "1.0.0"},
+            "devDependencies": {},
+        }
+        lock = {
+            "name": "phi-think-tank",
+            "version": "0.1.0",
+            "lockfileVersion": 3,
+            "packages": {
+                "": manifest,
+                "node_modules/react": {
+                    "version": "1.0.0",
+                    "integrity": "sha512-test-fixture-not-production",
+                },
+            },
+        }
+        (source / "package.json").write_text(json.dumps(manifest), encoding="utf-8")
+        lock_path = source / "package-lock.json"
+        lock_path.write_text(json.dumps(lock), encoding="utf-8")
+        subprocess.run(["git", "init", "-q", str(source)], check=True)
+        subprocess.run(["git", "-C", str(source), "add",
+                        "package.json", "package-lock.json"], check=True)
+        subprocess.run(
+            ["git", "-C", str(source), "-c", "user.name=PhiOS CI",
+             "-c", "user.email=ci@example.invalid",
+             "commit", "-qm", "Test lock fixture"], check=True
+        )
+        return source, lock_path
+
+    def test_committed_lock_provenance_and_exact_manifest_root(self) -> None:
+        source, lock = self.prepare_source()
+        result = verify_committed_lock(source, lock)
+        self.assertEqual(result["package_count"], 2)
+        self.assertRegex(result["sha256"], r"^[a-f0-9]{64}$")
+
+    def test_post_checkout_lock_mutation_fails_closed(self) -> None:
+        source, lock = self.prepare_source()
+        lock.write_text(lock.read_text(encoding="utf-8") + " ", encoding="utf-8")
+        with self.assertRaisesRegex(ValueError, "inputs changed|differs from pinned"):
+            verify_committed_lock(source, lock)
+
+    def test_untracked_lock_rejected(self) -> None:
+        source, lock = self.prepare_source()
+        subprocess.run(["git", "-C", str(source), "rm", "--cached", "package-lock.json"],
+                       check=True, capture_output=True)
+        with self.assertRaisesRegex(ValueError, "committed upstream"):
+            verify_committed_lock(source, lock)
+
+    def test_inconsistent_manifest_vs_committed_lock_rejected(self) -> None:
+        source, lock = self.prepare_source()
+        manifest = json.loads((source / "package.json").read_text(encoding="utf-8"))
+        manifest["dependencies"]["react"] = "2.0.0"
+        (source / "package.json").write_text(json.dumps(manifest), encoding="utf-8")
+        subprocess.run(["git", "-C", str(source), "add", "package.json"], check=True)
+        subprocess.run(
+            ["git", "-C", str(source), "-c", "user.name=PhiOS CI",
+             "-c", "user.email=ci@example.invalid",
+             "commit", "-qm", "Test intentionally inconsistent dependency"], check=True
+        )
+        with self.assertRaisesRegex(ValueError, "lockfile root differs"):
+            verify_committed_lock(source, lock)
 
     def test_no_automatic_app_authority_or_license_promotion(self) -> None:
         candidates = json.loads(CANDIDATES.read_text(encoding="utf-8"))

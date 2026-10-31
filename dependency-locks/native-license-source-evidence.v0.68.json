@@ -45,10 +45,10 @@
     {
       "app": "thinktank-web",
       "package": "@rolldown/binding-linux-x64-gnu",
-      "version": "1.2.13",
+      "version": "1.2.16",
       "upstream_repo": "rolldown/rolldown",
-      "upstream_commit": "f7de35f45bcd4cb8e4b6d8d11e74fbfb20b03127",
-      "reviewed_tag": "v1.2.13",
+      "upstream_commit": "de6facf2228279718e042b801dd6b60dd6503918",
+      "reviewed_tag": "v1.2.16",
       "source_path": "LICENSE",
       "source_git_blob_sha": "afc0cdbabfb99ed4030bf9be2b852977f1ed72a0",
       "source_bytes": 1302,

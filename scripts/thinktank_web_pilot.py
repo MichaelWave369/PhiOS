@@ -24,7 +24,7 @@ if str(ROOT) not in sys.path:
 from scripts.sync_public_ecosystem_catalog import DEST
 from scripts.verify_ecosystem_app_candidates import CANDIDATES, inspect_candidates
 
-SCHEMA = "phios.thinktank_web_hosted_pilot.v0.1"
+SCHEMA = "phios.thinktank_web_hosted_pilot.v0.2"
 MAX_FILES = 512
 MAX_BYTES = 64 * 1024 * 1024
 EXPECTED_UI = "Φ THINK TANK"
@@ -127,6 +127,55 @@ def browser_smoke(dist: pathlib.Path, browser: str) -> None:
         worker.join(timeout=4)
 
 
+def verify_committed_lock(source: pathlib.Path, lock: pathlib.Path) -> dict:
+    """Require source-tree identity and Git-tracked package-lock bytes, not CI invention."""
+    source = source.resolve(strict=True)
+    lock = lock.resolve(strict=True)
+    if lock != source / "package-lock.json":
+        raise ValueError("lockfile must belong to exact checked-out source root")
+    if subprocess.run(
+        ["git", "-C", str(source), "ls-files", "--error-unmatch", "package-lock.json"],
+        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=10,
+        check=False
+    ).returncode != 0:
+        raise ValueError("dependency lock must be committed upstream")
+    if subprocess.run(
+        ["git", "-C", str(source), "diff", "--quiet", "HEAD", "--",
+         "package.json", "package-lock.json"],
+        timeout=10, check=False
+    ).returncode != 0:
+        raise ValueError("source dependency inputs changed since checkout")
+    committed_bytes = subprocess.check_output(
+        ["git", "-C", str(source), "show", "HEAD:package-lock.json"], timeout=10
+    )
+    observed_bytes = lock.read_bytes()
+    if committed_bytes != observed_bytes:
+        raise ValueError("installed dependency lock differs from pinned Git commit")
+    manifest = json.loads((source / "package.json").read_text(encoding="utf-8"))
+    locked = json.loads(observed_bytes)
+    if not isinstance(locked, dict) or locked.get("lockfileVersion") != 3:
+        raise ValueError("reviewed npm v3 lockfile required")
+    packages = locked.get("packages")
+    if not isinstance(packages, dict) or not packages:
+        raise ValueError("lockfile package graph missing")
+    root = packages.get("")
+    if not isinstance(root, dict):
+        raise ValueError("lockfile root package missing")
+    for key in ("name", "version", "dependencies", "devDependencies"):
+        if root.get(key, {}) != manifest.get(key, {}):
+            raise ValueError(f"lockfile root differs from manifest: {key}")
+    if any(not isinstance(name, str) or
+           (name and not name.startswith("node_modules/"))
+           for name in packages):
+        raise ValueError("unexpected lockfile package path")
+    for name, entry in packages.items():
+        if name and (not isinstance(entry, dict) or
+                     not isinstance(entry.get("version"), str) or
+                     not isinstance(entry.get("integrity"), str)):
+            raise ValueError("dependency package missing version/integrity")
+    return {"sha256": sha256(observed_bytes), "package_count": len(packages)}
+
+
 def qualify(source: pathlib.Path, dist: pathlib.Path, lock: pathlib.Path,
             browser: str, receipt_file: pathlib.Path) -> dict:
     candidates = json.loads(CANDIDATES.read_text(encoding="utf-8"))
@@ -139,12 +188,7 @@ def qualify(source: pathlib.Path, dist: pathlib.Path, lock: pathlib.Path,
     ).strip()
     if actual_sha != candidate["source_sha"]:
         raise ValueError("ThinkTank source commit changed from reviewed pin")
-    upstream_lock_tracked = subprocess.run(
-        ["git", "-C", str(source), "ls-files", "--error-unmatch", "package-lock.json"],
-        capture_output=True, text=True, timeout=10, check=False
-    ).returncode == 0
-    if upstream_lock_tracked or not lock.is_file():
-        raise ValueError("pilot requires untracked generated npm lock; upstream pin changed")
+    lock_info = verify_committed_lock(source, lock)
     if not re.fullmatch(r"[0-9a-f]{40}", actual_sha):
         raise ValueError("invalid source commit")
     bundle = verify_dist(dist)
@@ -155,8 +199,12 @@ def qualify(source: pathlib.Path, dist: pathlib.Path, lock: pathlib.Path,
         "source_repo": candidate["manifest"]["source"]["repository_url"],
         "source_sha": actual_sha,
         "candidate_manifest_sha256": reviewed["manifest_sha256"],
-        "dependency_lock_provenance": "GENERATED_DURING_HOSTED_CI_NOT_COMMITTED_UPSTREAM",
-        "observed_generated_package_lock_sha256": sha256(lock.read_bytes()),
+        "dependency_lock_provenance": "UPSTREAM_GIT_COMMITTED_AND_SOURCE_SHA_BOUND",
+        "observed_committed_package_lock_sha256": lock_info["sha256"],
+        "locked_dependency_count": lock_info["package_count"],
+        "hosted_locked_npm_ci": True,
+        "hosted_offline_cached_build_observed": True,
+        "hosted_offline_build_scope": "DOCKER_NETWORK_NONE_WITH_PRESTAGED_NPM_CACHE",
         "dependency_reproducibility_verified": False,
         "offline_dependency_closure_verified": False,
         "asset_redistribution_reviewed": False,
@@ -171,7 +219,7 @@ def qualify(source: pathlib.Path, dist: pathlib.Path, lock: pathlib.Path,
         "phios_vm_boot_verified": False,
         "phios_rollback_verified": False,
         "production_qualified": False,
-        "next_gate": "COMMIT_REVIEWED_NPM_LOCK_AND_GOVERNED_INSTALL_VM_ACCEPTANCE",
+        "next_gate": "REVIEW_LICENSES_AND_GOVERNED_APP_INSTALL_QEMU_ACCEPTANCE",
     }
     receipt_file.parent.mkdir(parents=True, exist_ok=True)
     receipt_file.write_text(json.dumps(receipt, sort_keys=True, indent=2) + "\n",
@@ -187,11 +235,11 @@ def main() -> None:
     p = argparse.ArgumentParser()
     p.add_argument("--source", type=pathlib.Path, required=True)
     p.add_argument("--dist", type=pathlib.Path, required=True)
-    p.add_argument("--generated-lock", type=pathlib.Path, required=True)
+    p.add_argument("--committed-lock", type=pathlib.Path, required=True)
     p.add_argument("--browser", default="google-chrome")
     p.add_argument("--receipt", type=pathlib.Path, required=True)
     args = p.parse_args()
-    qualify(args.source, args.dist, args.generated_lock, args.browser, args.receipt)
+    qualify(args.source, args.dist, args.committed_lock, args.browser, args.receipt)
 
 
 if __name__ == "__main__":

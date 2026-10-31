@@ -18,11 +18,11 @@ APPROVED = {
         "lock_bytes": 38188,
     },
     "thinktank-web": {
-        "git": "1e8084a684ccf400c37d05d8bfe992680a72e887",
+        "git": "655d96f7ff892c9989f75cf874e74689f7694127",
         "subdir": ".",
-        "package_json_sha256": "2a593f3137545880115d0f2d112897038f52d0afeb01a144209947e59f49aaed",
-        "lock_sha256": "251e461cdd11acf49f5c25eb58f0400a66daef1e6bb76486fc7a5f1fb22feffd",
-        "lock_bytes": 40310,
+        "package_json_sha256": "1ca7b23585f4bbb6cbd83a5248c03bb106568cb0af9d69faf138b8d3191f2eb7",
+        "lock_sha256": "1dc173319bd4e20a1441147563a71e2a2c01ab6c13606f6f9e774ed3cad221c6",
+        "lock_bytes": 40332,
     }
 }
 
@@ -85,12 +85,46 @@ def inspect(app: str, checkout: Path) -> tuple[dict[str, Any], Path, bytes]:
     demand(len(lock_bytes) == item["lock_bytes"] and
            sha(lock_bytes) == item["lock_sha256"], "LOCKFILE_DIGEST")
     count = validate_lock(json.loads(lock_bytes), json.loads(manifest_bytes))
+    destination = source / "package-lock.json"
+    if app == "thinktank-web":
+        # ThinkTank #54 now commits its reviewed npm graph. Refuse injecting
+        # the old PhiOS snapshot into an upstream checkout or accepting drift.
+        demand(destination.is_file() and not destination.is_symlink(),
+               "UPSTREAM_LOCKFILE_MISSING")
+        demand(destination.read_bytes() == lock_bytes, "UPSTREAM_LOCKFILE_DRIFT")
+        tracked = subprocess.run(
+            ["git", "-C", str(checkout), "ls-files", "--error-unmatch",
+             "package-lock.json"],
+            capture_output=True, check=False, timeout=20
+        )
+        demand(tracked.returncode == 0, "UPSTREAM_LOCKFILE_UNTRACKED")
+        committed = subprocess.check_output(
+            ["git", "-C", str(checkout), "show", "HEAD:package-lock.json"],
+            timeout=20
+        )
+        demand(committed == lock_bytes, "UPSTREAM_LOCKFILE_COMMIT_DRIFT")
+    else:
+        # Vessie has no upstream lock. Before staging it is absent; after the
+        # --prepare step, re-inspection must allow ONLY the exact reviewed,
+        # untracked snapshot bytes. Never infer a new upstream lock approval.
+        demand(not destination.is_symlink(), "UPSTREAM_LOCKFILE_SYMLINK")
+        if destination.exists():
+            demand(destination.is_file() and destination.read_bytes() == lock_bytes,
+                   "STAGED_SNAPSHOT_DRIFT")
+            tracked = subprocess.run(
+                ["git", "-C", str(checkout), "ls-files", "--error-unmatch",
+                 "apps/vessie-web/package-lock.json"],
+                capture_output=True, check=False, timeout=20
+            )
+            demand(tracked.returncode != 0, "UNREVIEWED_UPSTREAM_VESSIE_LOCK")
     return ({
         "schema": "phios.trellis_npm_closure.v0.1", "app": app,
         "source_sha": item["git"], "manifest_sha256": item["package_json_sha256"],
         "lock_sha256": item["lock_sha256"], "dependency_package_count": count,
         "node_required_major": 24, "npm_install_command": "npm ci --ignore-scripts",
         "source_modified": False, "phios_installed": False,
+        "lock_provenance": ("COMMITTED_UPSTREAM" if app == "thinktank-web"
+                            else "PHIOS_REVIEWED_SNAPSHOT"),
         "license_audit_complete": False, "binary_reproducibility_verified": False,
         "external_done": False
     }, source, lock_bytes)
@@ -104,15 +138,22 @@ def main() -> None:
     args = parser.parse_args()
     report, source, lock_bytes = inspect(args.app, args.checkout)
     destination = source / "package-lock.json"
-    demand(not destination.exists() and not destination.is_symlink(),
-           "UPSTREAM_LOCKFILE_PRESENT")
     if args.prepare:
-        with destination.open("xb") as fp:
-            fp.write(lock_bytes)
-        demand(sha(destination.read_bytes()) == report["lock_sha256"], "COPY_DRIFT")
-        report["source_modified"] = True
-        report["only_change"] = "ephemeral CI checkout package-lock.json"
-        report["copied_snapshot_bytes"] = len(lock_bytes)
+        if args.app == "vessie-web":
+            demand(not destination.exists() and not destination.is_symlink(),
+                   "UPSTREAM_LOCKFILE_PRESENT")
+            with destination.open("xb") as fp:
+                fp.write(lock_bytes)
+            demand(sha(destination.read_bytes()) == report["lock_sha256"], "COPY_DRIFT")
+            report["source_modified"] = True
+            report["only_change"] = "ephemeral CI checkout package-lock.json"
+            report["copied_snapshot_bytes"] = len(lock_bytes)
+        else:
+            # Source lock is already pinned, committed and byte-for-byte
+            # validated. Preparation has no write authority for ThinkTank.
+            demand(destination.read_bytes() == lock_bytes, "UPSTREAM_LOCKFILE_DRIFT")
+            report["only_change"] = "none; verified committed upstream lock"
+            report["copied_snapshot_bytes"] = 0
     print(json.dumps(report, sort_keys=True))
 
 if __name__ == "__main__":

@@ -1,4 +1,4 @@
-name: ThinkTank Web source-pinned hosted pilot
+name: ThinkTank Web locked-source and offline-cache pilot
 
 on:
   pull_request:
@@ -23,7 +23,7 @@ permissions:
 
 jobs:
   pinned-thinktank-render:
-    name: Pinned ThinkTank React build and Chrome render (NO INSTALL)
+    name: Pinned lock and network-disabled ThinkTank build (NO INSTALL)
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
@@ -35,7 +35,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: MichaelWave369/think-tank
-          ref: 1e8084a684ccf400c37d05d8bfe992680a72e887
+          ref: 655d96f7ff892c9989f75cf874e74689f7694127
           path: .pilot/think-tank
           persist-credentials: false
       - uses: actions/setup-python@v5
@@ -43,33 +43,63 @@ jobs:
           python-version: "3.12"
       - uses: actions/setup-node@v4
         with:
-          node-version: "22"
-      - name: Assert candidate identity and no install authority
+          node-version: "24"
+      - name: Require exact SHA and upstream-committed npm dependency lock
+        shell: bash
         run: |
+          set -euo pipefail
           python scripts/verify_ecosystem_app_candidates.py
           python -m unittest discover -s tests -p 'test_thinktank_web_pilot.py' -v
-          test "$(git -C .pilot/think-tank rev-parse HEAD)" = "1e8084a684ccf400c37d05d8bfe992680a72e887"
-          test ! -f .pilot/think-tank/package-lock.json
-      - name: Generate temporary diagnostic lock (NOT reproducible upstream)
+          test "$(git -C .pilot/think-tank rev-parse HEAD)" = "655d96f7ff892c9989f75cf874e74689f7694127"
+          git -C .pilot/think-tank cat-file -e HEAD:package-lock.json
+          git -C .pilot/think-tank diff --exit-code HEAD -- package.json package-lock.json
+          test -s .pilot/think-tank/package-lock.json
+      - name: Warm reviewed npm tarballs and test ThinkTank using committed lock
         working-directory: .pilot/think-tank
-        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
-      - name: Build the pinned React frontend and run its tests
-        working-directory: .pilot/think-tank
+        shell: bash
         run: |
-          npm ci --no-audit --no-fund
+          set -euo pipefail
+          npm ci --cache "$RUNNER_TEMP/thinktank-npm-cache" --no-audit --no-fund
           npm test
           npm run build
+          git diff --exit-code HEAD -- package.json package-lock.json
       - name: Gate dependency advisories (do not silence them)
         working-directory: .pilot/think-tank
         run: npm audit --audit-level=high
+      - name: Prove staged-cache offline build in actual network-disabled Docker
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker pull node:24-bookworm-slim
+          mkdir -p "$RUNNER_TEMP/thinktank-offline-src" "$RUNNER_TEMP/thinktank-offline-work"
+          git -C .pilot/think-tank archive HEAD | tar -xf - -C "$RUNNER_TEMP/thinktank-offline-src"
+          docker run --rm --network none --read-only \
+            --user "$(id -u):$(id -g)" \
+            --cap-drop=ALL --security-opt=no-new-privileges --pids-limit=256 \
+            --tmpfs /tmp:rw,nosuid,nodev,size=64m \
+            --mount "type=bind,src=$RUNNER_TEMP/thinktank-offline-src,dst=/src,readonly" \
+            --mount "type=bind,src=$RUNNER_TEMP/thinktank-offline-work,dst=/work" \
+            --mount "type=bind,src=$RUNNER_TEMP/thinktank-npm-cache,dst=/npmcache" \
+            --workdir /work --env HOME=/tmp --env NPM_CONFIG_CACHE=/npmcache \
+            node:24-bookworm-slim sh -ec '
+              cp -a /src/. /work/
+              npm ci --offline --no-audit --no-fund
+              npm test
+              npm run build
+              npm ls --depth=0
+            '
+          test -s "$RUNNER_TEMP/thinktank-offline-work/dist/index.html"
+          echo 'THINKTANK_LOCKED_STAGED_CACHE_BUILD_NETWORK_NONE_PASS'
       - name: Verify Chrome availability
         run: google-chrome --version
-      - name: Run real hosted Chrome UI smoke and write non-authoritative receipt
+      - name: Render the offline-built React UI and write non-authoritative receipt
+        shell: bash
         run: |
+          set -euo pipefail
           python scripts/thinktank_web_pilot.py \
             --source .pilot/think-tank \
-            --dist .pilot/think-tank/dist \
-            --generated-lock .pilot/think-tank/package-lock.json \
+            --dist "$RUNNER_TEMP/thinktank-offline-work/dist" \
+            --committed-lock .pilot/think-tank/package-lock.json \
             --browser google-chrome \
             --receipt pilot-evidence/thinktank-web-hosted.json
       - name: Retain receipt only, never the unreviewed distributable or model state
