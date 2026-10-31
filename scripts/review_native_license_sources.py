@@ -24,7 +24,7 @@ EXPECTED = {
     ("vessie-web", "@esbuild/linux-x64", "0.25.12"),
     ("vessie-web", "@napi-rs/lzma-linux-x64-gnu", "1.5.1"),
     ("vessie-web", "@rollup/rollup-linux-x64-gnu", "4.64.5"),
-    ("thinktank-web", "@rolldown/binding-linux-x64-gnu", "1.2.13"),
+    ("thinktank-web", "@rolldown/binding-linux-x64-gnu", "1.2.16"),
 }
 HEX40 = re.compile(r"[0-9a-f]{40}\Z")
 REPO = re.compile(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+\Z")
