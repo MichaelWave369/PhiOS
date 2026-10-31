@@ -134,8 +134,12 @@ def qualify(source: pathlib.Path, dist: pathlib.Path, lock: pathlib.Path,
     ).strip()
     if actual_sha != candidate["source_sha"]:
         raise ValueError("ThinkTank source commit changed from reviewed pin")
-    if (source / "package-lock.json").is_file() or not lock.is_file():
-        raise ValueError("pilot assumes no upstream committed lock and requires generated npm lock")
+    upstream_lock_tracked = subprocess.run(
+        ["git", "-C", str(source), "ls-files", "--error-unmatch", "package-lock.json"],
+        capture_output=True, text=True, timeout=10, check=False
+    ).returncode == 0
+    if upstream_lock_tracked or not lock.is_file():
+        raise ValueError("pilot requires untracked generated npm lock; upstream pin changed")
     if not re.fullmatch(r"[0-9a-f]{40}", actual_sha):
         raise ValueError("invalid source commit")
     bundle = verify_dist(dist)
