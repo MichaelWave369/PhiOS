@@ -42,6 +42,14 @@ test("deployed PhiOS Passport is reachable, opt-in, cosmetic, and revocable on e
     .getByRole("link", { name: "Operator Passport" }).click();
 
   await expect(page).toHaveURL(origin + base + "operator-passport/");
+  // The link navigation can finish before this page's ESM import graph
+  // (station.js -> sdk.js) has completed. Playwright trace from the live
+  // Pages run showed setInputFiles firing while sdk.js was still loading,
+  // before station.js registered its change listener. Waiting for a
+  // quiescent network proves module dependency fetches have settled.
+  await page.waitForLoadState("networkidle");
+  expect(errors).toEqual([]);
+  expect(remoteRequests).toEqual([]);
   await expect(page.locator("#dossier-title")).toHaveText("NO PASSPORT IMPORTED");
   await expect(page.locator("#passport-export")).toBeDisabled();
   await expect(page.locator("#passport-remove")).toBeDisabled();
@@ -68,7 +76,7 @@ test("deployed PhiOS Passport is reachable, opt-in, cosmetic, and revocable on e
   await expect(page.locator("#mark")).toHaveText("Φ");
   await expect(page.locator("#passport-export")).toBeEnabled();
 
-  await page.reload();
+  await page.reload({ waitUntil: "networkidle" });
   await expect(page.locator("#dossier-title")).toHaveText("STANDARD RANK 3 / 6");
   expect(JSON.parse(await page.evaluate((key) => localStorage.getItem(key), storageKey)))
     .toEqual(JSON.parse(sample));
@@ -85,7 +93,7 @@ test("deployed PhiOS Passport is reachable, opt-in, cosmetic, and revocable on e
   await expect(page.locator("#dossier-title")).toHaveText("NO PASSPORT IMPORTED");
   await expect(page.locator("body")).not.toHaveClass(/\boperator-grid\b/);
   expect(await page.evaluate((key) => localStorage.getItem(key), storageKey)).toBeNull();
-  await page.reload();
+  await page.reload({ waitUntil: "networkidle" });
   await expect(page.locator("#dossier-title")).toHaveText("NO PASSPORT IMPORTED");
 
   // This is a public-site game progress test. Never infer or grant OS authority.
