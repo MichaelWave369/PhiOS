@@ -53,7 +53,7 @@
     },
     {
       "app_key": "thinktank-web",
-      "source_sha": "1e8084a684ccf400c37d05d8bfe992680a72e887",
+      "source_sha": "655d96f7ff892c9989f75cf874e74689f7694127",
       "manifest": {
         "schema_version": "phios.app_manifest.v0.1",
         "app_id": "phios.thinktank-web",
