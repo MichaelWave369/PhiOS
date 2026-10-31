@@ -79,7 +79,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: MichaelWave369/think-tank
-          ref: 1e8084a684ccf400c37d05d8bfe992680a72e887
+          ref: 655d96f7ff892c9989f75cf874e74689f7694127
           path: .ci-sources/think-tank
           persist-credentials: false
       - name: Node/npm versions used for the reviewed graph capture
@@ -110,7 +110,7 @@ jobs:
         run: |
           npm ci --ignore-scripts --no-audit --no-fund
           npm ls --depth=0
-          test "$(sha256sum package-lock.json | cut -d' ' -f1)" = 251e461cdd11acf49f5c25eb58f0400a66daef1e6bb76486fc7a5f1fb22feffd
+          test "$(sha256sum package-lock.json | cut -d' ' -f1)" = 1dc173319bd4e20a1441147563a71e2a2c01ab6c13606f6f9e774ed3cad221c6
       - name: Inventory installed npm packages and hash license evidence before React builds
         shell: bash
         run: |
@@ -145,17 +145,17 @@ jobs:
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/phios-replay-vessie" "$RUNNER_TEMP/phios-replay-thinktank"
           test "$(git -C .ci-sources/SuperPhiVessel rev-parse HEAD)" = 69a558ea2d1e8b361e05ded9bed4fc27b32e30cd
-          test "$(git -C .ci-sources/think-tank rev-parse HEAD)" = 1e8084a684ccf400c37d05d8bfe992680a72e887
+          test "$(git -C .ci-sources/think-tank rev-parse HEAD)" = 655d96f7ff892c9989f75cf874e74689f7694127
           git -C .ci-sources/SuperPhiVessel archive 69a558ea2d1e8b361e05ded9bed4fc27b32e30cd | tar -xf - -C "$RUNNER_TEMP/phios-replay-vessie"
-          git -C .ci-sources/think-tank archive 1e8084a684ccf400c37d05d8bfe992680a72e887 | tar -xf - -C "$RUNNER_TEMP/phios-replay-thinktank"
+          git -C .ci-sources/think-tank archive 655d96f7ff892c9989f75cf874e74689f7694127 | tar -xf - -C "$RUNNER_TEMP/phios-replay-thinktank"
           test ! -e "$RUNNER_TEMP/phios-replay-vessie/apps/vessie-web/package-lock.json"
-          test ! -e "$RUNNER_TEMP/phios-replay-thinktank/package-lock.json"
+          test -s "$RUNNER_TEMP/phios-replay-thinktank/package-lock.json"
           test "$(sha256sum "$RUNNER_TEMP/phios-replay-vessie/apps/vessie-web/package.json" | cut -d' ' -f1)" = 6bdbd921cea13474fc2b6fd5cbe02765345a48e345a9cc57913e9b0693e9664e
           test "$(sha256sum "$RUNNER_TEMP/phios-replay-thinktank/package.json" | cut -d' ' -f1)" = 2a593f3137545880115d0f2d112897038f52d0afeb01a144209947e59f49aaed
           cp dependency-locks/vessie-web/package-lock.json "$RUNNER_TEMP/phios-replay-vessie/apps/vessie-web/package-lock.json"
-          cp dependency-locks/thinktank-web/package-lock.json "$RUNNER_TEMP/phios-replay-thinktank/package-lock.json"
+          cmp -s dependency-locks/thinktank-web/package-lock.json "$RUNNER_TEMP/phios-replay-thinktank/package-lock.json"
           test "$(sha256sum "$RUNNER_TEMP/phios-replay-vessie/apps/vessie-web/package-lock.json" | cut -d' ' -f1)" = 4e0ac5153f3bc47cd78b4f5cfa42c2ede4dbfef8110a2d5deda49d5c81bd6c2a
-          test "$(sha256sum "$RUNNER_TEMP/phios-replay-thinktank/package-lock.json" | cut -d' ' -f1)" = 251e461cdd11acf49f5c25eb58f0400a66daef1e6bb76486fc7a5f1fb22feffd
+          test "$(sha256sum "$RUNNER_TEMP/phios-replay-thinktank/package-lock.json" | cut -d' ' -f1)" = 1dc173319bd4e20a1441147563a71e2a2c01ab6c13606f6f9e774ed3cad221c6
       - name: Rebuild Vessie with clean npm ci in unrelated source tree
         shell: bash
         run: |
