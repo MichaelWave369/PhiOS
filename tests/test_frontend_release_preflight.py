@@ -27,7 +27,9 @@ class FrontendReleasePreflightTests(unittest.TestCase):
                 "lock_sha256":cfg["lock_sha256"],
                 "npm_install_command":"npm ci --ignore-scripts",
                 "dependency_package_count":71,
-                "source_modified":True,
+                "source_modified":(app == "vessie-web"),
+                "lock_provenance":("PHIOS_REVIEWED_SNAPSHOT" if app == "vessie-web"
+                                   else "COMMITTED_UPSTREAM"),
                 "phios_installed":False,"license_audit_complete":False,
                 "external_done":False,
             }
