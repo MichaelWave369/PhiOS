@@ -123,7 +123,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: MichaelWave369/think-tank
-          ref: 1e8084a684ccf400c37d05d8bfe992680a72e887
+          ref: 655d96f7ff892c9989f75cf874e74689f7694127
           path: .ci-sources/think-tank
           persist-credentials: false
       - name: Checkout immutable native Trellis 1.0-rc1
@@ -138,7 +138,7 @@ jobs:
         run: |
           set -euo pipefail
           test "$(git -C .ci-sources/SuperPhiVessel rev-parse HEAD)" = 69a558ea2d1e8b361e05ded9bed4fc27b32e30cd
-          test "$(git -C .ci-sources/think-tank rev-parse HEAD)" = 1e8084a684ccf400c37d05d8bfe992680a72e887
+          test "$(git -C .ci-sources/think-tank rev-parse HEAD)" = 655d96f7ff892c9989f75cf874e74689f7694127
           test "$(git -C .ci-sources/Trellis rev-parse HEAD)" = 8c8f54f1539c688fd02247f82c9bd48d0b5444c1
       - name: Confirm immutable Trellis revision is MIT-licensed
         shell: bash
@@ -182,7 +182,7 @@ jobs:
           npm ci --ignore-scripts --no-audit --no-fund
           npm ls --depth=0
           npm run build -- --base ./
-          test "$(sha256sum package-lock.json | cut -d' ' -f1)" = 251e461cdd11acf49f5c25eb58f0400a66daef1e6bb76486fc7a5f1fb22feffd
+          test "$(sha256sum package-lock.json | cut -d' ' -f1)" = 1dc173319bd4e20a1441147563a71e2a2c01ab6c13606f6f9e774ed3cad221c6
       - name: Prepare explicitly reviewed Vessie offline CSS profile and hash its transformation
         shell: bash
         run: |
