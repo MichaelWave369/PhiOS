@@ -115,3 +115,26 @@ test("Rank 6 is cosmetic; malformed, oversized and rejected imports never replac
   expect(JSON.parse(await page.evaluate((key) => localStorage.getItem(key), storageKey)))
     .toEqual(JSON.parse(full));
 });
+
+
+test("deferred Passport SDK loads fully before a navigation-driven import", async ({ page }) => {
+  let sdkRequests = 0;
+  await page.route("**/operator-passport/sdk.js", async (route) => {
+    sdkRequests += 1;
+    // Reproduce the network delay seen on real Pages without changing
+    // shipped SDK or importing a different version.
+    await new Promise((resolve) => setTimeout(resolve, 800));
+    await route.continue();
+  });
+  await page.goto("/PhiOS/");
+  await page.getByRole("navigation", { name: "Primary navigation" })
+    .getByRole("link", { name: "Operator Passport" }).click();
+  await expect(page).toHaveURL(/\/PhiOS\/operator-passport\/$/);
+  await page.waitForLoadState("networkidle");
+  expect(sdkRequests).toBe(1);
+
+  page.once("dialog", (dialog) => dialog.accept());
+  await choosePassport(page, passport([9, 9, 9]));
+  await expect(page.locator("#dossier-title")).toHaveText("STANDARD RANK 3 / 6");
+  await expect(page.locator("body")).toHaveClass(/\boperator-grid\b/);
+});
