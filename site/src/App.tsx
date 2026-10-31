@@ -200,6 +200,7 @@ export default function App() {
           <a href="#sovereignty">Sovereignty</a>
           <a href="#hardening">Hardening</a>
           <a href="#status">Live Project</a>
+          <a href={`${import.meta.env.BASE_URL}operator-passport/`}>Operator Passport</a>
           <a href="https://github.com/MichaelWave369/PhiOS">GitHub</a>
         </nav>
         <button

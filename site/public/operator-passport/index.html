@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#06100d">
+  <title>ΦOS Operator Passport | Optional public-site station</title>
+  <meta name="description" content="An opt-in, local PhiOperator Passport visual station. No PhiOS runtime authority.">
+  <link rel="stylesheet" href="./station.css">
+  <script type="module" src="./station.js"></script>
+</head>
+<body>
+  <a href="#station" class="skip">Skip to Passport station</a>
+  <header class="top">
+    <a href="../" class="brand"><span>Φ</span> PhiOS</a>
+    <span class="meta">PUBLIC WEBSITE • OPERATOR PASSPORT PILOT</span>
+  </header>
+  <main id="station">
+    <p class="eyebrow">RUNG 04 / ENTER THE FIELD</p>
+    <h1>YOUR CURIOSITY.<br><em>YOUR PASSPORT.</em></h1>
+    <p class="lede">Bring your PhiOperator progress to the public PhiOS site. Optional decorative rewards only. No native OS configuration, authority or account.</p>
+    <div class="layout">
+      <section class="dossier" aria-labelledby="dossier-title">
+        <p class="eyebrow">LOCAL OPERATOR DOSSIER</p>
+        <div id="mark" class="mark" aria-hidden="true">Φ</div>
+        <h2 id="dossier-title">NO PASSPORT IMPORTED</h2>
+        <p id="benefits">Every page and capability represented here remains available without a Passport.</p>
+        <p class="foot">CAPABILITY != AUTHORITY • PROGRESS != PERMISSION</p>
+      </section>
+      <section class="controls" aria-labelledby="controls-title">
+        <p class="eyebrow">VERSIONED JSON / OPT-IN TRANSFER</p>
+        <h2 id="controls-title">Import from PhiOperator</h2>
+        <p>Open PhiOperator, clear your preferred Standard ranks, and export your Passport JSON. Standard Rank 3 reveals a decorative grid here; Rank 6 earns an Architect seal.</p>
+        <label for="passport-file">IMPORT PHIOPERATOR PASSPORT (16 KiB max)</label>
+        <input id="passport-file" type="file" accept=".json,application/json">
+        <div class="actions">
+          <button id="passport-export" type="button" disabled>EXPORT COPY</button>
+          <button id="passport-remove" type="button" disabled>REMOVE IMPORT</button>
+        </div>
+        <p id="message" role="status" aria-live="polite">No local Passport has been imported.</p>
+        <div class="links">
+          <a href="https://michaelwave369.github.io/PhiOperator/" target="_blank" rel="noopener noreferrer">OPEN PHIOPERATOR ↗</a>
+          <a href="../">RETURN TO PHIOS ↖</a>
+        </div>
+        <p class="privacy">A Passport is editable game progress, not identity or authentication. This site never imports your file without selection, never fetches it from another origin, and never unlocks system permissions. Everything works without it.</p>
+      </section>
+    </div>
+  </main>
+  <footer>Φ369 LABS • PEOPLE ABOVE PROFIT • AUTHORITY REMAINS INDEPENDENT</footer>
+</body>
+</html>

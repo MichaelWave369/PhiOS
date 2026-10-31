@@ -1,0 +1,22 @@
+:root{color-scheme:dark;--bg:#06100d;--line:#315949;--text:#e8f3ef;--muted:#9db9af;--mint:#5de0bd;--brass:#d6ae63;font:16px system-ui,sans-serif}
+*{box-sizing:border-box}body{margin:0;min-height:100vh;color:var(--text);background:radial-gradient(ellipse at 15% 10%,#183d3033,transparent 45%),var(--bg)}
+a{color:inherit;text-decoration:none}button,input{font:inherit}a:focus-visible,button:focus-visible,input:focus-visible{outline:3px solid var(--mint);outline-offset:3px}
+.skip{position:absolute;top:-100px;left:20px;background:var(--mint);color:var(--bg);padding:12px}.skip:focus{top:8px}
+.top{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:18px max(20px,5vw);border-bottom:1px solid var(--line)}
+.brand{font-size:20px;font-weight:800}.brand span{font:700 28px Georgia;color:var(--brass)}
+.meta,.eyebrow{font:700 11px/1.5 monospace;letter-spacing:.11em;color:var(--mint)}
+main{max-width:1160px;margin:auto;padding:70px 20px}h1{font-size:clamp(46px,6vw,92px);letter-spacing:-.06em;line-height:.93;margin:15px 0}h1 em{font-style:normal;color:var(--mint)}
+.lede{max-width:790px;color:var(--muted);line-height:1.75;margin:26px 0 44px}
+.layout{display:grid;grid-template-columns:1fr 1.3fr;gap:22px}
+.dossier,.controls{border:1px solid var(--line);padding:30px;background:#0b1b15}
+.mark{display:grid;place-items:center;width:132px;height:132px;border-radius:50%;border:2px solid var(--brass);background:radial-gradient(circle,#285646,#071610);color:var(--mint);font:700 38px Georgia;box-shadow:0 0 40px #5de0bd30;margin:25px 0}
+h2{font-size:26px;letter-spacing:-.04em;margin:14px 0}p{color:var(--muted);line-height:1.7}
+.foot,.privacy{font-size:12px}.foot{color:var(--brass)}label{display:block;color:var(--mint);font:700 12px monospace;margin:24px 0 10px}
+input{max-width:100%}.actions,.links{display:flex;flex-wrap:wrap;gap:12px;margin:22px 0}
+button,.links a{border:1px solid var(--line);background:#123228;color:var(--text);padding:13px 17px;font-size:12px;font-weight:800;cursor:pointer}
+button:disabled{opacity:.4;cursor:not-allowed}
+#message{color:var(--mint)}
+footer{border-top:1px solid var(--line);padding:30px 20px;color:var(--muted);text-align:center;font:11px monospace}
+body.operator-grid{background-image:linear-gradient(#5de0bd1b 1px,transparent 1px),linear-gradient(90deg,#5de0bd1b 1px,transparent 1px);background-size:36px 36px}
+@media(max-width:740px){.layout{grid-template-columns:1fr}.meta{font-size:9px}main{padding-top:42px}}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
