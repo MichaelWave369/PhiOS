@@ -70,7 +70,11 @@ def validate_closure(app:str,value:dict)->None:
             value.get("manifest_sha256")==cfg["package_json_sha256"] and
             value.get("lock_sha256")==cfg["lock_sha256"] and
             value.get("npm_install_command")=="npm ci --ignore-scripts" and
-            value.get("source_modified") is True and
+            value.get("source_modified") is (app == "vessie-web") and
+            value.get("lock_provenance") == (
+                "PHIOS_REVIEWED_SNAPSHOT" if app == "vessie-web"
+                else "COMMITTED_UPSTREAM"
+            ) and
             value.get("phios_installed") is False and
             value.get("license_audit_complete") is False and
             value.get("external_done") is False,
