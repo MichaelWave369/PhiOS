@@ -104,10 +104,19 @@ def inspect(app: str, checkout: Path) -> tuple[dict[str, Any], Path, bytes]:
         )
         demand(committed == lock_bytes, "UPSTREAM_LOCKFILE_COMMIT_DRIFT")
     else:
-        # Vessie has no upstream lock. The original exact reviewed snapshot
-        # continues to be staged into the disposable checkout only.
-        demand(not destination.exists() and not destination.is_symlink(),
-               "UPSTREAM_LOCKFILE_PRESENT")
+        # Vessie has no upstream lock. Before staging it is absent; after the
+        # --prepare step, re-inspection must allow ONLY the exact reviewed,
+        # untracked snapshot bytes. Never infer a new upstream lock approval.
+        demand(not destination.is_symlink(), "UPSTREAM_LOCKFILE_SYMLINK")
+        if destination.exists():
+            demand(destination.is_file() and destination.read_bytes() == lock_bytes,
+                   "STAGED_SNAPSHOT_DRIFT")
+            tracked = subprocess.run(
+                ["git", "-C", str(checkout), "ls-files", "--error-unmatch",
+                 "apps/vessie-web/package-lock.json"],
+                capture_output=True, check=False, timeout=20
+            )
+            demand(tracked.returncode != 0, "UNREVIEWED_UPSTREAM_VESSIE_LOCK")
     return ({
         "schema": "phios.trellis_npm_closure.v0.1", "app": app,
         "source_sha": item["git"], "manifest_sha256": item["package_json_sha256"],
@@ -131,6 +140,8 @@ def main() -> None:
     destination = source / "package-lock.json"
     if args.prepare:
         if args.app == "vessie-web":
+            demand(not destination.exists() and not destination.is_symlink(),
+                   "UPSTREAM_LOCKFILE_PRESENT")
             with destination.open("xb") as fp:
                 fp.write(lock_bytes)
             demand(sha(destination.read_bytes()) == report["lock_sha256"], "COPY_DRIFT")
