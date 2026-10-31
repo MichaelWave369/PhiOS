@@ -20,7 +20,7 @@ APPROVED = {
     "thinktank-web": {
         "git": "655d96f7ff892c9989f75cf874e74689f7694127",
         "subdir": ".",
-        "package_json_sha256": "2a593f3137545880115d0f2d112897038f52d0afeb01a144209947e59f49aaed",
+        "package_json_sha256": "1ca7b23585f4bbb6cbd83a5248c03bb106568cb0af9d69faf138b8d3191f2eb7",
         "lock_sha256": "1dc173319bd4e20a1441147563a71e2a2c01ab6c13606f6f9e774ed3cad221c6",
         "lock_bytes": 40332,
     }
