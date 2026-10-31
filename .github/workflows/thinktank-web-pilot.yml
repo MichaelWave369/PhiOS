@@ -1,0 +1,82 @@
+name: ThinkTank Web source-pinned hosted pilot
+
+on:
+  pull_request:
+    paths:
+      - "scripts/thinktank_web_pilot.py"
+      - "tests/test_thinktank_web_pilot.py"
+      - "docs/PHIOS_THINKTANK_WEB_PILOT_V060.md"
+      - ".github/workflows/thinktank-web-pilot.yml"
+      - "phishell/src/ecosystem/app-candidates.json"
+  push:
+    branches: [main]
+    paths:
+      - "scripts/thinktank_web_pilot.py"
+      - "tests/test_thinktank_web_pilot.py"
+      - "docs/PHIOS_THINKTANK_WEB_PILOT_V060.md"
+      - ".github/workflows/thinktank-web-pilot.yml"
+      - "phishell/src/ecosystem/app-candidates.json"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  pinned-thinktank-render:
+    name: Pinned ThinkTank React build and Chrome render (NO INSTALL)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout PhiOS source without stored credentials
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Checkout exact operator-reviewed ThinkTank commit
+        uses: actions/checkout@v4
+        with:
+          repository: MichaelWave369/think-tank
+          ref: 1e8084a684ccf400c37d05d8bfe992680a72e887
+          path: .pilot/think-tank
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Assert candidate identity and no install authority
+        run: |
+          python scripts/verify_ecosystem_app_candidates.py
+          python -m unittest discover -s tests -p 'test_thinktank_web_pilot.py' -v
+          test "$(git -C .pilot/think-tank rev-parse HEAD)" = "1e8084a684ccf400c37d05d8bfe992680a72e887"
+          test ! -f .pilot/think-tank/package-lock.json
+      - name: Generate temporary diagnostic lock (NOT reproducible upstream)
+        working-directory: .pilot/think-tank
+        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+      - name: Build the pinned React frontend and run its tests
+        working-directory: .pilot/think-tank
+        run: |
+          npm ci --no-audit --no-fund
+          npm test
+          npm run build
+      - name: Gate dependency advisories (do not silence them)
+        working-directory: .pilot/think-tank
+        run: npm audit --audit-level=high
+      - name: Verify Chrome availability
+        run: google-chrome --version
+      - name: Run real hosted Chrome UI smoke and write non-authoritative receipt
+        run: |
+          python scripts/thinktank_web_pilot.py \
+            --source .pilot/think-tank \
+            --dist .pilot/think-tank/dist \
+            --generated-lock .pilot/think-tank/package-lock.json \
+            --browser google-chrome \
+            --receipt pilot-evidence/thinktank-web-hosted.json
+      - name: Retain receipt only, never the unreviewed distributable or model state
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: phios-thinktank-hosted-pilot-review-only
+          path: pilot-evidence/thinktank-web-hosted.json
+          retention-days: 14
+          if-no-files-found: warn
