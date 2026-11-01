@@ -75,6 +75,7 @@ from .retained_cleanup import (
 )
 from .phiark_bridge import observe_phiark
 from .phivine_advisory_intake import read_phivine_advisory_json, review_phivine_advisory
+from .phivine_triage_review import read_phivine_triage_json, review_phivine_triage
 from .registry import AppRegistry
 from .repo_profile import profile_public_github_repository
 from .release_advancement import advance_release_candidate
