@@ -74,6 +74,7 @@ from .retained_cleanup import (
     review_retained_cleanup,
 )
 from .phiark_bridge import observe_phiark
+from .phivine_advisory_intake import read_phivine_advisory_json, review_phivine_advisory
 from .registry import AppRegistry
 from .repo_profile import profile_public_github_repository
 from .release_advancement import advance_release_candidate
@@ -1184,11 +1185,27 @@ def _parser() -> argparse.ArgumentParser:
     phiark_parser.add_argument("--probe-loopback", action="store_true")
     phiark_parser.add_argument("--port", type=int, default=3691)
 
+    phivine_parser = subparsers.add_parser(
+        "review-phivine",
+        help="Review one untrusted PhiVine Windows-binary advisory without granting authority.",
+    )
+    phivine_parser.add_argument("handoff_json", type=Path)
+
     return parser
 
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = _parser().parse_args(argv)
+
+    if args.command == "review-phivine":
+        try:
+            advisory = read_phivine_advisory_json(args.handoff_json)
+        except (OSError, ValueError):
+            advisory = None
+        review = review_phivine_advisory(advisory)
+        print(json.dumps(review, sort_keys=True, indent=2))
+        # All handoffs are held, even when every observation matches.
+        return 3
 
     if args.command == "phiark-status":
         try:
