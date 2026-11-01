@@ -1,6 +1,5 @@
 """PhiOS Rung 8: untrusted PhiVine input never becomes permission."""
 
-import copy
 import hashlib
 import json
 from pathlib import Path
@@ -174,6 +173,17 @@ class PhiVineAdvisoryIntakeTests(unittest.TestCase):
     def test_reject_wrong_schema_and_non_object(self):
         for p in ([], None, 4, {"schema": "phios.repo_profile.v0.1"}):
             self.assertIsNone(self.assert_held(p)["artifact"])
+
+    def test_msi_candidate_is_reviewed_but_never_accepted_for_launch(self):
+        p = fixture()
+        p["artifact"]["name"] = "legacy-installer.msi"
+        p["artifact"]["format_observed"] = "msi_cfb_candidate"
+        p["artifact"]["architecture_observed"] = None
+        p["observations"]["source_status"] = "HELD_INVALID_OR_TAMPERED_PROPOSAL"
+        p["observations"]["source_bytes_match_observed"] = False
+        result = self.assert_held(check(p))
+        self.assertEqual(result["status"], "HELD_NATIVE_WINDOWS_BINARY_INTAKE_UNAVAILABLE")
+        self.assertFalse(result["execution_authorized"])
 
     def test_reject_path_in_filename(self):
         for filename in ("../legacy.exe", "C:\\legacy.exe", "legacy\n.exe"):
