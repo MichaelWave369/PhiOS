@@ -75,6 +75,7 @@ from .retained_cleanup import (
 )
 from .phiark_bridge import observe_phiark
 from .phivine_advisory_intake import read_phivine_advisory_json, review_phivine_advisory
+from .phivine_triage_review import read_phivine_triage_json, review_phivine_triage
 from .registry import AppRegistry
 from .repo_profile import profile_public_github_repository
 from .release_advancement import advance_release_candidate
@@ -1191,11 +1192,27 @@ def _parser() -> argparse.ArgumentParser:
     )
     phivine_parser.add_argument("handoff_json", type=Path)
 
+    phivine_triage = subparsers.add_parser(
+        "review-phivine-triage",
+        help="Read static PhiVine DLL review JSON; never authorize compatibility or execution.",
+    )
+    phivine_triage.add_argument("triage_json", type=Path)
+
     return parser
 
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = _parser().parse_args(argv)
+
+    if args.command == "review-phivine-triage":
+        try:
+            triage = read_phivine_triage_json(args.triage_json)
+        except (OSError, ValueError):
+            triage = None
+        triage_review_record = review_phivine_triage(triage)
+        print(json.dumps(triage_review_record, sort_keys=True, indent=2))
+        # All static DLL review stays HELD, including valid observations.
+        return 3
 
     if args.command == "review-phivine":
         try:

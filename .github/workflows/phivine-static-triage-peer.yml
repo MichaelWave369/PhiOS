@@ -1,0 +1,58 @@
+name: PhiVine Rung 10 static-triage PhiOS peer
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/phivine-static-triage-peer.yml"
+      - "scripts/verify_phivine_triage_peer.py"
+      - "phios/apps/phivine_triage_review.py"
+      - "phios/apps/cli.py"
+      - "tests/test_phivine_triage_review.py"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/phivine-static-triage-peer.yml"
+      - "scripts/verify_phivine_triage_peer.py"
+      - "phios/apps/phivine_triage_review.py"
+      - "phios/apps/cli.py"
+      - "tests/test_phivine_triage_review.py"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  static-dll-triage-review:
+    name: Exact PhiVine static triage -> PhiOS HELD review (NO EXECUTION)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: MichaelWave369/PhiVine
+          ref: 7c9791c6be75e5f069d513db788627e81405d6d1
+          path: .ci-phivine
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install PhiOS CLI requirements
+        run: python -m pip install -e .
+      - name: Run scoped fail-closed unit tests
+        run: python -m unittest discover -s tests -p 'test_phivine_triage_review.py' -v
+      - name: Real PhiVine -> PhiOS synthetic static triage handoff
+        run: |
+          python scripts/verify_phivine_triage_peer.py \
+            --producer .ci-phivine \
+            --receipt phivine-evidence/triage-peer-held.json
+      - name: Upload no-authority receipt only
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phios-phivine-triage-held-review-only
+          path: phivine-evidence/triage-peer-held.json
+          retention-days: 14
+          if-no-files-found: warn
