@@ -1192,6 +1192,12 @@ def _parser() -> argparse.ArgumentParser:
     )
     phivine_parser.add_argument("handoff_json", type=Path)
 
+    phivine_triage = subparsers.add_parser(
+        "review-phivine-triage",
+        help="Read static PhiVine DLL review JSON; never authorize compatibility or execution.",
+    )
+    phivine_triage.add_argument("triage_json", type=Path)
+
     return parser
 
 
