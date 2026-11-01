@@ -1204,6 +1204,16 @@ def _parser() -> argparse.ArgumentParser:
 def main(argv: Sequence[str] | None = None) -> int:
     args = _parser().parse_args(argv)
 
+    if args.command == "review-phivine-triage":
+        try:
+            triage = read_phivine_triage_json(args.triage_json)
+        except (OSError, ValueError):
+            triage = None
+        review = review_phivine_triage(triage)
+        print(json.dumps(review, sort_keys=True, indent=2))
+        # All static DLL review stays HELD, including valid observations.
+        return 3
+
     if args.command == "review-phivine":
         try:
             advisory = read_phivine_advisory_json(args.handoff_json)
