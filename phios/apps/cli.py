@@ -1202,8 +1202,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             advisory = read_phivine_advisory_json(args.handoff_json)
         except (OSError, ValueError):
             advisory = None
-        review = review_phivine_advisory(advisory)
-        print(json.dumps(review, sort_keys=True, indent=2))
+        phivine_review = review_phivine_advisory(advisory)
+        print(json.dumps(phivine_review, sort_keys=True, indent=2))
         # All handoffs are held, even when every observation matches.
         return 3
 
