@@ -11,6 +11,18 @@ platform, memory/ledger system, and constrained agent runtime built around one r
 
 The project is under active development and should be treated as **alpha software**.
 
+## ΦVine Windows-binary advisory review (Rung 8)
+
+The App Platform can now review a **local, untrusted ΦVine handoff JSON**
+with `phi-app review-phivine phivine-handoff.json`. It validates the record and
+displays its candidate artifact fingerprint, requested access and unresolved
+security gates, but **always returns HELD (exit 3)**. It never imports a
+Windows program, installs Wine, changes the app registry, grants permission
+or launches a Windows binary. This input is separate from PhiOS's public
+GitHub repository profiler. See the
+[Rung 8 advisory review contract](docs/PHIOS_PHIVINE_ADVISORY_INTAKE_R08.md).
+
+
 The Python package release is separate from the Linux OS effort. The Linux target
 is an unpublished x86_64 UEFI Arch-based Wayfire/PhiShell development preview.
 The exact normal candidate passed VM live/installed boot, persistent data,
