@@ -1,0 +1,57 @@
+name: PhiVine real-producer held handoff contract
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/phivine-real-handoff.yml"
+      - "scripts/verify_phivine_real_handoff.py"
+      - "phios/apps/phivine_advisory_intake.py"
+      - "phios/apps/cli.py"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/phivine-real-handoff.yml"
+      - "scripts/verify_phivine_real_handoff.py"
+      - "phios/apps/phivine_advisory_intake.py"
+      - "phios/apps/cli.py"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  real-producer-cli-smoke:
+    name: Actual PhiVine producer -> held PhiOS CLI (NO EXECUTION)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out PhiOS with read-only credentials
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Check out exact merged PhiVine Rung 7 producer
+        uses: actions/checkout@v4
+        with:
+          repository: MichaelWave369/PhiVine
+          ref: 31d5056fb2b24fdf8cbe9e84bc408039f1de355f
+          path: .ci-phivine
+          persist-credentials: false
+      - name: Set up Python for producer and consumer
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install PhiOS Python CLI dependencies
+        run: python -m pip install -e .
+      - name: Verify real producer and real PhiOS reader fail closed
+        run: |
+          python scripts/verify_phivine_real_handoff.py \
+            --producer .ci-phivine \
+            --receipt phivine-evidence/real-handoff-held.json
+      - name: Retain only bounded non-authorizing test receipt
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: phios-phivine-real-producer-held-review
+          path: phivine-evidence/real-handoff-held.json
+          retention-days: 14
+          if-no-files-found: warn
