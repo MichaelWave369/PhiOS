@@ -142,7 +142,7 @@ def _valid_handoff(payload: Any) -> bool:
         return False
     name = artifact["name"]
     if (not _text(name, 255) or name in (".", "..")
-            or "/" in name or chr(92) in name or not name.lower().endswith(".exe")):
+            or "/" in name or chr(92) in name or not name.lower().endswith((".exe", ".msi"))):
         return False
     sha = artifact["sha256_observed"]
     if not isinstance(sha, str) or not _HEX64.fullmatch(sha):
@@ -150,7 +150,7 @@ def _valid_handoff(payload: Any) -> bool:
     size = artifact["size_bytes_observed"]
     if type(size) is not int or not 1 <= size <= 512 * 1024 * 1024:
         return False
-    if artifact["format_observed"] not in ("pe", "pe_candidate", "unknown"):
+    if artifact["format_observed"] not in ("pe", "pe_candidate", "msi_cfb_candidate", "unknown"):
         return False
     if artifact["architecture_observed"] not in ("x86", "x86_64", "arm64", None):
         return False
