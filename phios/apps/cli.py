@@ -1209,8 +1209,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             triage = read_phivine_triage_json(args.triage_json)
         except (OSError, ValueError):
             triage = None
-        review = review_phivine_triage(triage)
-        print(json.dumps(review, sort_keys=True, indent=2))
+        triage_review_record = review_phivine_triage(triage)
+        print(json.dumps(triage_review_record, sort_keys=True, indent=2))
         # All static DLL review stays HELD, including valid observations.
         return 3
 
