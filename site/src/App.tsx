@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import FieldCompanionReceiver from "./FieldCompanionReceiver";
 
 type ViewMode = "system" | "authority" | "evidence";
 
@@ -235,6 +236,7 @@ export default function App() {
           </div>
         </section>
 
+        <FieldCompanionReceiver />
         <section className="laws" aria-label="Architectural laws">
           {laws.map((law) => (
             <div className="law" key={law}>{law}</div>
