@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import ast
-import copy
 import sys
 import unittest
 from pathlib import Path
