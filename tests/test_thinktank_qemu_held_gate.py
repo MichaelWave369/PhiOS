@@ -24,6 +24,7 @@ def receipt(phase: int = 1, boot_id: str = BOOTS[0]) -> dict:
         "uid": 1000,
         "guest_interface_names": ["lo"],
         "guest_login_observed": True,
+        "app_platform_cli_observed": True,
         "no_thinktank_install_or_desktop_grant_observed": True,
         "status": "HOLD_FOR_OPERATOR_REVIEW",
         "app_installed": False,
