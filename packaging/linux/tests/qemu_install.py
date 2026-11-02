@@ -15,7 +15,9 @@ from typing import Any
 
 from qemu_boot import capture_display, enter_live_login, qmp_request
 from qemu_desktop import qualify_lock
-from thinktank_guest_hold_validator import verify_boot_series, verify_hold_observation
+from thinktank_guest_hold_validator import (
+    HOLD_MARKER_PATTERN, verify_boot_series, verify_hold_observation,
+)
 
 PASSWORD = "phios-qa-only-2026"  # Same public ephemeral test credential as live fixture.
 
@@ -338,7 +340,7 @@ def qualify(
                                 if phase == (3 if recovery else 2):
                                     receipt['linux_governed_workflow_qualified'] = True
                             if thinktank_held_probe:
-                                hold = wait_for(r'PHIOS_THINKTANK_GUEST_HELD:(\\{[^\\r\\n]+\\})')
+                                hold = wait_for(HOLD_MARKER_PATTERN)
                                 observation = verify_hold_observation(
                                     json.loads(hold[1]), source=source, phase=phase,
                                     observed_boot_id=details['boot_id'])
