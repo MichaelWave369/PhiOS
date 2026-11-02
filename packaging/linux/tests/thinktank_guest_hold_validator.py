@@ -12,7 +12,7 @@ from typing import Any
 SCHEMA = "phios.thinktank_guest_hold_boot.v0.1"
 FIELDS = {
     "schema", "source_commit", "boot_id", "phase", "uid",
-    "guest_interface_names", "guest_login_observed",
+    "guest_interface_names", "guest_login_observed", "app_platform_cli_observed",
     "no_thinktank_install_or_desktop_grant_observed", "status",
     "app_installed", "app_launch_verified", "app_rollback_verified",
     "guest_network_policy_attested", "redistribution_approved",
@@ -38,6 +38,7 @@ def verify_hold_observation(value: Any, *, source: str, phase: int,
             or value["status"] != "HOLD_FOR_OPERATOR_REVIEW"
             or value["guest_interface_names"] != ["lo"]
             or value["guest_login_observed"] is not True
+            or value["app_platform_cli_observed"] is not True
             or value["no_thinktank_install_or_desktop_grant_observed"] is not True
             or any(value[name] is not False for name in FALSE)):
         raise ValueError("THINKTANK_GUEST_HOLD_IDENTITY_OR_AUTHORITY_DRIFT")
