@@ -2,13 +2,17 @@
 from __future__ import annotations
 
 import ast
+import json
+import re
 import sys
 import unittest
 from pathlib import Path
 
 TESTS = Path(__file__).resolve().parents[1] / "packaging" / "linux" / "tests"
 sys.path.insert(0, str(TESTS))
-from thinktank_guest_hold_validator import verify_boot_series, verify_hold_observation  # noqa: E402
+from thinktank_guest_hold_validator import (  # noqa: E402
+    HOLD_MARKER_PATTERN, verify_boot_series, verify_hold_observation,
+)
 
 SOURCE = "a" * 40
 BOOTS = ["1" * 32, "2" * 32, "3" * 32]
@@ -37,6 +41,15 @@ def receipt(phase: int = 1, boot_id: str = BOOTS[0]) -> dict:
 
 
 class ThinkTankQemuHeldGateTests(unittest.TestCase):
+    def test_real_guest_hold_marker_matches_single_line_json(self):
+        row = receipt()
+        serial = 'logged in\r\nPHIOS_THINKTANK_GUEST_HELD:' + json.dumps(row) + '\r\n'
+        matched = re.search(HOLD_MARKER_PATTERN, serial)
+        self.assertIsNotNone(matched)
+        self.assertEqual(json.loads(matched.group(1)), row)
+        self.assertIsNone(re.search(HOLD_MARKER_PATTERN, 'PHIOS_THINKTANK_GUEST_HELD:{'))
+        self.assertIsNone(re.search(HOLD_MARKER_PATTERN, 'PHIOS_THINKTANK_GUEST_HELD:{\r\n}'))
+
     def test_clean_guest_hold_observation(self):
         row = receipt()
         self.assertIs(verify_hold_observation(row, source=SOURCE, phase=1,
