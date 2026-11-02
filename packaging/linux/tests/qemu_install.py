@@ -15,6 +15,9 @@ from typing import Any
 
 from qemu_boot import capture_display, enter_live_login, qmp_request
 from qemu_desktop import qualify_lock
+from thinktank_guest_hold_validator import (
+    HOLD_MARKER_PATTERN, verify_boot_series, verify_hold_observation,
+)
 
 PASSWORD = "phios-qa-only-2026"  # Same public ephemeral test credential as live fixture.
 
@@ -167,11 +170,17 @@ def install_live(common: list[str], iso: Path, output: Path, source: str, receip
     raise RuntimeError('disposable installed target never qualified')
 
 
-def qualify(iso: Path, source: str, output: Path, *, recovery: bool = False, signed_update: bool = False, fixture_free: bool = False) -> None:
+def qualify(
+    iso: Path, source: str, output: Path, *,
+    recovery: bool = False, signed_update: bool = False,
+    fixture_free: bool = False, thinktank_held_probe: bool = False,
+) -> None:
     if not re.fullmatch(r"[0-9a-f]{40}", source) or not iso.is_file() or output.exists():
         raise ValueError("exact source/ISO and a new owned evidence destination are required")
     if fixture_free and (signed_update or not recovery):
         raise ValueError('normal ISO qualification requires recovery; signed fixture transitions use the separate QA lane')
+    if thinktank_held_probe and not fixture_free:
+        raise ValueError('ThinkTank hold probe requires the unmodified fixture-free PhiOS guest')
     output.mkdir(mode=0o700, parents=True)
     code = Path("/usr/share/OVMF/OVMF_CODE_4M.fd")
     variables = output / "OVMF_VARS.fd"
@@ -206,6 +215,7 @@ def qualify(iso: Path, source: str, output: Path, *, recovery: bool = False, sig
           "abrupt_virtual_restart_passed": False, "boot_ids": [], "ci_serial_console_injected": not fixture_free,
           'explicit_serial_console_password_login': fixture_free, 'fixture_free_requested': fixture_free,
           'fixture_free_installed_qualified': False,
+          'thinktank_guest_hold_boots': [], 'thinktank_guest_held_gate_passed': False,
           "hardware_qualified": False, "release_ready": False, 'recovery_requested': recovery,
           'simulated_boot_failure_observed': False, 'matched_root_efi_restored': False,
           'whole_os_recovery_passed': False, 'signed_package_application_qualified': False}
@@ -303,6 +313,9 @@ def qualify(iso: Path, source: str, output: Path, *, recovery: bool = False, sig
                             if fixture_free and phase == 1:
                                 program = Path(__file__).with_name('normal_seed.py').read_text() + '\nseed_normal()\n' + \
                                     program.replace('from __future__ import annotations\n', '')
+                            if thinktank_held_probe:
+                                probe = Path(__file__).with_name('thinktank_guest_hold_probe.py').read_text()
+                                program += '\n' + probe + f'\nobserve_thinktank_held_guest({source!r}, {phase})\n'
                             # Keep each input line below the terminal's canonical
                             # line bound; a growing base64 -c command can exceed it.
                             channel.sendall(("python - <<'PHIOS_INSTALLED_PROBE'\n" + program +
@@ -326,6 +339,12 @@ def qualify(iso: Path, source: str, output: Path, *, recovery: bool = False, sig
                                     raise RuntimeError('old-boot proof authority refusal missing')
                                 if phase == (3 if recovery else 2):
                                     receipt['linux_governed_workflow_qualified'] = True
+                            if thinktank_held_probe:
+                                hold = wait_for(HOLD_MARKER_PATTERN)
+                                observation = verify_hold_observation(
+                                    json.loads(hold[1]), source=source, phase=phase,
+                                    observed_boot_id=details['boot_id'])
+                                receipt['thinktank_guest_hold_boots'].append(observation)
                             receipt["boot_ids"].append(details["boot_id"])
                             receipt["record_sha256"] = details["record_sha256"]
                             audio = re.search(r'PHIOS_DESKTOP_SERVICES_OK:(\{[^\r\n]+\})', text)
@@ -377,6 +396,11 @@ def qualify(iso: Path, source: str, output: Path, *, recovery: bool = False, sig
             receipt['signed_package_application_qualified'] = (receipt['whole_os_recovery_passed'] and
                 receipt['signed_update_refusals_observed'] and receipt['interrupted_signed_transaction_observed'] and
                 receipt['interrupted_update_active_root_preserved'])
+        if thinktank_held_probe:
+            verify_boot_series(receipt['thinktank_guest_hold_boots'], source=source,
+                               observed_boot_ids=receipt['boot_ids'],
+                               phases=3 if recovery else 2)
+            receipt['thinktank_guest_held_gate_passed'] = True
         if fixture_free:
             receipt['fixture_free_installed_qualified'] = (receipt['whole_os_recovery_passed'] and
                 receipt.get('linux_governed_workflow_qualified') is True and len(set(receipt['boot_ids'])) == 3)
@@ -396,5 +420,13 @@ if __name__ == "__main__":
     parser.add_argument('--recovery', action='store_true', help='Also damage and recover only this disposable installed disk')
     parser.add_argument('--signed-update', action='store_true', help='Also qualify signed packages and actual interrupted staging')
     parser.add_argument('--fixture-free', action='store_true', help='Install/recover the unmodified normal ISO using its limited live sudo and explicitly reviewed serial-console login')
+    parser.add_argument(
+        '--thinktank-held-probe', action='store_true',
+        help='Require held-only ThinkTank evidence from each authenticated installed guest boot',
+    )
     args = parser.parse_args()
-    qualify(args.iso, args.source, args.output.resolve(), recovery=args.recovery, signed_update=args.signed_update, fixture_free=args.fixture_free)
+    qualify(
+        args.iso, args.source, args.output.resolve(),
+        recovery=args.recovery, signed_update=args.signed_update,
+        fixture_free=args.fixture_free, thinktank_held_probe=args.thinktank_held_probe,
+    )

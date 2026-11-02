@@ -19,6 +19,10 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           persist-credentials: false
+      - name: Reject false ThinkTank guest qualification before building the ISO
+        run: |
+          python3 -m unittest discover -s tests -p 'test_thinktank_qemu_held_gate.py' -v
+          python3 -m py_compile packaging/linux/tests/thinktank_guest_hold_probe.py packaging/linux/tests/thinktank_guest_hold_validator.py packaging/linux/tests/qemu_install.py
       - name: Build the exact source with production profile and no QA fixtures
         run: |
           set -euo pipefail
@@ -52,7 +56,7 @@ jobs:
       - name: Install and recover the exact normal ISO through production commands
         run: |
           python3 packaging/linux/tests/qemu_install.py \
-            --fixture-free --recovery \
+            --fixture-free --recovery --thinktank-held-probe \
             --iso dist/fixture-free/phios-linux-0.1.0-alpha.1-x86_64.iso \
             --source "$(cat dist/fixture-free/source-commit.txt)" \
             --output "$RUNNER_TEMP/phios-normal-installed"
