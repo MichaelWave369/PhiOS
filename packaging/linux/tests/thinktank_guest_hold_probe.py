@@ -7,6 +7,7 @@ This file is not included in the normal image.
 import json as _tt_json
 import os as _tt_os
 import re as _tt_re
+import shutil as _tt_shutil
 from pathlib import Path as _TtPath
 from phios.apps.desktop_catalog import snapshot_desktop_catalog as _tt_snapshot
 
@@ -21,6 +22,7 @@ def observe_thinktank_held_guest(source: str, phase: int) -> None:
     # QEMU itself also uses -nic none. This is an observation of the
     # specific guest's visible interfaces, not a general network sandbox.
     assert interfaces == ["lo"], "unexpected guest network interface"
+    assert _tt_shutil.which("phi-app") is not None, "governed app CLI unavailable"
     home = _TtPath.home()
     desktop_root = home / ".local/share/phios/desktop-apps"
     applications_root = home / ".local/share/applications"
@@ -54,6 +56,7 @@ def observe_thinktank_held_guest(source: str, phase: int) -> None:
         "uid": 1000,
         "guest_interface_names": interfaces,
         "guest_login_observed": True,
+        "app_platform_cli_observed": True,
         "no_thinktank_install_or_desktop_grant_observed": True,
         "status": "HOLD_FOR_OPERATOR_REVIEW",
         "app_installed": False,
