@@ -168,7 +168,11 @@ def install_live(common: list[str], iso: Path, output: Path, source: str, receip
     raise RuntimeError('disposable installed target never qualified')
 
 
-def qualify(iso: Path, source: str, output: Path, *, recovery: bool = False, signed_update: bool = False, fixture_free: bool = False, thinktank_held_probe: bool = False) -> None:
+def qualify(
+    iso: Path, source: str, output: Path, *,
+    recovery: bool = False, signed_update: bool = False,
+    fixture_free: bool = False, thinktank_held_probe: bool = False,
+) -> None:
     if not re.fullmatch(r"[0-9a-f]{40}", source) or not iso.is_file() or output.exists():
         raise ValueError("exact source/ISO and a new owned evidence destination are required")
     if fixture_free and (signed_update or not recovery):
@@ -414,6 +418,13 @@ if __name__ == "__main__":
     parser.add_argument('--recovery', action='store_true', help='Also damage and recover only this disposable installed disk')
     parser.add_argument('--signed-update', action='store_true', help='Also qualify signed packages and actual interrupted staging')
     parser.add_argument('--fixture-free', action='store_true', help='Install/recover the unmodified normal ISO using its limited live sudo and explicitly reviewed serial-console login')
-    parser.add_argument('--thinktank-held-probe', action='store_true', help='Require held-only ThinkTank evidence from each authenticated installed guest boot')
+    parser.add_argument(
+        '--thinktank-held-probe', action='store_true',
+        help='Require held-only ThinkTank evidence from each authenticated installed guest boot',
+    )
     args = parser.parse_args()
-    qualify(args.iso, args.source, args.output.resolve(), recovery=args.recovery, signed_update=args.signed_update, fixture_free=args.fixture_free, thinktank_held_probe=args.thinktank_held_probe)
+    qualify(
+        args.iso, args.source, args.output.resolve(),
+        recovery=args.recovery, signed_update=args.signed_update,
+        fixture_free=args.fixture_free, thinktank_held_probe=args.thinktank_held_probe,
+    )
