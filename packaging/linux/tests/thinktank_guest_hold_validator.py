@@ -10,6 +10,8 @@ import re
 from typing import Any
 
 SCHEMA = "phios.thinktank_guest_hold_boot.v0.1"
+# Read the single-line, bounded JSON observation exactly as the guest prints it.
+HOLD_MARKER_PATTERN = r"PHIOS_THINKTANK_GUEST_HELD:(\{[^\r\n]+\})"
 FIELDS = {
     "schema", "source_commit", "boot_id", "phase", "uid",
     "guest_interface_names", "guest_login_observed", "app_platform_cli_observed",
