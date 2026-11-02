@@ -1,8 +1,8 @@
-import {useMemo, useRef, useState} from 'react'
-import {createFieldCompanionReceiver, FIELD_MAX_BYTES, FIELD_ROUTES, type FieldCompanion} from './field-companion.mjs'
+import {useMemo, useState} from 'react'
+import {createFieldCompanionReceiver, parseFieldCompanion, FIELD_MAX_BYTES, FIELD_ROUTES, type FieldCompanion} from './field-companion.mjs'
+import './field-companion.css'
 
 const routeNames = {live: 'PhiOS Live', xr: 'PhiOS XR', mobile: 'PhiOS Mobile'} as const
-const routeIds = ['live','xr','mobile'] as const
 
 function browserStorage(): Storage | null {
   try {return window.localStorage} catch {return null}
@@ -12,7 +12,6 @@ export default function FieldCompanionReceiver() {
   const receiver = useMemo(() => createFieldCompanionReceiver({storage: browserStorage()}), [])
   const [record, setRecord] = useState<FieldCompanion | null>(() => receiver.snapshot())
   const [notice, setNotice] = useState('')
-  const upload = useRef<HTMLInputElement>(null)
 
   const handleImport = async (file?: File) => {
     if (!file) return
@@ -23,8 +22,7 @@ export default function FieldCompanionReceiver() {
     try {
       const text = await file.text()
       // Validate without changing any state or permissions, then require approval.
-      const {parseFieldCompanion} = await import('./field-companion.mjs')
-      const candidate = parseFieldCompanion(text)
+      parseFieldCompanion(text)
       if (!window.confirm('Import Field Companion callsign, pins and last portal into this browser only? It will not change host settings, achievements, or permissions.')) {
         setNotice('Import canceled. No changes made.')
         return
@@ -33,7 +31,6 @@ export default function FieldCompanionReceiver() {
       setRecord(outcome.record)
       setNotice(outcome.persisted ? 'Companion preferences saved in this browser.' :
         'Browser storage blocked. Preferences are available for this session only.')
-      void candidate
     } catch {
       setNotice('Rejected: invalid or unsupported Field Companion v1 JSON.')
     }
@@ -80,7 +77,7 @@ export default function FieldCompanionReceiver() {
       </div>}
       <div className="field-receiver__actions">
         <label htmlFor="field-companion-import">IMPORT COMPANION JSON (16 KiB MAX)</label>
-        <input id="field-companion-import" ref={upload} type="file" accept=".json,application/json"
+        <input id="field-companion-import" type="file" accept=".json,application/json"
           onChange={e => {const file = e.currentTarget.files?.[0]; e.currentTarget.value = ''; void handleImport(file)}}/>
         <button type="button" disabled={!record} onClick={handleExport}>EXPORT COPY</button>
         <button type="button" disabled={!record} onClick={handleRemove}>REMOVE IMPORT</button>
