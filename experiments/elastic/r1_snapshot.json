@@ -1,0 +1,11 @@
+{
+  "schema_version": "phios.elastic.snapshot.v1",
+  "budget": {"ram_mib": 1024, "vram_mib": 256},
+  "bubbles": [
+    {"id": "minimal-core", "kind": "service", "observed_state": "pinned", "demanded": true, "pinned": true, "prefetch": false, "priority": 100, "dependencies": [], "warm_ram_mib": 80, "active_ram_mib": 160, "active_vram_mib": 0},
+    {"id": "graphics", "kind": "renderer", "observed_state": "active", "demanded": false, "pinned": false, "prefetch": false, "priority": 90, "dependencies": [], "warm_ram_mib": 40, "active_ram_mib": 180, "active_vram_mib": 100},
+    {"id": "btm-vr", "kind": "application", "observed_state": "active", "demanded": true, "pinned": false, "prefetch": false, "priority": 95, "dependencies": ["graphics"], "warm_ram_mib": 60, "active_ram_mib": 280, "active_vram_mib": 120},
+    {"id": "pocketbrain", "kind": "model", "observed_state": "cold", "demanded": false, "pinned": false, "prefetch": true, "priority": 30, "dependencies": [], "warm_ram_mib": 160, "active_ram_mib": 560, "active_vram_mib": 1200},
+    {"id": "background-agent", "kind": "service", "observed_state": "cold", "demanded": false, "pinned": false, "prefetch": true, "priority": 20, "dependencies": [], "warm_ram_mib": 100, "active_ram_mib": 200, "active_vram_mib": 0}
+  ]
+}
