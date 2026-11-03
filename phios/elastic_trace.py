@@ -83,11 +83,12 @@ def _duration_samples(value: object, metric: str) -> tuple[list[int], float]:
     if any(type(n) is not int or not 1 <= n <= MAX_DURATION_US for n in value):
         raise TraceError("duration must be a positive bounded integer in microseconds")
     samples: list[int] = value
+    observed_us: float
     if metric == "frame_time_p95_ms":
         ordered = sorted(samples)
-        observed_us = ordered[math.ceil(.95 * len(ordered)) - 1]
+        observed_us = float(ordered[math.ceil(.95 * len(ordered)) - 1])
     else:
-        observed_us = statistics.median(samples)
+        observed_us = float(statistics.median(samples))
     return samples, round(observed_us / 1000.0, 6)
 
 
