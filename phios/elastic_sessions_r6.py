@@ -140,12 +140,15 @@ def review_sessions(reports: Sequence[object]) -> dict[str, object]:
             raise SessionAuditError("mismatched workload, environment or window configuration")
 
     session_rows: list[dict[str, object]] = []
+    values: list[float] = []
     for report in checked:
         summary = report["comparison"]["paired_comparison"]["summary"]
         pct = summary["median_paired_improvement_percent"]
         if (isinstance(pct, bool) or not isinstance(pct, (int, float)) or
                 not math.isfinite(float(pct))):
             raise SessionAuditError("invalid nested improvement statistic")
+        validated_percent = float(pct)
+        values.append(validated_percent)
         session_rows.append({
             "r5_receipt_sha256": report["receipt_sha256"],
             "pair_count": report["comparison"]["paired_comparison"]["pair_count"],
@@ -155,7 +158,6 @@ def review_sessions(reports: Sequence[object]) -> dict[str, object]:
     # The original R5 output has no timestamps. Sorting by digest makes report
     # hashes stable across argument order without pretending to know chronology.
     session_rows.sort(key=lambda row: str(row["r5_receipt_sha256"]))
-    values = [float(row["median_paired_improvement_percent"]) for row in session_rows]
     positives = sum(value > 0 for value in values)
     negatives = sum(value < 0 for value in values)
     zeros = len(values) - positives - negatives
