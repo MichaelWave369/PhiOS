@@ -28,6 +28,7 @@ from phios.apps.package_install import (
 )
 from phios.apps.registry import AppRegistry
 from scripts.thinktank_guest_acceptance import reviewed_candidate
+from scripts.thinktank_web_pilot import verify_dist
 
 SCHEMA = "phios.thinktank_package_plan_gate.v0.1"
 HANDOFF_SCHEMA = "phios.thinktank_preinstall_handoff.v0.1"
@@ -139,7 +140,8 @@ def artifacts_from_handoff(handoff: dict[str, Any], candidate: dict[str, Any]
 
 
 def verify_actual_workspace(workspace: Path,
-                            artifacts: tuple[PackageArtifact, ...]) -> None:
+                            artifacts: tuple[PackageArtifact, ...],
+                            handoff: dict[str, Any]) -> None:
     demand(workspace.is_absolute() and not workspace.is_symlink()
            and workspace.is_dir(), "WORKSPACE_UNSAFE")
     root = workspace.resolve(strict=True)
@@ -154,6 +156,11 @@ def verify_actual_workspace(workspace: Path,
         actual.add(child.relative_to(root).as_posix())
         demand(len(actual) <= MAX_DIST_FILES, "WORKSPACE_TOO_MANY_FILES")
     demand(actual == {item.path for item in artifacts}, "WORKSPACE_FILE_SET_DRIFT")
+    observed = verify_dist(dist)
+    demand(observed["artifact_set_sha256"] == handoff["verified_static_bundle_sha256"]
+           and observed["file_count"] == len(artifacts)
+           and observed["total_bytes"] == handoff["package_total_bytes"],
+           "WORKSPACE_STATIC_BUNDLE_DRIFT")
     for artifact in artifacts:
         path = root / artifact.path
         demand(path.is_file() and not path.is_symlink()
@@ -183,7 +190,7 @@ def review(
         and binding.release_build_review_sha256 is None,
         "GOVERNED_BUILD_OR_RELEASE_LINEAGE_MISMATCH",
     )
-    verify_actual_workspace(Path(binding.execution_workspace_path), artifacts)
+    verify_actual_workspace(Path(binding.execution_workspace_path), artifacts, handoff)
     registry = AppRegistry()
     registry.register(manifest)  # ephemeral, never persisted to a PhiOS installation
     plan = plan_build_package(manifest.to_dict(), registry, execution, offline)
