@@ -13,7 +13,7 @@ import re
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Mapping, Sequence
+from typing import Any, Sequence
 
 SNAPSHOT_SCHEMA = "phios.elastic.snapshot.v1"
 RECEIPT_SCHEMA = "phios.elastic.advisory.v1"
