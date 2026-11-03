@@ -131,10 +131,12 @@ def compare(payload: object) -> dict[str, object]:
             raise PairedStudyError("invalid crossover order")
         orders[order] += 1
         measures: dict[str, dict[str, object]] = {}
+        validated_values: dict[str, float] = {}
         for arm in ("baseline", "candidate"):
             reading = _object(pair[arm], {"value", "samples", "passed", "r2_receipt_sha256"},
                               f"{arm} reading")
             value = _number(reading["value"], f"{arm} value")
+            validated_values[arm] = value
             count = _integer(reading["samples"], f"{arm} samples",
                              minimum=minimum_samples)
             if not isinstance(reading["passed"], bool):
@@ -146,8 +148,8 @@ def compare(payload: object) -> dict[str, object]:
             measures[arm] = {"value": value, "samples": count,
                              "passed": reading["passed"],
                              "r2_receipt_sha256": receipt_digest}
-        baseline = float(measures["baseline"]["value"])
-        candidate = float(measures["candidate"]["value"])
+        baseline = validated_values["baseline"]
+        candidate = validated_values["candidate"]
         improvement = ((baseline - candidate) / baseline if better == "lower"
                        else (candidate - baseline) / baseline) * 100.0
         if not math.isfinite(improvement):
