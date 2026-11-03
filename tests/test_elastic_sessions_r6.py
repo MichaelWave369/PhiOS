@@ -87,6 +87,11 @@ def test_mixed_directions_reported_without_promotion(receipts: list[dict]) -> No
 def test_invalid_claims_fail_closed(receipts: list[dict], field: str, value: object) -> None:
     receipts[0][field] = value
     _reseal(receipts[0])
+    if field == "status":
+        receipts[0]["status"] = value
+        receipts[0]["receipt_sha256"] = r5._hash_json({
+            key: val for key, val in receipts[0].items() if key != "receipt_sha256"
+        })
     with pytest.raises(SessionAuditError):
         review_sessions(receipts)
 
@@ -118,7 +123,6 @@ def test_mismatch_or_tampering_refused(receipts: list[dict], kind: str) -> None:
         _reseal(item)
     elif kind == "invalid-metric":
         item["trace"]["experiment"]["metric"] = "tokens_per_second"
-        _reseal(item) if False else None
         item["receipt_sha256"] = r5._hash_json({
             key: value for key, value in item.items() if key != "receipt_sha256"
         })
@@ -184,6 +188,6 @@ def test_cli_reads_explicit_local_receipts_and_never_reports_paths(
     assert [path.read_bytes() for path in paths] == before
     assert str(tmp_path) not in result.stdout
     # A single receipt is not independent replication.
-    bad = subprocess.run(command[:4], text=True, capture_output=True, timeout=10)
+    bad = subprocess.run(command[:5], text=True, capture_output=True, timeout=10)
     assert bad.returncode == 2
     assert json.loads(bad.stdout)["status"] == "UNAVAILABLE"
