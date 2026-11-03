@@ -1,0 +1,109 @@
+{
+  "schema_version": "phios.elastic.paired-study.v1",
+  "experiment": {
+    "scenario": "btm-vr",
+    "environment_id": "illustrative-hardware",
+    "workload_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "protocol_id": "illustrative-frame-study",
+    "metric": "frame_time_p95_ms",
+    "declared_source": "operator_supplied_unverified"
+  },
+  "pairs": [
+    {
+      "pair_id": "trial-01",
+      "order": "AB",
+      "baseline": {
+        "value": 17.5,
+        "samples": 600,
+        "passed": true,
+        "r2_receipt_sha256": null
+      },
+      "candidate": {
+        "value": 16.6,
+        "samples": 600,
+        "passed": true,
+        "r2_receipt_sha256": null
+      }
+    },
+    {
+      "pair_id": "trial-02",
+      "order": "BA",
+      "baseline": {
+        "value": 17.2,
+        "samples": 600,
+        "passed": true,
+        "r2_receipt_sha256": null
+      },
+      "candidate": {
+        "value": 16.8,
+        "samples": 600,
+        "passed": true,
+        "r2_receipt_sha256": null
+      }
+    },
+    {
+      "pair_id": "trial-03",
+      "order": "AB",
+      "baseline": {
+        "value": 17.8,
+        "samples": 600,
+        "passed": true,
+        "r2_receipt_sha256": null
+      },
+      "candidate": {
+        "value": 16.4,
+        "samples": 600,
+        "passed": true,
+        "r2_receipt_sha256": null
+      }
+    },
+    {
+      "pair_id": "trial-04",
+      "order": "BA",
+      "baseline": {
+        "value": 17.3,
+        "samples": 600,
+        "passed": true,
+        "r2_receipt_sha256": null
+      },
+      "candidate": {
+        "value": 17.6,
+        "samples": 600,
+        "passed": true,
+        "r2_receipt_sha256": null
+      }
+    },
+    {
+      "pair_id": "trial-05",
+      "order": "AB",
+      "baseline": {
+        "value": 17.4,
+        "samples": 600,
+        "passed": true,
+        "r2_receipt_sha256": null
+      },
+      "candidate": {
+        "value": 16.9,
+        "samples": 600,
+        "passed": true,
+        "r2_receipt_sha256": null
+      }
+    },
+    {
+      "pair_id": "trial-06",
+      "order": "BA",
+      "baseline": {
+        "value": 17.6,
+        "samples": 600,
+        "passed": true,
+        "r2_receipt_sha256": null
+      },
+      "candidate": {
+        "value": 16.5,
+        "samples": 600,
+        "passed": true,
+        "r2_receipt_sha256": null
+      }
+    }
+  ]
+}
