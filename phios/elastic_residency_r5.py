@@ -119,6 +119,7 @@ def benchmark(path: Path, *, pairs: int = 6, windows: int = 16,
             raise ResidencyError("requested windows overlap")
         positions = tuple(index * step for index in range(windows))
         file_digest = _digest_file(handle)
+        reference_digest = expected_digest(handle, positions, window_bytes)
         manifest = {
             "protocol": PROTOCOL, "file_sha256": file_digest,
             "size_bytes": size, "windows": windows, "window_bytes": window_bytes,
@@ -137,13 +138,11 @@ def benchmark(path: Path, *, pairs: int = 6, windows: int = 16,
                         window_bytes=window_bytes, mapped=is_mapped
                     )
                 )
+                # Compare against the independently read reference captured before trials.
+                # Never add validation I/O between the timed baseline and candidate arms.
                 arms[arm] = {"durations_us": [duration_us],
-                             "passed": isinstance(result, str) and len(result) == 64,
+                             "passed": result == reference_digest,
                              "r2_receipt_sha256": None}
-                # A digest mismatch is a correctness failure, not a faster run.
-                if isinstance(result, str):
-                    arms[arm]["passed"] = result == expected_digest(handle, positions,
-                                                                     window_bytes)
                 if not arms[arm]["passed"]:
                     raise ResidencyError("sparse-window content mismatch")
             trace_pairs.append({
