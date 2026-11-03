@@ -122,7 +122,7 @@ def test_changed_static_assets_block_handoff(tmp_path: Path):
 def test_missing_static_asset_blocks_handoff(tmp_path: Path):
     source, dist, path, candidate, _ = _fixture(tmp_path)
     (dist / "assets" / "app.js").unlink()
-    with pytest.raises(ValueError, match="missing or escaping"):
+    with pytest.raises(ValueError, match="static artifact count|missing or escaping"):
         _inspect(source, dist, path, candidate)
 
 def test_source_pin_drift_blocks_handoff(tmp_path: Path):
