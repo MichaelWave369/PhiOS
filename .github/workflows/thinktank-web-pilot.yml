@@ -5,6 +5,9 @@ on:
     paths:
       - "scripts/thinktank_web_pilot.py"
       - "tests/test_thinktank_web_pilot.py"
+      - "scripts/thinktank_preinstall_handoff.py"
+      - "tests/test_thinktank_preinstall_handoff.py"
+      - "docs/PHIOS_THINKTANK_PREINSTALL_HANDOFF_V064.md"
       - "docs/PHIOS_THINKTANK_WEB_PILOT_V060.md"
       - ".github/workflows/thinktank-web-pilot.yml"
       - "phishell/src/ecosystem/app-candidates.json"
@@ -13,6 +16,9 @@ on:
     paths:
       - "scripts/thinktank_web_pilot.py"
       - "tests/test_thinktank_web_pilot.py"
+      - "scripts/thinktank_preinstall_handoff.py"
+      - "tests/test_thinktank_preinstall_handoff.py"
+      - "docs/PHIOS_THINKTANK_PREINSTALL_HANDOFF_V064.md"
       - "docs/PHIOS_THINKTANK_WEB_PILOT_V060.md"
       - ".github/workflows/thinktank-web-pilot.yml"
       - "phishell/src/ecosystem/app-candidates.json"
@@ -102,11 +108,23 @@ jobs:
             --committed-lock .pilot/think-tank/package-lock.json \
             --browser google-chrome \
             --receipt pilot-evidence/thinktank-web-hosted.json
+      - name: Bind offline-built static assets to PhiOS package artifact inventory (NO INSTALL)
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/thinktank_preinstall_handoff.py \
+            --source .pilot/think-tank \
+            --dist "$RUNNER_TEMP/thinktank-offline-work/dist" \
+            --committed-lock .pilot/think-tank/package-lock.json \
+            --hosted-receipt pilot-evidence/thinktank-web-hosted.json \
+            --output pilot-evidence/thinktank-preinstall-handoff.json
       - name: Retain receipt only, never the unreviewed distributable or model state
         uses: actions/upload-artifact@v4
         if: always()
         with:
           name: phios-thinktank-hosted-pilot-review-only
-          path: pilot-evidence/thinktank-web-hosted.json
+          path: |
+            pilot-evidence/thinktank-web-hosted.json
+            pilot-evidence/thinktank-preinstall-handoff.json
           retention-days: 14
           if-no-files-found: warn
