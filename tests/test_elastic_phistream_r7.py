@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import copy
 import json
+import statistics
 import subprocess
 import sys
 from pathlib import Path
@@ -71,7 +72,7 @@ def synthetic_audit() -> dict:
         "exact_weight_load_operation_count_pattern": True,
         "weight_load_operations_per_decoder_step": operations_per_step,
         "fixed_initial_weight_load_operations": fixed_operations,
-        "median_staging_time_fraction_observed": __import__("statistics").median(fractions),
+        "median_staging_time_fraction_observed": statistics.median(fractions),
         "max_staging_time_fraction_observed": max(fractions),
         "performance_scope": {
             "timings_descriptive": True,
