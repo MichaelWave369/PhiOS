@@ -33,7 +33,7 @@ The importer requires PhiStream's *reported* exact stage-counter linearity verdi
 
 It rejects malformed, incomplete or inconsistent claims and refuses private/unknown fields. A PhiStream audit with a nonlinear counter status is **not upgraded** into a positive review.
 
-A valid R7 output includes per-case staging milliseconds and percentages, per-step staged weight payload, an advisory next experiment and content fingerprints. It intentionally does **not** export raw checkpoint fingerprints, checkpoint paths, tokens, local filenames, source files, reference logits or actual weights.
+A valid R7 output includes per-case staging seconds and percentages, per-step staged weight payload, an advisory next experiment and content fingerprints. It intentionally does **not** export raw checkpoint fingerprints, checkpoint paths, tokens, local filenames, source files, reference logits or actual weights.
 
 **Important:** R7 reads an already-produced self-reported audit. It cannot authenticate the original model publisher, independently rehash the source checkpoint or confirm that the experiment took place. For that, use the original PhiStream audit with all of its frozen, local input evidence. PhiOS never describes a reviewed audit as verified real-machine provenance.
 
