@@ -250,3 +250,33 @@ def test_candidate_promotion_is_refused(tmp_path):
     with patch.object(gate, "reviewed_candidate", return_value=candidate):
         with pytest.raises(ValueError, match="UNREVIEWED_HANDOFF_OR_CANDIDATE"):
             gate.review(handoff, execution, offline)
+
+def test_synthetic_installer_accepts_exact_reviewed_plan_only(tmp_path):
+    """Real AppInstallService is exercised, but only with synthetic test bytes."""
+    from phios.apps.package_install import AppInstallService
+    from phios.apps.registry import AppRegistry
+    handoff, execution, offline, _ = fixture(tmp_path)
+    plan_review = gate.review(handoff, execution, offline)
+    plan = plan_review["package_plan"]
+    registry = AppRegistry()
+    registry.register(AppManifest.from_dict(reviewed_candidate()["manifest"]))
+    install_root = tmp_path / "synthetic-only-installed"
+    with pytest.raises(ValueError, match="Approved package-plan"):
+        AppInstallService().install(
+            plan, registry, execution, offline,
+            approved_package_plan_sha256="0" * 64,
+            install_root=install_root,
+        )
+    assert not (install_root / "phios.thinktank-web").exists()
+    receipt = AppInstallService().install(
+        plan, registry, execution, offline,
+        approved_package_plan_sha256=plan["package_plan_sha256"],
+        install_root=install_root,
+    )
+    installed = Path(receipt.install_path)
+    assert receipt.status == "installed"
+    assert receipt.launch_authority is False
+    assert (installed / "payload/dist/index.html").is_file()
+    assert (installed / "payload/dist/assets/app.js").is_file()
+    assert receipt.artifact_set_sha256 == handoff["package_artifact_set_sha256"]
+    assert receipt.package_plan_sha256 == plan["package_plan_sha256"]
