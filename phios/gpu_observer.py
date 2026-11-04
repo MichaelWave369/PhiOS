@@ -99,8 +99,11 @@ def compare(before: dict[str, Any], after: dict[str, Any]) -> dict[str, Any]:
         raise ValueError("Comparison requires identical workload, GPU, precision, batch, resolution and mode")
     if before.get("schema") != "phios.gpu-run.v1" or after.get("schema") != "phios.gpu-run.v1":
         raise ValueError("Both measurements must use phios.gpu-run.v1")
-    first, second = before.get("duration_ms"), after.get("duration_ms")
-    if any(type(x) not in (int, float) or not math.isfinite(x) or x <= 0 for x in (first, second)):
+    first_raw, second_raw = before.get("duration_ms"), after.get("duration_ms")
+    if type(first_raw) not in (int, float) or type(second_raw) not in (int, float):
+        raise ValueError("Duration must be a positive, finite number of milliseconds")
+    first, second = float(first_raw), float(second_raw)
+    if not math.isfinite(first) or not math.isfinite(second) or first <= 0 or second <= 0:
         raise ValueError("Duration must be a positive, finite number of milliseconds")
     return {"schema": "phios.gpu-comparison.v1",
             "workload": before["workload"], "gpu": before["gpu"],
