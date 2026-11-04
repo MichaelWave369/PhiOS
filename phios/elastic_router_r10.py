@@ -155,7 +155,7 @@ def bridge(
     })
     study = {
         "schema_version": "phios.elastic.cache-shadow-study.v1",
-        "scenario": f"pocketrotor-layer-{layer}-{holdout}",
+        "scenario": f"pocketrotor-layer-{layer}-{holdout.replace('_', '-')}",
         "workload_sha256": workload,
         "source": "operator_supplied_unverified",
         "budget": {"capacity_bytes": capacity, "reserve_bytes": reserve},
