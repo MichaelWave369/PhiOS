@@ -238,3 +238,14 @@ footer { border-top: 1px solid var(--line); color: var(--muted); padding: 24px c
 .sovereignty-site-grid p{color:var(--muted);line-height:1.65}
 .sovereignty-site-grid a{color:var(--teal);font-size:.86rem;font-weight:700}
 @media(max-width:900px){.sovereignty-site-grid{grid-template-columns:1fr}}
+
+/* GPU Observatory: observational UI, not a hardware control panel. */
+.gpu-inspector { max-width: 1180px; margin: 0 auto 28px; padding: 26px; border: 1px solid var(--line); border-radius: 18px; background: var(--panel); }
+.gpu-inspector h2 { margin: 6px 0 10px; font-size: clamp(1.3rem, 3vw, 2rem); }
+.gpu-inspector p { color: var(--muted); max-width: 850px; line-height: 1.6; }
+.gpu-inspector button { padding: 11px 18px; border: 1px solid var(--teal); background: transparent; border-radius: 10px; cursor: pointer; color: var(--teal); }
+.gpu-inspector button:disabled { opacity: .6; cursor: wait; }
+.gpu-inspector dl { display: grid; grid-template-columns: 160px minmax(0, 1fr); gap: 8px 16px; }
+.gpu-inspector dt { color: var(--muted); }
+.gpu-inspector dd { margin: 0; overflow-wrap: anywhere; }
+@media (max-width: 620px) { .gpu-inspector dl { grid-template-columns: 1fr; } }

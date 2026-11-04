@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import FieldCompanionReceiver from "./FieldCompanionReceiver";
+import BrowserGpuInspector from "./BrowserGpuInspector";
 
 type ViewMode = "system" | "authority" | "evidence";
 
@@ -236,6 +237,7 @@ export default function App() {
           </div>
         </section>
 
+        <BrowserGpuInspector />
         <FieldCompanionReceiver />
         <section className="laws" aria-label="Architectural laws">
           {laws.map((law) => (
