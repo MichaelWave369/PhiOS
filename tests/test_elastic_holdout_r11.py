@@ -80,10 +80,9 @@ def test_holdout_data_cannot_change_frozen_train_pin_policy(capture: dict) -> No
         if event["split"] == "holdout_b":
             event["experts"] = [0, 1]
     second = assess(capture)
-    assert first["frozen_policy_sha256"] != second["frozen_policy_sha256"]
-    # Full capture SHA is intentionally bound into R10 reports. Extract the
-    # stable training-only ranking by comparing the selected pin count and
-    # explicit behavior on a frozen holdout.
+    assert first["frozen_policy_sha256"] == second["frozen_policy_sha256"]
+    # Overall capture hash changes, but frozen training-only policy does not.
+    assert first["source_capture_sha256"] != second["source_capture_sha256"]
     assert first["selected_train_only_pins"] == second["selected_train_only_pins"] == 2
     assert first["holdouts"][0]["train_pin_lru_stage_bytes"] == (
         second["holdouts"][0]["train_pin_lru_stage_bytes"]
