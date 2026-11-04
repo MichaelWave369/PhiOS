@@ -50,7 +50,7 @@ def _hash(value: object) -> str:
     return hashlib.sha256(raw).hexdigest()
 
 
-def _validate(capture: object) -> dict[str, object]:
+def _validate(capture: object) -> dict[str, Any]:
     root = _object(capture, {"schema", "expert_count", "source", "events"}, "capture")
     if root["schema"] != CAPTURE_SCHEMA:
         raise RouterBridgeError("unsupported native routing capture schema")
