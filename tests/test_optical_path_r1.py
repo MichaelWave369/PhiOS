@@ -7,7 +7,7 @@ import sys
 import pytest
 
 from phios.optical_path_r1 import (
-    ILLUSTRATIVE_COPPER, ILLUSTRATIVE_OPTICAL, LinkAssumptions,
+    ILLUSTRATIVE_COPPER, LinkAssumptions,
     compare_paths, estimate_transfer,
 )
 
