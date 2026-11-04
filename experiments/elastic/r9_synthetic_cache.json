@@ -1,0 +1,35 @@
+{
+  "schema_version": "phios.elastic.cache-shadow-study.v1",
+  "scenario": "phistream-layer-reuse-synthetic",
+  "workload_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "source": "operator_supplied_unverified",
+  "budget": {
+    "capacity_bytes": 9,
+    "reserve_bytes": 0
+  },
+  "resources": [
+    {
+      "id": "layer-a",
+      "bytes": 4,
+      "pinned": false
+    },
+    {
+      "id": "layer-b",
+      "bytes": 3,
+      "pinned": false
+    },
+    {
+      "id": "layer-c",
+      "bytes": 2,
+      "pinned": true
+    }
+  ],
+  "accesses": [
+    "layer-a",
+    "layer-b",
+    "layer-a",
+    "layer-c",
+    "layer-b",
+    "layer-a"
+  ]
+}
