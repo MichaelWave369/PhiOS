@@ -11,7 +11,7 @@ from collections import Counter
 import json
 import sys
 from pathlib import Path
-from typing import Any, Sequence
+from typing import Any, Sequence, cast
 
 from phios.elastic_router_r10 import (
     RouterBridgeError,
@@ -118,8 +118,12 @@ def evaluate(
             capture, layer=layer, holdout=name, expert_bytes=size,
             capacity_bytes=capacity, reserve_bytes=reserve, pinned_experts=pins,
         )
-        left: dict[str, Any] = baseline["shadow"]
-        right: dict[str, Any] = candidate["shadow"]
+        if not isinstance(baseline["shadow"], dict) or not isinstance(
+            candidate["shadow"], dict
+        ):
+            raise HoldoutPolicyError("missing shadow replay outputs")
+        left = cast(dict[str, Any], baseline["shadow"])
+        right = cast(dict[str, Any], candidate["shadow"])
         if (baseline["status"] != "REVIEW_REQUIRED" or
                 candidate["status"] != "REVIEW_REQUIRED" or
                 left["baseline_logical_staged_bytes"] !=
@@ -139,7 +143,7 @@ def evaluate(
         unchanged += change == 0
         total_baseline += baseline_bytes
         total_candidate += selected_bytes
-        total_events += baseline["routed_expert_accesses"]
+        total_events += _integer(baseline["routed_expert_accesses"], "routed uses", 1, 4096)
         reports.append({
             "holdout": name,
             "steps": baseline["holdout_steps"],
