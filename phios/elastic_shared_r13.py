@@ -58,6 +58,7 @@ def _footprints(
     }, "expert-size manifest")
     if (root["schema_version"] != MANIFEST_SCHEMA or
             root["source"] != "operator_supplied_unverified" or
+            not isinstance(root["size_basis"], str) or
             root["size_basis"] not in _SIZE_BASES):
         raise SharedCacheError("unsupported footprint source or basis")
     if not isinstance(capture, dict):
@@ -304,7 +305,11 @@ def evaluate(
         "rule": "global_train_frequency_per_byte_desc_id_asc_v1",
         "train_events_sha256": _hash(by_split["train"]),
         "pinned_resources": [list(key) for key in chosen],
-        "footprint_manifest_sha256": footprint_sha,
+        "expert_size_vector_sha256": _hash([
+            [layer, [sizes[(layer, expert)] for expert in range(checked["expert_count"])]]
+            for layer in layers
+        ]),
+        "size_basis": basis,
         "capacity": capacity, "reserve": reserve,
         "atomic_group_headroom_bytes": largest_atomic,
     })
