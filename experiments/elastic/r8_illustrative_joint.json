@@ -1,0 +1,183 @@
+{
+  "fixture_notice": "SYNTHETIC_TEST_ONLY_NOT_MEASURED",
+  "stage": {
+    "schema": "PHISTREAM_WEIGHT_STAGE_AUDIT_V1",
+    "status": "EXACT_STAGE_COUNTER_LINEARITY_OBSERVED",
+    "generated_utc": "2026-10-12T18:00:00+00:00",
+    "provenance": "DERIVED_FROM_USER_SUPPLIED_LOCAL_SHA_BOUND_PARITY_RECEIPTS",
+    "matrix_status": "MATCHED_LIMITED_FOUR_CASES",
+    "source_reference_authenticated": false,
+    "model_execution": false,
+    "scheduler_policy_changed": false,
+    "real_model_optimization_speedup_measured": false,
+    "production_ready": false,
+    "input_bindings": {
+      "manifest_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "matrix_review_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "checkpoint_fingerprint": {
+        "algorithm": "sha256",
+        "files": {
+          "model.safetensors": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+        }
+      }
+    },
+    "cases": [
+      {
+        "id": "short_1",
+        "prompt_tokens": 1,
+        "generated_tokens": 32,
+        "single_token_decoder_steps": 32,
+        "checkpoint_weight_payload_bytes": 269030016,
+        "recorded_staging_bytes": 8608961664,
+        "recorded_weight_load_operations": 1537,
+        "recorded_staging_seconds": 8.040275,
+        "recorded_decoder_seconds": 9.825242,
+        "recorded_staging_fraction": 0.818328,
+        "recorded_nonstaging_seconds": 1.784967,
+        "staged_bytes_minus_steps_times_payload": 1152,
+        "incremental_prompt_restaging_bytes_relative_to_one_token": 0,
+        "reference_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "parity_receipt_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      },
+      {
+        "id": "mixed_7",
+        "prompt_tokens": 7,
+        "generated_tokens": 32,
+        "single_token_decoder_steps": 38,
+        "checkpoint_weight_payload_bytes": 269030016,
+        "recorded_staging_bytes": 10223141760,
+        "recorded_weight_load_operations": 1825,
+        "recorded_staging_seconds": 9.388994,
+        "recorded_decoder_seconds": 11.394797,
+        "recorded_staging_fraction": 0.823972,
+        "recorded_nonstaging_seconds": 2.005803,
+        "staged_bytes_minus_steps_times_payload": 1152,
+        "incremental_prompt_restaging_bytes_relative_to_one_token": 1614180096,
+        "reference_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "parity_receipt_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      },
+      {
+        "id": "repeat_12",
+        "prompt_tokens": 12,
+        "generated_tokens": 32,
+        "single_token_decoder_steps": 43,
+        "checkpoint_weight_payload_bytes": 269030016,
+        "recorded_staging_bytes": 11568291840,
+        "recorded_weight_load_operations": 2065,
+        "recorded_staging_seconds": 10.390424,
+        "recorded_decoder_seconds": 12.555416,
+        "recorded_staging_fraction": 0.827565,
+        "recorded_nonstaging_seconds": 2.164992,
+        "staged_bytes_minus_steps_times_payload": 1152,
+        "incremental_prompt_restaging_bytes_relative_to_one_token": 2959330176,
+        "reference_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "parity_receipt_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      },
+      {
+        "id": "spread_24",
+        "prompt_tokens": 24,
+        "generated_tokens": 32,
+        "single_token_decoder_steps": 55,
+        "checkpoint_weight_payload_bytes": 269030016,
+        "recorded_staging_bytes": 14796652032,
+        "recorded_weight_load_operations": 2641,
+        "recorded_staging_seconds": 13.352226,
+        "recorded_decoder_seconds": 16.142352,
+        "recorded_staging_fraction": 0.827155,
+        "recorded_nonstaging_seconds": 2.790126,
+        "staged_bytes_minus_steps_times_payload": 1152,
+        "incremental_prompt_restaging_bytes_relative_to_one_token": 6187690368,
+        "reference_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "parity_receipt_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      }
+    ],
+    "four_cases": 4,
+    "weight_payload_bytes": 269030016,
+    "exact_bytes_step_pattern": true,
+    "per_run_fixed_staged_bytes_outside_single_token_steps": 1152,
+    "exact_weight_load_operation_count_pattern": true,
+    "weight_load_operations_per_decoder_step": 48,
+    "fixed_initial_weight_load_operations": 1,
+    "median_staging_time_fraction_observed": 0.8255635,
+    "max_staging_time_fraction_observed": 0.827565,
+    "performance_scope": {
+      "timings_descriptive": true,
+      "each_case_only_one_run": true,
+      "prompt_length_confounded_with_staging_count": true,
+      "staging_timer_includes_file_read_cpu_conversion_gpu_transfer_sync_and_python_overhead": true,
+      "no_overlapped_or_batched_prefill_executed": true,
+      "incremental_prompt_bytes_are_a_counter_fact_not_achieved_savings": true,
+      "cannot_infer_transfer_bandwidth_or_gpu_speedup": true
+    },
+    "next_falsifiable_experiment": "Synthetic fixture: repeat on actual operator-owned evidence before any policy."
+  },
+  "replication": {
+    "schema": "PHISTREAM_REPLICATION_REVIEW_V1",
+    "generated_utc": "2026-10-13T18:00:00+00:00",
+    "status": "REPLICATION_REVIEW_CANDIDATE_NOT_SPEEDUP_CERTIFIED",
+    "model_execution": false,
+    "source_reference_authenticated": false,
+    "statistical_significance_established": false,
+    "cross_day_calendar_verified_independently": false,
+    "production_promoted": false,
+    "production_scheduler_unchanged": true,
+    "general_speedup_proven": false,
+    "original_seed": 369,
+    "original_census_sha256": "2222222222222222222222222222222222222222222222222222222222222222",
+    "original_spread_24": {
+      "case": "spread_24",
+      "pairs": 4,
+      "measured_executions": 8,
+      "warmup_executions": 2,
+      "all_executions_with_complete_parity": 10,
+      "greedy_id_matches": 320,
+      "sampled_logit_matches": 3000,
+      "median_paired_relative_gain": 0.39684,
+      "median_relative_ttft_gain": 0.925016,
+      "candidate_faster_pair_count": 4,
+      "median_cumulative_weight_bytes_reduction": 101000000,
+      "review_thresholds_met": true,
+      "qualification": "CANDIDATE_FOR_REPLICATED_REVIEW_NOT_PROVEN_SPEEDUP",
+      "caution": "ONE_LOCAL_GPU_ONE_CHECKPOINT_FROZEN_PROMPT_NOT_SPEEDUP_PROOF",
+      "plan_sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "run_sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+    },
+    "replication": {
+      "case": "spread_24",
+      "seed": 70421,
+      "pairs": 8,
+      "model_executions_recorded": 18,
+      "measured_executions": 16,
+      "warmups": 2,
+      "greedy_id_matches": 576,
+      "sampled_logit_matches": 5500,
+      "median_paired_relative_gain": 0.405861,
+      "median_relative_ttft_gain": 0.92493,
+      "median_cumulative_weight_bytes_reduction": 105000000,
+      "candidate_faster_pair_count": 8,
+      "review_thresholds_met": true,
+      "qualification": "CANDIDATE_FOR_REPLICATED_REVIEW_NOT_PROVEN_SPEEDUP"
+    },
+    "replication_plan_sha256": "3333333333333333333333333333333333333333333333333333333333333333",
+    "replication_run_sha256": "4444444444444444444444444444444444444444444444444444444444444444",
+    "checkpoint_fingerprint": {
+      "algorithm": "sha256",
+      "files": {
+        "model.safetensors": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+      }
+    },
+    "reference_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "combined": {
+      "paired_comparisons": 20,
+      "batched_faster_pairs": 20,
+      "recorded_executions_including_warmups": 48,
+      "greedy_id_matches": 1536,
+      "sparse_logit_matches": 13774,
+      "cohort_count": 4,
+      "replication_minus_original_spread_median_gain_percentage_points": 0.9021
+    },
+    "provenance": "OPERATOR_LOCAL_SHA_BOUND_RECEIPTS_NOT_PUBLISHER_ATTESTATION",
+    "scope": "SMOLLM2_135M_ONE_RTX_5070_ONE_FROZEN_PROMPT_FOR_REPLICATION",
+    "next_gate": "HELD_OUT_PROMPTS_VRAM_SAFETY_OTHER_HARDWARE_SEPARATE_AUTHORIZATION"
+  }
+}
