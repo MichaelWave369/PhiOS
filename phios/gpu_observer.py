@@ -127,7 +127,7 @@ def _read_json(path: str) -> dict[str, Any]:
 def main() -> None:
     parser = argparse.ArgumentParser(description="PhiOS GPU Observatory: read-only local observations")
     sub = parser.add_subparsers(dest="command", required=True)
-    sub.add_parser("observe", help="Inspect local NVIDIA telemetry, when available")
+    sub.add_parser("observe", help="Inspect local NVIDIA GPU status, when available")
     pair = sub.add_parser("compare", help="Compare user-supplied compatible runtime measurements")
     pair.add_argument("before")
     pair.add_argument("after")
