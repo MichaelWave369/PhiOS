@@ -83,6 +83,7 @@ def evaluate(
             "actual_weight_transfers_measured": False,
             "output_parity_checked": False,
             "speedup_proven": False,
+            "automatic_promotion": False,
             "action_authority": False,
             "execution_authority": False,
             "hardware_control": False,
