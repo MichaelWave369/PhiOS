@@ -78,7 +78,7 @@ def _int(value: object, name: str, *, low: int = 0, high: int = 1000000) -> int:
 
 def _num(value: object, name: str, *, low: float = -1000000.0,
          high: float = 1000000.0) -> float:
-    if type(value) not in (int, float):
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
         raise ReplicationJoinError(f"invalid {name}")
     result = float(value)
     if not math.isfinite(result) or not low <= result <= high:
@@ -242,8 +242,8 @@ def join(stage_audit: object, replication_audit: object) -> dict[str, object]:
         combined["replication_minus_original_spread_median_gain_percentage_points"],
         "replication difference")
     expected_delta = round(
-        float(replication["median_paired_decoder_gain_percent"]) -
-        float(original["median_paired_decoder_gain_percent"]), 4)
+        cast(float, replication["median_paired_decoder_gain_percent"]) -
+        cast(float, original["median_paired_decoder_gain_percent"]), 4)
     if abs(recorded_delta - expected_delta) > 0.00011:
         raise ReplicationJoinError("replication delta disagrees with cohorts")
 
