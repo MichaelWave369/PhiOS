@@ -1,5 +1,9 @@
 # φ PhiOS
 
+## Optical vs. Electrical Transport Advisor (R1)
+
+[Research contract and limitations](docs/PHIOS_OPTICAL_PATH_R1.md). Try `python -m phios.optical_path_r1 --sizes 64,4096,65536,1048576` for deterministic **synthetic** link-budget estimates. This never probes hardware, changes routing, or provides physical authority.
+
 **Local-first, authority-aware computing for human + computational collaboration.**
 
 **Sovereign. Coherent. Local. Free.**
