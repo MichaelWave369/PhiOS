@@ -118,7 +118,7 @@ def test_repeated_replay_is_deterministic(capture: dict) -> None:
     lambda x: x.update(expert_count=True),
     lambda x: x.update(expert_count=257),
     lambda x: x["source"].update(kind="verified_native"),
-    lambda x: x["source"].update(runtime="../bad"),
+    lambda x: x["source"].update(runtime="bad\nlabel"),
     lambda x: x["source"].update(route_semantics="BEFORE_ROUTER"),
     lambda x: x["source"].update(token_text_recorded=True),
     lambda x: x["source"].update(checkpoint_sha256="invalid"),
