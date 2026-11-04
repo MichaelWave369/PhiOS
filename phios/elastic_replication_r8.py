@@ -247,11 +247,12 @@ def join(stage_audit: object, replication_audit: object) -> dict[str, object]:
     if abs(recorded_delta - expected_delta) > 0.00011:
         raise ReplicationJoinError("replication delta disagrees with cohorts")
 
+    stage_summary = cast(dict[str, Any], stage["summary"])
     summary: dict[str, object] = {
-        "stage_audit_cases": stage["summary"]["cases"],
-        "stage_median_share_percent": stage["summary"]["median_staging_share_percent"],
+        "stage_audit_cases": stage_summary["cases"],
+        "stage_median_share_percent": stage_summary["median_staging_share_percent"],
         "single_token_step_staged_weight_bytes":
-            stage["summary"]["weight_payload_bytes_per_single_token_step"],
+            stage_summary["weight_payload_bytes_per_single_token_step"],
         "original_spread_24": original,
         "replication_spread_24": replication,
         "combined_matched_pairs": pairs,
