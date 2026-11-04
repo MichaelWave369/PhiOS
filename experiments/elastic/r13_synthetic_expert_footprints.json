@@ -1,0 +1,35 @@
+{
+  "schema_version": "phios.elastic.expert-footprints.v1",
+  "source": "operator_supplied_unverified",
+  "size_basis": "estimated",
+  "source_capture_sha256": "674fc0e5f14e0e30a5f56ae46ecc0f3c91f7a0fd357d10f7627fd59994beb78b",
+  "checkpoint_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "layers": [
+    {
+      "layer": 0,
+      "expert_sizes_bytes": [
+        4096,
+        4096,
+        4096,
+        4096,
+        4096,
+        4096,
+        4096,
+        4096
+      ]
+    },
+    {
+      "layer": 1,
+      "expert_sizes_bytes": [
+        6144,
+        6144,
+        6144,
+        6144,
+        6144,
+        6144,
+        6144,
+        6144
+      ]
+    }
+  ]
+}
