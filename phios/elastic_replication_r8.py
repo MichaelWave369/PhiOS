@@ -13,7 +13,7 @@ import math
 import re
 import sys
 from pathlib import Path
-from typing import Any, Sequence
+from typing import Any, Sequence, cast
 
 from phios.elastic_phistream_r7 import (
     WeightStageReviewError,
@@ -232,10 +232,10 @@ def join(stage_audit: object, replication_audit: object) -> dict[str, object]:
     sparse = _int(combined["sparse_logit_matches"], "total sparse logit matches")
     if (pairs != 20 or executions != 48 or greedy != 32 * executions or
             sparse < 32 * 8 * executions or wins > pairs or
-            wins < int(original["candidate_faster_pairs"]) +
-                   int(replication["candidate_faster_pairs"]) or
-            wins > 8 + int(original["candidate_faster_pairs"]) +
-                   int(replication["candidate_faster_pairs"]) or
+            wins < cast(int, original["candidate_faster_pairs"]) +
+                   cast(int, replication["candidate_faster_pairs"]) or
+            wins > 8 + cast(int, original["candidate_faster_pairs"]) +
+                   cast(int, replication["candidate_faster_pairs"]) or
             _int(combined["cohort_count"], "cohort count") != 4):
         raise ReplicationJoinError("four-cohort combined census inconsistent")
     recorded_delta = _num(
