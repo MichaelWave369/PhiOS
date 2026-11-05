@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/MichaelWave369/PhiOS/blob/main/interop/app-descriptor.v1.schema.json",
+  "title": "PhiOS source-app descriptor proposal v1",
+  "description": "A source-only application classification proposal; NEVER permission to download, install, execute or launch.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "app_id",
+    "repository",
+    "runtime_kind",
+    "candidate_targets",
+    "review_status",
+    "capabilities_declared",
+    "install_authority",
+    "launch_authority"
+  ],
+  "properties": {
+    "schema": {
+      "const": "phios.app-descriptor.v1"
+    },
+    "app_id": {
+      "type": "string",
+      "pattern": "^github:[0-9]{1,20}$"
+    },
+    "repository": {
+      "type": "string",
+      "pattern": "^https://github\\.com/MichaelWave369/[A-Za-z0-9_.-]{1,100}$"
+    },
+    "runtime_kind": {
+      "enum": [
+        "unknown",
+        "web",
+        "android",
+        "linux",
+        "service",
+        "library",
+        "research"
+      ]
+    },
+    "candidate_targets": {
+      "type": "array",
+      "uniqueItems": true,
+      "maxItems": 3,
+      "items": {
+        "enum": [
+          "web",
+          "android",
+          "linux"
+        ]
+      }
+    },
+    "review_status": {
+      "const": "unreviewed"
+    },
+    "capabilities_declared": {
+      "type": "array",
+      "maxItems": 16,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "maxLength": 80
+      }
+    },
+    "install_authority": {
+      "const": false
+    },
+    "launch_authority": {
+      "const": false
+    }
+  }
+}
