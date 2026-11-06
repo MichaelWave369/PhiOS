@@ -100,3 +100,43 @@ test("mobile browser viewport still renders a useful PhiOS landing page", async 
   await expect(page).toHaveURL(/\/PhiOS\/#architecture$/);
   await expect(page.getByRole("heading", { name: "The graph changes with the question." })).toBeVisible();
 });
+
+
+test("mission control exposes the three real browser experiences without native-install claims", async ({ page }) => {
+  await page.goto(site);
+  const section = page.locator("#experiences");
+  await expect(section.getByRole("heading", { name: "Choose how to enter." })).toBeVisible();
+  await expect(section.locator(".experience-card")).toHaveCount(3);
+  await expect(section.getByRole("link", { name: /Launch PhiOS Web/ })).toHaveAttribute("href", "https://phi-field.com/os/");
+  await expect(section.getByRole("link", { name: /Enter PhiOS XR/ })).toHaveAttribute("href", "https://michaelwave369.github.io/PhiOS-XR/");
+  await expect(section.getByRole("link", { name: /Open PhiOS Mobile/ })).toHaveAttribute("href", "https://michaelwave369.github.io/PhiOS-Mobile/");
+  await expect(section).toContainText("not native OS installs");
+});
+
+test("ecosystem links and Linux image state stay explicitly qualified", async ({ page }) => {
+  await page.goto(site);
+  const eco = page.locator("#ecosystem");
+  await expect(eco.locator(".ecosystem-card")).toHaveCount(4);
+  await expect(eco.getByRole("link", { name: /View bridge research/ }))
+    .toHaveAttribute("href", "https://github.com/MichaelWave369/InfiniteInterconnects");
+  await expect(eco).toContainText("not automatically installed");
+  const image = page.locator("#linux-image");
+  await expect(image).toContainText("NOT PUBLIC RELEASE-READY");
+  await expect(image).toContainText("not a general-purpose supported installer");
+  await expect(image.getByRole("link", { name: /Review exact image evidence/ }))
+    .toHaveAttribute("href", "https://github.com/MichaelWave369/PhiOS/blob/main/docs/os/RELEASE_HANDOFF.md");
+});
+
+test("mobile menu stays keyboard-accessible and closes on local navigation", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(site);
+  const toggle = page.getByRole("button", { name: "Open menu" });
+  await expect(toggle).toHaveAttribute("aria-expanded", "false");
+  await toggle.click();
+  await expect(page.getByRole("button", { name: "Close menu" })).toHaveAttribute("aria-expanded", "true");
+  const nav = page.getByRole("navigation", { name: "Mobile navigation" });
+  await expect(nav.getByRole("link", { name: "Experiences" })).toBeVisible();
+  await nav.getByRole("link", { name: "Linux Image" }).click();
+  await expect(page).toHaveURL(/\/PhiOS\/#linux-image$/);
+  await expect(page.getByRole("button", { name: "Open menu" })).toHaveAttribute("aria-expanded", "false");
+});
