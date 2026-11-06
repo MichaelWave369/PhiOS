@@ -1,5 +1,6 @@
 import { SHELL_APPS, type ShellApp } from "../shell/appLauncher";
 import { EcosystemCatalog } from "./EcosystemCatalog";
+import { UniversalAppShelf } from "./UniversalAppShelf";
 
 export function AppTiles({ openApp, pinned = false }: {
   openApp: (id: string) => void;
@@ -49,6 +50,7 @@ export function AppLibrary({ openApp }: { openApp: (id: string) => void }) {
         </dl>
       </div>
       <EcosystemCatalog />
+      <UniversalAppShelf />
       <p className="muted">This list describes the shipped image, not a scan of apps you added separately.</p>
     </section>
   );

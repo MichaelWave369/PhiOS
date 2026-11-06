@@ -433,3 +433,29 @@ linear-gradient(135deg,rgba(13,32,42,.92),rgba(5,13,17,.96));box-shadow:inset 0 
 .sovereignty-self-footer{display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;align-items:center;margin-top:14px;font-size:11px}
 .sovereignty-self-footer button{padding:9px 12px;border:1px solid var(--teal);border-radius:6px;background:var(--raised);color:var(--teal);cursor:pointer}
 @media(max-width:700px){.sovereignty-columns{grid-template-columns:1fr}}
+
+
+/* Universal Shell R3: source-only shelf inside actual PhiShell Apps window. */
+.native-universal-shelf{margin:16px 0;border:1px solid var(--border);border-radius:10px;padding:17px;background:linear-gradient(140deg,#071b27,#0b1721)}
+.native-universal-shelf h2{font-size:20px;color:var(--gold);margin:10px 0}.native-universal-shelf h3{font-size:14px;color:var(--cyan);margin:18px 0 10px}
+.native-universal-shelf>p{font-size:12px;line-height:1.5;color:var(--secondary)}
+.native-shelf-actions{display:flex;flex-wrap:wrap;gap:9px;margin:13px 0}
+.native-universal-shelf button{border:1px solid #367b94;border-radius:7px;background:#102d3b;color:var(--text);padding:8px 12px;cursor:pointer;min-height:36px}
+.native-universal-shelf button:hover{background:#194559}
+.native-universal-shelf button:disabled{opacity:.4;cursor:not-allowed}
+.native-universal-shelf button:focus-visible,.native-universal-shelf input:focus-visible,.native-universal-shelf a:focus-visible{outline:3px solid var(--cyan);outline-offset:2px}
+.native-shelf-file{position:absolute!important;width:1px!important;height:1px!important;opacity:0;pointer-events:none}
+.native-shelf-status{color:var(--muted)!important;font-size:11px!important;line-height:1.45}
+.native-shelf-pins,.native-shelf-results{display:grid;gap:8px}
+.native-shelf-results{max-height:450px;overflow:auto}
+.native-shelf-item{display:flex;align-items:flex-start;justify-content:space-between;gap:13px;border:1px solid #1a4b5b;border-radius:8px;padding:11px;background:#091f2a}
+.native-shelf-item>div:first-child{min-width:0;flex:1}
+.native-shelf-item strong,.native-shelf-item small{display:block}
+.native-shelf-item strong{color:var(--cyan);font-size:13px;overflow-wrap:anywhere}
+.native-shelf-item small{color:var(--amber);font-size:10px;margin:5px 0}
+.native-shelf-item a{font-size:11px;color:var(--cyan);display:inline-block;padding:5px 0}
+.native-shelf-item p{font-size:11px;color:var(--secondary);line-height:1.5}
+.native-shelf-order{display:flex;gap:4px}
+.native-shelf-order button{min-width:31px;padding:6px}
+.native-shelf-search{display:grid;gap:7px;font-size:11px;color:var(--secondary)}
+.native-shelf-search input{background:#051319;border:1px solid #2b647c;color:var(--text);padding:11px;border-radius:7px;font-size:13px}
