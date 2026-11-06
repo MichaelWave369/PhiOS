@@ -62,7 +62,7 @@ function readWindow(input: unknown): ShellWindow {
       || x + width > 100 || y + height > 100) {
     throw new Error("Workspace window geometry is outside the desktop");
   }
-  if (!Number.isInteger(z) || !finiteRange(z, 0, 100000)
+  if (!finiteRange(z, 0, 100000) || !Number.isInteger(z)
       || !WINDOW_STATES.includes(state as WindowState)) {
     throw new Error("Invalid workspace window state");
   }
