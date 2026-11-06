@@ -76,3 +76,20 @@ def test_refuse_unrecognized_claim_fields():
     a["signed_release_authorized"] = True
     with pytest.raises(ValueError):
         check(a, source=SOURCE, phase=1, boot_id=a["boot_id"], previous=[])
+
+
+def test_host_injected_guest_source_compiles_and_is_not_a_product_package():
+    source = Path(__file__).resolve().parents[1] / "packaging/linux/tests/r5e_desktop_guest.py"
+    compile(source.read_text(encoding="utf-8"), str(source), "exec")
+    product_manifest = (Path(__file__).resolve().parents[1] /
+                        "packaging/arch/phios/PKGBUILD").read_text(encoding="utf-8")
+    assert "r5e_desktop_guest.py" not in product_manifest
+
+
+def test_qemu_host_rejects_missing_r5e_observation():
+    host = (Path(__file__).resolve().parents[1] /
+            "packaging/linux/tests/qemu_install.py").read_text(encoding="utf-8")
+    assert "r5e_guest_check({source!r}, {phase})" in host
+    assert "r5e_match = wait_for(" in host
+    assert "validate_r5e_guest(" in host
+    assert "r5e_guest_desktop_boots" in host
