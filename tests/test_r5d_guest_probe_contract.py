@@ -18,6 +18,17 @@ def test_both_guest_scripts_compile_and_no_prod_claims():
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     ast.parse(module.R5D_GUEST_APP, filename="installed-vm-test-only-app")
+    # Existing installed_probe.py strips hyphens from /proc boot UUID.
+    # The guest reporter MUST do the same before strict host identity checks.
+    raw_uuid = "9872ab5c-11d0-4a1e-bac4-001122334455"
+    assert module.r5d_normalize_boot_id("  " + raw_uuid + "\n") == (
+        "9872ab5c11d04a1ebac4001122334455"
+    )
+    assert module.r5d_normalize_boot_id("9872ab5c11d04a1ebac4001122334455") == (
+        "9872ab5c11d04a1ebac4001122334455"
+    )
+    assert "r5d_normalize_boot_id(" in guest
+
     assert "ThreadingHTTPServer" in module.R5D_GUEST_APP
     assert '"127.0.0.1"' in module.R5D_GUEST_APP
     assert "source_commit" in module.R5D_GUEST_APP
