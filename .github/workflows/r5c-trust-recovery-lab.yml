@@ -38,7 +38,9 @@ jobs:
         run: |
           pytest -q \
             tests/test_app_platform_v060_recovery_lab.py \
-            tests/test_app_platform_v040_update_rollback.py
+            tests/test_app_platform_v040_update_rollback.py \
+            tests/test_app_platform_v050_release_install_proposal.py \
+            tests/test_app_platform_v059_signed_release_review.py
       - name: Check observation is scoped to disposable filesystem
         env:
           PHIOS_R5C_EVIDENCE_DIR: ${{ runner.temp }}/phios-r5c-evidence
