@@ -1,0 +1,37 @@
+{
+  "schema": "phios.app-center-reviews.v1",
+  "catalog_source_sha": "e295f6265e60032de98a2acd8e53295505fc47e8",
+  "policy": {
+    "source_listing_is_not_installation": true,
+    "autonomous_installs": false,
+    "native_install_grants": false,
+    "user_gesture_required": true,
+    "browser_controls_pwa_install": true
+  },
+  "reviewed_web_apps": [
+    {
+      "app_id": "github:1442243366",
+      "name": "PhiOS Web",
+      "repository": "https://github.com/MichaelWave369/phi-field",
+      "runtime": "browser_pwa",
+      "review_status": "ci_reviewed_browser_app",
+      "launch_url": "https://phi-field.com/os/",
+      "scope_path": "/os/",
+      "evidence": {
+        "repository": "MichaelWave369/phi-field",
+        "test_path": "tests/browser_web_os.py",
+        "source_pr": 8,
+        "ci_basis": "browser acceptance passed on merged PR #8; static bundle includes /os/ manifest and service worker",
+        "evidence_scope": "static_build_and_chromium_ci",
+        "live_endpoint_independently_verified": false
+      },
+      "actions": {
+        "open": "explicit_navigation",
+        "install": "browser_mediated_if_available",
+        "native_install": false,
+        "automatic_execution": false
+      },
+      "disclosure": "PhiOS Web is an unprivileged same-origin browser workspace. Its PWA installation, if available, is controlled by your browser. No native OS or arbitrary GitHub repository is installed."
+    }
+  ]
+}
