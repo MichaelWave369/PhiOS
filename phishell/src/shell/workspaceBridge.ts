@@ -67,7 +67,15 @@ function incoming(value: unknown): {
       return null;
     }
   } catch { return null; }
-  return value as ReturnType<typeof incoming> & object;
+  return {
+    type: value.type,
+    app_id: value.app_id,
+    session_id: value.session_id,
+    request_id: value.request_id,
+  } as {
+    type: "app.hello" | "app.context.request";
+    app_id: string; session_id: string; request_id: string;
+  };
 }
 
 /**
