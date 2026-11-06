@@ -1,5 +1,6 @@
 import { execFileSync } from "node:child_process";
-import { readFileSync, writeFileSync } from "node:fs";
+import { readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { latestAppTestLine, publicLinuxImageIdentity } from "./status-contracts.mjs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 
@@ -23,6 +24,8 @@ function sectionLastVersion(markdown, startHeading, endHeading) {
 }
 
 const history = readFileSync(path.join(repoRoot, "docs", "VERSION_HISTORY.md"), "utf8");
+const appTestNames = readdirSync(path.join(repoRoot, "tests"));
+const imageRelease = JSON.parse(readFileSync(path.join(repoRoot, "packaging", "linux", "release.json"), "utf8"));
 const commit = process.env.GITHUB_SHA || git(["rev-parse", "HEAD"]);
 const commitDate = git(["show", "-s", "--format=%cI", commit]);
 const mergedSubject = git(["log", "--merges", "-n", "1", "--pretty=%s"]);
@@ -36,12 +39,13 @@ const status = {
   latestMergedPr: mergedMatch ? Number(mergedMatch[1]) : null,
   siteBuild: "verified",
   versionLines: {
-    appPlatform: sectionLastVersion(history, "## App Platform", "## Spine"),
+    appPlatform: latestAppTestLine(appTestNames),
     spine: sectionLastVersion(history, "## Spine", "## PhiReflex"),
     phiReflex: sectionLastVersion(history, "## PhiReflex", "## Core reasoning"),
     hardening: sectionLastVersion(history, "## Research-hardening lineage", "## Why the old"),
   },
-  source: "generated from the exact repository checkout used for this Pages build",
+  linuxImage: publicLinuxImageIdentity(imageRelease),
+  source: "exact checkout: highest checked-in App Platform test contract and Linux image release manifest; historical versions remain historical",
   authority: "none",
 };
 
