@@ -18,6 +18,7 @@ from qemu_desktop import qualify_lock
 from thinktank_guest_hold_validator import (
     HOLD_MARKER_PATTERN, verify_boot_series, verify_hold_observation,
 )
+from r5e_guest_validator import validate_r5e_guest
 
 PASSWORD = "phios-qa-only-2026"  # Same public ephemeral test credential as live fixture.
 
@@ -321,6 +322,11 @@ def qualify(
                             # across forced QEMU shutdowns and no-ISO boots.
                             guest_source = Path(__file__).with_name('living_app_guest.py').read_text()
                             program += '\n' + guest_source + f'\nr5d_guest_live_check({source!r}, {phase})\n'
+                            # R5E: reuse existing App Platform desktop transition services
+                            # inside the disposable, installed, UID-1000 QEMU guest.
+                            # Test fixture only; no publisher trust or real package install.
+                            r5e_source = Path(__file__).with_name('r5e_desktop_guest.py').read_text()
+                            program += '\n' + r5e_source + f'\nr5e_guest_check({source!r}, {phase})\n'
                             # Keep each input line below the terminal's canonical
                             # line bound; a growing base64 -c command can exceed it.
                             channel.sendall(("python - <<'PHIOS_INSTALLED_PROBE'\n" + program +
@@ -343,6 +349,12 @@ def qualify(
                                     or guest.get("production_install_authority") is not False):
                                 raise RuntimeError("installed R5D guest app runtime/user data evidence invalid")
                             receipt.setdefault("r5d_guest_app_boots", []).append(guest)
+                            r5e_match = wait_for(r"PHIOS_R5E_GUEST_OK:(\{[^\r\n]+\})")
+                            r5e = validate_r5e_guest(
+                                json.loads(r5e_match[1]), source=source, phase=phase,
+                                boot_id=details["boot_id"],
+                                previous=receipt.get("r5e_guest_desktop_boots", []))
+                            receipt.setdefault("r5e_guest_desktop_boots", []).append(r5e)
                             if Path(__file__).with_name('proof_smoke.py').exists():
                                 if phase == 1:
                                     proof_match = re.search(r'PHIOS_LINUX_PROOF_OK:(\{[^\r\n]+\})', text)
