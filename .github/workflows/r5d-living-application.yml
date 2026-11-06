@@ -1,0 +1,90 @@
+name: Φ R5D Living Application and Data Recovery
+
+on:
+  pull_request:
+    paths:
+      - "packaging/linux/tests/living_app_guest.py"
+      - "packaging/linux/tests/qemu_install.py"
+      - "tests/fixtures/r5d_living_server.py"
+      - "tests/test_app_platform_v061_living_application.py"
+      - "tests/test_r5d_guest_probe_contract.py"
+      - "phios/apps/desktop_update.py"
+      - ".github/workflows/r5d-living-application.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  runner-real-http-app:
+    name: Real runner HTTP app, governed rollback and fixture data restore
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install pinned test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e '.[dev]'
+      - name: Compile the test-only app and injected installed-VM probe
+        run: |
+          python -m py_compile \
+            packaging/linux/tests/living_app_guest.py \
+            packaging/linux/tests/qemu_install.py \
+            tests/fixtures/r5d_living_server.py
+      - name: Run actual v1-v2-v1 HTTP process, data restore and recovery regression
+        env:
+          PHIOS_R5D_EVIDENCE_DIR: ${{ runner.temp }}/phios-r5d-evidence
+        run: |
+          pytest -q \
+            tests/test_app_platform_v061_living_application.py \
+            tests/test_r5d_guest_probe_contract.py \
+            tests/test_app_platform_v060_recovery_lab.py
+      - name: Assert report is bounded and holds all signed/device authorities
+        env:
+          PHIOS_R5D_EVIDENCE_DIR: ${{ runner.temp }}/phios-r5d-evidence
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json, hashlib, os
+          path = Path(os.environ["PHIOS_R5D_EVIDENCE_DIR"]) / "runner-living-app-recovery.json"
+          assert path.is_file() and path.stat().st_size <= 8192
+          data = json.loads(path.read_text())
+          digest = hashlib.sha256(json.dumps(
+              {k: v for k,v in data.items() if k != "report_sha256"},
+              sort_keys=True, separators=(",", ":"), allow_nan=False,
+          ).encode()).hexdigest()
+          assert data["report_sha256"] == digest
+          assert data["scope"] == "disposable_linux_ci_runner_test_only"
+          assert data["status"] == "RUNNER_REAL_HTTP_PROCESS_AND_FIXTURE_DATA_RESTORED"
+          for name in (
+              "v1_process_before_update_healthy",
+              "v2_process_started_and_migration_observed",
+              "incompatible_fixture_schema_detected",
+              "v1_process_after_rollback_healthy",
+              "specific_fixture_data_restored_from_pinned_snapshot",
+          ):
+              assert data[name] is True, name
+          assert data["before_update_user_data_sha256"] == data["restored_user_data_sha256"]
+          assert data["migrated_user_data_sha256"] != data["restored_user_data_sha256"]
+          for name in (
+              "publisher_identity_verified", "production_signed_artifact_installed",
+              "installed_vm_app_platform_rollback_verified", 
+              "generic_user_data_rollback_verified", "production_install_authority",
+          ):
+              assert data[name] is False, name
+          print("R5D runner living app and test data recovery verified; production authority held")
+          PY
+      - name: Preserve reviewed runner observation (not a production certificate)
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phios-r5d-runner-living-app-observation
+          path: ${{ runner.temp }}/phios-r5d-evidence/runner-living-app-recovery.json
+          if-no-files-found: error
+          retention-days: 14

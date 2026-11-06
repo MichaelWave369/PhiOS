@@ -316,6 +316,11 @@ def qualify(
                             if thinktank_held_probe:
                                 probe = Path(__file__).with_name('thinktank_guest_hold_probe.py').read_text()
                                 program += '\n' + probe + f'\nobserve_thinktank_held_guest({source!r}, {phase})\n'
+                            # R5D: run a real, TEST-ONLY loopback app process on the
+                            # installed guest; preserve state in its normal user home
+                            # across forced QEMU shutdowns and no-ISO boots.
+                            guest_source = Path(__file__).with_name('living_app_guest.py').read_text()
+                            program += '\n' + guest_source + f'\nr5d_guest_live_check({source!r}, {phase})\n'
                             # Keep each input line below the terminal's canonical
                             # line bound; a growing base64 -c command can exceed it.
                             channel.sendall(("python - <<'PHIOS_INSTALLED_PROBE'\n" + program +
@@ -324,6 +329,20 @@ def qualify(
                             details = json.loads(result[1])
                             if details["source_commit"] != source or details["phase"] != phase:
                                 raise RuntimeError("installed receipt identity mismatch")
+                            guest_marker = wait_for(r"PHIOS_R5D_GUEST_APP_OK:(\{[^\r\n]+\})")
+                            guest = json.loads(guest_marker[1])
+                            if (guest.get("schema") != "phios.r5d_guest_observation.v0.1"
+                                    or guest.get("scope") != "disposable_installed_qemu_guest_test_only"
+                                    or guest.get("source_commit") != source or guest.get("phase") != phase
+                                    or guest.get("boot_id") != details["boot_id"]
+                                    or guest.get("test_app_process_http_healthy") is not True
+                                    or guest.get("test_app_user_data_persisted_across_boot") is not (phase > 1)
+                                    or guest.get("expected_persisted_counter") != min(phase, 2)
+                                    or guest.get("signed_app_artifact_installed") is not False
+                                    or guest.get("app_platform_update_and_rollback_executed_inside_guest") is not False
+                                    or guest.get("production_install_authority") is not False):
+                                raise RuntimeError("installed R5D guest app runtime/user data evidence invalid")
+                            receipt.setdefault("r5d_guest_app_boots", []).append(guest)
                             if Path(__file__).with_name('proof_smoke.py').exists():
                                 if phase == 1:
                                     proof_match = re.search(r'PHIOS_LINUX_PROOF_OK:(\{[^\r\n]+\})', text)
