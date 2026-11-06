@@ -12,7 +12,7 @@ Install the optional dependency into a development environment:
 
 ```bash
 python -m pip install -e '.[publisher-signatures]'
-python -m phios.apps.release_publisher_review \
+phi-app review-signed-release \
   --proposal /operator/review/exact-v050-proposal.json \
   --statement /operator/review/publisher-statement.json \
   --signature /operator/review/publisher-statement.sig \
@@ -21,7 +21,7 @@ python -m phios.apps.release_publisher_review \
   --expected-key-id OPERATOR_VERIFIED_KEY_ID
 ```
 
-This command **only reads** bounded local files and prints a review JSON receipt to standard output. It refuses symlinks, oversized/non-regular files, unknown fields, stale/mismatched release proposals, wrong key fingerprints, wrong key ID, bad signatures, and any statement that attempts to grant install/update/rollback authority. It performs no downloads, builds, subprocess execution, host permission changes, installs, rollbacks, or signature generation.
+The `phi-app` CLI returns **exit code 3** even after a valid signature to signal the release is still **HELD**; it prints a review receipt, never an install approval. The separate `python -m phios.apps.release_publisher_review` entry point returns 0 on successful cryptographic verification, but has the same no-authority receipt.\n\nThis command **only reads** bounded local files and prints a review JSON receipt to standard output. It refuses symlinks, oversized/non-regular files, unknown fields, stale/mismatched release proposals, wrong key fingerprints, wrong key ID, bad signatures, and any statement that attempts to grant install/update/rollback authority. It performs no downloads, builds, subprocess execution, host permission changes, installs, rollbacks, or signature generation.
 
 The Ed25519 signed bytes are:
 
