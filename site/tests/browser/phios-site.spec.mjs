@@ -110,7 +110,7 @@ test("mission control exposes the three real browser experiences without native-
   await expect(section.getByRole("link", { name: /Launch PhiOS Web/ })).toHaveAttribute("href", "https://phi-field.com/os/");
   await expect(section.getByRole("link", { name: /Enter PhiOS XR/ })).toHaveAttribute("href", "https://michaelwave369.github.io/PhiOS-XR/");
   await expect(section.getByRole("link", { name: /Open PhiOS Mobile/ })).toHaveAttribute("href", "https://michaelwave369.github.io/PhiOS-Mobile/");
-  await expect(section).toContainText("not native OS installs");
+  await expect(section).toContainText("No native OS installation");
 });
 
 test("ecosystem links and Linux image state stay explicitly qualified", async ({ page }) => {
@@ -122,7 +122,7 @@ test("ecosystem links and Linux image state stay explicitly qualified", async ({
   await expect(eco).toContainText("not automatically installed");
   const image = page.locator("#linux-image");
   await expect(image).toContainText("NOT PUBLIC RELEASE-READY");
-  await expect(image).toContainText("not a general-purpose supported installer");
+  await expect(image).toContainText("Not a general-purpose supported installer");
   await expect(image.getByRole("link", { name: /Review exact image evidence/ }))
     .toHaveAttribute("href", "https://github.com/MichaelWave369/PhiOS/blob/main/docs/os/RELEASE_HANDOFF.md");
 });
