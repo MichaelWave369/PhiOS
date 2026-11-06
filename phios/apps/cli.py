@@ -1224,14 +1224,22 @@ def main(argv: Sequence[str] | None = None) -> int:
             _read_regular as _read_signed_review_file,
             review_signed_release,
         )
-        review = review_signed_release(
-            _read_signed_review_json(args.proposal),
-            _read_signed_review_json(args.statement),
-            signature=_read_signed_review_file(args.signature, 64),
-            publisher_public_key=_read_signed_review_file(args.public_key, 32),
-            independently_pinned_key_sha256=args.trusted_key_sha256,
-            expected_key_id=args.expected_key_id,
-        )
+        try:
+            review = review_signed_release(
+                _read_signed_review_json(args.proposal),
+                _read_signed_review_json(args.statement),
+                signature=_read_signed_review_file(args.signature, 64),
+                publisher_public_key=_read_signed_review_file(args.public_key, 32),
+                independently_pinned_key_sha256=args.trusted_key_sha256,
+                expected_key_id=args.expected_key_id,
+            )
+        except (OSError, ValueError) as exc:
+            print(json.dumps({
+                "status": "RELEASE_SIGNATURE_REVIEW_BLOCKED",
+                "install_authority": False,
+                "error": str(exc),
+            }, sort_keys=True))
+            return 2
         print(json.dumps(review, sort_keys=True, indent=2))
         # Valid signatures are evidence only; never imply installation readiness.
         return 3
