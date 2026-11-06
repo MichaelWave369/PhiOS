@@ -7,10 +7,10 @@
   "siteBuild": "development",
   "versionLines": {
     "spine": "v0.24",
-    "appPlatform": "v0.50",
+    "appPlatform": "unverified",
     "phiReflex": "v0.10",
     "hardening": "v0.10"
   },
-  "source": "development fallback; replaced by scripts/generate-status.mjs during build",
+  "source": "development placeholder only; overwritten from checked-out test contracts and release manifest during site build",
   "authority": "none"
 }
