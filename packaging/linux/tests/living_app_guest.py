@@ -64,6 +64,11 @@ ThreadingHTTPServer(("127.0.0.1", port), Handler).serve_forever(poll_interval=0.
 '''
 
 
+def r5d_normalize_boot_id(value):
+    """Match installed_probe.py's UUID normalization in the same VM boot."""
+    return value.strip().replace("-", "")
+
+
 def r5d_guest_live_check(source, phase):
     """Verify process health + state from preceding boot, then mutate test data."""
     if phase not in (1, 2, 3):
@@ -145,7 +150,9 @@ def r5d_guest_live_check(source, phase):
         persisted = r5d_json.loads(state_file.read_text(encoding="utf-8"))
         if persisted != changed:
             raise ValueError("R5D user-data file disagrees with live app response")
-        boot_id = R5DPath("/proc/sys/kernel/random/boot_id").read_text().strip().replace("-", "")
+        boot_id = r5d_normalize_boot_id(
+            R5DPath("/proc/sys/kernel/random/boot_id").read_text()
+        )
         report = {
             "schema": "phios.r5d_guest_observation.v0.1",
             "scope": "disposable_installed_qemu_guest_test_only",
