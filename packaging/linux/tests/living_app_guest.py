@@ -52,8 +52,27 @@ class Handler(BaseHTTPRequestHandler):
         state = json.loads(data_path.read_text(encoding="utf-8"))
         state["counter"] += 1
         target = data_path.with_suffix(".new")
-        target.write_text(json.dumps(state, sort_keys=True) + "\n", encoding="utf-8")
-        target.replace(data_path)
+        if target.exists() or target.is_symlink():
+            raise RuntimeError("R5D stale pending user-data write")
+        flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0)
+        fd = os.open(target, flags, 0o600)
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as handle:
+                handle.write(json.dumps(state, sort_keys=True) + "\n")
+                handle.flush()
+                os.fsync(handle.fileno())
+            os.replace(target, data_path)
+            directory = os.open(
+                data_path.parent, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0)
+                | getattr(os, "O_NOFOLLOW", 0),
+            )
+            try:
+                os.fsync(directory)
+            finally:
+                os.close(directory)
+        finally:
+            if target.exists():
+                target.unlink()
         wire = json.dumps(state, sort_keys=True).encode("utf-8")
         self.send_response(200)
         self.send_header("Content-Length", str(len(wire)))
@@ -62,6 +81,38 @@ class Handler(BaseHTTPRequestHandler):
 
 ThreadingHTTPServer(("127.0.0.1", port), Handler).serve_forever(poll_interval=0.2)
 '''
+
+
+def r5d_sync_directory(path):
+    """Make a newly created test directory entry durable across abrupt VM halt."""
+    fd = r5d_os.open(
+        path, r5d_os.O_RDONLY | getattr(r5d_os, "O_DIRECTORY", 0)
+        | getattr(r5d_os, "O_NOFOLLOW", 0),
+    )
+    try:
+        r5d_os.fsync(fd)
+    finally:
+        r5d_os.close(fd)
+
+
+def r5d_write_state_durable(state_file, state):
+    """Atomic test-user-data write with synced file bytes AND parent directory."""
+    pending = state_file.with_suffix(".new")
+    if pending.exists() or pending.is_symlink():
+        raise ValueError("R5D pending state is unexpected; refusing to overwrite")
+    flags = (r5d_os.O_WRONLY | r5d_os.O_CREAT | r5d_os.O_EXCL
+             | getattr(r5d_os, "O_NOFOLLOW", 0))
+    fd = r5d_os.open(pending, flags, 0o600)
+    try:
+        with r5d_os.fdopen(fd, "w", encoding="utf-8") as handle:
+            handle.write(r5d_json.dumps(state, sort_keys=True) + "\n")
+            handle.flush()
+            r5d_os.fsync(handle.fileno())
+        r5d_os.replace(pending, state_file)
+        r5d_sync_directory(state_file.parent)
+    finally:
+        if pending.exists():
+            pending.unlink()
 
 
 def r5d_normalize_boot_id(value):
@@ -79,6 +130,9 @@ def r5d_guest_live_check(source, phase):
     if root.is_symlink():
         raise ValueError("R5D state root symlink refused")
     root.mkdir(mode=0o700, parents=True, exist_ok=True)
+    # The harness hard-kills QEMU after phase one. Persist the new directory
+    # entry itself, not only files inside the directory.
+    r5d_sync_directory(root.parent)
     state_file = root / "app-user-state.json"
     app_file = root / "test-only-loopback-app.py"
     if state_file.is_symlink() or app_file.is_symlink():
@@ -86,13 +140,12 @@ def r5d_guest_live_check(source, phase):
     if phase == 1:
         if state_file.exists():
             raise ValueError("R5D phase-one fresh state unexpectedly exists")
-        state_file.write_text(r5d_json.dumps({
+        r5d_write_state_durable(state_file, {
             "schema": "phios.r5d_guest_user_data.v1",
             "source_commit": source,
             "counter": 0,
             "owner_uid": 1000,
-        }, sort_keys=True) + "\n", encoding="utf-8")
-        state_file.chmod(0o600)
+        })
     elif not state_file.is_file():
         raise ValueError("R5D persisted data missing after installed VM reboot")
     state = r5d_json.loads(state_file.read_text(encoding="utf-8"))
