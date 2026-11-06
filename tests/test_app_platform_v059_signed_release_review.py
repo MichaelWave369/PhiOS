@@ -187,6 +187,10 @@ def test_cli_read_only_input_and_symlink_refusal(tmp_path:Path,capsys):
     ]
     assert main(argv)==0
     result=json.loads(capsys.readouterr().out)
+    from phios.apps.cli import main as phi_app_main
+    assert phi_app_main(["review-signed-release", *argv]) == 3
+    guarded_cli_result=json.loads(capsys.readouterr().out)
+    assert guarded_cli_result["status"] == "SIGNATURE_VALID_UNDER_CALLER_PIN_RELEASE_STILL_HELD"
     assert result["signature_valid_under_supplied_key"] is True
     assert result["install_authority"] is False
     assert sorted(p.name for p in tmp_path.iterdir())==[
