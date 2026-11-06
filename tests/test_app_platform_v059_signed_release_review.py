@@ -191,6 +191,12 @@ def test_cli_read_only_input_and_symlink_refusal(tmp_path:Path,capsys):
     assert phi_app_main(["review-signed-release", *argv]) == 3
     guarded_cli_result=json.loads(capsys.readouterr().out)
     assert guarded_cli_result["status"] == "SIGNATURE_VALID_UNDER_CALLER_PIN_RELEASE_STILL_HELD"
+    bad_argv=[*argv]
+    bad_argv[bad_argv.index("--trusted-key-sha256")+1]="0"*64
+    assert phi_app_main(["review-signed-release",*bad_argv]) == 2
+    blocked=json.loads(capsys.readouterr().out)
+    assert blocked["status"]=="RELEASE_SIGNATURE_REVIEW_BLOCKED"
+    assert blocked["install_authority"] is False
     assert result["signature_valid_under_supplied_key"] is True
     assert result["install_authority"] is False
     assert sorted(p.name for p in tmp_path.iterdir())==[
