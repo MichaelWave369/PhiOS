@@ -30,7 +30,78 @@ type ProjectStatus = {
   };
   source: string;
   authority: string;
+  linuxImage?: {
+    version: string;
+    stage: string;
+    architecture: string;
+    secureBoot: boolean;
+  };
 };
+
+const experiences = [
+  {
+    code: "01 / DESKTOP",
+    title: "PhiOS Web",
+    badge: "BROWSER EXPERIENCE",
+    copy: "Enter the local-first browser desktop. No native OS installation or special device permissions.",
+    href: "https://phi-field.com/os/",
+    action: "Launch PhiOS Web",
+    featured: true,
+  },
+  {
+    code: "02 / IMMERSIVE",
+    title: "PhiOS XR",
+    badge: "BROWSER + OPTIONAL WEBXR",
+    copy: "Explore the spatial PhiOS interface in a browser, with WebXR on compatible headsets.",
+    href: "https://michaelwave369.github.io/PhiOS-XR/",
+    action: "Enter PhiOS XR",
+    featured: false,
+  },
+  {
+    code: "03 / TOUCH",
+    title: "PhiOS Mobile",
+    badge: "BROWSER / PWA PREVIEW",
+    copy: "Open the touch-first PhiOS experience. It is not a replacement Android operating system.",
+    href: "https://michaelwave369.github.io/PhiOS-Mobile/",
+    action: "Open PhiOS Mobile",
+    featured: false,
+  },
+] as const;
+
+const ecosystem = [
+  {
+    index: "01",
+    title: "Infinite Porch",
+    role: "LOCAL AI HOME",
+    copy: "Local-first model and assistant home, with opt-in peer and model identity.",
+    href: "https://github.com/MichaelWave369/Infinite-Porch",
+    label: "View AI home source",
+  },
+  {
+    index: "02",
+    title: "Infinite Commons",
+    role: "WORLDS & PORTALS",
+    copy: "Shared worlds and portals, linked to PhiOS rather than claimed as native installs.",
+    href: "https://github.com/MichaelWave369/Infinite-Commons",
+    label: "Explore worlds",
+  },
+  {
+    index: "03",
+    title: "Universal App Center",
+    role: "GOVERNED APPLICATIONS",
+    copy: "App discovery, bounded permissions, versioned transitions and evidence. A catalog link is not an install.",
+    href: "https://github.com/MichaelWave369/PhiOS/blob/main/docs/PHIOS_UNIVERSAL_APP_CENTER_R5D.md",
+    label: "Review app lifecycle",
+  },
+  {
+    index: "04",
+    title: "Infinite Interconnects",
+    role: "PROPOSED GOVERNED BRIDGE",
+    copy: "Cross-system bridge research. Simulator and proposals only, not a production transport.",
+    href: "https://github.com/MichaelWave369/InfiniteInterconnects",
+    label: "View bridge research",
+  },
+] as const;
 
 const architecture: ArchitectureNode[] = [
   {
@@ -56,10 +127,10 @@ const architecture: ArchitectureNode[] = [
   {
     id: "apps",
     name: "App Platform",
-    line: "v0.50",
-    summary: "Governed intake, build, install, update, rollback, cleanup, and release lineage.",
+    line: "governed lifecycle tests",
+    summary: "Governed intake, build, install, update, rollback, cleanup and release lineage, with installed-VM qualification still evolving.",
     principle: "Installed != runnable.",
-    docs: "docs/PHIOS_APP_PLATFORM_V0.50_RELEASE_INSTALL_PROPOSAL_GATE.md",
+    docs: "docs/PHIOS_UNIVERSAL_APP_CENTER_R5D.md",
     modes: ["system", "authority"],
     authority: "bounded",
   },
@@ -164,6 +235,7 @@ function repoDocUrl(path: string) {
 export default function App() {
   const [mode, setMode] = useState<ViewMode>("system");
   const [crt, setCrt] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [selected, setSelected] = useState("mandala");
   const [status, setStatus] = useState<ProjectStatus | null>(null);
 
@@ -192,53 +264,132 @@ export default function App() {
 
   return (
     <div className={crt ? "app crt" : "app"}>
+      <a className="skip-link" href="#experiences">Skip to experiences</a>
       <header className="topbar">
         <a className="brand" href="#top" aria-label="PhiOS home">
           <span className="phi">φ</span>
           <span>PhiOS</span>
+          <span className="brand-subtitle">/ MISSION CONTROL</span>
         </a>
         <nav className="navlinks" aria-label="Primary navigation">
+          <a href="#experiences">Experiences</a>
+          <a href="#ecosystem">Ecosystem</a>
+          <a href="#linux-image">Linux Image</a>
           <a href="#architecture">Architecture</a>
           <a href="#sovereignty">Sovereignty</a>
-          <a href="#hardening">Hardening</a>
           <a href="#status">Live Project</a>
           <a href={`${import.meta.env.BASE_URL}operator-passport/`}>Operator Passport</a>
           <a href="https://github.com/MichaelWave369/PhiOS">GitHub</a>
         </nav>
-        <button
-          className="crt-toggle"
-          type="button"
-          aria-pressed={crt}
-          onClick={() => setCrt((value) => !value)}
-        >
-          {crt ? "CRT ON" : "CRT MODE"}
-        </button>
+        <div className="topbar-controls">
+          <button
+            className="crt-toggle"
+            type="button"
+            aria-pressed={crt}
+            onClick={() => setCrt((value) => !value)}
+          >
+            {crt ? "CRT ON" : "CRT MODE"}
+          </button>
+          <button className="menu-toggle" type="button"
+            aria-label={menuOpen ? "Close menu" : "Open menu"}
+            aria-expanded={menuOpen} aria-controls="mobile-site-nav"
+            onClick={() => setMenuOpen((value) => !value)}>
+            {menuOpen ? "CLOSE" : "MENU"}
+          </button>
+        </div>
       </header>
+      <nav id="mobile-site-nav" className={menuOpen ? "mobile-nav open" : "mobile-nav"} aria-label="Mobile navigation">
+        {[
+          ["Experiences", "#experiences"], ["Ecosystem", "#ecosystem"],
+          ["Linux Image", "#linux-image"], ["Architecture", "#architecture"],
+          ["Sovereignty", "#sovereignty"], ["Live Project", "#status"],
+        ].map(([label, href]) => (
+          <a key={href} href={href} onClick={() => setMenuOpen(false)}>{label}</a>
+        ))}
+        <a href="https://github.com/MichaelWave369/PhiOS">GitHub source</a>
+      </nav>
 
       <main id="top">
         <section className="hero">
-          <div className="eyebrow">LOCAL-FIRST · AUTHORITY-AWARE · OPEN SOURCE</div>
+          <div className="eyebrow"><span className="signal-dot" /> Φ369 LABS / THE FIELD IS OPEN</div>
           <h1>
             Sovereign. Coherent.
             <br />
             Local. <span>Free.</span>
           </h1>
           <p className="hero-copy">
-            PhiOS is an operator shell, verification spine, governed application platform,
-            memory/ledger system, and constrained agent runtime built around one hard rule.
+            One platform. Many worlds. Enter the browser desktop, explore the XR and mobile
+            experiences, or follow the evidence behind the developing Linux operating system.
+            Local-first by design, with explicit permission before consequential action.
           </p>
           <div className="law-card">
             <span>PRIMARY INVARIANT</span>
             <strong>CAPABILITY != AUTHORITY</strong>
           </div>
           <div className="hero-actions">
-            <a className="button primary" href="#architecture">Explore the system</a>
-            <a className="button" href="https://github.com/MichaelWave369/PhiOS">View source</a>
+            <a className="button primary" href="https://phi-field.com/os/">Launch PhiOS Web ↗</a>
+            <a className="button" href="#architecture">Explore the system</a>
+            <a className="button subtle" href="#linux-image">Linux image status</a>
           </div>
+          <div className="hero-footnote">
+            <span className="signal-dot" /> Browser experiences are previews, not native OS installs.
+          </div>
+        </section>
+
+
+        <section className="section experiences-section" id="experiences">
+          <div className="section-heading">
+            <div>
+              <span className="kicker">THREE EXPERIENCES / ONE FIELD</span>
+              <h2>Choose how to enter.</h2>
+            </div>
+            <p>Three real browser destinations, without confusing them with the experimental Linux image or granting device authority.</p>
+          </div>
+          <div className="experience-grid">
+            {experiences.map((experience) => (
+              <article className={experience.featured ? "experience-card featured" : "experience-card"} key={experience.title}>
+                <div className="experience-meta">
+                  <span>{experience.code}</span>
+                  <span className="experience-badge">{experience.badge}</span>
+                </div>
+                <div className="experience-glyph" aria-hidden="true">{experience.featured ? "Φ" : experience.title === "PhiOS XR" ? "◉" : "▣"}</div>
+                <h3>{experience.title}</h3>
+                <p>{experience.copy}</p>
+                <a className="experience-link" href={experience.href}>{experience.action} <span aria-hidden="true">↗</span></a>
+              </article>
+            ))}
+          </div>
+          <p className="experience-footnote">
+            Looking for the cinematic gateway? <a href="https://phi-field.com/">Enter Φ Field ↗</a>.
+            No browser experience replaces the separately qualified native Linux system.
+          </p>
         </section>
 
         <BrowserGpuInspector />
         <FieldCompanionReceiver />
+
+        <section className="section ecosystem-section" id="ecosystem">
+          <div className="section-heading">
+            <div>
+              <span className="kicker">THE PHIOS ECOSYSTEM</span>
+              <h2>One system, connected by choice.</h2>
+            </div>
+            <p>PhiOS is the governed runtime. Porch brings local AI home, Commons connects worlds, and bridge research remains explicitly opt-in.</p>
+          </div>
+          <div className="ecosystem-grid">
+            {ecosystem.map((item) => (
+              <article className="ecosystem-card" key={item.index}>
+                <div className="ecosystem-index">{item.index} / Φ</div>
+                <span className="kicker">{item.role}</span>
+                <h3>{item.title}</h3>
+                <p>{item.copy}</p>
+                <a href={item.href}>{item.label} <span aria-hidden="true">↗</span></a>
+              </article>
+            ))}
+          </div>
+          <p className="ecosystem-footnote">A linked or cataloged project is not automatically installed or authorized on any PhiOS device.</p>
+        </section>
+
         <section className="laws" aria-label="Architectural laws">
           {laws.map((law) => (
             <div className="law" key={law}>{law}</div>
@@ -338,17 +489,59 @@ export default function App() {
           </div>
         </section>
 
+
+        <section className="section linux-section" id="linux-image">
+          <div className="section-heading">
+            <div>
+              <span className="kicker">NATIVE OS / EXPERIMENTAL ALPHA</span>
+              <h2>From boot to recovery.</h2>
+            </div>
+            <p>The x86_64 UEFI image is a separate Arch-based Wayfire/PhiShell development effort, with bounded installed-VM evidence and release gates still open.</p>
+          </div>
+          <div className="image-status-banner">
+            <div>
+              <span className="kicker">IMAGE TRACK</span>
+              <h3>PhiOS Linux <span>{status?.linuxImage?.version ?? "version pending"}</span></h3>
+              <p>Development preview. Not a general-purpose supported installer, verified physical-device release, or Secure Boot image.</p>
+            </div>
+            <div className="image-status-label">NOT PUBLIC RELEASE-READY</div>
+          </div>
+          <div className="image-milestones">
+            <article>
+              <span>01 / BOOT</span>
+              <h3>UEFI and graphical desktop</h3>
+              <p>Normal live boot, non-root Wayfire/PhiShell session and bounded QEMU qualification.</p>
+            </article>
+            <article>
+              <span>02 / RECOVER</span>
+              <h3>State and root/EFI recovery</h3>
+              <p>Installed disposable-VM persistence and OS recovery exercises, not physical power-loss certification.</p>
+            </article>
+            <article>
+              <span>03 / APP LIFECYCLE</span>
+              <h3>Governed application tests</h3>
+              <p>R5D exercises live test processes and data. A complete signed third-party in-guest install remains unqualified.</p>
+            </article>
+          </div>
+          <div className="image-actions">
+            <a className="button primary" href={repoDocUrl("docs/os/RELEASE_HANDOFF.md")}>Review exact image evidence ↗</a>
+            <a className="button" href={repoDocUrl("docs/os/RELEASE_CONTRACT.md")}>Read release gates</a>
+          </div>
+        </section>
+
         <section className="section hardening-section" id="hardening">
           <div className="section-heading">
             <div>
               <span className="kicker">RESEARCH HARDENING</span>
-              <h2>Ten seams. Ten bounded increments.</h2>
+              <h2>The safeguards behind the system.</h2>
             </div>
             <p>
-              The #181 → #190 ladder hardened specific failure modes without redesigning
-              PhiOS around the research.
+              Explore the ten historical research-hardening rungs. Preserved for auditability,
+              without letting old milestones crowd out current image and application work.
             </p>
           </div>
+          <details className="history-details">
+            <summary>Explore ten merged research-hardening milestones</summary>
           <div className="ladder">
             {hardening.map(([pr, name, description], index) => (
               <article className="rung" key={pr}>
@@ -362,6 +555,7 @@ export default function App() {
               </article>
             ))}
           </div>
+          </details>
           <a
             className="text-link"
             href={repoDocUrl("docs/ENTER_THE_FIELD_PHIOS_HARDENING.md")}
@@ -377,8 +571,8 @@ export default function App() {
               <h2>Build facts, not browser secrets.</h2>
             </div>
             <p>
-              This panel is generated from the repository checkout that produced the site.
-              It carries no operational, action, or execution authority.
+              This panel reflects the checked-out source, including the latest App Platform
+              test contract and Linux image manifest. It carries no operational authority.
             </p>
           </div>
 
@@ -407,7 +601,7 @@ export default function App() {
 
           <div className="versions">
             <div><span>Spine</span><strong>{status?.versionLines.spine ?? "v0.24"}</strong></div>
-            <div><span>App Platform</span><strong>{status?.versionLines.appPlatform ?? "v0.50"}</strong></div>
+            <div><span>App tests</span><strong>{status?.versionLines.appPlatform ?? "checking…"}</strong></div>
             <div><span>PhiReflex</span><strong>{status?.versionLines.phiReflex ?? "v0.10"}</strong></div>
             <div><span>Hardening</span><strong>{status?.versionLines.hardening ?? "v0.10"}</strong></div>
           </div>
@@ -427,6 +621,7 @@ export default function App() {
 
       <footer>
         <span>φ PhiOS · MIT licensed project-owned code unless otherwise noted.</span>
+        <a href="https://phi-field.com/">ENTER Φ FIELD</a>
         <span>CAPABILITY != AUTHORITY</span>
       </footer>
     </div>

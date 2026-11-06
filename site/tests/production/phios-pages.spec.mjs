@@ -76,3 +76,17 @@ test("public CRT option is responsive without granting any authority", async ({ 
   await expect(page.getByRole("button", { name: "CRT ON" })).toHaveAttribute("aria-pressed", "true");
   await expect(page.locator(".app")).toHaveClass(/\bcrt\b/);
 });
+
+
+test("deployed mission control exposes all three browser paths with truthful OS distinctions", async ({ page }) => {
+  await page.goto(base + "?smoke_sha=" + expected);
+  const experiences = page.locator("#experiences");
+  await expect(experiences.getByRole("link", { name: /Launch PhiOS Web/ }))
+    .toHaveAttribute("href", "https://phi-field.com/os/");
+  await expect(experiences.getByRole("link", { name: /Enter PhiOS XR/ }))
+    .toHaveAttribute("href", "https://michaelwave369.github.io/PhiOS-XR/");
+  await expect(experiences.getByRole("link", { name: /Open PhiOS Mobile/ }))
+    .toHaveAttribute("href", "https://michaelwave369.github.io/PhiOS-Mobile/");
+  await expect(page.locator("#linux-image")).toContainText("NOT PUBLIC RELEASE-READY");
+  await expect(page.locator("#ecosystem")).toContainText("not automatically installed");
+});
