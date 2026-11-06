@@ -1198,11 +1198,51 @@ def _parser() -> argparse.ArgumentParser:
     )
     phivine_triage.add_argument("triage_json", type=Path)
 
+    signed_release_parser = subparsers.add_parser(
+        "review-signed-release",
+        help=(
+            "Verify an externally pinned Ed25519 signature on an exact v0.50 "
+            "release-install proposal. Always HELD: does not install."
+        ),
+    )
+    signed_release_parser.add_argument("--proposal", type=Path, required=True)
+    signed_release_parser.add_argument("--statement", type=Path, required=True)
+    signed_release_parser.add_argument("--signature", type=Path, required=True)
+    signed_release_parser.add_argument("--public-key", type=Path, required=True)
+    signed_release_parser.add_argument("--trusted-key-sha256", required=True)
+    signed_release_parser.add_argument("--expected-key-id", required=True)
+
     return parser
 
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = _parser().parse_args(argv)
+
+    if args.command == "review-signed-release":
+        from .release_publisher_review import (
+            _read_json as _read_signed_review_json,
+            _read_regular as _read_signed_review_file,
+            review_signed_release,
+        )
+        try:
+            signed_release_review = review_signed_release(
+                _read_signed_review_json(args.proposal),
+                _read_signed_review_json(args.statement),
+                signature=_read_signed_review_file(args.signature, 64),
+                publisher_public_key=_read_signed_review_file(args.public_key, 32),
+                independently_pinned_key_sha256=args.trusted_key_sha256,
+                expected_key_id=args.expected_key_id,
+            )
+        except (OSError, ValueError) as exc:
+            print(json.dumps({
+                "status": "RELEASE_SIGNATURE_REVIEW_BLOCKED",
+                "install_authority": False,
+                "error": str(exc),
+            }, sort_keys=True))
+            return 2
+        print(json.dumps(signed_release_review, sort_keys=True, indent=2))
+        # Valid signatures are evidence only; never imply installation readiness.
+        return 3
 
     if args.command == "review-phivine-triage":
         try:
