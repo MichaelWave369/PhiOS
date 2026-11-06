@@ -1225,7 +1225,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             review_signed_release,
         )
         try:
-            review = review_signed_release(
+            signed_release_review = review_signed_release(
                 _read_signed_review_json(args.proposal),
                 _read_signed_review_json(args.statement),
                 signature=_read_signed_review_file(args.signature, 64),
@@ -1240,7 +1240,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 "error": str(exc),
             }, sort_keys=True))
             return 2
-        print(json.dumps(review, sort_keys=True, indent=2))
+        print(json.dumps(signed_release_review, sort_keys=True, indent=2))
         # Valid signatures are evidence only; never imply installation readiness.
         return 3
 
