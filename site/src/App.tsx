@@ -127,7 +127,7 @@ const architecture: ArchitectureNode[] = [
   {
     id: "apps",
     name: "App Platform",
-    line: "test contracts through v0.61",
+    line: "governed lifecycle tests",
     summary: "Governed intake, build, install, update, rollback, cleanup and release lineage, with installed-VM qualification still evolving.",
     principle: "Installed != runnable.",
     docs: "docs/PHIOS_UNIVERSAL_APP_CENTER_R5D.md",
@@ -501,7 +501,7 @@ export default function App() {
           <div className="image-status-banner">
             <div>
               <span className="kicker">IMAGE TRACK</span>
-              <h3>PhiOS Linux <span>{status?.linuxImage?.version ?? "0.1.0-alpha.1"}</span></h3>
+              <h3>PhiOS Linux <span>{status?.linuxImage?.version ?? "version pending"}</span></h3>
               <p>Development preview. Not a general-purpose supported installer, verified physical-device release, or Secure Boot image.</p>
             </div>
             <div className="image-status-label">NOT PUBLIC RELEASE-READY</div>
