@@ -116,6 +116,8 @@ def audit_disposable_recovery(
     ):
         raise ValueError("Rehearsal bundle path is outside disposable desktop root")
     marker_path = Path(rollback.retention_marker_path)
+    if (marker_path.is_symlink() or root not in marker_path.resolve(strict=True).parents):
+        raise ValueError("Rollback retention marker is outside disposable desktop root")
     checked_marker = _safe_path(marker_path, marker_path.parent, "rollback retention marker")
     marker = DesktopRetentionMarker.from_dict(json.loads(
         checked_marker.read_text(encoding="utf-8")
