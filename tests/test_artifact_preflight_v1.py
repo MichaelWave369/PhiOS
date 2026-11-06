@@ -57,7 +57,7 @@ def test_tamper_size_signature_licensing_and_unknown_identity_refused(tmp_path):
     artifact.write_bytes(b"tampered")
     with pytest.raises(ValueError,match="length"):
         p.verify_artifact(p.read_proposal(doc),artifact)
-    artifact.write_bytes(b"different content with same length"[:len(payload)])
+    artifact.write_bytes(b"X" * len(payload))
     with pytest.raises(ValueError,match="SHA-256"):
         p.verify_artifact(p.read_proposal(doc),artifact)
     for name,value in (
