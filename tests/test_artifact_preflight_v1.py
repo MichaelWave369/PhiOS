@@ -103,7 +103,9 @@ def test_extra_fields_traversal_unknown_runtime_and_bad_digest_refused(tmp_path)
 def test_symlink_large_manifest_and_wrong_filename_refused(tmp_path):
     payload=b"hello"
     doc,artifact=write(tmp_path,example(payload),payload)
-    alias=tmp_path/"alias.zip"
+    alias_dir=tmp_path/"links"
+    alias_dir.mkdir()
+    alias=alias_dir/"release.zip"
     alias.symlink_to(artifact)
     with pytest.raises(OSError):
         p.verify_artifact(p.read_proposal(doc),alias)
