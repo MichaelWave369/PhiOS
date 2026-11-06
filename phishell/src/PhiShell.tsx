@@ -26,6 +26,13 @@ import {
 } from "./shell/model";
 import { shellReducer } from "./shell/reducer";
 import {
+  MAX_WORKSPACE_BYTES,
+  decodeWorkspace,
+  encodeWorkspace,
+  loadWorkspaceFromLocalStorage,
+  persistWorkspaceToLocalStorage,
+} from "./shell/workspaceSession";
+import {
   linuxServiceAdapter,
   type LinuxServiceReceipt,
 } from "./shell/linuxAdapter";
@@ -398,6 +405,13 @@ function DesktopWindow({
     windowX: number;
     windowY: number;
   } | null>(null);
+  const resize = useRef<{
+    pointerId: number;
+    startX: number;
+    startY: number;
+    width: number;
+    height: number;
+  } | null>(null);
 
   if (item.state === "minimized") return null;
 
@@ -486,6 +500,55 @@ function DesktopWindow({
         </div>
         <WindowBody item={item} openApp={openApp} />
       </div>
+      {!maximized && (
+        <button
+          type="button"
+          className="window-resize-handle"
+          aria-label={"Resize " + item.title}
+          title="Drag to resize, or use arrow keys"
+          onPointerDown={(event) => {
+            event.stopPropagation();
+            resize.current = {
+              pointerId: event.pointerId,
+              startX: event.clientX,
+              startY: event.clientY,
+              width: item.width,
+              height: item.height,
+            };
+            event.currentTarget.setPointerCapture(event.pointerId);
+          }}
+          onPointerMove={(event) => {
+            const active = resize.current;
+            if (!active || active.pointerId !== event.pointerId) return;
+            dispatch({
+              type: "RESIZE_WINDOW",
+              id: item.id,
+              width: active.width + ((event.clientX - active.startX) / globalThis.innerWidth) * 100,
+              height: active.height + ((event.clientY - active.startY) / globalThis.innerHeight) * 100,
+            });
+          }}
+          onPointerUp={(event) => {
+            if (resize.current?.pointerId === event.pointerId) {
+              resize.current = null;
+              event.currentTarget.releasePointerCapture(event.pointerId);
+            }
+          }}
+          onPointerCancel={() => { resize.current = null; }}
+          onKeyDown={(event) => {
+            const step = event.shiftKey ? 5 : 2;
+            const horizontal = event.key === "ArrowRight" ? step
+              : event.key === "ArrowLeft" ? -step : 0;
+            const vertical = event.key === "ArrowDown" ? step
+              : event.key === "ArrowUp" ? -step : 0;
+            if (!horizontal && !vertical) return;
+            event.preventDefault();
+            dispatch({
+              type: "RESIZE_WINDOW", id: item.id,
+              width: item.width + horizontal, height: item.height + vertical,
+            });
+          }}
+        >◢</button>
+      )}
     </section>
   );
 }
@@ -750,13 +813,47 @@ function AuthorityDialog({
 }
 
 export function PhiShell() {
-  const [state, dispatch] = useReducer(shellReducer, INITIAL_SHELL_STATE);
+  const [state, dispatch] = useReducer(
+    shellReducer, INITIAL_SHELL_STATE, loadWorkspaceFromLocalStorage,
+  );
+  const importLayoutRef = useRef<HTMLInputElement>(null);
+  const [layoutStatus, setLayoutStatus] = useState("Layout stays on this device");
   const [start, setStart] = useState(false);
   const [adapterReceipt, setAdapterReceipt] = useState<LinuxServiceReceipt | null>(null);
   const title = useMemo(
     () => nav.find((item) => item.id === state.view)?.label ?? "Home",
     [state.view],
   );
+
+  useEffect(() => {
+    try {
+      persistWorkspaceToLocalStorage(state);
+    } catch {
+      setLayoutStatus("Local storage unavailable: use Export");
+    }
+  }, [state.view, state.windows]);
+
+  const exportLayout = () => {
+    const blob = new Blob([encodeWorkspace(state)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "phios-workspace-layout.v1.json";
+    link.click();
+    globalThis.setTimeout(() => URL.revokeObjectURL(url), 0);
+    setLayoutStatus("Layout exported (no app data)");
+  };
+
+  const importLayout = async (file: File) => {
+    try {
+      if (file.size > MAX_WORKSPACE_BYTES) throw new Error("Layout exceeds 16 KiB");
+      const restored = decodeWorkspace(await file.text());
+      dispatch({ type: "RESTORE_WORKSPACE", layout: restored });
+      setLayoutStatus("Layout restored; no app data imported");
+    } catch (error) {
+      setLayoutStatus(error instanceof Error ? error.message : "Invalid layout");
+    }
+  };
 
   const openApp = (id: string) => {
     const event = shellAppEvent(id);
@@ -842,6 +939,31 @@ export function PhiShell() {
               {item.kind === "system" ? "▤" : "◈"}
             </button>
           ))}
+        </div>
+        <div className="workspace-controls">
+          <button type="button" onClick={exportLayout} title="Download a layout-only, portable JSON file">
+            Export layout
+          </button>
+          <button type="button" onClick={() => importLayoutRef.current?.click()}
+            title="Restore a previously exported layout (no app execution)">
+            Import layout
+          </button>
+          <button type="button" onClick={() => {
+            if (globalThis.confirm("Reset the local PhiShell window layout?")) {
+              dispatch({ type: "RESTORE_WORKSPACE", layout: INITIAL_SHELL_STATE });
+              setLayoutStatus("Layout reset");
+            }
+          }} title="Reset desktop windows to their initial arrangement">
+            Reset
+          </button>
+          <input ref={importLayoutRef} type="file" accept=".json,application/json"
+            aria-label="Select a PhiOS workspace layout JSON file"
+            onChange={(event) => {
+              const file = event.currentTarget.files?.[0];
+              event.currentTarget.value = "";
+              if (file) void importLayout(file);
+            }} />
+          <span role="status" title={layoutStatus}>{layoutStatus}</span>
         </div>
         <div className="motto">LEDGER ABOVE EGO</div>
         <div className="tray">

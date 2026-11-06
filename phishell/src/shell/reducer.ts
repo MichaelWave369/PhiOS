@@ -1,4 +1,4 @@
-import type { ShellEvent, ShellState, ShellWindow } from "./model";
+import { INITIAL_SHELL_STATE, type ShellEvent, type ShellState, type ShellWindow } from "./model";
 
 function raiseWindow(state: ShellState, id: string): ShellState {
   const nextZ = state.nextZ + 1;
@@ -57,10 +57,31 @@ export function shellReducer(state: ShellState, event: ShellEvent): ShellState {
           ? window
           : {
               ...window,
-              x: Math.max(0, Math.min(84, event.x)),
-              y: Math.max(0, Math.min(78, event.y)),
+              x: Math.max(0, Math.min(84, 100 - window.width, event.x)),
+              y: Math.max(0, Math.min(78, 100 - window.height, event.y)),
             },
       );
+
+    case "RESIZE_WINDOW":
+      return updateWindow(state, event.id, (window) =>
+        window.state === "maximized"
+          ? window
+          : {
+              ...window,
+              width: Math.max(Math.min(30, 100 - window.x), Math.min(100 - window.x, event.width)),
+              height: Math.max(Math.min(26, 100 - window.y), Math.min(100 - window.y, event.height)),
+            },
+      );
+
+    case "RESTORE_WORKSPACE":
+      // An imported snapshot is validated by workspaceSession before dispatch.
+      // Do not import authority, command text, grants or execution state.
+      return {
+        ...INITIAL_SHELL_STATE,
+        view: event.layout.view,
+        windows: event.layout.windows,
+        nextZ: Math.max(0, ...event.layout.windows.map((window) => window.z)) + 1,
+      };
 
     case "MINIMIZE_WINDOW":
       return updateWindow(state, event.id, (window) => ({ ...window, state: "minimized" }));

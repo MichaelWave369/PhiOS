@@ -35,6 +35,37 @@ describe("PhiShell desktop reducer", () => {
     );
   });
 
+  it("resizes within the desktop and does not resize maximized windows", () => {
+    const resized = shellReducer(INITIAL_SHELL_STATE, {
+      type: "RESIZE_WINDOW", id: "research-window", width: 200, height: 200,
+    });
+    const window = resized.windows.find((entry) => entry.id === "research-window");
+    expect(window?.width).toBe(93);
+    expect(window?.height).toBe(90);
+
+    const maximized = shellReducer(resized, {
+      type: "TOGGLE_MAXIMIZE_WINDOW", id: "research-window",
+    });
+    const untouched = shellReducer(maximized, {
+      type: "RESIZE_WINDOW", id: "research-window", width: 30, height: 30,
+    });
+    expect(untouched.windows.find((entry) => entry.id === "research-window")?.width).toBe(93);
+  });
+
+  it("restoring layout cannot retain a pending authority dialog", () => {
+    const withDialog = shellReducer(INITIAL_SHELL_STATE, {
+      type: "REQUEST_AUTHORITY",
+      request: {
+        id: "test", capability: "system.power", scope: "host",
+        reason: "test", requestedBy: "operator", decision: "pending", executionAuthority: false,
+      },
+    });
+    const restored = shellReducer(withDialog, {
+      type: "RESTORE_WORKSPACE", layout: INITIAL_SHELL_STATE,
+    });
+    expect(restored.authorityRequest).toBeNull();
+  });
+
   it("records an approved intent without manufacturing execution authority", () => {
     const request: AuthorityRequest = {
       id: "authority:test",

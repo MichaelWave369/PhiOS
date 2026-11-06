@@ -61,6 +61,8 @@ export type ShellEvent =
   | { type: "OPEN_WINDOW"; window: ShellWindow }
   | { type: "FOCUS_WINDOW"; id: string }
   | { type: "MOVE_WINDOW"; id: string; x: number; y: number }
+  | { type: "RESIZE_WINDOW"; id: string; width: number; height: number }
+  | { type: "RESTORE_WORKSPACE"; layout: ShellState }
   | { type: "MINIMIZE_WINDOW"; id: string }
   | { type: "RESTORE_WINDOW"; id: string }
   | { type: "TOGGLE_MAXIMIZE_WINDOW"; id: string }
