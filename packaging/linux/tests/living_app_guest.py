@@ -145,7 +145,7 @@ def r5d_guest_live_check(source, phase):
         persisted = r5d_json.loads(state_file.read_text(encoding="utf-8"))
         if persisted != changed:
             raise ValueError("R5D user-data file disagrees with live app response")
-        boot_id = R5DPath("/proc/sys/kernel/random/boot_id").read_text().strip()
+        boot_id = R5DPath("/proc/sys/kernel/random/boot_id").read_text().strip().replace("-", "")
         report = {
             "schema": "phios.r5d_guest_observation.v0.1",
             "scope": "disposable_installed_qemu_guest_test_only",
