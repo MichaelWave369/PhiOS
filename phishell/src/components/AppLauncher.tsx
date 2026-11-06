@@ -49,6 +49,18 @@ export function AppLibrary({ openApp }: { openApp: (id: string) => void }) {
           <div><dt>Governed installed apps</dt><dd>Use the desktop menu for approved launchers. In Foot, phi-app catalog-desktop-apps inspects the existing catalog.</dd></div>
         </dl>
       </div>
+      <section className="panel app-desktop-help" aria-labelledby="r5-lifecycle-title">
+        <div className="panel-title" id="r5-lifecycle-title">Φ R5 APP INSTALLATION & LIFECYCLE</div>
+        <p>Only the device's package database and PhiOS governed App Platform can report actual installation. A public source bookmark is never installed-app evidence.</p>
+        <dl>
+          <div><dt>What is installed?</dt><dd>Open System Inspector for a read-only observation of this Linux host's package database. This does not tie arbitrary packages to GitHub source IDs.</dd></div>
+          <div><dt>Verify an artifact</dt><dd>In a development checkout, run <code>python interop/artifact_preflight_v1.py --manifest /path/manifest.json --artifact /path/release.zip</code>. Matching SHA-256 verifies selected bytes, not publisher identity, safety, or installation.</dd></div>
+          <div><dt>Install or update</dt><dd>Use the separately governed <code>phi-app</code> intake, build, review, and approval gates. No R5 GUI install authority exists yet.</dd></div>
+          <div><dt>Remove or rollback</dt><dd>Use the actual installed-app manager and its signed/approved recovery plan. An arbitrary catalog entry has no uninstall or rollback operation.</dd></div>
+        </dl>
+        <button type="button" onClick={() => openApp("system")}>Inspect actual Linux package state</button>
+        <p className="muted">R5 starts with local artifact verification and platform-owned app management. No silent package downloads, shell commands, or new privilege bridge.</p>
+      </section>
       <EcosystemCatalog />
       <UniversalAppShelf />
       <p className="muted">This list describes the shipped image, not a scan of apps you added separately.</p>
