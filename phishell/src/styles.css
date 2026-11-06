@@ -459,3 +459,50 @@ linear-gradient(135deg,rgba(13,32,42,.92),rgba(5,13,17,.96));box-shadow:inset 0 
 .native-shelf-order button{min-width:31px;padding:6px}
 .native-shelf-search{display:grid;gap:7px;font-size:11px;color:var(--secondary)}
 .native-shelf-search input{background:#051319;border:1px solid #2b647c;color:var(--text);padding:11px;border-radius:7px;font-size:13px}
+
+
+/* Workspace Continuity v1: resized, keyboard-accessible windows and layout portability. */
+.window-resize-handle {
+  position: absolute;
+  right: 1px;
+  bottom: 1px;
+  z-index: 3;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--soft);
+  border-radius: 6px 0 7px 0;
+  color: var(--cyan);
+  background: rgba(9, 28, 36, .92);
+  cursor: nwse-resize;
+  touch-action: none;
+}
+.window-resize-handle:hover, .window-resize-handle:focus-visible {
+  border-color: var(--cyan);
+  outline: 2px solid var(--cyan);
+  outline-offset: -3px;
+}
+.workspace-controls { display: flex; align-items: center; gap: 4px; }
+.workspace-controls button {
+  height: 28px;
+  padding: 0 7px;
+  font-size: 8px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.workspace-controls button:hover, .workspace-controls button:focus-visible {
+  color: var(--cyan);
+  border-color: var(--cyan);
+}
+.workspace-controls input[type="file"] { display: none; }
+.workspace-controls [role="status"] {
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--muted);
+  font-size: 8px;
+}
+@media (max-width: 1100px) {
+  .workspace-controls [role="status"] { display: none; }
+  .workspace-controls button { padding: 0 4px; }
+}
