@@ -1,0 +1,85 @@
+name: Φ R5C Trust and Recovery Lab
+
+on:
+  pull_request:
+    paths:
+      - "phios/apps/recovery_lab.py"
+      - "phios/apps/desktop_update.py"
+      - "phios/apps/desktop_catalog.py"
+      - "tests/test_app_platform_v060_recovery_lab.py"
+      - "tests/test_app_platform_v040_update_rollback.py"
+      - ".github/workflows/r5c-trust-recovery-lab.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  disposable-recovery:
+    name: Disposable Linux app update and rollback
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install pinned PhiOS development and test tooling
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e '.[dev]'
+      - name: Static checks for the read-only recovery auditor
+        run: |
+          ruff check phios/apps/recovery_lab.py
+          mypy phios/apps/recovery_lab.py --ignore-missing-imports
+      - name: Rehearse real desktop-app update, synthetic failure, and explicit rollback
+        env:
+          PHIOS_R5C_EVIDENCE_DIR: ${{ runner.temp }}/phios-r5c-evidence
+        run: |
+          pytest -q \
+            tests/test_app_platform_v060_recovery_lab.py \
+            tests/test_app_platform_v040_update_rollback.py
+      - name: Check observation is scoped to disposable filesystem
+        env:
+          PHIOS_R5C_EVIDENCE_DIR: ${{ runner.temp }}/phios-r5c-evidence
+        run: |
+          python - <<'PY'
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+          p = Path(os.environ["PHIOS_R5C_EVIDENCE_DIR"]) / "disposable-recovery-observation.json"
+          body = json.loads(p.read_text(encoding="utf-8"))
+          expected = hashlib.sha256(json.dumps(
+              {k: v for k,v in body.items() if k != "report_sha256"},
+              sort_keys=True, separators=(",", ":"), allow_nan=False,
+          ).encode("utf-8")).hexdigest()
+          assert body["report_sha256"] == expected, "Evidence digest changed"
+          assert body["status"] == "DISPOSABLE_FILESYSTEM_RECOVERY_OBSERVED"
+          assert body["scope"] == "disposable_linux_runner_filesystem"
+          assert body["simulated_fault"] == "simulated_post_update_health_probe_failure"
+          assert body["restored_version_is_ready_in_catalog"] is True
+          assert body["candidate_is_blocked_in_catalog"] is True
+          for denied in (
+              "publisher_identity_verified",
+              "signed_artifact_bound_to_this_rehearsal",
+              "dependency_review_cleared",
+              "native_device_qualified",
+              "real_process_health_probed",
+              "user_data_rollback_verified",
+              "install_authority",
+              "update_authority",
+              "rollback_authority",
+          ):
+              assert body[denied] is False, denied
+          assert body["operations_performed_by_auditor"] == []
+          print("R5C disposable recovery evidence: validated, no production claims")
+          PY
+      - name: Preserve bounded operator-reviewable evidence
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phios-r5c-disposable-recovery-evidence
+          path: ${{ runner.temp }}/phios-r5c-evidence/disposable-recovery-observation.json
+          if-no-files-found: error
+          retention-days: 14
