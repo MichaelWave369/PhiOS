@@ -1,0 +1,96 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/MichaelWave369/PhiOS/blob/main/interop/artifact-intake.v1.schema.json",
+  "title": "PhiOS R5 local artifact integrity preflight (never install authority)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "app_id",
+    "repository",
+    "target",
+    "source_commit_sha",
+    "artifact",
+    "assertions"
+  ],
+  "properties": {
+    "schema": {
+      "const": "phios.artifact-intake.v1"
+    },
+    "app_id": {
+      "type": "string",
+      "pattern": "^github:[0-9]{1,20}$"
+    },
+    "repository": {
+      "type": "string",
+      "pattern": "^https://github\\.com/MichaelWave369/[A-Za-z0-9_.-]{1,100}$"
+    },
+    "target": {
+      "enum": [
+        "linux",
+        "android",
+        "web"
+      ]
+    },
+    "source_commit_sha": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "file_name",
+        "size_bytes",
+        "sha256"
+      ],
+      "properties": {
+        "file_name": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.+-]{0,119}$"
+        },
+        "size_bytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 268435456
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "assertions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "publisher_signature_verified",
+        "license_cleared",
+        "device_compatibility_verified",
+        "operator_approved",
+        "install_authority",
+        "requested_action"
+      ],
+      "properties": {
+        "publisher_signature_verified": {
+          "const": false
+        },
+        "license_cleared": {
+          "const": false
+        },
+        "device_compatibility_verified": {
+          "const": false
+        },
+        "operator_approved": {
+          "const": false
+        },
+        "install_authority": {
+          "const": false
+        },
+        "requested_action": {
+          "const": "verify_only"
+        }
+      }
+    }
+  }
+}
