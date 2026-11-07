@@ -37,7 +37,7 @@ CheckSpace
 # builder prefetch. Don't reject verified signed packages solely for low
 # transfer speed from the exact frozen Arch archive.
 DisableDownloadTimeout
-ParallelDownloads = 5
+ParallelDownloads = 2
 [core]
 Server = https://archive.archlinux.org/repos/{snapshot}/$repo/os/$arch
 [extra]
