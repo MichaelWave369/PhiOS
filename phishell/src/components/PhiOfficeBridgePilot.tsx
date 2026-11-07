@@ -17,6 +17,13 @@ import {
   storeProjectRegistry,
   type SavedProjectReference,
 } from "../shell/projectRegistry";
+import {
+  PORTABLE_PROJECT_BUNDLE_MAX_BYTES,
+  decodePortableProjectBundle,
+  encodePortableProjectBundle,
+  previewProjectBundleMerge,
+  type ProjectBundleMergePreview,
+} from "../shell/projectRegistryPortable";
 
 /**
  * Explicit, browser-only test pilot. No backend, no install, no real project
@@ -35,6 +42,10 @@ export function PhiOfficeBridgePilot() {
   const [rememberedPick, setRememberedPick] = useState("");
   const [registryReadable, setRegistryReadable] = useState(true);
   const [registryNotice, setRegistryNotice] = useState("");
+  const [pendingImport, setPendingImport] = useState<{
+    incoming: SavedProjectReference[];
+    preview: ProjectBundleMergePreview;
+  } | null>(null);
   const selectionRevisionRef = useRef(0);
   const [status, setStatus] = useState("Disconnected");
   const frameRef = useRef<HTMLIFrameElement>(null);
@@ -76,6 +87,7 @@ export function PhiOfficeBridgePilot() {
 
   const disconnect = () => {
     selectionRevisionRef.current += 1;
+    setPendingImport(null);
     stopBootstrapRetry();
     hostRef.current?.revokeProject();
     hostRef.current = null;
@@ -111,6 +123,7 @@ export function PhiOfficeBridgePilot() {
   };
 
   const startPilot = () => {
+    setPendingImport(null);
     // This is an operator-initiated read. No registry or external app is
     // accessed in an ordinary, unconfigured PhiShell deployment.
     try {
@@ -177,6 +190,7 @@ export function PhiOfficeBridgePilot() {
       globalThis.localStorage.removeItem(PROJECT_REGISTRY_KEY);
       setRemembered([]);
       setRememberedPick("");
+      setPendingImport(null);
       setRegistryReadable(true);
       selectionRevisionRef.current += 1;
       hostRef.current?.revokeProject();
@@ -185,6 +199,63 @@ export function PhiOfficeBridgePilot() {
       setRegistryNotice("All local project references cleared. Existing app knowledge cannot be erased.");
     } catch {
       setRegistryNotice("Browser storage could not be cleared.");
+    }
+  };
+
+  const exportReferences = () => {
+    if (!registryReadable) return;
+    try {
+      // Re-read the current browser store to avoid exporting stale UI state.
+      const entries = loadProjectRegistry();
+      const contents = encodePortableProjectBundle(entries);
+      const url = URL.createObjectURL(new Blob([contents], { type: "application/json" }));
+      try {
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = "phios-project-references-v1.json";
+        link.click();
+      } finally {
+        // A small delay allows the browser download handoff to begin.
+        globalThis.setTimeout(() => URL.revokeObjectURL(url), 0);
+      }
+      setRegistryNotice("Exported IDs, titles and source labels only. No app approvals or project files.");
+    } catch (error) {
+      setRegistryNotice(error instanceof Error ? error.message : "Could not export local references");
+    }
+  };
+
+  const inspectImport = async (file: File) => {
+    const revision = ++selectionRevisionRef.current;
+    setPendingImport(null);
+    if (!active || !registryReadable) return;
+    try {
+      if (file.size > PORTABLE_PROJECT_BUNDLE_MAX_BYTES) {
+        throw new Error("Portable project references must be under 16 KiB");
+      }
+      const incoming = decodePortableProjectBundle(await file.text());
+      if (selectionRevisionRef.current !== revision || !active) return;
+      const preview = previewProjectBundleMerge(loadProjectRegistry(), incoming);
+      setPendingImport({ incoming, preview });
+      setRegistryNotice("Import preview ready. No browser data changed; no app approval granted.");
+    } catch (error) {
+      if (selectionRevisionRef.current !== revision || !active) return;
+      setRegistryNotice(error instanceof Error ? error.message : "Portable registry import rejected");
+    }
+  };
+
+  const commitImport = () => {
+    if (!active || !registryReadable || !pendingImport) return;
+    try {
+      // Fresh storage read prevents accidental replacement of another
+      // local record updated after the preview. Local titles always win.
+      const latest = loadProjectRegistry();
+      const result = previewProjectBundleMerge(latest, pendingImport.incoming);
+      if (result.added > 0) storeProjectRegistry(result.entries);
+      setRemembered(result.entries);
+      setPendingImport(null);
+      setRegistryNotice(`Imported ${result.added} new references; skipped ${result.skipped} existing. No approvals changed.`);
+    } catch (error) {
+      setRegistryNotice(error instanceof Error ? error.message : "Could not import project references");
     }
   };
 
@@ -296,6 +367,41 @@ export function PhiOfficeBridgePilot() {
                         onClick={forgetRemembered}>Forget saved project</button>
                     </div>
                   </>
+                )}
+                {registryReadable && (
+                  <div className="phios-bridge-portable-registry">
+                    <b>Portable project references · offline</b>
+                    <p className="muted">
+                      JSON exports include only project IDs, titles and source labels.
+                      No project files or approvals. Treat project titles as private metadata.
+                    </p>
+                    <button type="button" onClick={exportReferences}
+                      disabled={remembered.length === 0}>
+                      Export project references
+                    </button>
+                    <label htmlFor="phios-pilot-reference-import">Import project reference bundle</label>
+                    <input id="phios-pilot-reference-import" type="file"
+                      accept=".json,application/json"
+                      aria-label="Import project reference bundle"
+                      onChange={(event) => {
+                        const file = event.currentTarget.files?.[0];
+                        event.currentTarget.value = "";
+                        if (file) void inspectImport(file);
+                      }}
+                    />
+                    {pendingImport && (
+                      <div role="status" className="phios-bridge-import-preview">
+                        Preview: {pendingImport.preview.added} new,
+                        {" "}{pendingImport.preview.skipped} already saved.
+                        Local titles are preserved.
+                        <button type="button" disabled={pendingImport.preview.added === 0}
+                          onClick={commitImport}>Confirm reference import</button>
+                        <button type="button" onClick={() => setPendingImport(null)}>
+                          Cancel import
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 )}
                 <button type="button" onClick={clearRemembered}
                   disabled={registryReadable && remembered.length === 0}>
