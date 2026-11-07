@@ -20,6 +20,14 @@ export function PhiOfficeBridgePilot() {
   const [status, setStatus] = useState("Disconnected");
   const frameRef = useRef<HTMLIFrameElement>(null);
   const hostRef = useRef<ReturnType<typeof createWorkspaceBridgeHost> | null>(null);
+  const retryRef = useRef<ReturnType<typeof globalThis.setInterval> | null>(null);
+
+  const stopBootstrapRetry = () => {
+    if (retryRef.current !== null) {
+      globalThis.clearInterval(retryRef.current);
+      retryRef.current = null;
+    }
+  };
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
@@ -30,6 +38,7 @@ export function PhiOfficeBridgePilot() {
       if (!response) return;
       frame.postMessage(response.message, response.targetOrigin);
       if (response.message.type === "host.ready") {
+        stopBootstrapRetry();
         setStatus("Client handshake accepted. Project access remains operator-controlled.");
       } else if (response.message.type === "host.context") {
         setStatus("Shared synthetic project reference only. No files or permissions.");
@@ -40,12 +49,14 @@ export function PhiOfficeBridgePilot() {
     globalThis.addEventListener("message", handleMessage);
     return () => {
       globalThis.removeEventListener("message", handleMessage);
+      stopBootstrapRetry();
       hostRef.current?.revokeProject();
       hostRef.current = null;
     };
   }, []);
 
   const disconnect = () => {
+    stopBootstrapRetry();
     hostRef.current?.revokeProject();
     hostRef.current = null;
     setApproved(false);
@@ -56,6 +67,8 @@ export function PhiOfficeBridgePilot() {
   const onFrameLoad = () => {
     if (!endpoint || !active || !frameRef.current?.contentWindow) return;
     // Each navigation/reload gets a brand new, unapproved session.
+    stopBootstrapRetry();
+    hostRef.current?.revokeProject();
     const frame = frameRef.current.contentWindow;
     const host = createWorkspaceBridgeHost({
       appId: "phioffice",
@@ -66,7 +79,24 @@ export function PhiOfficeBridgePilot() {
     hostRef.current = host;
     setApproved(false);
     const bootstrap = host.bootstrap();
+    // onLoad can precede React's useEffect message listener in the child.
+    // Repeat only the same bounded, origin-bound bootstrap, never with '*'.
+    // The client treats the same session's duplicate bootstrap as a no-op.
+    let attempts = 1;
     frame.postMessage(bootstrap.message, bootstrap.targetOrigin);
+    retryRef.current = globalThis.setInterval(() => {
+      if (hostRef.current !== host || frameRef.current?.contentWindow !== frame) {
+        stopBootstrapRetry();
+        return;
+      }
+      if (attempts >= 10) {
+        stopBootstrapRetry();
+        setStatus("PhiOffice handshake timed out. Disconnect and review the configured endpoint.");
+        return;
+      }
+      attempts += 1;
+      frame.postMessage(bootstrap.message, bootstrap.targetOrigin);
+    }, 350);
     setStatus("Waiting for PhiOffice's origin-bound handshake.");
   };
 
