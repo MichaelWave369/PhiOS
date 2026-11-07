@@ -24,6 +24,11 @@ import {
 } from "../shell/projectAdapters";
 import { readProjectIdentityWithAdapter } from "../shell/projectAdapterReader";
 import {
+  PROJECT_REGISTRY_V2_KEY,
+  previewV1ToV2Migration,
+  type V2MigrationPreview,
+} from "../shell/projectRegistryV2";
+import {
   PORTABLE_PROJECT_BUNDLE_MAX_BYTES,
   decodePortableProjectBundle,
   encodePortableProjectBundle,
@@ -50,6 +55,8 @@ export function PhiOfficeBridgePilot() {
   const [rememberedPick, setRememberedPick] = useState("");
   const [registryReadable, setRegistryReadable] = useState(true);
   const [registryNotice, setRegistryNotice] = useState("");
+  const [v2Preview, setV2Preview] = useState<V2MigrationPreview | null>(null);
+  const [v2Notice, setV2Notice] = useState("");
   const [pendingImport, setPendingImport] = useState<{
     incoming: SavedProjectReference[];
     preview: ProjectBundleMergePreview;
@@ -94,6 +101,8 @@ export function PhiOfficeBridgePilot() {
   }, []);
 
   const disconnect = () => {
+    setV2Preview(null);
+    setV2Notice("");
     selectionRevisionRef.current += 1;
     setPendingImport(null);
     stopBootstrapRetry();
@@ -133,6 +142,8 @@ export function PhiOfficeBridgePilot() {
   };
 
   const startPilot = () => {
+    setV2Preview(null);
+    setV2Notice("");
     setPendingImport(null);
     // This is an operator-initiated read. No registry or external app is
     // accessed in an ordinary, unconfigured PhiShell deployment.
@@ -152,6 +163,8 @@ export function PhiOfficeBridgePilot() {
   };
 
   const rememberSelection = () => {
+    setV2Preview(null);
+    setV2Notice("");
     if (!selectedProject || !registryReadable) return;
     try {
       const next = rememberReviewedProject(remembered, selectedProject);
@@ -176,6 +189,8 @@ export function PhiOfficeBridgePilot() {
   };
 
   const forgetRemembered = () => {
+    setV2Preview(null);
+    setV2Notice("");
     if (!registryReadable || !rememberedPick) return;
     const projectRef = rememberedPick;
     try {
@@ -196,6 +211,8 @@ export function PhiOfficeBridgePilot() {
   };
 
   const clearRemembered = () => {
+    setV2Preview(null);
+    setV2Notice("");
     if (!globalThis.confirm("Clear every saved PhiOS project reference on this browser?")) return;
     try {
       globalThis.localStorage.removeItem(PROJECT_REGISTRY_KEY);
@@ -255,6 +272,8 @@ export function PhiOfficeBridgePilot() {
   };
 
   const commitImport = () => {
+    setV2Preview(null);
+    setV2Notice("");
     if (!active || !registryReadable || !pendingImport) return;
     try {
       // Fresh storage read prevents accidental replacement of another
@@ -267,6 +286,23 @@ export function PhiOfficeBridgePilot() {
       setRegistryNotice(`Imported ${result.added} new references; skipped ${result.skipped} existing. No approvals changed.`);
     } catch (error) {
       setRegistryNotice(error instanceof Error ? error.message : "Could not import project references");
+    }
+  };
+
+  const inspectQualifiedIdentityPreview = () => {
+    setV2Preview(null);
+    setV2Notice("");
+    if (!active || !registryReadable) return;
+    try {
+      // Read only after explicit operator click. Neither key is changed.
+      const preview = previewV1ToV2Migration(
+        globalThis.localStorage.getItem(PROJECT_REGISTRY_KEY),
+        globalThis.localStorage.getItem(PROJECT_REGISTRY_V2_KEY),
+      );
+      setV2Preview(preview);
+      setV2Notice("Read-only provider identity preview. No migration, file access, approval or new app.");
+    } catch (error) {
+      setV2Notice(error instanceof Error ? error.message : "Project identity preview unavailable");
     }
   };
 
@@ -426,6 +462,34 @@ export function PhiOfficeBridgePilot() {
                         </button>
                       </div>
                     )}
+                  </div>
+                )}
+                {registryReadable && (
+                  <div className="phios-bridge-qualified-preview" aria-label="Provider-qualified identity preview">
+                    <b>Project identity V2 · review only</b>
+                    <p className="muted">
+                      Existing saved projects remain in V1. A future provider-qualified registry
+                      would distinguish app providers even when their project IDs match.
+                      No source, approvals or installed apps change.
+                    </p>
+                    <button type="button" onClick={inspectQualifiedIdentityPreview}>
+                      Preview provider-qualified project IDs
+                    </button>
+                    {v2Preview && (
+                      <div role="status" className="phios-bridge-qualified-results">
+                        Preview: {v2Preview.recordCount} project references,
+                        0 writes, 0 approvals transferred.
+                        <ul>
+                          {v2Preview.entries.map((entry) => (
+                            <li key={entry.providerAppId + ":" + entry.projectRef}>
+                              {entry.providerAppId} / {entry.projectRef}
+                            </li>
+                          ))}
+                        </ul>
+                        No V2 registry was written.
+                      </div>
+                    )}
+                    {v2Notice && <p role="status" className="muted">{v2Notice}</p>}
                   </div>
                 )}
                 <button type="button" onClick={clearRemembered}
