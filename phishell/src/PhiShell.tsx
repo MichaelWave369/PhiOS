@@ -12,6 +12,7 @@ import { SymbolLab } from "./components/SymbolLab";
 import { PersistentHistoryPanel } from "./components/PersistentHistoryPanel";
 import { AppDetails, AppLibrary, AppTiles } from "./components/AppLauncher";
 import { InfiniteHomeDock } from "./components/InfiniteHomeDock";
+import { PhiOfficeBridgePilot } from "./components/PhiOfficeBridgePilot";
 import { SovereigntyCenter } from "./components/SovereigntyCenter";
 import { SecurityCenter } from "./components/SecurityCenter";
 import { findShellApp, SHELL_APPS, shellAppEvent, windowTemplates } from "./shell/appLauncher";
@@ -370,6 +371,7 @@ function WindowBody({ item, openApp }: { item: WindowModel; openApp: (id: string
           <p>No privileged Linux effect adapter is attached in v0.13.</p>
         </article>
       </div>
+      <PhiOfficeBridgePilot />
     );
   }
 
