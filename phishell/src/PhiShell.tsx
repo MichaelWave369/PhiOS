@@ -359,6 +359,7 @@ function WindowBody({ item, openApp }: { item: WindowModel; openApp: (id: string
 
   if (item.id === "build-window") {
     return (
+      <>
       <div className="window-field-grid">
         <article>
           <small>PROPOSAL</small>
@@ -372,6 +373,7 @@ function WindowBody({ item, openApp }: { item: WindowModel; openApp: (id: string
         </article>
       </div>
       <PhiOfficeBridgePilot />
+      </>
     );
   }
 
