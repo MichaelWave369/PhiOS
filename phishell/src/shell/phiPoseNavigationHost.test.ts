@@ -36,7 +36,7 @@ describe("PhiPose safe PhiShell navigation host",()=>{
       expect(result.event).toEqual({type:"SET_VIEW",view:"research"});
       expect(result.actionId).toBe("phios.view.research");
     }
-    expect(h.accept(message(),now+1200)).toEqual({accepted:false,reason:"invalid_envelope"});
+    expect(h.accept(message(),now+1200)).toEqual({accepted:false,reason:"replay"});
   });
   it("maps command palette but never allows an arbitrary app or OS execution",()=>{
     const h=make();
