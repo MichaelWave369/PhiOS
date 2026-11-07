@@ -58,6 +58,11 @@ repo-add "$work/packages/phios-local.db.tar.gz" "$work/packages/"*.pkg.tar.zst
 smoke_args=()
 [[ ${PHIOS_CI_SMOKE:-0} == 1 ]] && smoke_args+=(--smoke)
 python "$repo/packaging/linux/prepare_profile.py" --upstream /usr/share/archiso/configs/releng --destination "$work/profile" --repo "$repo" --package-repo "$work/packages" "${smoke_args[@]}"
+# mkarchiso makes a separate rootfs package transaction. Warm its shared
+# signed-package cache from the exact pinned profile before starting it.
+# A transient archive transfer failure may be retried here; rootfs installs
+# and all later ISO/QEMU gates remain single-shot and fail-closed.
+phios_prefetch_archiso_profile_packages "$work/profile/pacman.conf" "$work/profile/packages.x86_64"
 mkarchiso -v -w "$work/archiso-work" -o "$output" "$work/profile" 2>&1 | tee "$output/mkarchiso.log"
 # Pacman hooks can print an initramfs error while the package transaction and
 # mkarchiso still return zero. Preserve it and hold the candidate explicitly.
