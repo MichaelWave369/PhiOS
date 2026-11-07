@@ -15,6 +15,7 @@ import { InfiniteHomeDock } from "./components/InfiniteHomeDock";
 import { PhiOfficeBridgePilot } from "./components/PhiOfficeBridgePilot";
 import { SovereigntyCenter } from "./components/SovereigntyCenter";
 import { SecurityCenter } from "./components/SecurityCenter";
+import { PhiPoseCompanion } from "./components/PhiPoseCompanion";
 import { findShellApp, SHELL_APPS, shellAppEvent, windowTemplates } from "./shell/appLauncher";
 import {
   INITIAL_SHELL_STATE,
@@ -915,6 +916,7 @@ export function PhiShell() {
           </div>
           <small>PhiShell v{packageMetadata.version} · canonical history comparison · execution authority false</small>
         </div>
+        <PhiPoseCompanion dispatch={dispatch} />
         <Center view={state.view} openApp={openApp} />
         <DesktopLayer windows={state.windows} dispatch={dispatch} openApp={openApp} />
       </main>
