@@ -523,3 +523,15 @@ linear-gradient(135deg,rgba(13,32,42,.92),rgba(5,13,17,.96));box-shadow:inset 0 
 }
 .phios-bridge-pilot-actions button:disabled { cursor: not-allowed; opacity: .55; }
 .phios-bridge-pilot iframe { width: 100%; height: 390px; border: 1px solid var(--border); border-radius: 8px; background: #fff; }
+
+/* Project-ref selection is visible only inside an explicitly started browser pilot. */
+.phios-bridge-project-picker { display: grid; gap: 7px; margin: 10px 0; }
+.phios-bridge-project-picker label { color: var(--cyan); font-size: 11px; font-weight: 700; }
+.phios-bridge-project-picker input[type="file"] {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  font-size: 10px;
+  color: var(--secondary);
+}
+.phios-bridge-project-picker code { overflow-wrap: anywhere; color: var(--cyan); }

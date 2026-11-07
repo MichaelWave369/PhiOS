@@ -4,10 +4,15 @@ import {
   generateBridgeSessionId,
 } from "../shell/workspaceBridge";
 import { reviewPhiOfficePilotEndpoint } from "../shell/workspaceBridgePilotConfig";
+import {
+  extractProjectReference,
+  MAX_PROJECT_MANIFEST_BYTES,
+  type SelectedProjectReference,
+} from "../shell/projectManifestSelection";
 
 /**
  * Explicit, browser-only test pilot. No backend, no install, no real project
- * data or tokens. Host operator approves one synthetic reference per session.
+ * data or tokens. Operator manually selects a local manifest header per session.
  */
 export function PhiOfficeBridgePilot() {
   const endpoint = useMemo(() => reviewPhiOfficePilotEndpoint(
@@ -17,6 +22,8 @@ export function PhiOfficeBridgePilot() {
   ), []);
   const [active, setActive] = useState(false);
   const [approved, setApproved] = useState(false);
+  const [selectedProject, setSelectedProject] = useState<SelectedProjectReference | null>(null);
+  const selectionRevisionRef = useRef(0);
   const [status, setStatus] = useState("Disconnected");
   const frameRef = useRef<HTMLIFrameElement>(null);
   const hostRef = useRef<ReturnType<typeof createWorkspaceBridgeHost> | null>(null);
@@ -41,7 +48,7 @@ export function PhiOfficeBridgePilot() {
         stopBootstrapRetry();
         setStatus("Client handshake accepted. Project access remains operator-controlled.");
       } else if (response.message.type === "host.context") {
-        setStatus("Shared synthetic project reference only. No files or permissions.");
+        setStatus("Shared operator-selected project reference only. No files or permissions.");
       } else if (response.message.type === "host.denied") {
         setStatus("Context request denied: approval required.");
       }
@@ -56,17 +63,45 @@ export function PhiOfficeBridgePilot() {
   }, []);
 
   const disconnect = () => {
+    selectionRevisionRef.current += 1;
     stopBootstrapRetry();
     hostRef.current?.revokeProject();
     hostRef.current = null;
     setApproved(false);
+    setSelectedProject(null);
     setActive(false);
     setStatus("Disconnected");
+  };
+
+  const chooseManifest = async (file: File) => {
+    const revision = ++selectionRevisionRef.current;
+    const host = hostRef.current;
+    host?.revokeProject();
+    setSelectedProject(null);
+    setApproved(false);
+    if (!host) {
+      setStatus("Start a connected pilot before choosing a project");
+      return;
+    }
+    try {
+      if (file.size > MAX_PROJECT_MANIFEST_BYTES) {
+        throw new Error("Project manifest must be under 256 KiB");
+      }
+      const parsed = extractProjectReference(await file.text());
+      // A stale file read must not reselect a project in a new session.
+      if (selectionRevisionRef.current !== revision || hostRef.current !== host) return;
+      setSelectedProject(parsed);
+      setStatus("Project header loaded locally; not yet approved for sharing.");
+    } catch (error) {
+      if (selectionRevisionRef.current !== revision || hostRef.current !== host) return;
+      setStatus(error instanceof Error ? error.message : "Invalid project manifest");
+    }
   };
 
   const onFrameLoad = () => {
     if (!endpoint || !active || !frameRef.current?.contentWindow) return;
     // Each navigation/reload gets a brand new, unapproved session.
+    selectionRevisionRef.current += 1;
     stopBootstrapRetry();
     hostRef.current?.revokeProject();
     const frame = frameRef.current.contentWindow;
@@ -105,7 +140,8 @@ export function PhiOfficeBridgePilot() {
       <div className="panel-title">Φ PHIOFFICE WORKSPACE BRIDGE · PILOT ONLY</div>
       <p>
         This is a browser interoperability pilot. It is not an installed PhiOffice
-        application, a general app launcher, or a real project-data connection.
+        application, a general app launcher, or a project-data connection.
+        Select a local manifest to share its ID only, never its files.
       </p>
       {!endpoint ? (
         <p role="status">
@@ -115,6 +151,29 @@ export function PhiOfficeBridgePilot() {
       ) : (
         <>
           <p className="muted">Configured endpoint: {endpoint.origin}</p>
+          {active && (
+            <div className="phios-bridge-project-picker">
+              <label htmlFor="phios-pilot-project-manifest">Choose local PhiOffice project manifest</label>
+              <input
+                id="phios-pilot-project-manifest"
+                type="file"
+                accept=".json,application/json"
+                aria-label="Choose local PhiOffice project manifest"
+                onChange={(event) => {
+                  const file = event.currentTarget.files?.[0];
+                  event.currentTarget.value = "";
+                  if (file) void chooseManifest(file);
+                }}
+              />
+              {selectedProject && (
+                <p className="muted">
+                  Selected: <strong>{selectedProject.title}</strong>
+                  {" · "}<code>{selectedProject.projectRef}</code>
+                  {" · Not yet shared until approved"}
+                </p>
+              )}
+            </div>
+          )}
           <div className="phios-bridge-pilot-actions">
             {!active ? (
               <button type="button" onClick={() => {
@@ -123,11 +182,12 @@ export function PhiOfficeBridgePilot() {
               }}>Start opt-in pilot</button>
             ) : (
               <>
-                <button type="button" disabled={!hostRef.current || approved} onClick={() => {
-                  hostRef.current?.approveProject("project:phios-pilot");
+                <button type="button" disabled={!hostRef.current || !selectedProject || approved} onClick={() => {
+                  if (!selectedProject) return;
+                  hostRef.current?.approveProject(selectedProject.projectRef);
                   setApproved(true);
-                  setStatus("Synthetic project approved for this session");
-                }}>Approve synthetic ref</button>
+                  setStatus("Selected project reference approved for this session");
+                }}>Approve selected project ref</button>
                 <button type="button" disabled={!approved} onClick={() => {
                   hostRef.current?.revokeProject();
                   setApproved(false);
