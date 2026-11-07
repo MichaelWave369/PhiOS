@@ -532,16 +532,21 @@ export function PhiOfficeBridgePilot() {
                   </div>
                 )}
                 {registryReadable && (
-                  <div className="phios-bridge-qualified-preview" aria-label="Provider-qualified identity preview">
-                    <b>Project identity V2 · review only</b>
+                  <div className="phios-bridge-qualified-preview" aria-label="Provider-qualified identity copy and rollback">
+                    <b>Project identity V2 · operator-controlled copy</b>
                     <p className="muted">
-                      Existing saved projects remain in V1. A future provider-qualified registry
-                      would distinguish app providers even when their project IDs match.
-                      No source, approvals or installed apps change.
+                      V1 stays active. Optionally create a separate V2 metadata copy,
+                      with exact reviewed provider identities. Export your V1 references first.
+                      Browser storage is not a verified backup, account identity or app install.
                     </p>
-                    <button type="button" onClick={inspectQualifiedIdentityPreview}>
-                      Preview provider-qualified project IDs
-                    </button>
+                    <div className="phios-bridge-pilot-actions">
+                      <button type="button" onClick={inspectQualifiedIdentityPreview}>
+                        Preview provider-qualified project IDs
+                      </button>
+                      <button type="button" onClick={inspectExistingQualifiedCopy}>
+                        Inspect existing V2 copy
+                      </button>
+                    </div>
                     {v2Preview && (
                       <div role="status" className="phios-bridge-qualified-results">
                         Preview: {v2Preview.recordCount} project references,
@@ -553,7 +558,27 @@ export function PhiOfficeBridgePilot() {
                             </li>
                           ))}
                         </ul>
-                        No V2 registry was written.
+                        <p>V1 stays active. Creating V2 does not transfer sharing approval.</p>
+                        <button type="button" disabled={!v2CopyPlan}
+                          onClick={createQualifiedIdentityCopy}>
+                          Create V2 metadata copy (keep V1)
+                        </button>
+                      </div>
+                    )}
+                    {v2RollbackReview && (
+                      <div role="status" className="phios-bridge-qualified-results">
+                        Existing V2 copy: {v2RollbackReview.recordCount} reviewed references.
+                        <ul>
+                          {v2RollbackReview.entries.map((entry) => (
+                            <li key={entry.providerAppId + ":" + entry.projectRef}>
+                              {entry.providerAppId} / {entry.projectRef}
+                            </li>
+                          ))}
+                        </ul>
+                        <p>Exact V1 source-equivalence checked. Rollback requires separate confirmation.</p>
+                        <button type="button" onClick={removeQualifiedIdentityCopy}>
+                          Remove reviewed V2 copy (keep V1)
+                        </button>
                       </div>
                     )}
                     {v2Notice && <p role="status" className="muted">{v2Notice}</p>}
