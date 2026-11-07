@@ -5,7 +5,6 @@ import {
 } from "../shell/workspaceBridge";
 import { reviewPhiOfficePilotEndpoint } from "../shell/workspaceBridgePilotConfig";
 import {
-  extractProjectReference,
   MAX_PROJECT_MANIFEST_BYTES,
   type SelectedProjectReference,
 } from "../shell/projectManifestSelection";
@@ -13,10 +12,17 @@ import {
   PROJECT_REGISTRY_KEY,
   forgetProject,
   loadProjectRegistry,
-  rememberProject,
+  rememberReviewedProject,
   storeProjectRegistry,
   type SavedProjectReference,
 } from "../shell/projectRegistry";
+import {
+  PHIOFFICE_PROJECT_ADAPTER_ID,
+  findProjectAdapterForTarget,
+  listReviewedProjectAdapters,
+  type ReviewedProjectSource,
+} from "../shell/projectAdapters";
+import { readProjectIdentityWithAdapter } from "../shell/projectAdapterReader";
 import {
   PORTABLE_PROJECT_BUNDLE_MAX_BYTES,
   decodePortableProjectBundle,
@@ -37,7 +43,9 @@ export function PhiOfficeBridgePilot() {
   ), []);
   const [active, setActive] = useState(false);
   const [approved, setApproved] = useState(false);
-  const [selectedProject, setSelectedProject] = useState<SelectedProjectReference | null>(null);
+  const [selectedProject, setSelectedProject] = useState<
+    (SelectedProjectReference & { source: ReviewedProjectSource }) | null
+  >(null);
   const [remembered, setRemembered] = useState<SavedProjectReference[]>([]);
   const [rememberedPick, setRememberedPick] = useState("");
   const [registryReadable, setRegistryReadable] = useState(true);
@@ -111,7 +119,9 @@ export function PhiOfficeBridgePilot() {
       if (file.size > MAX_PROJECT_MANIFEST_BYTES) {
         throw new Error("Project manifest must be under 256 KiB");
       }
-      const parsed = extractProjectReference(await file.text());
+      const parsed = readProjectIdentityWithAdapter(
+        PHIOFFICE_PROJECT_ADAPTER_ID, await file.text(),
+      );
       // A stale file read must not reselect a project in a new session.
       if (selectionRevisionRef.current !== revision || hostRef.current !== host) return;
       setSelectedProject(parsed);
@@ -144,7 +154,7 @@ export function PhiOfficeBridgePilot() {
   const rememberSelection = () => {
     if (!selectedProject || !registryReadable) return;
     try {
-      const next = rememberProject(remembered, selectedProject);
+      const next = rememberReviewedProject(remembered, selectedProject);
       storeProjectRegistry(next);
       setRemembered(next);
       setRememberedPick(selectedProject.projectRef);
@@ -156,11 +166,12 @@ export function PhiOfficeBridgePilot() {
 
   const useRememberedSelection = () => {
     const found = remembered.find(({ projectRef }) => projectRef === rememberedPick);
-    if (!found || !hostRef.current) return;
+    if (!found || !hostRef.current
+      || !findProjectAdapterForTarget(found.source, "phioffice")) return;
     selectionRevisionRef.current += 1;
     hostRef.current.revokeProject();
     setApproved(false);
-    setSelectedProject({ projectRef: found.projectRef, title: found.title });
+    setSelectedProject({ projectRef: found.projectRef, title: found.title, source: found.source });
     setStatus("Remembered project selected. Explicit approval is still required.");
   };
 
@@ -335,6 +346,19 @@ export function PhiOfficeBridgePilot() {
               )}
               <div className="phios-bridge-local-registry" aria-label="Browser-local project references">
                 <b>Remembered projects · local-only</b>
+                <div className="phios-project-adapter-catalog" aria-label="Reviewed project adapters">
+                  <b>Reviewed project adapters · reference-only</b>
+                  {listReviewedProjectAdapters().map((adapter) => (
+                    <p key={adapter.id} className="muted">
+                      {adapter.title}: {adapter.providerAppId} → {adapter.targetAppId}
+                      {" · "}{adapter.status}
+                      {" · "}No file authority
+                    </p>
+                  ))}
+                  <p className="muted">
+                    PhiID and PhiCloud do not have reviewed project adapters yet.
+                  </p>
+                </div>
                 <p className="muted">
                   Saving is optional. Only ID and display title are retained,
                   never files, credentials, or sharing approval.
@@ -343,6 +367,7 @@ export function PhiOfficeBridgePilot() {
                   <>
                     <button type="button"
                       disabled={!selectedProject
+                        || !findProjectAdapterForTarget(selectedProject.source, "phioffice")
                         || remembered.some((entry) => entry.projectRef === selectedProject.projectRef
                           && entry.title === selectedProject.title)}
                       onClick={rememberSelection}>
@@ -416,8 +441,10 @@ export function PhiOfficeBridgePilot() {
               <button type="button" onClick={startPilot}>Start opt-in pilot</button>
             ) : (
               <>
-                <button type="button" disabled={!hostRef.current || !selectedProject || approved} onClick={() => {
-                  if (!selectedProject) return;
+                <button type="button" disabled={!hostRef.current || !selectedProject || approved
+                  || !findProjectAdapterForTarget(selectedProject.source, "phioffice")} onClick={() => {
+                  if (!selectedProject
+                    || !findProjectAdapterForTarget(selectedProject.source, "phioffice")) return;
                   hostRef.current?.approveProject(selectedProject.projectRef);
                   setApproved(true);
                   setStatus("Selected project reference approved for this session");
