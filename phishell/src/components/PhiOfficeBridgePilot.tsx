@@ -5,7 +5,6 @@ import {
 } from "../shell/workspaceBridge";
 import { reviewPhiOfficePilotEndpoint } from "../shell/workspaceBridgePilotConfig";
 import {
-  extractProjectReference,
   MAX_PROJECT_MANIFEST_BYTES,
   type SelectedProjectReference,
 } from "../shell/projectManifestSelection";
@@ -18,11 +17,12 @@ import {
   type SavedProjectReference,
 } from "../shell/projectRegistry";
 import {
-  PHIOFFICE_MANIFEST_SOURCE,
+  PHIOFFICE_PROJECT_ADAPTER_ID,
   findProjectAdapterForTarget,
   listReviewedProjectAdapters,
   type ReviewedProjectSource,
 } from "../shell/projectAdapters";
+import { readProjectIdentityWithAdapter } from "../shell/projectAdapterReader";
 import {
   PORTABLE_PROJECT_BUNDLE_MAX_BYTES,
   decodePortableProjectBundle,
@@ -119,10 +119,12 @@ export function PhiOfficeBridgePilot() {
       if (file.size > MAX_PROJECT_MANIFEST_BYTES) {
         throw new Error("Project manifest must be under 256 KiB");
       }
-      const parsed = extractProjectReference(await file.text());
+      const parsed = readProjectIdentityWithAdapter(
+        PHIOFFICE_PROJECT_ADAPTER_ID, await file.text(),
+      );
       // A stale file read must not reselect a project in a new session.
       if (selectionRevisionRef.current !== revision || hostRef.current !== host) return;
-      setSelectedProject({ ...parsed, source: PHIOFFICE_MANIFEST_SOURCE });
+      setSelectedProject(parsed);
       setStatus("Project header loaded locally; not yet approved for sharing.");
     } catch (error) {
       if (selectionRevisionRef.current !== revision || hostRef.current !== host) return;
