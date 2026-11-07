@@ -602,3 +602,16 @@ linear-gradient(135deg,rgba(13,32,42,.92),rgba(5,13,17,.96));box-shadow:inset 0 
   color: var(--secondary);
 }
 .phios-bridge-import-preview { display: grid; gap: 5px; font-size: 10px; color: var(--secondary); }
+
+/* Reviewed project adapter information is an inventory, not a permissions UI. */
+.phios-project-adapter-catalog {
+  display: grid;
+  gap: 4px;
+  margin: 7px 0;
+  padding: 9px;
+  background: rgba(3, 15, 22, .55);
+  border: 1px solid var(--soft);
+  border-radius: 7px;
+}
+.phios-project-adapter-catalog b { color: var(--cyan); font-size: 11px; }
+.phios-project-adapter-catalog p { margin: 2px 0; line-height: 1.45; }
