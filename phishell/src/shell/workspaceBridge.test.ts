@@ -47,6 +47,17 @@ describe("PhiOS workspace bridge v1", () => {
     expect(host.handle(incoming({ ...request(), app_id: "another" }))).toBeNull();
   });
 
+  it("replaying an initial handshake cannot mint a fresh authority or project grant", () => {
+    const host = fixture();
+    const first = host.bootstrap();
+    const replay = host.bootstrap();
+    expect(replay).toEqual(first);
+    expect(replay.targetOrigin).toBe(appOrigin);
+    expect(replay.message.execution_authority).toBe(false);
+    expect(JSON.stringify(replay)).not.toContain("project_ref");
+    expect(host.handle(incoming(request()))?.message.type).toBe("host.denied");
+  });
+
   it("denies context until explicit approval and supports immediate revocation", () => {
     const host = fixture();
     expect(host.handle(incoming(request()))?.message).toMatchObject({
