@@ -1,0 +1,82 @@
+name: PixelForge candidate identity contract (no admission)
+
+on:
+  pull_request:
+    paths:
+      - 'phishell/src/shell/pixelForgeCandidateIdentity*'
+      - 'phishell/src/shell/fixtures/pixelforge-vr-identity-r1.json'
+      - '.github/workflows/pixelforge-candidate-identity.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'phishell/src/shell/pixelForgeCandidateIdentity*'
+      - 'phishell/src/shell/fixtures/pixelforge-vr-identity-r1.json'
+      - '.github/workflows/pixelforge-candidate-identity.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  independent-candidate-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Checkout exact PhiOS candidate
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Checkout exact PixelForge PR 88 R1 producer (unmerged candidate)
+        uses: actions/checkout@v4
+        with:
+          repository: MichaelWave369/parallax-pixelforge
+          ref: b74802b358e9c23bc520ef3c0a46699498186c51
+          path: .interop/pixelforge
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Verify locked producer commit and generate real sidecar
+        run: |
+          test "$(git -C .interop/pixelforge rev-parse HEAD)" = "b74802b358e9c23bc520ef3c0a46699498186c51"
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import { readFileSync } from 'node:fs';
+          import { newWorld } from './.interop/pixelforge/vr-studio/world.js';
+          import {
+            buildPhiOSWorldIdentityManifest,
+            encodePhiOSWorldIdentityManifest,
+            decodePhiOSWorldIdentityManifest,
+          } from './.interop/pixelforge/vr-studio/phios-world-identity.js';
+          const actual = encodePhiOSWorldIdentityManifest(
+            buildPhiOSWorldIdentityManifest(newWorld(), 'same-project'),
+          );
+          const reviewed = readFileSync(
+            'phishell/src/shell/fixtures/pixelforge-vr-identity-r1.json', 'utf8',
+          );
+          assert.equal(actual, reviewed, 'Pinned PixelForge producer output drift');
+          const parsed = decodePhiOSWorldIdentityManifest(actual);
+          assert.deepEqual(Object.keys(parsed), ['schema', 'projectId', 'title', 'worldFormat']);
+          assert.equal(parsed.projectId, 'same-project');
+          console.log('PIXELFORGE_R10_PINNED_PRODUCER_MATCH:', JSON.stringify({
+            schema: parsed.schema,
+            sourceCommit: 'b74802b358e9c23bc520ef3c0a46699498186c51',
+            standaloneProviderAdmitted: false,
+            registryWrites: 0,
+            executionAuthority: false,
+          }));
+          NODE
+
+      - name: Install pinned PhiShell toolchain
+        working-directory: phishell
+        run: npm ci --no-audit
+
+      - name: Verify PhiOS independent parser and provider namespace collision
+        working-directory: phishell
+        run: npx vitest run src/shell/pixelForgeCandidateIdentity.test.ts
+
+      - name: Type-check and build PhiShell without new app admission
+        working-directory: phishell
+        run: npm run build
