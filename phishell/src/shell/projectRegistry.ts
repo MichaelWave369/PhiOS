@@ -6,16 +6,21 @@
  * This module does not provide or imply access to any project artifacts.
  */
 import type { SelectedProjectReference } from "./projectManifestSelection";
+import {
+  PHIOFFICE_MANIFEST_SOURCE,
+  isReviewedProjectSource,
+  type ReviewedProjectSource,
+} from "./projectAdapters";
+export { PHIOFFICE_MANIFEST_SOURCE } from "./projectAdapters";
 
 export const PROJECT_REGISTRY_KEY = "phios.project-registry.v1";
 export const PROJECT_REGISTRY_FORMAT = "phios.project-registry";
 export const PROJECT_REGISTRY_VERSION = 1;
 export const PROJECT_REGISTRY_MAX_BYTES = 16 * 1024;
 export const PROJECT_REGISTRY_MAX_RECORDS = 24;
-export const PHIOFFICE_MANIFEST_SOURCE = "phioffice369.project_manifest.v0.1";
 
 export type SavedProjectReference = Readonly<SelectedProjectReference & {
-  source: typeof PHIOFFICE_MANIFEST_SOURCE;
+  source: ReviewedProjectSource;
 }>;
 
 function record(value: unknown): value is Record<string, unknown> {
@@ -41,7 +46,7 @@ export function validateRegistryEntry(value: unknown): SavedProjectReference {
     || title !== title.trim() || /[\u0000-\u001f\u007f]/.test(title)) {
     throw new Error("Saved project display title is invalid");
   }
-  if (source !== PHIOFFICE_MANIFEST_SOURCE) {
+  if (!isReviewedProjectSource(source)) {
     throw new Error("Unreviewed project identity source");
   }
   return Object.freeze({ projectRef, title, source });
@@ -84,19 +89,33 @@ export function encodeProjectRegistry(entries: readonly SavedProjectReference[])
   return serialized + "\n";
 }
 
+export function rememberReviewedProject(
+  entries: readonly SavedProjectReference[],
+  selected: SavedProjectReference,
+): SavedProjectReference[] {
+  const current = checkedEntries(entries);
+  const candidate = validateRegistryEntry(selected);
+  const conflicting = current.find((entry) =>
+    entry.projectRef === candidate.projectRef && entry.source !== candidate.source);
+  if (conflicting) {
+    throw new Error("Project identity collision across reviewed sources");
+  }
+  return checkedEntries([
+    candidate,
+    ...current.filter(({ projectRef }) => projectRef !== candidate.projectRef),
+  ]);
+}
+
+/** Backwards-compatible PhiOffice manifest convenience API. */
 export function rememberProject(
   entries: readonly SavedProjectReference[],
   selected: SelectedProjectReference,
 ): SavedProjectReference[] {
-  const candidate = validateRegistryEntry({
+  return rememberReviewedProject(entries, {
     projectRef: selected.projectRef,
     title: selected.title,
     source: PHIOFFICE_MANIFEST_SOURCE,
   });
-  return checkedEntries([
-    candidate,
-    ...entries.filter(({ projectRef }) => projectRef !== candidate.projectRef),
-  ]);
 }
 
 export function forgetProject(
