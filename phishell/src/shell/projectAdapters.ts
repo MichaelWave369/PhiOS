@@ -9,6 +9,7 @@ import { WORKSPACE_BRIDGE_PROTOCOL } from "./workspaceBridge";
 
 export const PROJECT_ADAPTER_CATALOG_VERSION = 1;
 export const PHIOFFICE_MANIFEST_SOURCE = "phioffice369.project_manifest.v0.1" as const;
+export const PHIOFFICE_PROJECT_ADAPTER_ID = "phioffice-manifest-bridge-v1" as const;
 
 export type ProjectAdapterDefinition = Readonly<{
   id: string;
@@ -30,7 +31,7 @@ export type ProjectAdapterDefinition = Readonly<{
  */
 export const REVIEWED_PROJECT_ADAPTERS = Object.freeze([
   Object.freeze({
-    id: "phioffice-manifest-bridge-v1",
+    id: PHIOFFICE_PROJECT_ADAPTER_ID,
     source: PHIOFFICE_MANIFEST_SOURCE,
     providerAppId: "phioffice",
     targetAppId: "phioffice",
@@ -45,6 +46,11 @@ export const REVIEWED_PROJECT_ADAPTERS = Object.freeze([
 
 export type ReviewedProjectAdapter = (typeof REVIEWED_PROJECT_ADAPTERS)[number];
 export type ReviewedProjectSource = ReviewedProjectAdapter["source"];
+
+export function findReviewedProjectAdapterById(id: unknown): ReviewedProjectAdapter | null {
+  if (typeof id !== "string") return null;
+  return REVIEWED_PROJECT_ADAPTERS.find((adapter) => adapter.id === id) ?? null;
+}
 
 export function findReviewedProjectAdapter(source: unknown): ReviewedProjectAdapter | null {
   if (typeof source !== "string") return null;
