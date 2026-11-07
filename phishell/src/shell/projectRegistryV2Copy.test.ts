@@ -3,6 +3,7 @@ import {
   PROJECT_REGISTRY_KEY,
   PHIOFFICE_MANIFEST_SOURCE,
   encodeProjectRegistry,
+  type SavedProjectReference,
 } from "./projectRegistry";
 import {
   PROJECT_REGISTRY_V2_KEY,
@@ -26,7 +27,7 @@ const beta = {
   title: "Beta", source: PHIOFFICE_MANIFEST_SOURCE,
 } as const;
 
-function fixture(entries = [alpha]) {
+function fixture(entries: readonly SavedProjectReference[] = [alpha]) {
   const data = new Map<string, string>([[PROJECT_REGISTRY_KEY, encodeProjectRegistry(entries)]]);
   const counts = { set: 0, remove: 0 };
   const storage: ProjectRegistryStorage = {
