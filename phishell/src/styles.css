@@ -573,3 +573,32 @@ linear-gradient(135deg,rgba(13,32,42,.92),rgba(5,13,17,.96));box-shadow:inset 0 
 }
 .phios-bridge-local-registry button:disabled { opacity: .5; cursor: not-allowed; }
 .phios-bridge-local-registry p { margin: 3px 0; overflow-wrap: anywhere; }
+
+/* Offline, metadata-only reference transfer; separate from project files. */
+.phios-bridge-portable-registry {
+  display: grid;
+  gap: 7px;
+  margin-top: 6px;
+  padding: 9px;
+  border: 1px dashed var(--soft);
+  border-radius: 7px;
+}
+.phios-bridge-portable-registry > button,
+.phios-bridge-import-preview button {
+  min-height: 28px;
+  text-align: left;
+  color: var(--cyan);
+  background: #071e27;
+  border: 1px solid var(--soft);
+  border-radius: 6px;
+  padding: 6px 8px;
+  cursor: pointer;
+}
+.phios-bridge-portable-registry button:disabled { cursor: not-allowed; opacity: .5; }
+.phios-bridge-portable-registry input[type="file"] {
+  display: block;
+  width: 100%;
+  font-size: 10px;
+  color: var(--secondary);
+}
+.phios-bridge-import-preview { display: grid; gap: 5px; font-size: 10px; color: var(--secondary); }
