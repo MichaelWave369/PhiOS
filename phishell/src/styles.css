@@ -506,3 +506,20 @@ linear-gradient(135deg,rgba(13,32,42,.92),rgba(5,13,17,.96));box-shadow:inset 0 
   .workspace-controls [role="status"] { display: none; }
   .workspace-controls button { padding: 0 4px; }
 }
+
+/* PhiOffice browser bridge pilot: opt-in only, no default external iframe. */
+.phios-bridge-pilot {
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid var(--soft);
+  border-radius: 10px;
+  background: rgba(39,223,255,.025);
+}
+.phios-bridge-pilot p { color: var(--secondary); font-size: 10px; line-height: 1.5; }
+.phios-bridge-pilot-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 9px 0; }
+.phios-bridge-pilot-actions button {
+  cursor: pointer; border-radius: 6px; padding: 8px 10px;
+  border: 1px solid var(--border); background: var(--abyss); color: var(--cyan);
+}
+.phios-bridge-pilot-actions button:disabled { cursor: not-allowed; opacity: .55; }
+.phios-bridge-pilot iframe { width: 100%; height: 390px; border: 1px solid var(--border); border-radius: 8px; background: #fff; }
