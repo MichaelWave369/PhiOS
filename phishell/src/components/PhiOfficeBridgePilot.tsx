@@ -23,11 +23,15 @@ import {
   type ReviewedProjectSource,
 } from "../shell/projectAdapters";
 import { readProjectIdentityWithAdapter } from "../shell/projectAdapterReader";
+import { type V2MigrationPreview } from "../shell/projectRegistryV2";
 import {
-  PROJECT_REGISTRY_V2_KEY,
-  previewV1ToV2Migration,
-  type V2MigrationPreview,
-} from "../shell/projectRegistryV2";
+  commitProviderV2Copy,
+  inspectProviderV2Rollback,
+  prepareProviderV2Copy,
+  rollbackProviderV2Copy,
+  type ProviderV2CopyPlan,
+  type ProviderV2RollbackReview,
+} from "../shell/projectRegistryV2Copy";
 import {
   PORTABLE_PROJECT_BUNDLE_MAX_BYTES,
   decodePortableProjectBundle,
@@ -56,6 +60,8 @@ export function PhiOfficeBridgePilot() {
   const [registryReadable, setRegistryReadable] = useState(true);
   const [registryNotice, setRegistryNotice] = useState("");
   const [v2Preview, setV2Preview] = useState<V2MigrationPreview | null>(null);
+  const [v2CopyPlan, setV2CopyPlan] = useState<ProviderV2CopyPlan | null>(null);
+  const [v2RollbackReview, setV2RollbackReview] = useState<ProviderV2RollbackReview | null>(null);
   const [v2Notice, setV2Notice] = useState("");
   const [pendingImport, setPendingImport] = useState<{
     incoming: SavedProjectReference[];
@@ -102,6 +108,8 @@ export function PhiOfficeBridgePilot() {
 
   const disconnect = () => {
     setV2Preview(null);
+    setV2CopyPlan(null);
+    setV2RollbackReview(null);
     setV2Notice("");
     selectionRevisionRef.current += 1;
     setPendingImport(null);
@@ -143,6 +151,8 @@ export function PhiOfficeBridgePilot() {
 
   const startPilot = () => {
     setV2Preview(null);
+    setV2CopyPlan(null);
+    setV2RollbackReview(null);
     setV2Notice("");
     setPendingImport(null);
     // This is an operator-initiated read. No registry or external app is
@@ -164,6 +174,8 @@ export function PhiOfficeBridgePilot() {
 
   const rememberSelection = () => {
     setV2Preview(null);
+    setV2CopyPlan(null);
+    setV2RollbackReview(null);
     setV2Notice("");
     if (!selectedProject || !registryReadable) return;
     try {
@@ -190,6 +202,8 @@ export function PhiOfficeBridgePilot() {
 
   const forgetRemembered = () => {
     setV2Preview(null);
+    setV2CopyPlan(null);
+    setV2RollbackReview(null);
     setV2Notice("");
     if (!registryReadable || !rememberedPick) return;
     const projectRef = rememberedPick;
@@ -212,6 +226,8 @@ export function PhiOfficeBridgePilot() {
 
   const clearRemembered = () => {
     setV2Preview(null);
+    setV2CopyPlan(null);
+    setV2RollbackReview(null);
     setV2Notice("");
     if (!globalThis.confirm("Clear every saved PhiOS project reference on this browser?")) return;
     try {
@@ -273,6 +289,8 @@ export function PhiOfficeBridgePilot() {
 
   const commitImport = () => {
     setV2Preview(null);
+    setV2CopyPlan(null);
+    setV2RollbackReview(null);
     setV2Notice("");
     if (!active || !registryReadable || !pendingImport) return;
     try {
@@ -291,18 +309,67 @@ export function PhiOfficeBridgePilot() {
 
   const inspectQualifiedIdentityPreview = () => {
     setV2Preview(null);
+    setV2CopyPlan(null);
+    setV2RollbackReview(null);
     setV2Notice("");
     if (!active || !registryReadable) return;
     try {
-      // Read only after explicit operator click. Neither key is changed.
-      const preview = previewV1ToV2Migration(
-        globalThis.localStorage.getItem(PROJECT_REGISTRY_KEY),
-        globalThis.localStorage.getItem(PROJECT_REGISTRY_V2_KEY),
-      );
-      setV2Preview(preview);
-      setV2Notice("Read-only provider identity preview. No migration, file access, approval or new app.");
+      const plan = prepareProviderV2Copy(globalThis.localStorage);
+      setV2Preview(plan.preview);
+      setV2CopyPlan(plan);
+      setV2Notice("Preview only. V1 is unchanged. Creating V2 requires separate operator confirmation.");
     } catch (error) {
       setV2Notice(error instanceof Error ? error.message : "Project identity preview unavailable");
+    }
+  };
+
+  const createQualifiedIdentityCopy = () => {
+    if (!active || !registryReadable || !v2CopyPlan) return;
+    if (!globalThis.confirm(
+      "Create a separate V2 browser-local metadata copy? V1 stays intact. "
+      + "No permissions, project files or installed apps transfer. "
+      + "Browser storage is not a guaranteed backup.",
+    )) return;
+    try {
+      const count = commitProviderV2Copy(globalThis.localStorage, v2CopyPlan, true);
+      setV2Preview(null);
+      setV2CopyPlan(null);
+      setV2Notice(`Created a separate V2 metadata copy of ${count} project references. `
+        + "V1 remains active. No approvals transferred. Inspect V2 before requesting rollback.");
+    } catch (error) {
+      setV2Preview(null);
+      setV2CopyPlan(null);
+      setV2Notice(error instanceof Error ? error.message : "V2 copy could not be verified");
+    }
+  };
+
+  const inspectExistingQualifiedCopy = () => {
+    if (!active || !registryReadable) return;
+    setV2Preview(null);
+    setV2CopyPlan(null);
+    setV2RollbackReview(null);
+    try {
+      const review = inspectProviderV2Rollback(globalThis.localStorage);
+      setV2RollbackReview(review);
+      setV2Notice("V2 and V1 contain equivalent references. Review identities before optional rollback.");
+    } catch (error) {
+      setV2Notice(error instanceof Error ? error.message : "V2 rollback inspection unavailable");
+    }
+  };
+
+  const removeQualifiedIdentityCopy = () => {
+    if (!active || !registryReadable || !v2RollbackReview) return;
+    if (!globalThis.confirm(
+      "Remove ONLY the reviewed V2 browser-local copy? "
+      + "V1 remains in place. This will not revoke or install any app.",
+    )) return;
+    try {
+      rollbackProviderV2Copy(globalThis.localStorage, v2RollbackReview, true);
+      setV2RollbackReview(null);
+      setV2Notice("Reviewed V2 copy removed and absence verified. V1 remains unchanged.");
+    } catch (error) {
+      setV2RollbackReview(null);
+      setV2Notice(error instanceof Error ? error.message : "V2 rollback could not be verified");
     }
   };
 
