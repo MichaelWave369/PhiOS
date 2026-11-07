@@ -9,6 +9,14 @@ import {
   MAX_PROJECT_MANIFEST_BYTES,
   type SelectedProjectReference,
 } from "../shell/projectManifestSelection";
+import {
+  PROJECT_REGISTRY_KEY,
+  forgetProject,
+  loadProjectRegistry,
+  rememberProject,
+  storeProjectRegistry,
+  type SavedProjectReference,
+} from "../shell/projectRegistry";
 
 /**
  * Explicit, browser-only test pilot. No backend, no install, no real project
@@ -23,6 +31,10 @@ export function PhiOfficeBridgePilot() {
   const [active, setActive] = useState(false);
   const [approved, setApproved] = useState(false);
   const [selectedProject, setSelectedProject] = useState<SelectedProjectReference | null>(null);
+  const [remembered, setRemembered] = useState<SavedProjectReference[]>([]);
+  const [rememberedPick, setRememberedPick] = useState("");
+  const [registryReadable, setRegistryReadable] = useState(true);
+  const [registryNotice, setRegistryNotice] = useState("");
   const selectionRevisionRef = useRef(0);
   const [status, setStatus] = useState("Disconnected");
   const frameRef = useRef<HTMLIFrameElement>(null);
@@ -98,6 +110,84 @@ export function PhiOfficeBridgePilot() {
     }
   };
 
+  const startPilot = () => {
+    // This is an operator-initiated read. No registry or external app is
+    // accessed in an ordinary, unconfigured PhiShell deployment.
+    try {
+      setRemembered(loadProjectRegistry());
+      setRememberedPick("");
+      setRegistryReadable(true);
+      setRegistryNotice("Saved reference labels stay in this browser only.");
+    } catch {
+      setRemembered([]);
+      setRememberedPick("");
+      setRegistryReadable(false);
+      setRegistryNotice("Saved project list unavailable or invalid. Nothing was overwritten.");
+    }
+    setActive(true);
+    setStatus("Loading configured PhiOffice pilot");
+  };
+
+  const rememberSelection = () => {
+    if (!selectedProject || !registryReadable) return;
+    try {
+      const next = rememberProject(remembered, selectedProject);
+      storeProjectRegistry(next);
+      setRemembered(next);
+      setRememberedPick(selectedProject.projectRef);
+      setRegistryNotice("Project ID and display title remembered on this device. No approval saved.");
+    } catch (error) {
+      setRegistryNotice(error instanceof Error ? error.message : "Could not save project reference");
+    }
+  };
+
+  const useRememberedSelection = () => {
+    const found = remembered.find(({ projectRef }) => projectRef === rememberedPick);
+    if (!found || !hostRef.current) return;
+    selectionRevisionRef.current += 1;
+    hostRef.current.revokeProject();
+    setApproved(false);
+    setSelectedProject({ projectRef: found.projectRef, title: found.title });
+    setStatus("Remembered project selected. Explicit approval is still required.");
+  };
+
+  const forgetRemembered = () => {
+    if (!registryReadable || !rememberedPick) return;
+    const projectRef = rememberedPick;
+    try {
+      const next = forgetProject(remembered, projectRef);
+      storeProjectRegistry(next);
+      setRemembered(next);
+      setRememberedPick("");
+      if (selectedProject?.projectRef === projectRef) {
+        selectionRevisionRef.current += 1;
+        hostRef.current?.revokeProject();
+        setApproved(false);
+        setSelectedProject(null);
+      }
+      setRegistryNotice("Saved project reference forgotten on this device.");
+    } catch (error) {
+      setRegistryNotice(error instanceof Error ? error.message : "Could not forget project");
+    }
+  };
+
+  const clearRemembered = () => {
+    if (!globalThis.confirm("Clear every saved PhiOS project reference on this browser?")) return;
+    try {
+      globalThis.localStorage.removeItem(PROJECT_REGISTRY_KEY);
+      setRemembered([]);
+      setRememberedPick("");
+      setRegistryReadable(true);
+      selectionRevisionRef.current += 1;
+      hostRef.current?.revokeProject();
+      setApproved(false);
+      setSelectedProject(null);
+      setRegistryNotice("All local project references cleared. Existing app knowledge cannot be erased.");
+    } catch {
+      setRegistryNotice("Browser storage could not be cleared.");
+    }
+  };
+
   const onFrameLoad = () => {
     if (!endpoint || !active || !frameRef.current?.contentWindow) return;
     // Each navigation/reload gets a brand new, unapproved session.
@@ -169,17 +259,55 @@ export function PhiOfficeBridgePilot() {
                 <p className="muted">
                   Selected: <strong>{selectedProject.title}</strong>
                   {" · "}<code>{selectedProject.projectRef}</code>
-                  {" · Not yet shared until approved"}
+                  {approved ? " · Approved for this session" : " · Not yet shared until approved"}
                 </p>
               )}
+              <div className="phios-bridge-local-registry" aria-label="Browser-local project references">
+                <b>Remembered projects · local-only</b>
+                <p className="muted">
+                  Saving is optional. Only ID and display title are retained,
+                  never files, credentials, or sharing approval.
+                </p>
+                {registryReadable && (
+                  <>
+                    <button type="button"
+                      disabled={!selectedProject
+                        || remembered.some((entry) => entry.projectRef === selectedProject.projectRef
+                          && entry.title === selectedProject.title)}
+                      onClick={rememberSelection}>
+                      Remember this project on device
+                    </button>
+                    <label htmlFor="phios-pilot-remembered-project">Saved project references</label>
+                    <select id="phios-pilot-remembered-project"
+                      aria-label="Saved project references"
+                      value={rememberedPick}
+                      onChange={(event) => setRememberedPick(event.currentTarget.value)}>
+                      <option value="">Choose a saved project</option>
+                      {remembered.map((entry) => (
+                        <option key={entry.projectRef} value={entry.projectRef}>
+                          {entry.title} ({entry.projectRef})
+                        </option>
+                      ))}
+                    </select>
+                    <div className="phios-bridge-pilot-actions">
+                      <button type="button" disabled={!rememberedPick}
+                        onClick={useRememberedSelection}>Use remembered project</button>
+                      <button type="button" disabled={!rememberedPick}
+                        onClick={forgetRemembered}>Forget saved project</button>
+                    </div>
+                  </>
+                )}
+                <button type="button" onClick={clearRemembered}
+                  disabled={registryReadable && remembered.length === 0}>
+                  Clear saved project list
+                </button>
+                <p role="status" className="muted">{registryNotice}</p>
+              </div>
             </div>
           )}
           <div className="phios-bridge-pilot-actions">
             {!active ? (
-              <button type="button" onClick={() => {
-                setActive(true);
-                setStatus("Loading configured PhiOffice pilot");
-              }}>Start opt-in pilot</button>
+              <button type="button" onClick={startPilot}>Start opt-in pilot</button>
             ) : (
               <>
                 <button type="button" disabled={!hostRef.current || !selectedProject || approved} onClick={() => {
