@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import pinnedProducerFixture from "./fixtures/pixelforge-vr-identity-r1.json";
 import {
   PIXELFORGE_CANDIDATE_MAX_BYTES,
   PIXELFORGE_CANDIDATE_PROVIDER_ID,
@@ -47,6 +48,15 @@ describe("PhiOS R10 quarantined PixelForge identity producer contract", () => {
     });
     expect(Object.isFrozen(identity)).toBe(true);
     expect(JSON.stringify(identity)).not.toMatch(/worldFormat|assets|objects|glb|credentials|grant/i);
+  });
+
+  it("parses the fixture produced by exact PixelForge R1 source, without granting access", () => {
+    const parsed = parsePixelForgeCandidateIdentity(JSON.stringify(pinnedProducerFixture));
+    expect(parsed.projectRef).toBe("project:same-project");
+    expect(parsed.title).toBe("Untitled VR World");
+    expect(parsed.source).toBe(PIXELFORGE_CANDIDATE_SCHEMA);
+    expect(parsed.admission).toBe("candidate-only");
+    expect(parsed.executionAuthority).toBe(false);
   });
 
   it("same text project ID across providers cannot produce a shared registry key", () => {
