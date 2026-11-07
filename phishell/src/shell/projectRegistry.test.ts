@@ -14,8 +14,8 @@ import {
   validateRegistryEntry,
 } from "./projectRegistry";
 
-const first = { projectRef: "project:phios-case", title: "PhiOS Case", source: PHIOFFICE_MANIFEST_SOURCE };
-const second = { projectRef: "project:office-2026", title: "Office Planning", source: PHIOFFICE_MANIFEST_SOURCE };
+const first = { projectRef: "project:phios-case", title: "PhiOS Case", source: PHIOFFICE_MANIFEST_SOURCE } as const;
+const second = { projectRef: "project:office-2026", title: "Office Planning", source: PHIOFFICE_MANIFEST_SOURCE } as const;
 const wire = (entries: unknown) => JSON.stringify({
   format: PROJECT_REGISTRY_FORMAT,
   version: PROJECT_REGISTRY_VERSION,
