@@ -51,3 +51,20 @@ existing protocol tests, and normal shell build. PhiOffice separately tests
 the real cross-origin protocol in Chrome with
 `npm run test:browser:bridge`. A full browser test of the rendered panel
 with both app servers is still a follow-on gate.
+
+## Handshake readiness follow-up
+
+Chrome's iframe `load` event may occur before the child React panel has
+installed its `message` event listener. A one-shot bootstrap can therefore
+be dropped silently. PhiShell now retries the **same** session-bound,
+origin-targeted `host.bootstrap` packet up to ten times at 350 ms
+intervals, stopping on the first valid `app.hello` or on disconnect,
+navigation, component cleanup, or timeout. Each navigation still creates a
+new unapproved session.
+
+This is transport readiness only: retries never approve a project, never
+mint a credential, and never grant native or browser authority. The client
+intentionally ignores repeated bootstrap packets after binding a session.
+
+The real compiled two-app Chrome acceptance in PhiOffice369 R2 covers this
+bootstrapping race as part of the consent-gated project-ref flow.
