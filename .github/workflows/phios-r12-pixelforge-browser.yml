@@ -1,0 +1,59 @@
+name: PhiOS R12 PixelForge separate-origin browser acceptance
+
+on:
+  pull_request:
+    paths:
+      - 'phishell/src/components/PixelForgeBridgePilot.tsx'
+      - 'phishell/src/PhiShell.tsx'
+      - 'phishell/src/shell/pixelForgeBridgeSelection*'
+      - 'phishell/host/pixelForgeR12TwoOriginBrowser.mjs'
+      - '.github/workflows/phios-r12-pixelforge-browser.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'phishell/src/components/PixelForgeBridgePilot.tsx'
+      - 'phishell/src/PhiShell.tsx'
+      - 'phishell/src/shell/pixelForgeBridgeSelection*'
+      - 'phishell/host/pixelForgeR12TwoOriginBrowser.mjs'
+      - '.github/workflows/phios-r12-pixelforge-browser.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  real-two-origin-pixel:
+    runs-on: ubuntu-latest
+    timeout-minutes: 16
+    steps:
+      - name: Checkout exact PhiOS candidate
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Checkout exact PixelForge R12 PR 89 source (not merged)
+        uses: actions/checkout@v4
+        with:
+          repository: MichaelWave369/parallax-pixelforge
+          ref: 31d7a64d220a907f72b9817b16f2ad57c88cdca1
+          path: .interop/pixelforge
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Verify pinned source, syntax and no floating checkout
+        run: |
+          test "$(git -C .interop/pixelforge rev-parse HEAD)" = "31d7a64d220a907f72b9817b16f2ad57c88cdca1"
+          node --check phishell/host/pixelForgeR12TwoOriginBrowser.mjs
+          node --check .interop/pixelforge/vr-studio/phios-bridge-client.js
+
+      - name: Require actual Chrome
+        run: command -v google-chrome || command -v chromium || command -v chromium-browser
+
+      - name: Install pinned PhiShell dependencies
+        working-directory: phishell
+        run: npm ci --no-audit
+
+      - name: Build PhiOS with exact PixelForge origin and exercise two-app UI
+        run: node phishell/host/pixelForgeR12TwoOriginBrowser.mjs
