@@ -59,6 +59,7 @@ export function PixelForgeBridgePilot() {
       if (!host || !frame || event.source !== frame) return;
       // Any V2 mutation since approval immediately invalidates authority
       // BEFORE the host responds to another request, including same-tab edits.
+      let revokedByDrift = false;
       if (approvedRef.current) {
         try {
           if (currentV2() !== approvedV2BytesRef.current) {
@@ -70,7 +71,7 @@ export function PixelForgeBridgePilot() {
           approvedRef.current = null;
           approvedV2BytesRef.current = null;
           setApproved(false);
-          setStatus("Saved V2 metadata changed; fresh PixelForge consent required");
+          revokedByDrift = true;
         }
       }
       const response = host.handle(event);
@@ -80,7 +81,9 @@ export function PixelForgeBridgePilot() {
         stopRetry();
         setStatus("PixelForge handshake accepted. No project shared without approval.");
       } else if (response.message.type === "host.denied") {
-        setStatus("PixelForge request denied; operator approval required");
+        setStatus(revokedByDrift
+          ? "PixelForge request denied: V2 metadata changed; fresh PixelForge consent required"
+          : "PixelForge request denied; operator approval required");
       } else if (response.message.type === "host.context") {
         setStatus("Sent approved PixelForge project reference only; no world data");
       }
