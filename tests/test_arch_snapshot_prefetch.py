@@ -10,17 +10,23 @@ BUILDER = ROOT / "packaging/linux/build-linux.sh"
 
 
 class ArchSnapshotPrefetchTests(unittest.TestCase):
-    def mock(self, failures, packages=("python", "archiso")):
+    def mock(self, failures, packages=("python", "archiso"), *, config=None):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             bindir = root / "bin"
             bindir.mkdir()
+            source_config = root / "pacman.conf"
+            source_config.write_text(config if config is not None else
+                                     "[options]\nSigLevel = Required DatabaseOptional\n"
+                                     "ParallelDownloads = 5\n"
+                                     "[core]\nInclude = /etc/pacman.d/mirrorlist\n")
             pacman = bindir / "pacman"
             pacman.write_text("""#!/bin/bash
 n=$(cat "$COUNTER" 2>/dev/null || echo 0)
 n=$((n+1))
 echo "$n" > "$COUNTER"
 echo "$*" >> "$CALLS"
+if [[ "$1" == "--config" ]]; then cp "$2" "$CAPTURE"; fi
 if ((n<=FAILURES)); then exit 28; fi
 exit 0
 """)
@@ -31,13 +37,15 @@ exit 0
             env = dict(os.environ, PATH=str(bindir) + os.pathsep + os.environ["PATH"],
                        COUNTER=str(root/"count"), CALLS=str(root/"calls"),
                        SLEEPS=str(root/"sleeps"), FAILURES=str(failures),
-                       SCRIPT=str(HELPER))
+                       SCRIPT=str(HELPER), CAPTURE=str(root/"fallback.conf"),
+                       PHIOS_PREFETCH_PACMAN_CONFIG=str(source_config))
             cmd = ["bash", "-c", 'set -euo pipefail; source "$SCRIPT"; phios_prefetch_snapshot_packages "$@"',
                    "bash", *packages]
             p = subprocess.run(cmd, env=env, text=True, capture_output=True, timeout=15)
             log = (root/"calls").read_text().splitlines() if (root/"calls").exists() else []
             sleeps = (root/"sleeps").read_text().splitlines() if (root/"sleeps").exists() else []
-            return p.returncode, p.stdout+p.stderr, log, sleeps
+            captured = (root/"fallback.conf").read_text() if (root/"fallback.conf").exists() else ""
+            return p.returncode, p.stdout+p.stderr, log, sleeps, captured
 
     def test_build_order_and_syntax(self):
         for path in (HELPER, BUILDER):
@@ -153,7 +161,7 @@ fi
             self.assertIn("PHIOS_ARCHISO_PREFETCH_REFUSED", output)
 
     def test_success_first_attempt(self):
-        code, out, log, sleeps = self.mock(0)
+        code, out, log, sleeps, config = self.mock(0)
         self.assertEqual(code, 0, out)
         self.assertEqual(len(log), 1)
         self.assertFalse(sleeps)
@@ -162,22 +170,50 @@ fi
         self.assertNotIn("--skippgpcheck", log[0])
 
     def test_temporary_network_problem_retries(self):
-        code, out, log, sleeps = self.mock(2)
+        code, out, log, sleeps, config = self.mock(2)
         self.assertEqual(code, 0, out)
         self.assertEqual(len(log), 3)
         self.assertEqual(len(sleeps), 2)
-        self.assertEqual(len(set(log)), 1)
+        self.assertEqual(log[1], log[2], "fallback must retain the same pinned configuration")
+        self.assertNotIn("--config", log[0])
+        self.assertIn("--config", log[1])
         self.assertIn("PHIOS_ARCH_PREFETCH_OK: attempt 3/3", out)
+        self.assertIn("SigLevel = Required DatabaseOptional", config)
+        self.assertIn("Include = /etc/pacman.d/mirrorlist", config)
+        self.assertIn("--proto https --proto-redir https", config)
+        self.assertIn("--connect-timeout 45", config)
+        self.assertIn("--http1.1", config)
+        self.assertIn("-C - -o %o %u", config)
+        self.assertNotIn("--insecure", config)
+        self.assertNotIn("--skippgpcheck", " ".join(log))
 
     def test_repeated_failure_holds_build(self):
-        code, out, log, sleeps = self.mock(9)
+        code, out, log, sleeps, config = self.mock(9)
         self.assertEqual(code, 1, out)
         self.assertEqual(len(log), 3)
         self.assertEqual(len(sleeps), 2)
         self.assertIn("PHIOS_ARCH_PREFETCH_FAILED", out)
 
+    def test_existing_transfer_command_requires_review(self):
+        custom = ("[options]\nSigLevel = Required DatabaseOptional\n"
+                  "XferCommand = /opt/custom-transporter %u %o\n"
+                  "[core]\nInclude = /etc/pacman.d/mirrorlist\n")
+        code, out, log, sleeps, config = self.mock(3, config=custom)
+        self.assertEqual(code, 1, out)
+        self.assertEqual(len(log), 1)
+        self.assertIn("existing XferCommand needs review", out)
+        self.assertFalse(config)
+
+    def test_missing_options_refuses_fallback(self):
+        custom = "[core]\nInclude = /etc/pacman.d/mirrorlist\n"
+        code, out, log, sleeps, config = self.mock(3, config=custom)
+        self.assertEqual(code, 1, out)
+        self.assertEqual(len(log), 1)
+        self.assertIn("invalid pacman options section", out)
+        self.assertFalse(config)
+
     def test_no_packages_rejected(self):
-        code, out, log, sleeps = self.mock(0, ())
+        code, out, log, sleeps, config = self.mock(0, ())
         self.assertEqual(code, 2, out)
         self.assertEqual(log, [])
         self.assertEqual(sleeps, [])
