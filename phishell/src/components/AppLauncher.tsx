@@ -1,6 +1,7 @@
 import { SHELL_APPS, type ShellApp } from "../shell/appLauncher";
 import { EcosystemCatalog } from "./EcosystemCatalog";
 import { UniversalAppShelf } from "./UniversalAppShelf";
+import { PixelForgeLaunchCard } from "./PixelForgeLaunchCard";
 
 export function AppTiles({ openApp, pinned = false }: {
   openApp: (id: string) => void;
@@ -63,6 +64,7 @@ export function AppLibrary({ openApp }: { openApp: (id: string) => void }) {
         <button type="button" onClick={() => openApp("system")}>Inspect actual Linux package state</button>
         <p className="muted">R5 starts with local artifact verification and platform-owned app management. No silent package downloads, shell commands, or new privilege bridge.</p>
       </section>
+      <PixelForgeLaunchCard openApp={openApp} />
       <EcosystemCatalog />
       <UniversalAppShelf />
       <p className="muted">This list describes the shipped image, not a scan of apps you added separately.</p>
