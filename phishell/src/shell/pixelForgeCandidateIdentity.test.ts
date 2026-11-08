@@ -15,7 +15,6 @@ import {
   encodeProjectRegistryV2,
   providerQualifiedProjectKey,
   validateQualifiedProjectEntry,
-  type ProviderQualifiedProjectReference,
 } from "./projectRegistryV2";
 import { readProjectIdentityWithAdapter } from "./projectAdapterReader";
 
@@ -72,7 +71,7 @@ describe("PhiOS R10 quarantined PixelForge identity producer contract", () => {
     expect(result.authorityTransferred).toBe(false);
   });
 
-  it("PhiOffice V1 and V2 remain valid while an unadmitted PixelForge source is rejected", () => {
+  it("PixelForge is V2 metadata-only, never a V1 app adapter or cross-origin grant", () => {
     const v1 = encodeProjectRegistry([{
       projectRef: office.projectRef,
       title: office.title,
@@ -82,18 +81,20 @@ describe("PhiOS R10 quarantined PixelForge identity producer contract", () => {
     expect(JSON.parse(v1).version).toBe(1);
     expect(JSON.parse(v2).version).toBe(2);
     const candidate = parse(valid);
-    expect(() => validateQualifiedProjectEntry({
+    const qualified = validateQualifiedProjectEntry({
       providerAppId: candidate.providerAppId,
       projectRef: candidate.projectRef,
       title: candidate.title,
       source: candidate.source,
-    })).toThrow("Unreviewed project identity source");
-    expect(() => encodeProjectRegistryV2([{
-      providerAppId: candidate.providerAppId,
+    });
+    expect(qualified.providerAppId).toBe("pixelforge");
+    const both = encodeProjectRegistryV2([office, qualified]);
+    expect(JSON.parse(both).entries).toHaveLength(2);
+    expect(() => encodeProjectRegistry([{
       projectRef: candidate.projectRef,
       title: candidate.title,
       source: candidate.source,
-    } as unknown as ProviderQualifiedProjectReference])).toThrow("Unreviewed");
+    } as unknown as Parameters<typeof encodeProjectRegistry>[0][number]])).toThrow("Unreviewed");
     expect(findReviewedProjectAdapter(PIXELFORGE_CANDIDATE_SCHEMA)).toBeNull();
     expect(findProjectAdapterForTarget(PIXELFORGE_CANDIDATE_SCHEMA, "phioffice")).toBeNull();
     expect(findProjectAdapterForTarget(PIXELFORGE_CANDIDATE_SCHEMA, "pixelforge")).toBeNull();
