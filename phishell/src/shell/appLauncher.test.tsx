@@ -19,7 +19,7 @@ function tileButtons(node: ReactNode): Array<{ label: string; click: () => void 
 
 const destinations: Record<string, string> = {
   "Browsallax": "app:browsallax", "PhiVessel": "app:phivessel", "BrainC": "app:brainc",
-  "PhiOffice": "app:phioffice", "PhiARK Knowledge Vault": "app:phiark", "Domistika": "app:domistika", "SOMA": "app:soma",
+  "PhiOffice": "app:phioffice", "PixelForge": "build-window", "PhiARK Knowledge Vault": "app:phiark", "Domistika": "app:domistika", "SOMA": "app:soma",
   "Professor Φ": "app:professor", "Reality Ledger": "ledger-window",
   "Builder": "build-window", "System Inspector": "system-window",
   "ΦDream": "dream-window", "Apps": "apps-window", "Sovereignty Center": "sovereignty-window",
@@ -39,7 +39,11 @@ describe("rendered app launcher clicks", () => {
       for (const tile of tiles) {
         tile.click();
         const name = tile.label.split(" · ")[0];
-        expect(state.windows.at(-1)?.id).toBe(destinations[name]);
+        const destination = destinations[name];
+        const matching = state.windows.filter((item) => item.id === destination);
+        expect(matching, `Tile ${name} should open or focus exactly one ${destination}`).toHaveLength(1);
+        expect(matching[0]?.state).toBe("open");
+        expect(matching[0]?.z).toBe(Math.max(...state.windows.map((item) => item.z)));
         expect(state.authorityRequest).toBeNull();
       }
       expect(fetcher).not.toHaveBeenCalled();
