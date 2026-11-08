@@ -1,0 +1,54 @@
+name: PhiOS R11 PixelForge identity rendered browser acceptance
+
+on:
+  pull_request:
+    paths:
+      - 'phishell/src/shell/projectRegistryV2.ts'
+      - 'phishell/src/shell/pixelForgeV2IdentityImport*'
+      - 'phishell/src/components/PixelForgeIdentityDesk.tsx'
+      - 'phishell/src/PhiShell.tsx'
+      - 'phishell/host/pixelForgeR11RenderedAcceptance.mjs'
+      - '.github/workflows/phios-r11-browser-identity.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'phishell/src/shell/projectRegistryV2.ts'
+      - 'phishell/src/shell/pixelForgeV2IdentityImport*'
+      - 'phishell/src/components/PixelForgeIdentityDesk.tsx'
+      - 'phishell/src/PhiShell.tsx'
+      - 'phishell/host/pixelForgeR11RenderedAcceptance.mjs'
+      - '.github/workflows/phios-r11-browser-identity.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  rendered-chrome-identity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Checkout exact PhiOS candidate
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Require local Chrome for actual browser checks
+        run: command -v google-chrome || command -v chromium || command -v chromium-browser
+
+      - name: Verify test script is valid Node
+        run: node --check phishell/host/pixelForgeR11RenderedAcceptance.mjs
+
+      - name: Install pinned PhiShell dependencies
+        working-directory: phishell
+        run: npm ci --no-audit
+
+      - name: Build actual PhiOS React browser runtime
+        working-directory: phishell
+        run: npm run build
+
+      - name: Run real UI file-picker, cancellation, collision and rollback proof
+        run: node phishell/host/pixelForgeR11RenderedAcceptance.mjs
