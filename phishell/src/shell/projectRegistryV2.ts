@@ -18,9 +18,21 @@ export const PROJECT_REGISTRY_V2_KEY = "phios.project-registry.v2";
 export const PROJECT_REGISTRY_V2_FORMAT = PROJECT_REGISTRY_FORMAT;
 export const PROJECT_REGISTRY_V2_VERSION = 2;
 
-export type ProviderQualifiedProjectReference = Readonly<SavedProjectReference & {
-  providerAppId: string;
-}>;
+/**
+ * V2 has a separate, metadata-only review boundary from the V1 bridge.
+ * PixelForge's merged sidecar is accepted as an identity label only.
+ * It is deliberately NOT in the PhiOS executable/browser adapter catalog.
+ */
+export const PIXELFORGE_V2_IDENTITY_SOURCE =
+  "pixelforge.phios-vr-world-identity.v0.1" as const;
+export const PIXELFORGE_V2_PROVIDER = "pixelforge" as const;
+
+export type ProviderQualifiedProjectReference = Readonly<
+  Omit<SavedProjectReference, "source"> & {
+    source: string;
+    providerAppId: string;
+  }
+>;
 
 /** A collision-free lookup token; never a credential or a wire project ref. */
 export function providerQualifiedProjectKey(providerAppId: string, projectRef: string): string {
@@ -47,6 +59,27 @@ function exact(value: Record<string, unknown>, names: readonly string[]): boolea
 export function validateQualifiedProjectEntry(value: unknown): ProviderQualifiedProjectReference {
   if (!isRecord(value) || !exact(value, ["providerAppId", "projectRef", "title", "source"])) {
     throw new Error("Unsupported provider-qualified project fields");
+  }
+  if (value.source === PIXELFORGE_V2_IDENTITY_SOURCE) {
+    // The merged PixelForge producer accepts bounded titles and stable
+    // operator-chosen IDs, but gives no attestation or execution authority.
+    // This metadata path NEVER registers PixelForge as a browser target.
+    if (value.providerAppId !== PIXELFORGE_V2_PROVIDER ||
+        typeof value.projectRef !== "string" ||
+        !/^project:[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/.test(value.projectRef) ||
+        value.projectRef.includes("..") || value.projectRef.endsWith(".") ||
+        typeof value.title !== "string" || value.title.length < 1 ||
+        value.title.length > 100 || value.title !== value.title.trim() ||
+        /[\u0000-\u001f\u007f\u202a-\u202e\u2066-\u2069]/.test(value.title)) {
+      throw new Error("Invalid PixelForge V2-only identity metadata");
+    }
+    providerQualifiedProjectKey(PIXELFORGE_V2_PROVIDER, value.projectRef);
+    return Object.freeze({
+      providerAppId: PIXELFORGE_V2_PROVIDER,
+      projectRef: value.projectRef,
+      title: value.title,
+      source: PIXELFORGE_V2_IDENTITY_SOURCE,
+    });
   }
   const legacy = validateRegistryEntry({
     projectRef: value.projectRef,
