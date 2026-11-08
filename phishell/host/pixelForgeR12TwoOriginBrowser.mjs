@@ -208,7 +208,7 @@ try{
       source:"pixelforge.phios-vr-world-identity.v0.1",
       title:"Second World",
       projectRef:"project:second-world",
-    }]})+"\\n";
+    }]})+"\n";
   await evaluate("localStorage.setItem("+JSON.stringify("phios.project-registry.v2")+
     ","+JSON.stringify(changedV2)+")");
   assert.equal(await click("#phiosBridgePanel","Request project reference",childContext),true);
