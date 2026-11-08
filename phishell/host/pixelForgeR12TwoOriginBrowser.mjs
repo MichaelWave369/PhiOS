@@ -199,6 +199,37 @@ try{
   assert.equal(await evaluate("localStorage.getItem('pixelforge.vr-world.v1.local')",childContext),
     null,"Bridge may never save a PixelForge world");
 
+  // R13: even a VALID change to an unrelated V2 identity requires fresh
+  // consent. An operator's old approval was scoped to the reviewed registry
+  // snapshot; changing another app's metadata cannot silently extend it.
+  const changedV2=JSON.stringify({format:"phios.project-registry",version:2,
+    entries:[office,pixel,{
+      providerAppId:"pixelforge",
+      source:"pixelforge.phios-vr-world-identity.v0.1",
+      title:"Second World",
+      projectRef:"project:second-world",
+    }]})+"\\n";
+  await evaluate("localStorage.setItem("+JSON.stringify("phios.project-registry.v2")+
+    ","+JSON.stringify(changedV2)+")");
+  assert.equal(await click("#phiosBridgePanel","Request project reference",childContext),true);
+  await waitFor("metadata drift revoked former approval",async()=>
+    (await clientText()).includes("Project request denied; operator approval required"));
+  await waitFor("host explicitly reports consent expiration",()=>evaluate(
+    'document.querySelector(".phios-pixelforge-bridge [role=status]")'+
+    '?.textContent?.includes("fresh PixelForge consent required")'));
+  assert.ok(!(await clientText()).includes("Received project ID:"),
+    "A changed V2 registry must erase previously displayed permission context");
+  // Restoring the old bytes is NOT permission reinstatement.
+  await evaluate("localStorage.setItem("+JSON.stringify("phios.project-registry.v2")+
+    ","+JSON.stringify(v2)+")");
+  assert.equal(await click("#phiosBridgePanel","Request project reference",childContext),true);
+  await waitFor("restored V2 still requires reapproval",async()=>
+    (await clientText()).includes("Project request denied; operator approval required"));
+  assert.equal(await click(".phios-pixelforge-bridge","Approve selected PixelForge ref"),true);
+  assert.equal(await click("#phiosBridgePanel","Request project reference",childContext),true);
+  await waitFor("fresh consent after metadata drift",async()=>
+    (await clientText()).includes("Received project ID: project:same-project"));
+
   assert.equal(await click(".phios-pixelforge-bridge","Revoke PixelForge approval"),true);
   assert.equal(await click("#phiosBridgePanel","Request project reference",childContext),true);
   await waitFor("revoked request denied",async()=>
@@ -236,6 +267,9 @@ try{
     deniedBeforeApproval:true,
     cancelledApprovalDenied:true,
     exactProviderIdentityShared:true,
+    validV2DriftRevoked:true,
+    restoredV2DidNotRestoreApproval:true,
+    explicitReapprovalRequired:true,
     revokedFutureRequests:true,
     reconnectDenied:true,
     phiOfficeApprovalInherited:false,
