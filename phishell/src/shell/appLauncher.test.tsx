@@ -39,7 +39,11 @@ describe("rendered app launcher clicks", () => {
       for (const tile of tiles) {
         tile.click();
         const name = tile.label.split(" · ")[0];
-        expect(state.windows.at(-1)?.id).toBe(destinations[name]);
+        const destination = destinations[name];
+        const matching = state.windows.filter((item) => item.id === destination);
+        expect(matching, `Tile ${name} should open or focus exactly one ${destination}`).toHaveLength(1);
+        expect(matching[0]?.state).toBe("open");
+        expect(matching[0]?.z).toBe(Math.max(...state.windows.map((item) => item.z)));
         expect(state.authorityRequest).toBeNull();
       }
       expect(fetcher).not.toHaveBeenCalled();
