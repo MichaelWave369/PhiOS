@@ -1,5 +1,5 @@
 // Actual TWO-ORIGIN PhiOS + PixelForge compiled browser acceptance.
-// PixelForge checked out at an exact reviewed PR head; test uses only synthetic
+// PixelForge checked out at the exact reviewed merge commit; test uses only synthetic
 // identity metadata, disposable 127.0.0.1 origins and an isolated Chrome profile.
 import assert from "node:assert/strict";
 import {spawn,spawnSync} from "node:child_process";
@@ -11,7 +11,7 @@ import {setTimeout as sleep} from "node:timers/promises";
 
 const pixelRoot=resolve(".interop/pixelforge/vr-studio");
 const hostRoot=resolve("phishell/dist");
-const pinnedPixelForgeSHA="31d7a64d220a907f72b9817b16f2ad57c88cdca1";
+const pinnedPixelForgeSHA="b1c6314da005de801ba3b0417ffe4b4abe461828";
 const sha=spawnSync("git",["-C",resolve(".interop/pixelforge"),"rev-parse","HEAD"],
   {encoding:"utf8"});
 assert.equal(sha.status,0,"Pinned PixelForge source checkout required");
