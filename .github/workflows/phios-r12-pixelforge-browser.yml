@@ -30,11 +30,11 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Checkout exact PixelForge R12 PR 89 source (not merged)
+      - name: Checkout exact merged PixelForge R12 PR 89 source
         uses: actions/checkout@v4
         with:
           repository: MichaelWave369/parallax-pixelforge
-          ref: 31d7a64d220a907f72b9817b16f2ad57c88cdca1
+          ref: b1c6314da005de801ba3b0417ffe4b4abe461828
           path: .interop/pixelforge
           persist-credentials: false
 
@@ -44,7 +44,7 @@ jobs:
 
       - name: Verify pinned source, syntax and no floating checkout
         run: |
-          test "$(git -C .interop/pixelforge rev-parse HEAD)" = "31d7a64d220a907f72b9817b16f2ad57c88cdca1"
+          test "$(git -C .interop/pixelforge rev-parse HEAD)" = "b1c6314da005de801ba3b0417ffe4b4abe461828"
           node --check phishell/host/pixelForgeR12TwoOriginBrowser.mjs
           node --check .interop/pixelforge/vr-studio/phios-bridge-client.js
 
