@@ -113,6 +113,7 @@ export function confirmPixelForgeV2Import(
       typeof plan.existingV2Raw !== "string" || typeof plan.plannedV2Raw !== "string") {
     throw new Error("Invalid identity import review");
   }
+  checkCurrent(storage, plan.existingV1Raw, plan.existingV2Raw);
   const previous = loadForEdit(storage);
   checkCurrent(storage, plan.existingV1Raw, plan.existingV2Raw);
   const expected = validateQualifiedProjectEntry(plan.identity);
@@ -161,6 +162,7 @@ export function confirmPixelForgeV2Removal(
       typeof plan.existingV2Raw !== "string" || typeof plan.plannedV2Raw !== "string") {
     throw new Error("Invalid identity removal review");
   }
+  checkCurrent(storage, plan.existingV1Raw, plan.existingV2Raw);
   const current = loadForEdit(storage);
   checkCurrent(storage, plan.existingV1Raw, plan.existingV2Raw);
   const candidate = validateQualifiedProjectEntry(plan.identity);
