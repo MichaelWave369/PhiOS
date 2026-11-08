@@ -32,7 +32,7 @@ describe("PhiOS R12 separate PixelForge browser app admission", () => {
     expect(PROJECT_REGISTRY_V2_KEY).toBe("phios.project-registry.v2");
     expect(listPixelForgeBridgeChoices(v2)).toEqual([pixel]);
     expect(verifyPixelForgeBridgeChoice(v2, pixel)).toEqual(pixel);
-    expect(() => verifyPixelForgeBridgeChoice(v2, office as PixelForgeBridgeChoice))
+    expect(() => verifyPixelForgeBridgeChoice(v2, office as unknown as PixelForgeBridgeChoice))
       .toThrow("incorrect PixelForge bridge provider");
     expect(listPixelForgeBridgeChoices(encodeProjectRegistryV2([office]))).toEqual([]);
     expect(() => listPixelForgeBridgeChoices(null)).toThrow("No reviewed V2");
@@ -48,10 +48,10 @@ describe("PhiOS R12 separate PixelForge browser app admission", () => {
       encodeProjectRegistryV2([office]), pixel)).toThrow("changed since selection");
     expect(() => verifyPixelForgeBridgeChoice(v2, {
       ...pixel, source: "pixelforge.unknown"
-    } as PixelForgeBridgeChoice)).toThrow("incorrect PixelForge");
+    } as unknown as PixelForgeBridgeChoice)).toThrow("incorrect PixelForge");
     expect(() => verifyPixelForgeBridgeChoice(v2, {
       ...pixel, projectRef: "project:../../bad"
-    } as PixelForgeBridgeChoice)).toThrow();
+    } as unknown as PixelForgeBridgeChoice)).toThrow();
   });
 
   it("approved iframe endpoint is pinned to exact non-self origin, not a homepage", () => {
