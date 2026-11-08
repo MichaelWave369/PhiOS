@@ -14,6 +14,7 @@ import { AppDetails, AppLibrary, AppTiles } from "./components/AppLauncher";
 import { InfiniteHomeDock } from "./components/InfiniteHomeDock";
 import { PhiOfficeBridgePilot } from "./components/PhiOfficeBridgePilot";
 import { PixelForgeIdentityDesk } from "./components/PixelForgeIdentityDesk";
+import { PixelForgeBridgePilot } from "./components/PixelForgeBridgePilot";
 import { SovereigntyCenter } from "./components/SovereigntyCenter";
 import { SecurityCenter } from "./components/SecurityCenter";
 import { PhiPoseCompanion } from "./components/PhiPoseCompanion";
@@ -376,6 +377,7 @@ function WindowBody({ item, openApp }: { item: WindowModel; openApp: (id: string
       </div>
       <PhiOfficeBridgePilot />
       <PixelForgeIdentityDesk />
+      <PixelForgeBridgePilot />
       </>
     );
   }
