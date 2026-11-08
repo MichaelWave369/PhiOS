@@ -51,12 +51,14 @@ function loadForEdit(storage: ProjectRegistryStorage) {
   // Do NOT require exact R9 V1/V2 equality after the first PixelForge import.
   // Requiring original PhiOffice entries still present prevents replacing the
   // only older provider metadata during a malformed/partial V2 edit.
-  const v1Refs = v1Entries.map((e) =>
-    providerQualifiedProjectKey("phioffice", e.projectRef));
-  const v2Refs = new Set(v2Entries.filter((e) => e.providerAppId === "phioffice")
-    .map((e) => providerQualifiedProjectKey(e.providerAppId, e.projectRef)));
-  if (v1Refs.some((id) => !v2Refs.has(id))) {
-    throw new Error("V2 no longer contains all saved PhiOffice V1 identities");
+  const v2Office = new Map(v2Entries.filter((e) => e.providerAppId === "phioffice")
+    .map((e) => [providerQualifiedProjectKey(e.providerAppId, e.projectRef), e] as const));
+  if (v1Entries.some((entry) => {
+    const id = providerQualifiedProjectKey("phioffice", entry.projectRef);
+    const verified = v2Office.get(id);
+    return !verified || verified.title !== entry.title || verified.source !== entry.source;
+  })) {
+    throw new Error("V2 no longer matches all saved PhiOffice V1 identities");
   }
   return { v1Raw, v2Raw, v1Entries, v2Entries };
 }
