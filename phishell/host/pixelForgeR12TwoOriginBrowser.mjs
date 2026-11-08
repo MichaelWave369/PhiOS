@@ -139,13 +139,20 @@ try{
     "PixelForge must not load without operator action");
   await evaluate("localStorage.setItem("+JSON.stringify("phios.project-registry.v2")+
     ","+JSON.stringify(v2)+")");
-  await evaluate('document.querySelector(".search-button").click()');
-  await waitFor("command overlay",()=>evaluate('Boolean(document.querySelector(".command-results"))'));
-  assert.equal(await evaluate('(()=>{const b=Array.from(document.querySelectorAll(".command-results button"))'+
-    '.find(x=>x.querySelector("b")?.textContent?.trim()==="Open Build Field");'+
-    'if(!b)return false;b.click();return true;})()'),true);
-  await waitFor("PixelForge host pilot",()=>evaluate(
+  // R14: a real PixelForge launcher tile opens only the governed Build
+  // workspace, never an iframe, a grant or an "installed app" claim.
+  assert.equal(await evaluate('(()=>{const b=document.querySelector('+
+    JSON.stringify('button[aria-label="PixelForge · Browser pilot · gated"]')+
+    ');if(!b)return false;b.click();return true;})()'),true,
+    "PixelForge browser pilot launcher must be visible on PhiOS Home");
+  await waitFor("PixelForge Build workspace",()=>evaluate(
     'Boolean(document.querySelector(".phios-pixelforge-bridge"))'));
+  assert.equal(await evaluate(
+    'document.querySelector(".phios-pixelforge-bridge iframe")===null'),true,
+    "Launcher must not auto-start PixelForge iframe");
+  assert.equal(await evaluate(
+    'document.querySelector(".phios-pixelforge-bridge [role=status]")?.textContent'), 
+    "Not connected. No PixelForge project approval.");
   assert.equal(await click(".phios-pixelforge-bridge","Start PixelForge pilot"),true);
   const childFrameId=await waitFor("PixelForge independently loaded frame",async()=>{
     const r=await call("Page.getFrameTree");
@@ -264,6 +271,8 @@ try{
     pixelForgeCommit:pinnedPixelForgeSHA,
     twoIndependentOrigins:hostOrigin!==pixelOrigin,
     standaloneNoBridge:true,
+    launcherOpenedBuildOnly:true,
+    launcherGrantedPermission:false,
     deniedBeforeApproval:true,
     cancelledApprovalDenied:true,
     exactProviderIdentityShared:true,
