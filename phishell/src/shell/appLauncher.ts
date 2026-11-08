@@ -21,6 +21,8 @@ export const SHELL_APPS: readonly ShellApp[] = [
     description: "PhiARK is not bundled or installed by PhiOS. Its local knowledge vault can be inspected read-only with phi-app phiark-status --data-root /absolute/path/to/PhiARKVault. Add --verify-kiwix for costly archive checksum inspection, or --probe-loopback to check a separately started localhost service. This tile does not launch a reader, grant permissions, or claim archives are installed." },
   { id: "phioffice", name: "PhiOffice", icon: "▧", status: "Not bundled",
     description: "PhiOffice is not included in this image." },
+  { id: "pixelforge", name: "PixelForge", icon: "◈", status: "Browser pilot · gated",
+    description: "Opens PhiOS Build Field for a separately configured PixelForge browser pilot. PixelForge is not installed or bundled as a native app; the operator must start the iframe and separately approve any project reference. No world files or permissions transfer from this launcher.", windowId: "build-window" },
   { id: "domistika", name: "Domistika", icon: "⌂", status: "Not bundled",
     description: "Domistika is not included in this image." },
   { id: "soma", name: "SOMA", icon: "◌", status: "CLI tools only",
