@@ -32,6 +32,10 @@ export function PixelForgeBridgePilot() {
   const hostRef = useRef<ReturnType<typeof createWorkspaceBridgeHost> | null>(null);
   const chosenRef = useRef<PixelForgeBridgeChoice | null>(null);
   const approvedRef = useRef<PixelForgeBridgeChoice | null>(null);
+  // A separate snapshot is necessary: a changed V2 registry is NOT an
+  // extension of a previously approved iframe capability, even if the
+  // selected project happens to have the same title and ID.
+  const approvedV2BytesRef = useRef<string | null>(null);
   const retryRef = useRef<ReturnType<typeof globalThis.setInterval> | null>(null);
 
   const stopRetry = () => {
@@ -43,6 +47,7 @@ export function PixelForgeBridgePilot() {
   const safeRevoke = () => {
     hostRef.current?.revokeProject();
     approvedRef.current = null;
+    approvedV2BytesRef.current = null;
     setApproved(false);
   };
   const currentV2 = () => globalThis.localStorage.getItem(PROJECT_REGISTRY_V2_KEY);
@@ -56,12 +61,16 @@ export function PixelForgeBridgePilot() {
       // BEFORE the host responds to another request, including same-tab edits.
       if (approvedRef.current) {
         try {
+          if (currentV2() !== approvedV2BytesRef.current) {
+            throw new Error("V2 changed since consent");
+          }
           verifyPixelForgeBridgeChoice(currentV2(), approvedRef.current);
         } catch {
           host.revokeProject();
           approvedRef.current = null;
+          approvedV2BytesRef.current = null;
           setApproved(false);
-          setStatus("Saved PixelForge identity changed; bridge sharing revoked");
+          setStatus("Saved V2 metadata changed; fresh PixelForge consent required");
         }
       }
       const response = host.handle(event);
@@ -76,13 +85,30 @@ export function PixelForgeBridgePilot() {
         setStatus("Sent approved PixelForge project reference only; no world data");
       }
     };
+    const onStorage = (event: StorageEvent) => {
+      // Other-tab changes are observable asynchronously. In-tab changes are
+      // caught synchronously before any future host reply in onMessage.
+      if (event.storageArea !== globalThis.localStorage
+          || (event.key !== PROJECT_REGISTRY_V2_KEY && event.key !== null)
+          || !approvedRef.current) return;
+      if (event.newValue !== approvedV2BytesRef.current) {
+        hostRef.current?.revokeProject();
+        approvedRef.current = null;
+        approvedV2BytesRef.current = null;
+        setApproved(false);
+        setStatus("V2 registry changed in another tab; PixelForge approval revoked");
+      }
+    };
     globalThis.addEventListener("message", onMessage);
+    globalThis.addEventListener("storage", onStorage);
     return () => {
       globalThis.removeEventListener("message", onMessage);
+      globalThis.removeEventListener("storage", onStorage);
       stopRetry();
       hostRef.current?.revokeProject();
       hostRef.current = null;
       approvedRef.current = null;
+      approvedV2BytesRef.current = null;
     };
   }, []);
 
@@ -149,16 +175,21 @@ export function PixelForgeBridgePilot() {
     const chosen = chosenRef.current;
     if (!host || !chosen || approvedRef.current) return;
     try {
-      const reviewed = verifyPixelForgeBridgeChoice(currentV2(), chosen);
+      const v2AtReview = currentV2();
+      const reviewed = verifyPixelForgeBridgeChoice(v2AtReview, chosen);
       if (!globalThis.confirm(
         "Share only " + reviewed.providerAppId + " / " + reviewed.projectRef
         + " with the separate-origin PixelForge iframe for THIS session? "
         + "This shares no world files, GLBs, private assets or execution rights.",
       )) return;
       // The V2 store might have changed while the user considered the prompt.
+      if (currentV2() !== v2AtReview) {
+        throw new Error("V2 registry changed during confirmation; review and approve again");
+      }
       verifyPixelForgeBridgeChoice(currentV2(), reviewed);
       host.approveProject(reviewed.projectRef);
       approvedRef.current = reviewed;
+      approvedV2BytesRef.current = v2AtReview;
       setApproved(true);
       setStatus("Operator approved PixelForge identity for this iframe session only");
     } catch (error) {
