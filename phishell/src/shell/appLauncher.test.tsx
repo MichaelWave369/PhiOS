@@ -19,7 +19,7 @@ function tileButtons(node: ReactNode): Array<{ label: string; click: () => void 
 
 const destinations: Record<string, string> = {
   "Browsallax": "app:browsallax", "PhiVessel": "app:phivessel", "BrainC": "app:brainc",
-  "PhiOffice": "app:phioffice", "PhiARK Knowledge Vault": "app:phiark", "Domistika": "app:domistika", "SOMA": "app:soma",
+  "PhiOffice": "app:phioffice", "PixelForge": "build-window", "PhiARK Knowledge Vault": "app:phiark", "Domistika": "app:domistika", "SOMA": "app:soma",
   "Professor Φ": "app:professor", "Reality Ledger": "ledger-window",
   "Builder": "build-window", "System Inspector": "system-window",
   "ΦDream": "dream-window", "Apps": "apps-window", "Sovereignty Center": "sovereignty-window",
