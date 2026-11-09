@@ -173,6 +173,8 @@ try{
     if(!p)return;
     if(msg.error)p.fail(Error(msg.error.message));else p.ok(msg.result);
   });
+  // Discover cross-site OOPIF targets as well as top-level pages.
+  await send("Target.setDiscoverTargets",{discover:true});
   const {targetInfos}=await send("Target.getTargets");
   const page=targetInfos.find(x=>x.type==="page");
   assert.ok(page,"Page target missing");
@@ -251,9 +253,20 @@ try{
     'document.querySelector(".phios-pixelforge-bridge [role=status]")?.textContent'), 
     "Not connected. No PixelForge project approval.");
   assert.equal(await click(".phios-pixelforge-bridge","Start PixelForge pilot"),true);
+  let observedIframeTargets=[];
   const childFrameId=await waitFor("PixelForge independently loaded frame",async()=>{
     const r=await call("Page.getFrameTree");
-    return frameFor(pixelOrigin,r.frameTree);
+    const inParentTree=frameFor(pixelOrigin,r.frameTree);
+    if(inParentTree)return inParentTree;
+    if(!useLivePages)return null;
+    // Different-site HTTPS children are often out-of-process iframe
+    // Targets, absent from the top-level Page.getFrameTree result.
+    const targets=await send("Target.getTargets");
+    observedIframeTargets=targets.targetInfos.filter(x=>x.type==="iframe")
+      .map(x=>({targetId:x.targetId,url:x.url?.slice(0,200)}));
+    const remote=targets.targetInfos.find(x=>x.type==="iframe"&&
+      x.url?.startsWith(pixelOrigin+pixelPublishedStudioPath));
+    return remote?.targetId||null;
   });
   let childContext=await childExecutionContext(childFrameId,"PixelForgeR12FirstSession");
   const clientText=()=>evaluate('document.querySelector("#phiosBridgePanel")?.textContent||""',
