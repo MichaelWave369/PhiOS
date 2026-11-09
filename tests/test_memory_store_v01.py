@@ -18,7 +18,7 @@ def _record(*, record_id: str = "mem-1", revision: int = 1, source_id: str = "sr
         scope_id="private",
         classification="operator",
         retention_policy_id="retain",
-        expires_at="2026-10-20T18:00:00+00:00",
+        expires_at=None,  # Non-expiring fixture: expiry behavior has a dedicated test.
         epistemic_kind="source",
         text="same text",
     )
