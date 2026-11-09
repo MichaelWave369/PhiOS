@@ -51,9 +51,17 @@ jobs:
       - name: Require actual Chrome
         run: command -v google-chrome || command -v chromium || command -v chromium-browser
 
+      - name: Assemble actual public PixelForge project Pages from pinned merged source
+        run: |
+          npm --prefix .interop/pixelforge/site install --no-audit --no-fund
+          npm --prefix .interop/pixelforge/site run build
+          test -f .interop/pixelforge/dist/vr-studio/index.html
+          test -f .interop/pixelforge/dist/vr-studio/phios-bridge-client.js
+          test -f .interop/pixelforge/dist/vr-studio/phios-bridge-ui.js
+
       - name: Install pinned PhiShell dependencies
         working-directory: phishell
         run: npm ci --no-audit
 
-      - name: Build PhiOS with exact PixelForge origin and exercise two-app UI
+      - name: Test assembled Pages path with exact origins in real Chrome
         run: node phishell/host/pixelForgeR12TwoOriginBrowser.mjs

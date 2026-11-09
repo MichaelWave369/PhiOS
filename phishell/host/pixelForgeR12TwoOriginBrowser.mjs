@@ -7,9 +7,13 @@ import {createServer} from "node:http";
 import {mkdtemp,readFile,rm,stat} from "node:fs/promises";
 import {tmpdir} from "node:os";
 import {join,resolve,sep,extname} from "node:path";
+import {createHash} from "node:crypto";
 import {setTimeout as sleep} from "node:timers/promises";
 
-const pixelRoot=resolve(".interop/pixelforge/vr-studio");
+const pixelRoot=resolve(".interop/pixelforge/dist");
+const pixelSourceRoot=resolve(".interop/pixelforge/vr-studio");
+const pixelPublishedBase="/parallax-pixelforge/";
+const pixelPublishedStudioPath=pixelPublishedBase+"vr-studio/";
 const hostRoot=resolve("phishell/dist");
 const pinnedPixelForgeSHA="b1c6314da005de801ba3b0417ffe4b4abe461828";
 const sha=spawnSync("git",["-C",resolve(".interop/pixelforge"),"rev-parse","HEAD"],
@@ -21,21 +25,30 @@ const chrome=[process.env.CHROME_BIN,"google-chrome","chromium","chromium-browse
 if(!chrome)throw Error("Actual Chrome/Chromium required for cross-origin acceptance");
 const mime={".html":"text/html",".js":"text/javascript",".css":"text/css",
   ".svg":"image/svg+xml",".json":"application/json",".png":"image/png",".woff":"font/woff"};
-function serve(root){
+function serve(root,published=false){
   return createServer(async(req,res)=>{
     try{
       const url=new URL(req.url,"http://127.0.0.1");
-      let path=resolve(root,decodeURIComponent(url.pathname.slice(1)||"index.html"));
+      const pathname=decodeURIComponent(url.pathname);
+      if(published && !pathname.startsWith(pixelPublishedBase)){
+        res.writeHead(404).end("Not on published PixelForge Pages route");return;
+      }
+      const relative=published ? pathname.slice(pixelPublishedBase.length)
+        : pathname.slice(1);
+      const target=relative && !relative.endsWith("/") ? relative : relative+"index.html";
+      const path=resolve(root,target);
       if(path!==join(root,"index.html")&&!path.startsWith(root+sep)){
         res.writeHead(403).end("Blocked");return;
       }
-      if(!(await stat(path)).isFile())path=join(root,"index.html");
+      if(!(await stat(path)).isFile()) {
+        res.writeHead(404).end("Missing published file");return;
+      }
       res.writeHead(200,{"Content-Type":mime[extname(path)]||"application/octet-stream",
         "Cache-Control":"no-store"}).end(await readFile(path));
     }catch{res.writeHead(404).end("Not found");}
   });
 }
-const hostServer=serve(hostRoot),pixelServer=serve(pixelRoot);
+const hostServer=serve(hostRoot),pixelServer=serve(pixelRoot,true);
 let child=null,socket=null,requestId=0,errors="";
 const pending=new Map();
 const profile=await mkdtemp(join(tmpdir(),"phios-pixel-two-origin-"));
@@ -68,9 +81,18 @@ try{
   const hostOrigin="http://127.0.0.1:"+hostServer.address().port;
   const pixelOrigin="http://127.0.0.1:"+pixelServer.address().port;
   assert.notEqual(hostOrigin,pixelOrigin,"Distinct origins are mandatory");
+  // Verify the actual PUBLIC PAGES artifact contains the exact pinned
+  // reviewed browser client, without any substituted script bytes.
+  for(const file of ["index.html","studio.js","phios-bridge-client.js","phios-bridge-ui.js"]){
+    const published=await readFile(join(pixelRoot,"vr-studio",file));
+    const source=await readFile(join(pixelSourceRoot,file));
+    assert.equal(createHash("sha256").update(published).digest("hex"),
+      createHash("sha256").update(source).digest("hex"),
+      "Published PixelForge studio artifact drift: "+file);
+  }
   const build=spawnSync("npm",["run","build"],{
     cwd:resolve("phishell"),encoding:"utf8",timeout:180000,maxBuffer:20*1024*1024,
-    env:{...process.env,VITE_PHIOS_PIXELFORGE_BRIDGE_URL:pixelOrigin+"/",
+    env:{...process.env,VITE_PHIOS_PIXELFORGE_BRIDGE_URL:pixelOrigin+pixelPublishedStudioPath,
       VITE_PHIOS_PIXELFORGE_BRIDGE_APPROVED_ORIGIN:pixelOrigin},
   });
   assert.equal(build.status,0,"Compiled PhiOS host build failed:\n"+
@@ -126,7 +148,7 @@ try{
     return null;
   };
   // Standalone PixelForge remains disconnected, with a hidden panel.
-  await call("Page.navigate",{url:pixelOrigin+"/"});
+  await call("Page.navigate",{url:pixelOrigin+pixelPublishedStudioPath});
   await waitFor("standalone PixelForge UI",()=>evaluate(
     'Boolean(document.getElementById("phiosBridgePanel"))'));
   assert.equal(await evaluate('document.getElementById("phiosBridgePanel").hidden'),true);
@@ -167,7 +189,7 @@ try{
     (await clientText()).includes("Connected; no project reference approved yet"),16000);
   const verifiedFrameURL=await evaluate(
     'document.querySelector(".phios-pixelforge-bridge iframe").src');
-  assert.ok(verifiedFrameURL.startsWith(pixelOrigin+"/?phios_parent_origin="));
+  assert.ok(verifiedFrameURL.startsWith(pixelOrigin+pixelPublishedStudioPath+"?phios_parent_origin="));
   assert.ok(!verifiedFrameURL.includes("project:same-project"),
     "Project ref must never travel through iframe URL");
   assert.equal(await evaluate('document.querySelector("#phiosBridgePanel").hidden',childContext),false);
@@ -270,6 +292,9 @@ try{
     phiOSCommit:process.env.GITHUB_SHA||null,
     pixelForgeCommit:pinnedPixelForgeSHA,
     twoIndependentOrigins:hostOrigin!==pixelOrigin,
+    pixelForgeServedFromAssembledPages:true,
+    githubProjectPagesPath:pixelPublishedStudioPath,
+    reviewedStudioScriptsByteIdentical:true,
     standaloneNoBridge:true,
     launcherOpenedBuildOnly:true,
     launcherGrantedPermission:false,
