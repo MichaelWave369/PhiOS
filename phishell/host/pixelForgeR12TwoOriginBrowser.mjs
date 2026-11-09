@@ -10,6 +10,11 @@ import {join,resolve,sep,extname} from "node:path";
 import {createHash} from "node:crypto";
 import {setTimeout as sleep} from "node:timers/promises";
 
+// R16 optional, explicit CI-only live Pages audit. The default still tests
+// the independently assembled, pinned local artifact; the live mode never
+// changes PhiOS build-time defaults or makes any app trusted in production.
+const useLivePages=process.env.PHIOS_R16_LIVE_PAGES==="1";
+const livePixelForgeOrigin="https://michaelwave369.github.io";
 const pixelRoot=resolve(".interop/pixelforge/dist");
 const pixelSourceRoot=resolve(".interop/pixelforge/vr-studio");
 const pixelPublishedBase="/parallax-pixelforge/";
@@ -79,7 +84,8 @@ try{
   await Promise.all([hostServer,pixelServer].map(s=>
     new Promise(ok=>s.listen(0,"127.0.0.1",ok))));
   const hostOrigin="http://127.0.0.1:"+hostServer.address().port;
-  const pixelOrigin="http://127.0.0.1:"+pixelServer.address().port;
+  const pixelOrigin=useLivePages ? livePixelForgeOrigin
+    : "http://127.0.0.1:"+pixelServer.address().port;
   assert.notEqual(hostOrigin,pixelOrigin,"Distinct origins are mandatory");
   // Verify the actual PUBLIC PAGES artifact contains the exact pinned
   // reviewed browser client, without any substituted script bytes.
@@ -89,6 +95,52 @@ try{
     assert.equal(createHash("sha256").update(published).digest("hex"),
       createHash("sha256").update(source).digest("hex"),
       "Published PixelForge studio artifact drift: "+file);
+  }
+  let liveHeaderReceipt=null;
+  if(useLivePages){
+    // A public deployment is a *different* supply chain from locally built
+    // Pages. Fetch only the reviewed public HTTPS host and exact static paths.
+    // No accounts, cookies, bearer tokens, user worlds or credentials.
+    const urlBase=pixelOrigin+pixelPublishedStudioPath;
+    async function getPublicAsset(name){
+      const address=urlBase+name;
+      const response=await fetch(address,{
+        method:"GET",redirect:"manual",
+        headers:{"Accept":"text/html,application/javascript;q=0.9,*/*;q=0.2"},
+        signal:AbortSignal.timeout(20000),
+      });
+      assert.equal(response.status,200,
+        "Live PixelForge expected HTTP 200 without redirect: "+name+
+        " received "+response.status);
+      assert.equal(response.url,address,"Live PixelForge URL redirected unexpectedly");
+      const bytes=Buffer.from(await response.arrayBuffer());
+      assert.ok(bytes.length>30 && bytes.length<5000000,
+        "Live PixelForge public asset empty or oversized: "+name);
+      return {response,bytes};
+    }
+    const page=await getPublicAsset("index.html");
+    const contentType=page.response.headers.get("content-type")||"";
+    assert.match(contentType,/text\/html/i,
+      "Live PixelForge VR route must return HTML, not a fallback/error");
+    assert.ok(page.bytes.toString("utf8").includes("phiosBridgePanel"),
+      "Live PixelForge VR Studio has no reviewed bridge controls");
+    for(const name of ["phios-bridge-client.js","phios-bridge-ui.js"]){
+      const remote=await getPublicAsset(name);
+      const reviewed=await readFile(join(pixelSourceRoot,name));
+      assert.equal(createHash("sha256").update(remote.bytes).digest("hex"),
+        createHash("sha256").update(reviewed).digest("hex"),
+        "Live PixelForge client differs from merged #89 source: "+name);
+    }
+    liveHeaderReceipt={
+      url:urlBase,
+      httpStatus:page.response.status,
+      contentType,
+      xFrameOptions:page.response.headers.get("x-frame-options"),
+      contentSecurityPolicy:page.response.headers.get("content-security-policy"),
+      referrerPolicy:page.response.headers.get("referrer-policy"),
+      publishedBridgeBytesMatchMergedSource:true,
+    };
+    console.log("PHIOS_R16_PIXELFORGE_LIVE_HTTP:"+JSON.stringify(liveHeaderReceipt));
   }
   const build=spawnSync("npm",["run","build"],{
     cwd:resolve("phishell"),encoding:"utf8",timeout:180000,maxBuffer:20*1024*1024,
@@ -121,6 +173,8 @@ try{
     if(!p)return;
     if(msg.error)p.fail(Error(msg.error.message));else p.ok(msg.result);
   });
+  // Discover cross-site OOPIF targets as well as top-level pages.
+  await send("Target.setDiscoverTargets",{discover:true});
   const {targetInfos}=await send("Target.getTargets");
   const page=targetInfos.find(x=>x.type==="page");
   assert.ok(page,"Page target missing");
@@ -130,11 +184,34 @@ try{
   await send("Runtime.enable",{},sessionId);
   const call=(method,params={})=>send(method,params,sessionId);
   const evaluate=async(code,contextId)=>{
-    const r=await call("Runtime.evaluate",{expression:code,returnByValue:true,
-      awaitPromise:true,...(contextId?{contextId}:{})});
+    // HTTPS GitHub Pages runs in an out-of-process iframe on Chromium.
+    // Loopback-only child contexts belong to the parent page session.
+    const remoteSession=typeof contextId==="object" ? contextId?.sessionId : null;
+    const r=await send("Runtime.evaluate",{expression:code,returnByValue:true,
+      awaitPromise:true,...(typeof contextId==="number"?{contextId}:{})},
+      remoteSession||sessionId);
     if(r.exceptionDetails)throw Error("Chrome expression: "+
       JSON.stringify(r.exceptionDetails).slice(0,400));
     return r.result?.value;
+  };
+  const childExecutionContext=async(frameId,worldName)=>{
+    try{
+      const {executionContextId}=await call("Page.createIsolatedWorld",{
+        frameId,worldName,
+      });
+      return executionContextId;
+    }catch(error){
+      if(!useLivePages)throw error;
+      const targets=await send("Target.getTargets");
+      const target=targets.targetInfos.find(x=>x.type==="iframe"&&
+        x.url?.startsWith(pixelOrigin+pixelPublishedStudioPath));
+      assert.ok(target,"Live PixelForge cross-site iframe target not discoverable");
+      const {sessionId:childSession}=await send("Target.attachToTarget",{
+        targetId:target.targetId,flatten:true,
+      });
+      await send("Runtime.enable",{},childSession);
+      return {sessionId:childSession};
+    }
   };
   const click=(selector,label,contextId)=>evaluate("(()=>{const root=document.querySelector("+
     JSON.stringify(selector)+");const button=Array.from(root?.querySelectorAll('button')||[])"+
@@ -176,13 +253,22 @@ try{
     'document.querySelector(".phios-pixelforge-bridge [role=status]")?.textContent'), 
     "Not connected. No PixelForge project approval.");
   assert.equal(await click(".phios-pixelforge-bridge","Start PixelForge pilot"),true);
-  const childFrameId=await waitFor("PixelForge independently loaded frame",async()=>{
+  const locatePixelFrame=async(excludedFrame=null)=>{
     const r=await call("Page.getFrameTree");
-    return frameFor(pixelOrigin,r.frameTree);
-  });
-  let {executionContextId:childContext}=await call("Page.createIsolatedWorld",{
-    frameId:childFrameId,worldName:"PixelForgeR12FirstSession",
-  });
+    const inParentTree=frameFor(pixelOrigin,r.frameTree);
+    if(inParentTree && (!useLivePages || inParentTree!==excludedFrame)) return inParentTree;
+    if(!useLivePages)return null;
+    // Cross-site iframes may be independent Chrome targets, not page children.
+    // Do not accidentally reattach the prior detached session on reconnect.
+    const targets=await send("Target.getTargets");
+    const remote=targets.targetInfos.find(x=>x.type==="iframe"&&
+      x.targetId!==excludedFrame &&
+      x.url?.startsWith(pixelOrigin+pixelPublishedStudioPath));
+    return remote?.targetId||null;
+  };
+  const childFrameId=await waitFor("PixelForge independently loaded frame",()=>
+    locatePixelFrame());
+  let childContext=await childExecutionContext(childFrameId,"PixelForgeR12FirstSession");
   const clientText=()=>evaluate('document.querySelector("#phiosBridgePanel")?.textContent||""',
     childContext);
   await waitFor("child visible and connected",async()=>
@@ -271,12 +357,9 @@ try{
   await waitFor("iframe gone",()=>evaluate(
     'document.querySelector(".phios-pixelforge-bridge iframe")===null'));
   assert.equal(await click(".phios-pixelforge-bridge","Start PixelForge pilot"),true);
-  const secondFrame=await waitFor("fresh PixelForge frame",async()=>{
-    const t=await call("Page.getFrameTree");return frameFor(pixelOrigin,t.frameTree);
-  });
-  ({executionContextId:childContext}=await call("Page.createIsolatedWorld",{
-    frameId:secondFrame,worldName:"PixelForgeR12Reconnect",
-  }));
+  const secondFrame=await waitFor("fresh PixelForge frame",()=>
+    locatePixelFrame(useLivePages?childFrameId:null));
+  childContext=await childExecutionContext(secondFrame,"PixelForgeR12Reconnect");
   await waitFor("fresh handshake not pre-approved",async()=>
     (await clientText()).includes("Connected; no project reference approved yet"),16000);
   assert.equal(await click("#phiosBridgePanel","Request project reference",childContext),true);
@@ -292,7 +375,9 @@ try{
     phiOSCommit:process.env.GITHUB_SHA||null,
     pixelForgeCommit:pinnedPixelForgeSHA,
     twoIndependentOrigins:hostOrigin!==pixelOrigin,
-    pixelForgeServedFromAssembledPages:true,
+    pixelForgeServedFromAssembledPages:!useLivePages,
+    pixelForgeServedFromActualPublicPages:useLivePages,
+    livePublicHeaderEvidence:liveHeaderReceipt,
     githubProjectPagesPath:pixelPublishedStudioPath,
     reviewedStudioScriptsByteIdentical:true,
     standaloneNoBridge:true,
