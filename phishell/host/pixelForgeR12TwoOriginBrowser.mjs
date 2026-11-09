@@ -253,21 +253,21 @@ try{
     'document.querySelector(".phios-pixelforge-bridge [role=status]")?.textContent'), 
     "Not connected. No PixelForge project approval.");
   assert.equal(await click(".phios-pixelforge-bridge","Start PixelForge pilot"),true);
-  let observedIframeTargets=[];
-  const childFrameId=await waitFor("PixelForge independently loaded frame",async()=>{
+  const locatePixelFrame=async(excludedFrame=null)=>{
     const r=await call("Page.getFrameTree");
     const inParentTree=frameFor(pixelOrigin,r.frameTree);
-    if(inParentTree)return inParentTree;
+    if(inParentTree && (!useLivePages || inParentTree!==excludedFrame)) return inParentTree;
     if(!useLivePages)return null;
-    // Different-site HTTPS children are often out-of-process iframe
-    // Targets, absent from the top-level Page.getFrameTree result.
+    // Cross-site iframes may be independent Chrome targets, not page children.
+    // Do not accidentally reattach the prior detached session on reconnect.
     const targets=await send("Target.getTargets");
-    observedIframeTargets=targets.targetInfos.filter(x=>x.type==="iframe")
-      .map(x=>({targetId:x.targetId,url:x.url?.slice(0,200)}));
     const remote=targets.targetInfos.find(x=>x.type==="iframe"&&
+      x.targetId!==excludedFrame &&
       x.url?.startsWith(pixelOrigin+pixelPublishedStudioPath));
     return remote?.targetId||null;
-  });
+  };
+  const childFrameId=await waitFor("PixelForge independently loaded frame",()=>
+    locatePixelFrame());
   let childContext=await childExecutionContext(childFrameId,"PixelForgeR12FirstSession");
   const clientText=()=>evaluate('document.querySelector("#phiosBridgePanel")?.textContent||""',
     childContext);
@@ -357,9 +357,8 @@ try{
   await waitFor("iframe gone",()=>evaluate(
     'document.querySelector(".phios-pixelforge-bridge iframe")===null'));
   assert.equal(await click(".phios-pixelforge-bridge","Start PixelForge pilot"),true);
-  const secondFrame=await waitFor("fresh PixelForge frame",async()=>{
-    const t=await call("Page.getFrameTree");return frameFor(pixelOrigin,t.frameTree);
-  });
+  const secondFrame=await waitFor("fresh PixelForge frame",()=>
+    locatePixelFrame(useLivePages?childFrameId:null));
   childContext=await childExecutionContext(secondFrame,"PixelForgeR12Reconnect");
   await waitFor("fresh handshake not pre-approved",async()=>
     (await clientText()).includes("Connected; no project reference approved yet"),16000);
