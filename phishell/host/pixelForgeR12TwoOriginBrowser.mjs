@@ -182,11 +182,34 @@ try{
   await send("Runtime.enable",{},sessionId);
   const call=(method,params={})=>send(method,params,sessionId);
   const evaluate=async(code,contextId)=>{
-    const r=await call("Runtime.evaluate",{expression:code,returnByValue:true,
-      awaitPromise:true,...(contextId?{contextId}:{})});
+    // HTTPS GitHub Pages runs in an out-of-process iframe on Chromium.
+    // Loopback-only child contexts belong to the parent page session.
+    const remoteSession=typeof contextId==="object" ? contextId?.sessionId : null;
+    const r=await send("Runtime.evaluate",{expression:code,returnByValue:true,
+      awaitPromise:true,...(typeof contextId==="number"?{contextId}:{})},
+      remoteSession||sessionId);
     if(r.exceptionDetails)throw Error("Chrome expression: "+
       JSON.stringify(r.exceptionDetails).slice(0,400));
     return r.result?.value;
+  };
+  const childExecutionContext=async(frameId,worldName)=>{
+    try{
+      const {executionContextId}=await call("Page.createIsolatedWorld",{
+        frameId,worldName,
+      });
+      return executionContextId;
+    }catch(error){
+      if(!useLivePages)throw error;
+      const targets=await send("Target.getTargets");
+      const target=targets.targetInfos.find(x=>x.type==="iframe"&&
+        x.url?.startsWith(pixelOrigin+pixelPublishedStudioPath));
+      assert.ok(target,"Live PixelForge cross-site iframe target not discoverable");
+      const {sessionId:childSession}=await send("Target.attachToTarget",{
+        targetId:target.targetId,flatten:true,
+      });
+      await send("Runtime.enable",{},childSession);
+      return {sessionId:childSession};
+    }
   };
   const click=(selector,label,contextId)=>evaluate("(()=>{const root=document.querySelector("+
     JSON.stringify(selector)+");const button=Array.from(root?.querySelectorAll('button')||[])"+
@@ -232,9 +255,7 @@ try{
     const r=await call("Page.getFrameTree");
     return frameFor(pixelOrigin,r.frameTree);
   });
-  let {executionContextId:childContext}=await call("Page.createIsolatedWorld",{
-    frameId:childFrameId,worldName:"PixelForgeR12FirstSession",
-  });
+  let childContext=await childExecutionContext(childFrameId,"PixelForgeR12FirstSession");
   const clientText=()=>evaluate('document.querySelector("#phiosBridgePanel")?.textContent||""',
     childContext);
   await waitFor("child visible and connected",async()=>
@@ -326,9 +347,7 @@ try{
   const secondFrame=await waitFor("fresh PixelForge frame",async()=>{
     const t=await call("Page.getFrameTree");return frameFor(pixelOrigin,t.frameTree);
   });
-  ({executionContextId:childContext}=await call("Page.createIsolatedWorld",{
-    frameId:secondFrame,worldName:"PixelForgeR12Reconnect",
-  }));
+  childContext=await childExecutionContext(secondFrame,"PixelForgeR12Reconnect");
   await waitFor("fresh handshake not pre-approved",async()=>
     (await clientText()).includes("Connected; no project reference approved yet"),16000);
   assert.equal(await click("#phiosBridgePanel","Request project reference",childContext),true);
