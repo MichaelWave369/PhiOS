@@ -120,7 +120,7 @@ try{
     }
     const page=await getPublicAsset("index.html");
     const contentType=page.response.headers.get("content-type")||"";
-    assert.match(contentType,/text\\/html/i,
+    assert.match(contentType,/text\/html/i,
       "Live PixelForge VR route must return HTML, not a fallback/error");
     assert.ok(page.bytes.toString("utf8").includes("phiosBridgePanel"),
       "Live PixelForge VR Studio has no reviewed bridge controls");
