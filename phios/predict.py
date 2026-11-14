@@ -39,6 +39,9 @@ OUTCOME_FIELDS = {
     "prediction_id", "run_id", "conclusion", "run_started_at", "source_url",
     "source_sha256", "observed_at",
 }
+GITHUB_VERIFICATION_FIELDS = {
+    "prediction_id", "run_id", "api_sha256", "checked_at", "run_created_at", "run_attempt",
+}
 
 
 class PredictionContractError(ValueError):
@@ -130,11 +133,32 @@ def _check_outcome(data: Any) -> Mapping[str, Any]:
     return row
 
 
+def _check_github_verification(data: Any) -> Mapping[str, Any]:
+    row = _exact_keys(data, GITHUB_VERIFICATION_FIELDS, "github_verification")
+    if not isinstance(row["prediction_id"], str) or not ID_RE.fullmatch(
+        row["prediction_id"]
+    ):
+        raise PredictionContractError("invalid verified prediction id")
+    if type(row["run_id"]) is not int or row["run_id"] <= 0:
+        raise PredictionContractError("invalid verified workflow run id")
+    if (
+        not isinstance(row["api_sha256"], str)
+        or not re.fullmatch(r"[a-f0-9]{64}", row["api_sha256"])
+    ):
+        raise PredictionContractError("invalid GitHub API response hash")
+    if type(row["run_attempt"]) is not int or row["run_attempt"] != 1:
+        raise PredictionContractError("reruns not supported for R0.2 verification")
+    _when(row["checked_at"], "checked_at")
+    _when(row["run_created_at"], "run_created_at")
+    return row
+
+
 def _replay(events: list[dict[str, Any]]) -> tuple[dict[str, Any], dict[str, Any]]:
     predictions: dict[str, Any] = {}
     outcomes: dict[str, Any] = {}
     targets: set[tuple[str, str, str]] = set()
     run_ids: set[int] = set()
+    verified_ids: set[str] = set()
     for event in events:
         kind = event["kind"]
         if kind == "prediction":
@@ -159,6 +183,21 @@ def _replay(events: list[dict[str, Any]]) -> tuple[dict[str, Any], dict[str, Any
                 raise PredictionContractError("outcome source URL does not match target")
             outcomes[pid] = row
             run_ids.add(row["run_id"])
+        elif kind == "github_verification":
+            row = _check_github_verification(event["data"])
+            pid = row["prediction_id"]
+            if pid not in outcomes:
+                raise PredictionContractError("verification without earlier observation")
+            if pid in verified_ids:
+                raise PredictionContractError("duplicate GitHub verification")
+            if row["run_id"] != outcomes[pid]["run_id"]:
+                raise PredictionContractError("GitHub verification run ID mismatch")
+            started = _when(outcomes[pid]["run_started_at"], "run_started_at")
+            created = _when(row["run_created_at"], "run_created_at")
+            checked = _when(row["checked_at"], "checked_at")
+            if created > started or checked < started:
+                raise PredictionContractError("invalid GitHub verification chronology")
+            verified_ids.add(pid)
         else:
             raise PredictionContractError("unsupported event kind")
     return predictions, outcomes
