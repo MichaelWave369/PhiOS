@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Any
 
 from qemu_boot import capture_display, enter_live_login, qmp_request
+from qemu_failure_evidence import memory_events_before_start, snapshot
 from qemu_desktop import qualify_lock
 from thinktank_guest_hold_validator import (
     HOLD_MARKER_PATTERN, verify_boot_series, verify_hold_observation,
@@ -73,7 +74,9 @@ def recover_live(common: list[str], iso: Path, output: Path, receipt: dict[str, 
         '-device', 'ide-cd,drive=installation,bootindex=1', '-serial', f'file:{serial}',
         '-qmp', f'unix:{qmp},server=on,wait=off']
     receipt['commands'].append(command)
-    with (output / 'recovery-live-qemu.log').open('w') as log:
+    diagnostics_start = memory_events_before_start()
+    qemu_log = output / 'recovery-live-qemu.log'
+    with qemu_log.open('w') as log:
         process = subprocess.Popen(command, stdout=log, stderr=subprocess.STDOUT)
         try:
             deadline = time.monotonic() + 900
@@ -93,6 +96,13 @@ def recover_live(common: list[str], iso: Path, output: Path, receipt: dict[str, 
                 time.sleep(1)
             else:
                 raise RuntimeError('live-media recovery timed out')
+        except BaseException as exc:
+            receipt['recovery_vm_failure'] = snapshot(
+                stage='qa-live-media-recovery', process=process,
+                serial_log=serial, qemu_log=qemu_log, failure=exc,
+                memory_events_before=diagnostics_start,
+            )
+            raise
         finally:
             if process.poll() is None:
                 capture_display(qmp, output, name='screen-recovery-live')

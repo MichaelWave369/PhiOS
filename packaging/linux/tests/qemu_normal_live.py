@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from qemu_boot import capture_display
+from qemu_failure_evidence import memory_events_before_start, snapshot
 
 
 def drive_live(common: list[str], iso: Path, source: str, output: Path, receipt: dict[str, Any],
@@ -20,7 +21,9 @@ def drive_live(common: list[str], iso: Path, source: str, output: Path, receipt:
         '-device', 'ide-cd,drive=installation,bootindex=1', '-serial', f'unix:{serial},server=on,wait=off',
         '-qmp', f'unix:{qmp},server=on,wait=off']
     receipt['commands'].append(command)
-    with (output / (prefix + '-qemu.log')).open('w') as log:
+    diagnostics_start = memory_events_before_start()
+    qemu_log = output / (prefix + '-qemu.log')
+    with qemu_log.open('w') as log:
         process = subprocess.Popen(command, stdout=log, stderr=subprocess.STDOUT)
         try:
             deadline = time.monotonic() + 1800
@@ -78,6 +81,13 @@ def drive_live(common: list[str], iso: Path, source: str, output: Path, receipt:
                             or result['fixture_free'] is not True or result['limited_live_sudo'] is not True):
                         raise RuntimeError('normal maintenance identity/evidence mismatch')
                     return result
+        except BaseException as exc:
+            receipt.setdefault('normal_live_vm_failures', []).append(snapshot(
+                stage='normal-' + stage + '-live', process=process,
+                serial_log=output / (prefix + '-serial.log'), qemu_log=qemu_log,
+                failure=exc, memory_events_before=diagnostics_start,
+            ))
+            raise
         finally:
             if process.poll() is None:
                 try:

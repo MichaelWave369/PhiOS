@@ -11,6 +11,8 @@ import socket
 import subprocess
 import time
 from pathlib import Path
+
+from qemu_failure_evidence import memory_events_before_start, snapshot
 from typing import Any
 
 
@@ -85,7 +87,9 @@ def boot(iso: Path, source: str, output: Path, *, timeout: int = 600) -> None:
                "accelerator": accelerator, "timeout_seconds": timeout,
                "boot_passed": False, "reboot_passed": False, "boot_ids": [],
                "hardware_qualified": False, "release_ready": False}
-    with (output / "qemu.log").open("w") as log:
+    diagnostics_start = memory_events_before_start()
+    qemu_log = output / "qemu.log"
+    with qemu_log.open("w") as log:
         process = subprocess.Popen(command, stdout=log, stderr=subprocess.STDOUT)
         try:
             deadline = time.monotonic() + timeout
@@ -118,6 +122,13 @@ def boot(iso: Path, source: str, output: Path, *, timeout: int = 600) -> None:
             receipt["boot_passed"] = True
             receipt["reboot_passed"] = True
             print(f"UEFI boot, session restart and second boot passed for ISO {receipt['iso_sha256']}")
+        except BaseException as exc:
+            receipt["boot_vm_failure"] = snapshot(
+                stage="qa-live-uefi-boot", process=process,
+                serial_log=serial, qemu_log=qemu_log, failure=exc,
+                memory_events_before=diagnostics_start,
+            )
+            raise
         finally:
             if not (output / "screen.ppm").exists() and process.poll() is None:
                 try:
