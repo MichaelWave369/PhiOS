@@ -1,11 +1,14 @@
-name: PhiPredict R0.1
+name: PhiPredict R0.1-R0.2
 
 on:
   pull_request:
     paths:
       - 'phios/predict.py'
+      - 'phios/predict_source.py'
       - 'tests/test_predict_r01.py'
+      - 'tests/test_predict_r02.py'
       - 'docs/PHIPREDICT_R01.md'
+      - 'docs/PHIPREDICT_R02.md'
       - '.github/workflows/phipredict-r01.yml'
   workflow_dispatch:
 
@@ -23,8 +26,8 @@ jobs:
       - name: Install test tools
         run: python -m pip install pytest==9.0.2 ruff==0.15.6 mypy==1.19.1
       - name: Ruff
-        run: ruff check phios/predict.py tests/test_predict_r01.py
+        run: ruff check phios/predict.py phios/predict_source.py tests/test_predict_r01.py tests/test_predict_r02.py
       - name: Mypy
-        run: mypy phios/predict.py --ignore-missing-imports
+        run: mypy phios/predict.py phios/predict_source.py --ignore-missing-imports
       - name: Focused tests
-        run: python -m pytest -q tests/test_predict_r01.py
+        run: python -m pytest -q tests/test_predict_r01.py tests/test_predict_r02.py
