@@ -1,5 +1,14 @@
 # φ PhiOS
 
+## ΦPredict R0.2 · Public-source checked predictions (experimental)
+
+[ΦPredict R0.1](docs/PHIPREDICT_R01.md) records operator-declared CI forecasts
+before workflows run and scores success/failure against a fixed baseline.
+[ΦPredict R0.2](docs/PHIPREDICT_R02.md) adds explicit, read-only public GitHub
+API source checks and a separate verified-only calibration report. All checks
+are advisory. Neither research rung automatically acts, modifies memory,
+or grants execution authority. No network is used without a per-command flag.
+
 ## Optical vs. Electrical Transport Advisor (R1)
 
 [Research contract and limitations](docs/PHIOS_OPTICAL_PATH_R1.md). Try `python -m phios.optical_path_r1 --sizes 64,4096,65536,1048576` for deterministic **synthetic** link-budget estimates. This never probes hardware, changes routing, or provides physical authority.
