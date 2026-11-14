@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from datetime import datetime, timedelta, timezone
+from unittest.mock import patch
 
 import pytest
 
@@ -21,14 +22,16 @@ SHA = "a" * 40
 
 
 def _register(path, prediction_id="p01", *, head_sha=SHA, p=0.9, cohort="holdout"):
-    return register(
-        path, prediction_id=prediction_id, repo=REPO, head_sha=head_sha,
-        workflow="CI", probability=p, cohort=cohort,
-    )
+    frozen = (datetime.now(timezone.utc) - timedelta(minutes=10)).isoformat()
+    with patch("phios.predict._now", return_value=frozen):
+        return register(
+            path, prediction_id=prediction_id, repo=REPO, head_sha=head_sha,
+            workflow="CI", probability=p, cohort=cohort,
+        )
 
 
 def _run_json(path, *, sha=SHA, run_id=701, conclusion="success", **changes):
-    started = (datetime.now(timezone.utc) + timedelta(minutes=5)).isoformat()
+    started = (datetime.now(timezone.utc) - timedelta(minutes=5)).isoformat()
     payload = {
         "id": run_id,
         "repository": {"full_name": REPO},
@@ -99,6 +102,16 @@ def test_late_prediction_does_not_get_scored(tmp_path):
     summary = report(ledger)
     assert summary["holdout_scored"] == 0
     assert summary["holdout_excluded"]["late_or_unverified_pre_run"] == 1
+
+
+def test_completed_run_with_future_start_is_rejected(tmp_path):
+    ledger = tmp_path / "ledger.jsonl"
+    _register(ledger)
+    future = (datetime.now(timezone.utc) + timedelta(days=1)).isoformat()
+    source = _run_json(tmp_path, run_started_at=future)
+    with pytest.raises(PredictionContractError, match="later than local observation"):
+        observe(ledger, prediction_id="p01", run_json=source)
+    assert len(load_ledger(ledger)) == 1
 
 
 def test_neutral_outcome_not_counted_as_failure(tmp_path):
