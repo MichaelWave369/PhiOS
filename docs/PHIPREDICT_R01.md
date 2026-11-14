@@ -22,10 +22,7 @@ the workflow name must exactly match the GitHub Actions API `name`.
 
 ~~~powershell
 $ledger = ".\phipredict-ledger.jsonl"
-python -m phios.predict --ledger $ledger register ^
-  --id trial-001 --repo MichaelWave369/PhiOS ^
-  --sha "REPLACE_WITH_40_CHARACTER_COMMIT_SHA" ^
-  --workflow "CI" --probability 0.65 --cohort holdout
+python -m phios.predict --ledger $ledger register --id trial-001 --repo MichaelWave369/PhiOS --sha "REPLACE_WITH_40_CHARACTER_COMMIT_SHA" --workflow "CI" --probability 0.65 --cohort holdout
 
 # Start or wait for the matching workflow AFTER the prediction is committed.
 # Fetch completed run evidence separately. This CLI never accesses GitHub.
@@ -35,13 +32,12 @@ python -m phios.predict --ledger $ledger verify
 python -m phios.predict --ledger $ledger report
 ~~~
 
-For PowerShell, put the register arguments on one line, or use PowerShell's
-backtick continuation character instead of the illustrative `^` line breaks.
 `gh` is optional and external to PhiOS. For the initial experiment the
 operator explicitly supplies the GitHub Actions API workflow-run JSON.
 `run.json` must include: `id`, `name`, `repository.full_name`, `head_sha`,
 `status` (`completed`), `conclusion`, canonical `html_url`, and an
-offset-aware `run_started_at`. Identity mismatches, unfinished runs, duplicate
+offset-aware `run_started_at`. A completed workflow cannot start after the
+local observation time. Identity mismatches, unfinished runs, duplicate
 targets, duplicate outcomes, malformed JSON and inconsistent hashes HOLD.
 
 ## Predictions
