@@ -21,22 +21,11 @@ from phios.predict import (
     MAX_EVIDENCE_BYTES,
     PredictionContractError,
     _append,
-    _canonical,
     _now,
     _replay,
     _when,
     load_ledger,
 )
-
-VERIFY_FIELDS = {
-    "prediction_id",
-    "run_id",
-    "api_sha256",
-    "checked_at",
-    "run_created_at",
-    "run_attempt",
-}
-
 
 class _NoRedirect(urllib.request.HTTPRedirectHandler):
     def redirect_request(self, req: Any, fp: Any, code: int, msg: str,
@@ -102,6 +91,8 @@ def verify_github_run(
     run_id = outcome["run_id"]
     url = f"https://api.github.com/repos/{repo}/actions/runs/{run_id}"
     raw = _fetch_public_run(url)
+    if len(raw) > MAX_EVIDENCE_BYTES:
+        raise PredictionContractError("GitHub API response exceeds evidence limit")
     try:
         payload = json.loads(raw)
     except (UnicodeError, json.JSONDecodeError) as exc:
