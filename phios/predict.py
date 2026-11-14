@@ -96,7 +96,7 @@ def _check_prediction(data: Any) -> Mapping[str, Any]:
         raise PredictionContractError("probability must be a number, not a boolean")
     if not math.isfinite(p) or not (0 <= p <= 1):
         raise PredictionContractError("probability must be finite and within [0, 1]")
-    if row["cohort"] not in {"pilot", "holdout"}:
+    if not isinstance(row["cohort"], str) or row["cohort"] not in {"pilot", "holdout"}:
         raise PredictionContractError("cohort must be pilot or holdout")
     _when(row["registered_at"], "registered_at")
     return row
@@ -110,7 +110,11 @@ def _check_outcome(data: Any) -> Mapping[str, Any]:
         raise PredictionContractError("invalid outcome prediction id")
     if isinstance(row["run_id"], bool) or not isinstance(row["run_id"], int):
         raise PredictionContractError("run_id must be a positive integer")
-    if row["run_id"] <= 0 or row["conclusion"] not in CONCLUSIONS:
+    if (
+        row["run_id"] <= 0
+        or not isinstance(row["conclusion"], str)
+        or row["conclusion"] not in CONCLUSIONS
+    ):
         raise PredictionContractError("invalid run id or workflow conclusion")
     if (
         not isinstance(row["source_sha256"], str)
@@ -119,8 +123,10 @@ def _check_outcome(data: Any) -> Mapping[str, Any]:
         raise PredictionContractError("source digest must be lowercase SHA-256")
     if not isinstance(row["source_url"], str):
         raise PredictionContractError("source_url must be a string")
-    _when(row["run_started_at"], "run_started_at")
-    _when(row["observed_at"], "observed_at")
+    if _when(row["run_started_at"], "run_started_at") > _when(
+        row["observed_at"], "observed_at"
+    ):
+        raise PredictionContractError("workflow start is later than local observation")
     return row
 
 
