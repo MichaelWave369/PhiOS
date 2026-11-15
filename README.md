@@ -1,5 +1,14 @@
 # φ PhiOS
 
+## ΦPredict R0.4 · Public timestamped forecast commitments (experimental)
+
+[ΦPredict R0.4](docs/PHIPREDICT_R04.md) lets an operator manually publish
+an exact registered-forecast event digest as a public GitHub issue comment,
+then verify through a single opt-in read-only API call that the unchanged
+commitment existed before the target workflow was created. The anchored-only
+holdout report remains descriptive. No automatic posting, external writes,
+or execution authority.
+
 ## ΦPredict R0.3 · Prequential calibration (experimental)
 
 [ΦPredict R0.3](docs/PHIPREDICT_R03.md) adds a local, read-only comparison
