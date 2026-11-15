@@ -13,7 +13,10 @@ concurrency:
 
 jobs:
   fixture-free-candidate:
-    runs-on: ubuntu-latest
+    # Pin the host QEMU/OVMF package family for reproducible guest qualification.
+    # Ubuntu latest on 2026-11-14 supplied QEMU 10.2.1; recovery QEMU exited -11.
+    # This is a controlled environment experiment, not a release-gate bypass.
+    runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
@@ -41,7 +44,12 @@ jobs:
         run: |
           set -euo pipefail
           sudo apt-get update
-          sudo apt-get install -y qemu-system-x86 ovmf python3-pil python3-venv
+          sudo apt-get install -y qemu-system-x86 ovmf python3-pil
+          echo 'QEMU qualification runner:'
+          grep '^PRETTY_NAME=' /etc/os-release
+          uname -r
+          qemu-system-x86_64 --version
+          sha256sum /usr/share/OVMF/OVMF_CODE_4M.fd /usr/share/OVMF/OVMF_VARS_4M.fd python3-venv
           if [[ -e /dev/kvm ]]; then
             sudo chgrp "$(id -gn)" /dev/kvm
             sudo chmod g+rw /dev/kvm
