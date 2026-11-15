@@ -1,5 +1,13 @@
 # φ PhiOS
 
+## ΦPredict R0.5 · Current public commitment audits (experimental)
+
+[ΦPredict R0.5](docs/PHIPREDICT_R05.md) performs an operator-approved,
+read-only recheck of the original public issue comment and workflow run.
+Changed/deleted comments, contradictory chronology, and reruns fail closed;
+older R0.4 receipts are **not** automatically upgraded to current evidence.
+The ledger is never modified, and no action authority is conferred.
+
 ## ΦPredict R0.4 · Public timestamped forecast commitments (experimental)
 
 [ΦPredict R0.4](docs/PHIPREDICT_R04.md) lets an operator manually publish
