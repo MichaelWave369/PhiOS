@@ -15,6 +15,10 @@ def test_both_vm_qualifiers_pin_supported_lts_and_preserve_failure_gates():
         assert "qemu-system-x86_64 --version" in script
         assert "sha256sum /usr/share/OVMF/OVMF_CODE_4M.fd" in script
         assert "sudo apt-get install -y qemu-system-x86 ovmf" in script
+        assert "          sha256sum /usr/share/OVMF/OVMF_CODE_4M.fd /usr/share/OVMF/OVMF_VARS_4M.fd\n" in script
+        assert "sha256sum /usr/share/OVMF/OVMF_CODE_4M.fd /usr/share/OVMF/OVMF_VARS_4M.fd python3-venv" not in script
+        if filename == "os-release-candidate.yml":
+            assert "sudo apt-get install -y qemu-system-x86 ovmf python3-pil python3-venv" in script
         assert "    timeout-minutes: 60\n" in script
         assert "--iso dist/" in script
         assert "--recovery" in script
