@@ -42,6 +42,10 @@ OUTCOME_FIELDS = {
 GITHUB_VERIFICATION_FIELDS = {
     "prediction_id", "run_id", "api_sha256", "checked_at", "run_created_at", "run_attempt",
 }
+GITHUB_ANCHOR_FIELDS = {
+    "prediction_id", "comment_id", "comment_api_sha256", "commitment_sha256",
+    "comment_created_at", "comment_updated_at", "run_created_at", "checked_at",
+}
 
 
 class PredictionContractError(ValueError):
@@ -153,12 +157,35 @@ def _check_github_verification(data: Any) -> Mapping[str, Any]:
     return row
 
 
+def _check_github_anchor(data: Any) -> Mapping[str, Any]:
+    row = _exact_keys(data, GITHUB_ANCHOR_FIELDS, "github_anchor")
+    if not isinstance(row["prediction_id"], str) or not ID_RE.fullmatch(
+        row["prediction_id"]
+    ):
+        raise PredictionContractError("invalid anchored prediction id")
+    if type(row["comment_id"]) is not int or row["comment_id"] <= 0:
+        raise PredictionContractError("invalid public issue comment id")
+    for key in ("comment_api_sha256", "commitment_sha256"):
+        if not isinstance(row[key], str) or not re.fullmatch(r"[a-f0-9]{64}", row[key]):
+            raise PredictionContractError(f"{key} must be a lowercase SHA-256")
+    created = _when(row["comment_created_at"], "comment_created_at")
+    updated = _when(row["comment_updated_at"], "comment_updated_at")
+    run_created = _when(row["run_created_at"], "run_created_at")
+    checked = _when(row["checked_at"], "anchor_checked_at")
+    if not created <= updated < run_created <= checked:
+        raise PredictionContractError("contradictory public comment chronology")
+    return row
+
+
 def _replay(events: list[dict[str, Any]]) -> tuple[dict[str, Any], dict[str, Any]]:
     predictions: dict[str, Any] = {}
     outcomes: dict[str, Any] = {}
     targets: set[tuple[str, str, str]] = set()
     run_ids: set[int] = set()
     verified_ids: set[str] = set()
+    anchored_ids: set[str] = set()
+    prediction_event_shas: dict[str, str] = {}
+    verification_creation_times: dict[str, datetime] = {}
     for event in events:
         kind = event["kind"]
         if kind == "prediction":
@@ -167,6 +194,7 @@ def _replay(events: list[dict[str, Any]]) -> tuple[dict[str, Any], dict[str, Any
             if row["id"] in predictions or target in targets:
                 raise PredictionContractError("duplicate prediction id or workflow target")
             predictions[row["id"]] = row
+            prediction_event_shas[row["id"]] = event["sha256"]
             targets.add(target)
         elif kind == "outcome":
             row = _check_outcome(event["data"])
@@ -198,6 +226,26 @@ def _replay(events: list[dict[str, Any]]) -> tuple[dict[str, Any], dict[str, Any
             if created > started or checked < started:
                 raise PredictionContractError("invalid GitHub verification chronology")
             verified_ids.add(pid)
+            verification_creation_times[pid] = created
+        elif kind == "github_anchor":
+            row = _check_github_anchor(event["data"])
+            pid = row["prediction_id"]
+            if pid not in predictions or pid not in verified_ids:
+                raise PredictionContractError("anchor without prior run verification")
+            if pid in anchored_ids:
+                raise PredictionContractError("duplicate externally checked anchor")
+            if _when(row["run_created_at"], "run_created_at") != verification_creation_times[pid]:
+                raise PredictionContractError("anchor and verified run timestamp mismatch")
+            expected = hashlib.sha256(
+                b"phios.predict.anchor.r0.4:" + prediction_event_shas[pid].encode("ascii")
+            ).hexdigest()
+            if not hmac.compare_digest(row["commitment_sha256"], expected):
+                raise PredictionContractError("external commitment disagrees with prediction")
+            if _when(predictions[pid]["registered_at"], "registered_at") >= _when(
+                row["comment_created_at"], "comment_created_at"
+            ):
+                raise PredictionContractError("forecast registration must precede anchor")
+            anchored_ids.add(pid)
         else:
             raise PredictionContractError("unsupported event kind")
     return predictions, outcomes
