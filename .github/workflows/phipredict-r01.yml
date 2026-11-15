@@ -1,4 +1,4 @@
-name: PhiPredict R0.1-R0.4
+name: PhiPredict R0.1-R0.5
 
 on:
   pull_request:
@@ -7,14 +7,17 @@ on:
       - 'phios/predict_source.py'
       - 'phios/predict_calibration.py'
       - 'phios/predict_anchor.py'
+      - 'phios/predict_audit.py'
       - 'tests/test_predict_r01.py'
       - 'tests/test_predict_r02.py'
       - 'tests/test_predict_r03.py'
       - 'tests/test_predict_r04.py'
+      - 'tests/test_predict_r05.py'
       - 'docs/PHIPREDICT_R01.md'
       - 'docs/PHIPREDICT_R02.md'
       - 'docs/PHIPREDICT_R03.md'
       - 'docs/PHIPREDICT_R04.md'
+      - 'docs/PHIPREDICT_R05.md'
       - '.github/workflows/phipredict-r01.yml'
   workflow_dispatch:
 
@@ -32,8 +35,8 @@ jobs:
       - name: Install test tools
         run: python -m pip install pytest==9.0.2 ruff==0.15.6 mypy==1.19.1
       - name: Ruff
-        run: ruff check phios/predict.py phios/predict_source.py phios/predict_calibration.py phios/predict_anchor.py tests/test_predict_r01.py tests/test_predict_r02.py tests/test_predict_r03.py tests/test_predict_r04.py
+        run: ruff check phios/predict.py phios/predict_source.py phios/predict_calibration.py phios/predict_anchor.py phios/predict_audit.py tests/test_predict_r01.py tests/test_predict_r02.py tests/test_predict_r03.py tests/test_predict_r04.py tests/test_predict_r05.py
       - name: Mypy
-        run: mypy phios/predict.py phios/predict_source.py phios/predict_calibration.py phios/predict_anchor.py --ignore-missing-imports
+        run: mypy phios/predict.py phios/predict_source.py phios/predict_calibration.py phios/predict_anchor.py phios/predict_audit.py --ignore-missing-imports
       - name: Focused tests
-        run: python -m pytest -q tests/test_predict_r01.py tests/test_predict_r02.py tests/test_predict_r03.py tests/test_predict_r04.py
+        run: python -m pytest -q tests/test_predict_r01.py tests/test_predict_r02.py tests/test_predict_r03.py tests/test_predict_r04.py tests/test_predict_r05.py
