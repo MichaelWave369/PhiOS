@@ -1,5 +1,13 @@
 # φ PhiOS
 
+## ΦPredict R0.3 · Prequential calibration (experimental)
+
+[ΦPredict R0.3](docs/PHIPREDICT_R03.md) adds a local, read-only comparison
+against a Laplace-smoothed repo/workflow history that was already verified
+before each forecast, with a static offline calibration dashboard. It makes
+no network calls and grants no action authority. Descriptive scores are
+not proof of intelligence, genuine preregistration, or validated superiority.
+
 ## ΦPredict R0.2 · Public-source checked predictions (experimental)
 
 [ΦPredict R0.1](docs/PHIPREDICT_R01.md) records operator-declared CI forecasts
