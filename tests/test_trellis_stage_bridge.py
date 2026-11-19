@@ -65,6 +65,25 @@ class TrellisBridgeTests(unittest.TestCase):
             with self.subTest(field=field), self.assertRaises(ValueError):
                 readiness.inspect_profiles(forged, catalog, apps)
 
+    def test_candidate_review_holds_distribution_without_a_staging_grant(self):
+        catalog = json.loads(readiness.CATALOG_FILE.read_text())
+        apps = json.loads(readiness.CANDIDATES.read_text())
+        entries = json.loads(readiness.PROFILES.read_text())
+        candidate = next(row for row in entries["profiles"]
+                         if row["repository"] == "MichaelWave369/PhiMadaPrime")
+        profiles = readiness.inspect_profiles(entries, catalog, apps)
+        self.assertEqual(profiles[candidate["repository"]]["integration"]["status"], "candidate_review")
+        self.assertEqual(candidate["distribution"], "held")
+        with self.assertRaisesRegex(ValueError, "UNKNOWN_CANDIDATE"):
+            bridge.plan("phimada-prime")
+        for field, value in (("kind", "service"), ("distribution", "not_requested"),
+                             ("build_artifact", {"path": "dist", "sha256": "1"*64})):
+            original = candidate[field]
+            candidate[field] = value
+            with self.subTest(field=field), self.assertRaises(ValueError):
+                readiness.inspect_profiles(entries, catalog, apps)
+            candidate[field] = original
+
     def fixture(self, root: Path, *, key="vessie-web"):
         checkout = root / "repo"
         checkout.mkdir()

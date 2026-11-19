@@ -5,8 +5,26 @@
   "snapshot_status": "OFFLINE_SOURCE_LISTING_ONLY",
   "entries": [
     {
+      "name": "-Core369",
+      "repository_url": "https://github.com/MichaelWave369/-Core369",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
       "name": "12fold",
       "repository_url": "https://github.com/MichaelWave369/12fold",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "369HLJAtlas",
+      "repository_url": "https://github.com/MichaelWave369/369HLJAtlas",
       "kind": "source_catalog_entry",
       "availability": "SOURCE_ONLY",
       "installed": false,
@@ -25,6 +43,42 @@
     {
       "name": "Aidora",
       "repository_url": "https://github.com/MichaelWave369/Aidora",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "AKASHA",
+      "repository_url": "https://github.com/MichaelWave369/AKASHA",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "AlchemyPhi",
+      "repository_url": "https://github.com/MichaelWave369/AlchemyPhi",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "AlmanacPhi",
+      "repository_url": "https://github.com/MichaelWave369/AlmanacPhi",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "Altermath",
+      "repository_url": "https://github.com/MichaelWave369/Altermath",
       "kind": "source_catalog_entry",
       "availability": "SOURCE_ONLY",
       "installed": false,
@@ -61,6 +115,15 @@
     {
       "name": "AquaPhi",
       "repository_url": "https://github.com/MichaelWave369/AquaPhi",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "ARCLight",
+      "repository_url": "https://github.com/MichaelWave369/ARCLight",
       "kind": "source_catalog_entry",
       "availability": "SOURCE_ONLY",
       "installed": false,
@@ -133,6 +196,15 @@
     {
       "name": "BizHaven",
       "repository_url": "https://github.com/MichaelWave369/BizHaven",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "Blackout",
+      "repository_url": "https://github.com/MichaelWave369/Blackout",
       "kind": "source_catalog_entry",
       "availability": "SOURCE_ONLY",
       "installed": false,
@@ -230,6 +302,15 @@
       "redistribution_reviewed": false
     },
     {
+      "name": "CANOPY",
+      "repository_url": "https://github.com/MichaelWave369/CANOPY",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
       "name": "CFD",
       "repository_url": "https://github.com/MichaelWave369/CFD",
       "kind": "source_catalog_entry",
@@ -259,6 +340,15 @@
     {
       "name": "CineSwarm",
       "repository_url": "https://github.com/MichaelWave369/CineSwarm",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "CodeBound",
+      "repository_url": "https://github.com/MichaelWave369/CodeBound",
       "kind": "source_catalog_entry",
       "availability": "SOURCE_ONLY",
       "installed": false,
@@ -311,6 +401,15 @@
       "redistribution_reviewed": false
     },
     {
+      "name": "ComedyAtlas",
+      "repository_url": "https://github.com/MichaelWave369/ComedyAtlas",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
       "name": "ComicRelief",
       "repository_url": "https://github.com/MichaelWave369/ComicRelief",
       "kind": "source_catalog_entry",
@@ -338,6 +437,15 @@
       "redistribution_reviewed": false
     },
     {
+      "name": "CompAware",
+      "repository_url": "https://github.com/MichaelWave369/CompAware",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
       "name": "concrete-atlas",
       "repository_url": "https://github.com/MichaelWave369/concrete-atlas",
       "kind": "source_catalog_entry",
@@ -349,6 +457,24 @@
     {
       "name": "consent_mirror_369",
       "repository_url": "https://github.com/MichaelWave369/consent_mirror_369",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "Creagent",
+      "repository_url": "https://github.com/MichaelWave369/Creagent",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "CycleWeave",
+      "repository_url": "https://github.com/MichaelWave369/CycleWeave",
       "kind": "source_catalog_entry",
       "availability": "SOURCE_ONLY",
       "installed": false,
@@ -394,6 +520,24 @@
     {
       "name": "ebpf-for-windows",
       "repository_url": "https://github.com/MichaelWave369/ebpf-for-windows",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "EchoesOfTheNine",
+      "repository_url": "https://github.com/MichaelWave369/EchoesOfTheNine",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "ElsewhereEngine",
+      "repository_url": "https://github.com/MichaelWave369/ElsewhereEngine",
       "kind": "source_catalog_entry",
       "availability": "SOURCE_ONLY",
       "installed": false,
@@ -518,6 +662,15 @@
       "redistribution_reviewed": false
     },
     {
+      "name": "FieldStoryForge",
+      "repository_url": "https://github.com/MichaelWave369/FieldStoryForge",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
       "name": "flow-covenant-runtime",
       "repository_url": "https://github.com/MichaelWave369/flow-covenant-runtime",
       "kind": "source_catalog_entry",
@@ -563,8 +716,26 @@
       "redistribution_reviewed": false
     },
     {
+      "name": "G-FunkProp",
+      "repository_url": "https://github.com/MichaelWave369/G-FunkProp",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
       "name": "GBRM",
       "repository_url": "https://github.com/MichaelWave369/GBRM",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "GenEWrist",
+      "repository_url": "https://github.com/MichaelWave369/GenEWrist",
       "kind": "source_catalog_entry",
       "availability": "SOURCE_ONLY",
       "installed": false,
@@ -592,6 +763,15 @@
     {
       "name": "GLO",
       "repository_url": "https://github.com/MichaelWave369/GLO",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "GMED",
+      "repository_url": "https://github.com/MichaelWave369/GMED",
       "kind": "source_catalog_entry",
       "availability": "SOURCE_ONLY",
       "installed": false,
@@ -691,6 +871,15 @@
     {
       "name": "InfiniteInterconnects",
       "repository_url": "https://github.com/MichaelWave369/InfiniteInterconnects",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "InfiniteTinkerer",
+      "repository_url": "https://github.com/MichaelWave369/InfiniteTinkerer",
       "kind": "source_catalog_entry",
       "availability": "SOURCE_ONLY",
       "installed": false,
@@ -799,6 +988,33 @@
     {
       "name": "lumen_sword_369",
       "repository_url": "https://github.com/MichaelWave369/lumen_sword_369",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "LWG",
+      "repository_url": "https://github.com/MichaelWave369/LWG",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "MasterKeySystem",
+      "repository_url": "https://github.com/MichaelWave369/MasterKeySystem",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "MeekLee",
+      "repository_url": "https://github.com/MichaelWave369/MeekLee",
       "kind": "source_catalog_entry",
       "availability": "SOURCE_ONLY",
       "installed": false,
@@ -959,6 +1175,15 @@
       "redistribution_reviewed": false
     },
     {
+      "name": "OAA369",
+      "repository_url": "https://github.com/MichaelWave369/OAA369",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
       "name": "OakStreetRumble",
       "repository_url": "https://github.com/MichaelWave369/OakStreetRumble",
       "kind": "source_catalog_entry",
@@ -986,6 +1211,15 @@
       "redistribution_reviewed": false
     },
     {
+      "name": "Opti-Eyes",
+      "repository_url": "https://github.com/MichaelWave369/Opti-Eyes",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
       "name": "OverStrings",
       "repository_url": "https://github.com/MichaelWave369/OverStrings",
       "kind": "source_catalog_entry",
@@ -997,6 +1231,15 @@
     {
       "name": "pain-joy-continuum",
       "repository_url": "https://github.com/MichaelWave369/pain-joy-continuum",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "PaperGhost",
+      "repository_url": "https://github.com/MichaelWave369/PaperGhost",
       "kind": "source_catalog_entry",
       "availability": "SOURCE_ONLY",
       "installed": false,
@@ -1076,6 +1319,15 @@
       "redistribution_reviewed": false
     },
     {
+      "name": "PatternAtlas",
+      "repository_url": "https://github.com/MichaelWave369/PatternAtlas",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
       "name": "Peekaboo",
       "repository_url": "https://github.com/MichaelWave369/Peekaboo",
       "kind": "source_catalog_entry",
@@ -1087,6 +1339,15 @@
     {
       "name": "personamirror369",
       "repository_url": "https://github.com/MichaelWave369/personamirror369",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "phi-field",
+      "repository_url": "https://github.com/MichaelWave369/phi-field",
       "kind": "source_catalog_entry",
       "availability": "SOURCE_ONLY",
       "installed": false,
@@ -1121,6 +1382,15 @@
       "redistribution_reviewed": false
     },
     {
+      "name": "PhianoSheets",
+      "repository_url": "https://github.com/MichaelWave369/PhianoSheets",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
       "name": "PhiARK",
       "repository_url": "https://github.com/MichaelWave369/PhiARK",
       "kind": "source_catalog_entry",
@@ -1148,6 +1418,24 @@
       "redistribution_reviewed": false
     },
     {
+      "name": "PhiBall369",
+      "repository_url": "https://github.com/MichaelWave369/PhiBall369",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "PhiBioMesh",
+      "repository_url": "https://github.com/MichaelWave369/PhiBioMesh",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
       "name": "phibot",
       "repository_url": "https://github.com/MichaelWave369/phibot",
       "kind": "source_catalog_entry",
@@ -1166,8 +1454,26 @@
       "redistribution_reviewed": false
     },
     {
+      "name": "PhiBridge369",
+      "repository_url": "https://github.com/MichaelWave369/PhiBridge369",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
       "name": "PhiCade",
       "repository_url": "https://github.com/MichaelWave369/PhiCade",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "PhiCircuitLab",
+      "repository_url": "https://github.com/MichaelWave369/PhiCircuitLab",
       "kind": "source_catalog_entry",
       "availability": "SOURCE_ONLY",
       "installed": false,
@@ -1184,8 +1490,44 @@
       "redistribution_reviewed": false
     },
     {
+      "name": "PhiCloud",
+      "repository_url": "https://github.com/MichaelWave369/PhiCloud",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
       "name": "PhiCompile",
       "repository_url": "https://github.com/MichaelWave369/PhiCompile",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "PhiCortex",
+      "repository_url": "https://github.com/MichaelWave369/PhiCortex",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "PhiDecisionField",
+      "repository_url": "https://github.com/MichaelWave369/PhiDecisionField",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "PhiDiscovery",
+      "repository_url": "https://github.com/MichaelWave369/PhiDiscovery",
       "kind": "source_catalog_entry",
       "availability": "SOURCE_ONLY",
       "installed": false,
@@ -1220,8 +1562,35 @@
       "redistribution_reviewed": false
     },
     {
+      "name": "PhiFractalCity",
+      "repository_url": "https://github.com/MichaelWave369/PhiFractalCity",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
       "name": "PhiGrooveDrive",
       "repository_url": "https://github.com/MichaelWave369/PhiGrooveDrive",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "PhiGuardian",
+      "repository_url": "https://github.com/MichaelWave369/PhiGuardian",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "PhiID",
+      "repository_url": "https://github.com/MichaelWave369/PhiID",
       "kind": "source_catalog_entry",
       "availability": "SOURCE_ONLY",
       "installed": false,
@@ -1256,6 +1625,33 @@
       "redistribution_reviewed": false
     },
     {
+      "name": "PhiLowe",
+      "repository_url": "https://github.com/MichaelWave369/PhiLowe",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "PhiMadaPrime",
+      "repository_url": "https://github.com/MichaelWave369/PhiMadaPrime",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "PhiMail",
+      "repository_url": "https://github.com/MichaelWave369/PhiMail",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
       "name": "PhiMapper369",
       "repository_url": "https://github.com/MichaelWave369/PhiMapper369",
       "kind": "source_catalog_entry",
@@ -1274,8 +1670,35 @@
       "redistribution_reviewed": false
     },
     {
+      "name": "PhiMemory9",
+      "repository_url": "https://github.com/MichaelWave369/PhiMemory9",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "PhiMikeyTron369",
+      "repository_url": "https://github.com/MichaelWave369/PhiMikeyTron369",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
       "name": "PhiMirrorHex",
       "repository_url": "https://github.com/MichaelWave369/PhiMirrorHex",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "PhiNeuBio",
+      "repository_url": "https://github.com/MichaelWave369/PhiNeuBio",
       "kind": "source_catalog_entry",
       "availability": "SOURCE_ONLY",
       "installed": false,
@@ -1292,8 +1715,26 @@
       "redistribution_reviewed": false
     },
     {
+      "name": "PhiOperator",
+      "repository_url": "https://github.com/MichaelWave369/PhiOperator",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
       "name": "PhiOS",
       "repository_url": "https://github.com/MichaelWave369/PhiOS",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "PhiOS-Mobile",
+      "repository_url": "https://github.com/MichaelWave369/PhiOS-Mobile",
       "kind": "source_catalog_entry",
       "availability": "SOURCE_ONLY",
       "installed": false,
@@ -1319,8 +1760,26 @@
       "redistribution_reviewed": false
     },
     {
+      "name": "PhiPonder",
+      "repository_url": "https://github.com/MichaelWave369/PhiPonder",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
       "name": "PhiPortal",
       "repository_url": "https://github.com/MichaelWave369/PhiPortal",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "PhiPress",
+      "repository_url": "https://github.com/MichaelWave369/PhiPress",
       "kind": "source_catalog_entry",
       "availability": "SOURCE_ONLY",
       "installed": false,
@@ -1337,6 +1796,33 @@
       "redistribution_reviewed": false
     },
     {
+      "name": "PhiRepoNerve",
+      "repository_url": "https://github.com/MichaelWave369/PhiRepoNerve",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "PhiRSI",
+      "repository_url": "https://github.com/MichaelWave369/PhiRSI",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "PhiSafe",
+      "repository_url": "https://github.com/MichaelWave369/PhiSafe",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
       "name": "PhiScribe",
       "repository_url": "https://github.com/MichaelWave369/PhiScribe",
       "kind": "source_catalog_entry",
@@ -1346,8 +1832,35 @@
       "redistribution_reviewed": false
     },
     {
+      "name": "PhiServe",
+      "repository_url": "https://github.com/MichaelWave369/PhiServe",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "PhiShieldNetwork",
+      "repository_url": "https://github.com/MichaelWave369/PhiShieldNetwork",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
       "name": "PhiSkrit",
       "repository_url": "https://github.com/MichaelWave369/PhiSkrit",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "PhiSpectrumForge369",
+      "repository_url": "https://github.com/MichaelWave369/PhiSpectrumForge369",
       "kind": "source_catalog_entry",
       "availability": "SOURCE_ONLY",
       "installed": false,
@@ -1373,8 +1886,62 @@
       "redistribution_reviewed": false
     },
     {
+      "name": "PhiTriBrain369",
+      "repository_url": "https://github.com/MichaelWave369/PhiTriBrain369",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "PhiTyper",
+      "repository_url": "https://github.com/MichaelWave369/PhiTyper",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
       "name": "PHIVid",
       "repository_url": "https://github.com/MichaelWave369/PHIVid",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "PhiVine",
+      "repository_url": "https://github.com/MichaelWave369/PhiVine",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "PhiWorldForge",
+      "repository_url": "https://github.com/MichaelWave369/PhiWorldForge",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "PhiXRCommons",
+      "repository_url": "https://github.com/MichaelWave369/PhiXRCommons",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "PieceByPiece",
+      "repository_url": "https://github.com/MichaelWave369/PieceByPiece",
       "kind": "source_catalog_entry",
       "availability": "SOURCE_ONLY",
       "installed": false,
@@ -1418,6 +1985,15 @@
       "redistribution_reviewed": false
     },
     {
+      "name": "PoWE",
+      "repository_url": "https://github.com/MichaelWave369/PoWE",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
       "name": "PrivateSpark",
       "repository_url": "https://github.com/MichaelWave369/PrivateSpark",
       "kind": "source_catalog_entry",
@@ -1429,6 +2005,15 @@
     {
       "name": "ProofArcade",
       "repository_url": "https://github.com/MichaelWave369/ProofArcade",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "PsiloVerse",
+      "repository_url": "https://github.com/MichaelWave369/PsiloVerse",
       "kind": "source_catalog_entry",
       "availability": "SOURCE_ONLY",
       "installed": false,
@@ -1456,6 +2041,15 @@
     {
       "name": "PuzzlePen",
       "repository_url": "https://github.com/MichaelWave369/PuzzlePen",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "RacetoOblivion",
+      "repository_url": "https://github.com/MichaelWave369/RacetoOblivion",
       "kind": "source_catalog_entry",
       "availability": "SOURCE_ONLY",
       "installed": false,
@@ -1517,6 +2111,15 @@
       "redistribution_reviewed": false
     },
     {
+      "name": "ReelTheater",
+      "repository_url": "https://github.com/MichaelWave369/ReelTheater",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
       "name": "RegenerationAtlas",
       "repository_url": "https://github.com/MichaelWave369/RegenerationAtlas",
       "kind": "source_catalog_entry",
@@ -1544,6 +2147,15 @@
       "redistribution_reviewed": false
     },
     {
+      "name": "RetroVerse",
+      "repository_url": "https://github.com/MichaelWave369/RetroVerse",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
       "name": "SCAM-A-LAX",
       "repository_url": "https://github.com/MichaelWave369/SCAM-A-LAX",
       "kind": "source_catalog_entry",
@@ -1555,6 +2167,15 @@
     {
       "name": "schumann-live-react",
       "repository_url": "https://github.com/MichaelWave369/schumann-live-react",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "ShedofShadows",
+      "repository_url": "https://github.com/MichaelWave369/ShedofShadows",
       "kind": "source_catalog_entry",
       "availability": "SOURCE_ONLY",
       "installed": false,
@@ -1643,6 +2264,15 @@
       "redistribution_reviewed": false
     },
     {
+      "name": "TheOpenField",
+      "repository_url": "https://github.com/MichaelWave369/TheOpenField",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
       "name": "think-tank",
       "repository_url": "https://github.com/MichaelWave369/think-tank",
       "kind": "source_catalog_entry",
@@ -1672,6 +2302,24 @@
     {
       "name": "Triad369-Launchpad",
       "repository_url": "https://github.com/MichaelWave369/Triad369-Launchpad",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "TweedleVerse",
+      "repository_url": "https://github.com/MichaelWave369/TweedleVerse",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "ULGE",
+      "repository_url": "https://github.com/MichaelWave369/ULGE",
       "kind": "source_catalog_entry",
       "availability": "SOURCE_ONLY",
       "installed": false,
