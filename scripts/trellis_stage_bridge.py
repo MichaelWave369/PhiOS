@@ -22,6 +22,7 @@ if str(ROOT) not in sys.path:
 from scripts.verify_ecosystem_app_candidates import (
     CANDIDATES, CATALOG_FILE, FIXED_SOURCES, inspect_candidates
 )
+from scripts.fleet_package_readiness import load_profiles
 
 SCHEMA = "phios.trellis_staging_receipt.v0.1"
 VERSION = "0.1.0"
@@ -102,11 +103,16 @@ def pinned_git_sha(checkout: Path) -> str:
 
 
 def plan(key: str) -> dict[str, Any]:
-    entry = candidates().get(key)
+    catalog = json.loads(CATALOG_FILE.read_text(encoding="utf-8"))
+    source_apps = json.loads(CANDIDATES.read_text(encoding="utf-8"))
+    readiness = load_profiles(catalog, source_apps)
+    entry = next((app for app in source_apps["candidates"] if app["app_key"] == key), None)
     demand(entry is not None, "UNKNOWN_CANDIDATE")
+    source_repo = entry["manifest"]["source"]["repository_url"]
     return {"schema": "phios.trellis_bridge_plan.v0.1", "candidate": key,
             "source_sha": entry["source_sha"],
-            "source_repository": entry["manifest"]["source"]["repository_url"],
+            "source_repository": source_repo,
+            "readiness": readiness[source_repo.removeprefix("https://github.com/")],
             "staging_package_name": "phios-" + key, "package_kind": "source",
             "trellis_source_type": "local_dir", "sha256_required": True,
             "trellis_executed_by_bridge": False, "staging_only": True,

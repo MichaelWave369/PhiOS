@@ -1,0 +1,39 @@
+{
+  "schema_version": "phios.fleet_readiness.v1",
+  "owner": "MichaelWave369",
+  "profiles": [
+    {
+      "repository": "MichaelWave369/Agentora",
+      "repository_id": 1167870912,
+      "source_sha": "c0cd139269a8722c88fd575689ed5d1058268552",
+      "kind": "service",
+      "required_tests": ["backend (3.12)", "backend (3.13)", "web"],
+      "build_artifact": null,
+      "integration": { "status": "out_of_scope", "candidate": null },
+      "distribution": "not_requested",
+      "human_acceptance": ["Complete an owner-reviewed field turn on the exact controller source."]
+    },
+    {
+      "repository": "MichaelWave369/SuperPhiVessel",
+      "repository_id": 1396586926,
+      "source_sha": "69a558ea2d1e8b361e05ded9bed4fc27b32e30cd",
+      "kind": "application",
+      "required_tests": ["locked frontend build", "Trellis staged payload verification", "offline browser acceptance"],
+      "build_artifact": { "path": "site/vessie", "sha256": null },
+      "integration": { "status": "staging_only", "candidate": "vessie-web" },
+      "distribution": "held",
+      "human_acceptance": ["Review dependency and asset redistribution rights.", "Accept the exact offline package in PhiOS."]
+    },
+    {
+      "repository": "MichaelWave369/think-tank",
+      "repository_id": 1399127492,
+      "source_sha": "655d96f7ff892c9989f75cf874e74689f7694127",
+      "kind": "application",
+      "required_tests": ["locked frontend build", "Trellis staged payload verification", "offline browser acceptance"],
+      "build_artifact": { "path": "dist", "sha256": null },
+      "integration": { "status": "staging_only", "candidate": "thinktank-web" },
+      "distribution": "held",
+      "human_acceptance": ["Review dependency and asset redistribution rights.", "Accept the exact offline package in PhiOS."]
+    }
+  ]
+}

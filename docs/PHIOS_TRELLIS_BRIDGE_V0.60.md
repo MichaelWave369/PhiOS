@@ -27,6 +27,16 @@ Trellis is a **separate repository now MIT-licensed at the exact pinned revision
 
 The bridge uses **the same directory checksum layout** as pinned Trellis: sorted relative filenames, NUL, file bytes, then `0xff` per file. The bridge's separate per-file digests detect individual file drift and a final checksum binds the whole static tree. Neither checksum is a digital signature, package signer attestation or assurance about what browser JavaScript does at runtime.
 
+The existing `plan` command includes the matching
+[fleet readiness profile](../phishell/src/ecosystem/fleet-readiness.json).
+It binds the public repository, exact candidate source, required tests,
+expected build path, integration status, distribution status and remaining
+human acceptance. An unset artifact digest is an outstanding requirement.
+Run `python scripts/fleet_package_readiness.py --repo MichaelWave369/think-tank`
+for one profile, or omit `--repo` for every entry in the current public
+catalog. Unclassified entries remain held for profile review. Promotion
+uses the existing exact-artifact, license, acceptance and install gates.
+
 ## CI runs actual code, not just a mock plan
 
 `.github/workflows/trellis-stage-bridge.yml` checks out exact immutable sources, compiles a real Trellis executable using `cargo build --release --locked`, and evaluates frontend dependencies using `npm install --ignore-scripts --no-package-lock --no-save`, then builds the two actual React apps with **`--base ./`**. **Neither pinned upstream checkout contains a `package-lock.json`; these dependency selections are NOT reproducible or supply-chain locked.** Reproducible frontend build claims, dependency closure and third-party licenses remain withheld until separately committed lockfiles or equivalent frozen dependency inventories are reviewed. It stages both frontends and executes **real Trellis** `validate`, `install --from`, `verify` against only two temporary, isolated `TRELLIS_HOME` directories. It runs the bridge's independent postinstall file verifier for both and deliberately tampers with an installed file to prove verification refuses drift.
