@@ -7,6 +7,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from scripts import trellis_stage_bridge as bridge
+from scripts import fleet_package_readiness as readiness
 
 
 class TrellisBridgeTests(unittest.TestCase):
@@ -37,12 +38,32 @@ class TrellisBridgeTests(unittest.TestCase):
             self.assertEqual(p["candidate"], key)
             self.assertEqual(p["source_sha"], self.entries[key]["source_sha"])
             self.assertTrue(p["staging_only"])
+            self.assertEqual(p["readiness"]["integration"], {"status": "staging_only", "candidate": key})
+            self.assertEqual(p["readiness"]["source_sha"], p["source_sha"])
+            self.assertEqual(p["readiness"]["distribution"], "held")
+            self.assertIsNone(p["readiness"]["build_artifact"]["sha256"])
             for guard in ("trellis_executed_by_bridge", "installed_by_phios",
                           "launch_authority", "redistribution_reviewed",
                           "runtime_offline_verified", "external_done"):
                 self.assertFalse(p[guard])
         with self.assertRaisesRegex(ValueError, "UNKNOWN_CANDIDATE"):
             bridge.plan("unreviewed-app")
+
+    def test_catalog_profiles_require_source_scope_and_cannot_self_promote(self):
+        catalog = json.loads(readiness.CATALOG_FILE.read_text())
+        apps = json.loads(readiness.CANDIDATES.read_text())
+        entries = json.loads(readiness.PROFILES.read_text())
+        profiles = readiness.inspect_profiles(entries, catalog, apps)
+        rows = list(readiness.catalog_projection(catalog, profiles))
+        self.assertEqual(len(rows), len(catalog["entries"]))
+        self.assertEqual(profiles["MichaelWave369/Agentora"]["kind"], "service")
+        self.assertTrue(all(row["distribution"] == "held" for row in rows if row["kind"] is None))
+        for field, value in (("distribution", "ready"), ("source_sha", "1"*40),
+                             ("build_artifact", {"path": "dist", "sha256": "a"*64})):
+            forged = copy.deepcopy(entries)
+            forged["profiles"][1][field] = value
+            with self.subTest(field=field), self.assertRaises(ValueError):
+                readiness.inspect_profiles(forged, catalog, apps)
 
     def fixture(self, root: Path, *, key="vessie-web"):
         checkout = root / "repo"
