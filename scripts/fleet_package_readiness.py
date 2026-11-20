@@ -73,8 +73,10 @@ def inspect_profiles(payload, catalog, candidates):
                                  "sha256": None}, "CANDIDATE_BUILD_IDENTITY_DRIFT")
             app_keys.add(key)
         else:
-            require(integration["status"] == "out_of_scope" and
-                    artifact is None and row["distribution"] == "not_requested",
+            outside = integration["status"] == "out_of_scope" and row["distribution"] == "not_requested"
+            review = (integration["status"] == "candidate_review" and
+                      row["kind"] == "application" and row["distribution"] == "held")
+            require(artifact is None and (outside or review),
                     "UNREVIEWED_DISTRIBUTION_REQUEST")
         result[name] = row
         ids.add(rid)

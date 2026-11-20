@@ -36,20 +36,34 @@ Run `python scripts/fleet_package_readiness.py --repo MichaelWave369/think-tank`
 for one profile, or omit `--repo` for every entry in the current public
 catalog. Unclassified entries remain held for profile review. Promotion
 uses the existing exact-artifact, license, acceptance and install gates.
+An application with `candidate_review` has recorded test and acceptance
+requirements. It needs a reviewed build and a separate staging manifest
+before the Trellis bridge can prepare a package.
 
-## CI runs actual code, not just a mock plan
+## Hosted staging evidence
 
-`.github/workflows/trellis-stage-bridge.yml` checks out exact immutable sources, compiles a real Trellis executable using `cargo build --release --locked`, and evaluates frontend dependencies using `npm install --ignore-scripts --no-package-lock --no-save`, then builds the two actual React apps with **`--base ./`**. **Neither pinned upstream checkout contains a `package-lock.json`; these dependency selections are NOT reproducible or supply-chain locked.** Reproducible frontend build claims, dependency closure and third-party licenses remain withheld until separately committed lockfiles or equivalent frozen dependency inventories are reviewed. It stages both frontends and executes **real Trellis** `validate`, `install --from`, `verify` against only two temporary, isolated `TRELLIS_HOME` directories. It runs the bridge's independent postinstall file verifier for both and deliberately tampers with an installed file to prove verification refuses drift.
+The [Trellis staging workflow](../.github/workflows/trellis-stage-bridge.yml)
+builds the pinned Trellis source with `cargo build --release --locked` and
+the two pinned React apps with `npm ci --ignore-scripts` and `--base ./`.
+PhiOS supplies [reviewed dependency locks](PHIOS_TRELLIS_DEPENDENCY_LOCKS_V0.65.md)
+for these exact frontend sources and verifies each lock digest before and
+after building. The pinned Trellis project's MIT declaration is checked
+separately from the frontend and transitive dependency rights.
 
-The source-pin CI now also checks Trellis' MIT metadata at the exact checked-out commit; that validates the top-level project license declaration, **not** transitive dependency or package-content rights. Only generated staging and test artifacts are in GitHub's ephemeral runner temporary directory. Nothing is written to the installed PhiOS AppRegistry, approved desktop-catalog root, host package manager or release ISO. The workflow contains no API keys, no live model execution and no GitHub write permission. A green job proves reproducible **CI staging at exact pinned source revisions**. It does **not** prove browser behavior fully offline, native Linux desktop launch, model inference, verified dependency-license closure, production installer behavior or QEMU boot with the apps.
-
-## Frontend dependency risk
-
-The pinned **source commits** are stable, but neither selected React checkout includes an npm lockfile. For this staging-only proof CI uses an ephemeral, network-fetched npm dependency evaluation with install scripts disabled. The resulting artifacts are rehashed exactly, but the same sources may produce different bytes in a later run because transitive npm versions can change. No package should be promoted as **reproducible, offline-ready, license-cleared or approved for PhiOS installation** on this evidence. A future rung must pin and review the frontend dependency lock/closure for each app independently.
+Trellis validates, installs and verifies each app in a disposable home.
+The bridge independently rehashes installed files and verifies that tampering
+is rejected. Browser jobs exercise the staged apps and qualify
+[disconnected browser cold starts](PHIOS_TRELLIS_BROWSER_COLD_RESTART_V0.64.md)
+for the derived offline profiles. PhiOS desktop and release ISO acceptance,
+redistribution review, and approval of the exact distribution artifact
+are separate requirements.
 
 ## Manual reproduction (in a disposable Linux workstation)
 
-Start with local clones at exactly the pinned commits above, a manually built Trellis 1.0-rc1 CLI and a pre-allocated disposable directory. For the CURRENT pinned source revisions without lockfiles, evaluate dependencies in an isolated sandbox using `npm install --ignore-scripts --no-package-lock --no-save --no-audit --no-fund`, then run `npm run build -- --base ./`. Do not call that dependency graph reproducible. From PhiOS source root:
+Start with local clones at the pinned commits above, a Trellis 1.0-rc1 CLI
+built from the pinned source and a disposable directory. Use the
+[locked frontend procedure](PHIOS_TRELLIS_DEPENDENCY_LOCKS_V0.65.md)
+to build each app. Run the following from the PhiOS source root.
 
 ```bash
 python scripts/trellis_stage_bridge.py plan vessie-web

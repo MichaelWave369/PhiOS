@@ -5,13 +5,13 @@
     {
       "repository": "MichaelWave369/Agentora",
       "repository_id": 1167870912,
-      "source_sha": "c0cd139269a8722c88fd575689ed5d1058268552",
+      "source_sha": "d93e846318fe64274ccea1444681bfb23f987fc5",
       "kind": "service",
       "required_tests": ["backend (3.12)", "backend (3.13)", "web"],
       "build_artifact": null,
       "integration": { "status": "out_of_scope", "candidate": null },
       "distribution": "not_requested",
-      "human_acceptance": ["Complete an owner-reviewed field turn on the exact controller source."]
+      "human_acceptance": ["Observe a hosted scheduled turn using the reviewed R9 controller and reconcile its merge receipts."]
     },
     {
       "repository": "MichaelWave369/SuperPhiVessel",
@@ -34,6 +34,72 @@
       "integration": { "status": "staging_only", "candidate": "thinktank-web" },
       "distribution": "held",
       "human_acceptance": ["Review dependency and asset redistribution rights.", "Accept the exact offline package in PhiOS."]
+    },
+    {
+      "repository": "MichaelWave369/PhiMadaPrime",
+      "repository_id": 1443845098,
+      "source_sha": "1433f61aee9f212b552df3258249e52c290c04fe",
+      "kind": "application",
+      "required_tests": ["npm test", "npm run build", "Frozen npm dependency review", "Trellis staged install and exact payload verification", "Offline launch with explicit GitHub and queue availability states"],
+      "build_artifact": null,
+      "integration": { "status": "candidate_review", "candidate": null },
+      "distribution": "held",
+      "human_acceptance": ["Review a locked dependency set and the offline behavior of the exact cockpit build.", "Accept its PhiOS launch and review redistribution rights before promotion."]
+    },
+    {
+      "repository": "MichaelWave369/PhiRepoNerve",
+      "repository_id": 1449565268,
+      "source_sha": "a625e8ac34831420ab52f2372bf4ec9079258c4a",
+      "kind": "service",
+      "required_tests": ["python -m unittest discover -s tests -v", "Paginated public scan and restart recovery", "Loopback public projection filters non-public records"],
+      "build_artifact": null,
+      "integration": { "status": "out_of_scope", "candidate": null },
+      "distribution": "not_requested",
+      "human_acceptance": ["Verify the supervised watcher and loopback API on the persistent Agentora host."]
+    },
+    {
+      "repository": "MichaelWave369/Trellis",
+      "repository_id": 1186755418,
+      "source_sha": "be338d5ca5b723742599a8d5843508a75c902e34",
+      "kind": "application",
+      "required_tests": ["cargo build --locked", "cargo test", "App Center catalog and loopback bridge tests", "Disposable install, verify and receipt audit"],
+      "build_artifact": null,
+      "integration": { "status": "out_of_scope", "candidate": null },
+      "distribution": "not_requested",
+      "human_acceptance": ["Review platform-specific installation and dependency licenses for the exact CLI release."]
+    },
+    {
+      "repository": "MichaelWave369/GenEWrist",
+      "repository_id": 1437657810,
+      "source_sha": "f311d7392c346e7361037fc77ad17db061e8fd70",
+      "kind": "library",
+      "required_tests": ["npm run check", "npm test", "Versioned WorldAdapter host integration", "Physical Quest 3 input and menu acceptance"],
+      "build_artifact": null,
+      "integration": { "status": "out_of_scope", "candidate": null },
+      "distribution": "not_requested",
+      "human_acceptance": ["Accept controller and menu behavior on Quest 3 before treating the embedded interface as release-ready."]
+    },
+    {
+      "repository": "MichaelWave369/NBGPocketMesh",
+      "repository_id": 1418188341,
+      "source_sha": "d1de6d3fe40208dc837577ba827551b2e08da124",
+      "kind": "research",
+      "required_tests": ["npm test", "Reproduce the declared deterministic experiment against its recorded inputs and negative controls"],
+      "build_artifact": null,
+      "integration": { "status": "out_of_scope", "candidate": null },
+      "distribution": "not_requested",
+      "human_acceptance": ["Review the experiment receipts and scope any public claims to the evidence."]
+    },
+    {
+      "repository": "MichaelWave369/parallax-369-public-primer",
+      "repository_id": 1321245612,
+      "source_sha": "bd59f50462edeed48f8f2e30e9c48c9c78a60742",
+      "kind": "documentation",
+      "required_tests": ["python scripts/run_public_checks.py", "Review public documentation links and example receipts"],
+      "build_artifact": null,
+      "integration": { "status": "out_of_scope", "candidate": null },
+      "distribution": "not_requested",
+      "human_acceptance": ["Review the published examples and evidence boundaries."]
     }
   ]
 }
