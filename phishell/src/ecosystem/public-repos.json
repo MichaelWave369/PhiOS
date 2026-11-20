@@ -95,6 +95,15 @@
       "redistribution_reviewed": false
     },
     {
+      "name": "AppalachianApplications",
+      "repository_url": "https://github.com/MichaelWave369/AppalachianApplications",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
       "name": "aqlen-quantum-ledger",
       "repository_url": "https://github.com/MichaelWave369/aqlen-quantum-ledger",
       "kind": "source_catalog_entry",
@@ -187,6 +196,15 @@
     {
       "name": "BioPhi369",
       "repository_url": "https://github.com/MichaelWave369/BioPhi369",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "bitcoin",
+      "repository_url": "https://github.com/MichaelWave369/bitcoin",
       "kind": "source_catalog_entry",
       "availability": "SOURCE_ONLY",
       "installed": false,
@@ -1490,6 +1508,15 @@
       "redistribution_reviewed": false
     },
     {
+      "name": "PhiCloneLab",
+      "repository_url": "https://github.com/MichaelWave369/PhiCloneLab",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
       "name": "PhiCloud",
       "repository_url": "https://github.com/MichaelWave369/PhiCloud",
       "kind": "source_catalog_entry",
@@ -2149,6 +2176,15 @@
     {
       "name": "RetroVerse",
       "repository_url": "https://github.com/MichaelWave369/RetroVerse",
+      "kind": "source_catalog_entry",
+      "availability": "SOURCE_ONLY",
+      "installed": false,
+      "launch_authorized": false,
+      "redistribution_reviewed": false
+    },
+    {
+      "name": "SaaC",
+      "repository_url": "https://github.com/MichaelWave369/SaaC",
       "kind": "source_catalog_entry",
       "availability": "SOURCE_ONLY",
       "installed": false,
