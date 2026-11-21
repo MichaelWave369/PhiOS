@@ -182,3 +182,33 @@ Encoded slashes, path traversal, unapproved URLs, hosts and snapshot dates
 are still refused. Offline tests cover both epoch variants and rejection
 of encoded slashes. No package version is changed and pacman's signature
 verification remains authoritative.
+
+## Follow-up: mkarchiso final install bypassed version-pool transfer
+
+The exact-head qualification at `4004fca` passed the initial signed
+upgrade, the 318-package (~488 MiB) application prefetch/install, the
+local package builds, and the separate signed Archiso cache prefetch
+(`PHIOS_ARCHISO_PREFETCH_OK: attempt 2/3`). Both actual ISO jobs still
+failed inside **mkarchiso's independent new-root package installation**:
+`icu-78.3-1` and `binutils-2.47-4` were absent from the prefetch cache,
+and the default pacman downloader requested them from the dated `/repos`
+directory (HTTP 404) then the unavailable original host (timeout).
+The job failed with `Failed to install packages to new root`; no QEMU
+boot or recovery qualified.
+
+**Targeted correction:** The generated Archiso `pacman.conf` now sets
+the *same reviewed*, absolute `XferCommand` helper used by the
+download-only fallback. When the final new-root transaction encounters
+any previously uncached package, pacman keeps the frozen 2026/09/30
+repository database's **exact filename** and retrieves that historical
+signed version from the archive's `/packages` pool. The helper's strict
+local `phios-local` path policy remains in place for the isolated
+builder's own repo. The helper path must exist and contain only
+reviewed shell-safe characters; any other generated profile is refused.
+
+No rolling mirrors, alternate package versions, signature bypass,
+new root-install retry, new signing keys, weakened CI gate, automatic
+release or merge. Integration and contract tests explicitly inspect
+the generated `pacman.conf` for the final-installer `XferCommand` and
+original signature policy. Offline tests are *not* ISO qualification;
+the two image builds and QEMU checks must succeed at the exact PR head.

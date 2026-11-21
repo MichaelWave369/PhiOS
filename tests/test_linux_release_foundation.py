@@ -38,6 +38,12 @@ def test_profile_drops_root_autologin_and_keeps_required_boot_inputs(tmp_path: P
     destination = tmp_path / "candidate"
     profile.prepare(upstream, destination, REPO, tmp_path / "packages", smoke=False)
     assert "uefi.systemd-boot" in (destination / "profiledef.sh").read_text()
+    config = (destination / "pacman.conf").read_text()
+    transfer = (REPO / "packaging/linux/archive-package-fetch.sh").resolve()
+    assert f"XferCommand = /usr/bin/bash {transfer} %u %o" in config
+    assert "SigLevel = Required DatabaseOptional" in config
+    assert "Server = file://" in config
+    assert config.count("XferCommand = ") == 1
     assert "%ARCHISO_UUID%" in (destination / "efiboot/loader/entries/01-archiso-linux.conf").read_text()
     assert not (destination / "airootfs/etc/systemd/system/getty@tty1.service.d/autologin.conf").exists()
     assert not (destination / "airootfs/usr/local/bin/phios-live-smoke").exists()

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import shutil
 from pathlib import Path
 
@@ -28,6 +29,14 @@ def prepare(upstream: Path, destination: Path, repo: Path, package_repo: Path, *
 
     write("etc/mkinitcpio.conf.d/archiso.conf", (upstream / required[2]).read_text())
     snapshot = release["arch_snapshot"]
+    # mkarchiso starts a fresh target-root transaction. Its pacman.conf must
+    # use the same exact-version historical archive transfer as prefetch.
+    # Reject unsafe shell paths rather than interpolating arbitrary commands.
+    transfer_script = (repo / "packaging/linux/archive-package-fetch.sh").resolve()
+    if not transfer_script.is_file() or not re.fullmatch(
+        r"/[A-Za-z0-9_./-]+", str(transfer_script)
+    ):
+        raise ValueError("reviewed Arch archive transfer helper required")
     pacman = f"""[options]
 Architecture = x86_64
 SigLevel = Required DatabaseOptional
@@ -38,6 +47,10 @@ CheckSpace
 # transfer speed from the exact frozen Arch archive.
 DisableDownloadTimeout
 ParallelDownloads = 2
+# Build-time pacman fetches exact snapshot-selected files from the historical
+# package pool when dated /repos links contain only repository databases.
+# ALPM retains signed package/hash validation and the same frozen DBs.
+XferCommand = /usr/bin/bash {transfer_script} %u %o
 [core]
 Server = https://umea.archive.pkgbuild.com/repos/{snapshot}/$repo/os/$arch
 Server = https://archive.archlinux.org/repos/{snapshot}/$repo/os/$arch

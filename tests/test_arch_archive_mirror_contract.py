@@ -37,6 +37,10 @@ def test_archiso_profile_uses_identical_two_archive_origins_for_both_repositorie
     assert extra == exact
     assert "SigLevel = Required DatabaseOptional" in source
     assert "SigLevel = Never" not in source
+    assert "XferCommand = /usr/bin/bash {transfer_script} %u %o" in source
+    assert source.index("XferCommand = ") < source.index("[core]")
+    assert 'transfer_script = (repo / "packaging/linux/archive-package-fetch.sh").resolve()' in source
+    assert "reviewed Arch archive transfer helper required" in source
 
 
 def test_fallback_retains_https_and_signed_package_requirements():
