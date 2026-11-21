@@ -9,13 +9,38 @@ if [[ $# -ne 2 ]]; then
 fi
 url=$1
 output=$2
-# Accept ONLY the build's generated offline PhiOS package repository.
-# This never reads arbitrary local files or changes the frozen Arch sources.
+# Only the generated, temporary Archiso package repository is eligible
+# for local file transfers. Never permit arbitrary local file reads.
 if [[ $url == file://* ]]; then
   local_path=$(printf '%s\n' "$url" | sed 's|^file://||')
   local_repo=$(dirname -- "$local_path")
   local_name=$(basename -- "$local_path")
-  repo_pattern='^/tmp/phios-build\.[A-Za-z0-9]{8}/packages$(cd "$(dirname "$0")/../.." && pwd)
+  repo_pattern='^/tmp/phios-build\.[A-Za-z0-9]{8}/packages$'
+  meta_pattern='^phios-local\.(db|files)(\.tar\.gz|\.sig)?$'
+  package_pattern='^(phios|phishell)-[A-Za-z0-9.+:~-]+-[0-9]+-(x86_64|any)\.pkg\.tar\.zst(\.sig)?$'
+  if [[ ! $local_repo =~ $repo_pattern || $local_path == *..* ]] ||
+     { [[ ! $local_name =~ $meta_pattern ]] && [[ ! $local_name =~ $package_pattern ]]; }; then
+    echo 'PHIOS_ARCH_FETCH_REFUSED: local source outside generated package repo' >&2
+    exit 2
+  fi
+  resolved=$(realpath -e -- "$local_path") || {
+    echo 'PHIOS_ARCH_FETCH_FAILED: local repo object not found' >&2
+    exit 1
+  }
+  if [[ $resolved != "$local_repo/"* || ! -f $resolved ]]; then
+    echo 'PHIOS_ARCH_FETCH_REFUSED: local repo symlink escape' >&2
+    exit 2
+  fi
+  local_temp=$(mktemp "$output.phios.XXXXXXXX") || exit 2
+  if ! cp -- "$resolved" "$local_temp"; then
+    rm -f -- "$local_temp"
+    echo 'PHIOS_ARCH_FETCH_FAILED: local package copy failed' >&2
+    exit 1
+  fi
+  mv -f -- "$local_temp" "$output"
+  exit 0
+fi
+root=$(cd "$(dirname "$0")/../.." && pwd)
 snapshot=$(sed -n 's/.*"arch_snapshot": "\([0-9/]\{10\}\)".*/\1/p' "$root/packaging/linux/release.json")
 if [[ ! $snapshot =~ ^[0-9]{4}/[0-9]{2}/[0-9]{2}$ ]]; then
   echo 'PHIOS_ARCH_FETCH_REFUSED: invalid frozen snapshot' >&2
