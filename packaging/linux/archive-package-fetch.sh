@@ -23,7 +23,16 @@ file=${url##*/}
 # ALPM package filenames can include a numeric epoch ("1:") and pacman
 # may percent-encode the colon (or plus) in its URL. Accept ONLY these
 # two encoded characters, never encoded slashes, path traversal or queries.
-url_pattern='^https://(umea\.archive\.pkgbuild\.com|archive\.archlinux\.org)/repos/[0-9]{4}/[0-9]{2}/[0-9]{2}/(core|extra)/os/(x86_64|any)/([A-Za-z0-9@+._:~-]|%3[Aa]|%2[Bb])+'^([A-Za-z0-9@._+-]+)-([^-]+)-([0-9][0-9.]*)-(x86_64|any)\.pkg\.tar\.(zst|xz|gz)(\.sig)?$'
+url_pattern='^https://(umea\.archive\.pkgbuild\.com|archive\.archlinux\.org)/repos/[0-9]{4}/[0-9]{2}/[0-9]{2}/(core|extra)/os/(x86_64|any)/([A-Za-z0-9@+._:~-]|%3[Aa]|%2[Bb])+$'
+if [[ ! $url =~ $url_pattern ]]; then
+  echo 'PHIOS_ARCH_FETCH_REFUSED: unreviewed repository path' >&2
+  exit 2
+fi
+file=${file//%3A/:}
+file=${file//%3a/:}
+file=${file//%2B/+}
+file=${file//%2b/+}
+package_pattern='^([A-Za-z0-9@._+-]+)-([^-]+)-([0-9][0-9.]*)-(x86_64|any)\.pkg\.tar\.(zst|xz|gz)(\.sig)?$'
 if [[ $file =~ $package_pattern ]]; then
   name=${BASH_REMATCH[1]}
   first=${name:0:1}
