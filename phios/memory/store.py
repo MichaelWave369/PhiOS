@@ -205,6 +205,31 @@ class MemoryStore:
             )
         return True
 
+    def operation_receipt_status(self, operation_id: str) -> dict[str, object] | None:
+        """Read the durable result of an operation without exposing memory text.
+
+        A published receipt means the canonical record publication transaction
+        was completed. Pending publication is not proof of committed memory.
+        """
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT request_sha256, receipt_json, published "
+                "FROM receipt_outbox WHERE operation_id=?",
+                (operation_id,),
+            ).fetchone()
+        if row is None:
+            return None
+        receipt = json.loads(row["receipt_json"])
+        versions = receipt.get("record_versions", [])
+        first = versions[0] if versions else {}
+        return {
+            "operation_id": operation_id,
+            "state": "published" if row["published"] else "pending_publication",
+            "receipt_id": receipt.get("receipt_id", ""),
+            "record_id": first.get("record_id", ""),
+            "request_sha256": row["request_sha256"],
+        }
+
     def mark_receipt_published(self, operation_id: str) -> None:
         with self._connect() as conn:
             row = conn.execute(
