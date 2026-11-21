@@ -118,5 +118,30 @@ fi
         self.assertFalse(urls)
 
 
+    def test_local_generated_phios_repo_metadata_is_copied(self):
+        with tempfile.TemporaryDirectory(dir="/tmp", prefix="phios-build.") as tmp:
+            repo = Path(tmp) / "packages"
+            repo.mkdir()
+            (repo / "phios-local.db.tar.gz").write_bytes(b"local fixture")
+            (repo / "phios-local.db").symlink_to("phios-local.db.tar.gz")
+            dest = Path(tmp) / "received"
+            proc = subprocess.run(["bash", str(FETCH), f"file://{repo}/phios-local.db", str(dest)],
+                                  capture_output=True, text=True, timeout=10)
+            self.assertEqual(proc.returncode, 0, proc.stderr)
+            self.assertEqual(dest.read_bytes(), b"local fixture")
+
+    def test_local_copy_rejects_outside_paths_and_symlink_escape(self):
+        with tempfile.TemporaryDirectory(dir="/tmp", prefix="phios-build.") as tmp:
+            repo = Path(tmp) / "packages"
+            repo.mkdir()
+            (repo / "phios-local.db").symlink_to("/etc/passwd")
+            output = Path(tmp) / "received"
+            for url in ("file:///etc/passwd", f"file://{repo}/../secrets",
+                        f"file://{repo}/unknown.txt", f"file://{repo}/phios-local.db"):
+                proc = subprocess.run(["bash", str(FETCH), url, str(output)],
+                                      capture_output=True, text=True, timeout=10)
+                self.assertIn(proc.returncode, (1, 2), proc.stderr)
+                self.assertFalse(output.exists())
+
 if __name__ == "__main__":
     unittest.main()

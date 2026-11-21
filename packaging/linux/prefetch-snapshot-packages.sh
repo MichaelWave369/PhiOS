@@ -66,7 +66,7 @@ phios_prefetch_snapshot_packages() {
         # --disable-download-timeout handles slow transfers, but the native
         # connection can still time out at 10 seconds. GNU timeout caps both
         # the command and curl's bounded internal retries; no installs occur.
-        if timeout --signal=TERM --kill-after=15s 600s \
+        if timeout --signal=TERM --kill-after=15s 1500s \
             pacman "${config_args[@]}" --disable-download-timeout -Sw --needed --noconfirm "$@"; then
             echo "PHIOS_ARCH_PREFETCH_OK: attempt ${attempt}/3"
             [[ -z $fallback_config ]] || rm -f "$fallback_config"
@@ -74,6 +74,11 @@ phios_prefetch_snapshot_packages() {
         else
             status=$?
             echo "PHIOS_ARCH_PREFETCH_RETRY: attempt=${attempt}/3 exit=${status}" >&2
+            if (( status == 124 || status == 137 )); then
+                [[ -z $fallback_config ]] || rm -f "$fallback_config"
+                echo "PHIOS_ARCH_PREFETCH_HELD: download timeout, refusing unsafe retry" >&2
+                return 1
+            fi
         fi
         [[ $attempt -lt 3 ]] && sleep 5
     done
@@ -168,7 +173,7 @@ phios_prefetch_archiso_profile_packages() {
         echo "PHIOS_ARCHISO_PREFETCH_ATTEMPT: ${attempt}/3 (exact profile, signed archive)"
         # -Syw only prefetches signed packages. The later mkarchiso install
         # retains the original profile and remains single-shot.
-        if timeout --signal=TERM --kill-after=15s 600s \
+        if timeout --signal=TERM --kill-after=15s 1500s \
             pacman --config "$transfer_config" --disable-download-timeout \
             -Syw --noconfirm "${packages[@]}"; then
             echo "PHIOS_ARCHISO_PREFETCH_OK: attempt ${attempt}/3"
@@ -177,6 +182,11 @@ phios_prefetch_archiso_profile_packages() {
         else
             status=$?
             echo "PHIOS_ARCHISO_PREFETCH_RETRY: attempt=${attempt}/3 exit=${status}" >&2
+            if (( status == 124 || status == 137 )); then
+                [[ -z $fallback_config ]] || rm -f "$fallback_config"
+                echo "PHIOS_ARCHISO_PREFETCH_HELD: download timeout, refusing unsafe retry" >&2
+                return 1
+            fi
         fi
         [[ $attempt -lt 3 ]] && sleep 5
     done
