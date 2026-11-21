@@ -6,7 +6,6 @@ with an explicitly enabled MemoryOperatorRuntime and memory.write authority.
 from __future__ import annotations
 
 import hashlib
-import json
 
 from .models import MemoryRecord
 from .operator import MemoryOperatorRuntime
@@ -21,8 +20,12 @@ def operation_identity(payload: dict[str, object]) -> dict[str, object]:
     """Stable logical write identity; notes/tags remain part of request conflict check."""
     if not isinstance(payload, dict):
         raise ValueError("writeback payload must be an object")
-    session = require_nonempty(payload.get("session_id"), "session_id")
-    task = require_nonempty(payload.get("task_id"), "task_id")
+    raw_session = payload.get("session_id")
+    raw_task = payload.get("task_id")
+    if not isinstance(raw_session, str) or not isinstance(raw_task, str):
+        raise ValueError("session_id and task_id must be strings")
+    session = require_nonempty(raw_session, "session_id")
+    task = require_nonempty(raw_task, "task_id")
     raw = payload.get("raw_payload")
     if not isinstance(raw, dict):
         raise ValueError("raw_payload must be an object")
@@ -73,7 +76,7 @@ class AgentoraWritebackAdmission:
             revision=1,
             source_id="agentora",
             source_kind="service",
-            provenance_refs=("agentora:" + identity["task_id"],),
+            provenance_refs=("agentora:" + str(identity["task_id"]),),
             created_at=require_utc_timestamp(created_at_utc, "created_at_utc"),
             scope_id=self.runtime.config.scopes[0],
             classification=self.runtime.config.classifications[0],
@@ -83,7 +86,7 @@ class AgentoraWritebackAdmission:
             text=body,
         )
         previously_seen = self.runtime.store.operation_receipt_status(op_id) is not None
-        result = self.runtime.put(record, operation_id=op_id, task_id=identity["task_id"])
+        result = self.runtime.put(record, operation_id=op_id, task_id=str(identity["task_id"]))
         receipt = self.runtime.store.operation_receipt_status(op_id)
         if result.status not in {"ok", "unavailable"}:
             return {"ok": False, "operation_id": op_id, "state": result.status,
