@@ -165,3 +165,20 @@ qualification, or automatic release are introduced.
 **Acceptance:** the offline routing/refusal regression suite and
 the full exact-head image/QEMU tests must pass separately. No archive
 availability or ISO readiness is claimed from mock tests alone.
+
+### Accepted ALPM epoch characters after first live cache prefetch
+
+In the following exact-head run, the **initial frozen upgrade passed**
+with keyring and package-integrity checks; the 318-package builder prefetch
+then failed because some source package filenames include an ALPM numeric
+epoch (for example `libpipewire-1:1.6.9-1`). The transport allowlist
+rejected the colon, including pacman's percent-encoded `%3A` form.
+The archive's `/packages/l/libpipewire/` index confirms this exact
+epoch-versioned package and signature.
+
+The next patch accepts only literal colons/plus signs and their exact
+`%3A`/`%2B` URL encoding in an otherwise strict source filename.
+Encoded slashes, path traversal, unapproved URLs, hosts and snapshot dates
+are still refused. Offline tests cover both epoch variants and rejection
+of encoded slashes. No package version is changed and pacman's signature
+verification remains authoritative.

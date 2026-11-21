@@ -76,6 +76,23 @@ fi
             "https://archive.archlinux.org/packages/p/pcre2/pcre2-10.49-1-x86_64.pkg.tar.zst.sig",
         ])
 
+    def test_epoch_version_and_encoded_colon_map_to_same_exact_pool_package(self):
+        for filename in ("libpipewire-1:1.6.9-1-x86_64.pkg.tar.zst.sig",
+                         "libpipewire-1%3A1.6.9-1-x86_64.pkg.tar.zst.sig"):
+            p, urls, exists = self.mock(filename)
+            self.assertEqual(p.returncode, 0, p.stderr)
+            self.assertTrue(exists)
+            self.assertEqual(urls, [
+                "https://umea.archive.pkgbuild.com/packages/l/libpipewire/"
+                "libpipewire-1:1.6.9-1-x86_64.pkg.tar.zst.sig"
+            ])
+
+    def test_rejects_percent_encoded_slash_in_filename(self):
+        p, urls, exists = self.mock("libpipewire-1%2F1.6.9-1-x86_64.pkg.tar.zst")
+        self.assertEqual(p.returncode, 2)
+        self.assertFalse(urls)
+        self.assertFalse(exists)
+
     def test_repository_database_stays_pinned(self):
         p, urls, exists = self.mock("core.db")
         self.assertEqual(p.returncode, 0, p.stderr)
