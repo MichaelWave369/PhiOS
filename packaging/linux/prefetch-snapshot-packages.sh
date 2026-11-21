@@ -81,21 +81,35 @@ phios_prefetch_snapshot_packages() {
 # Retrying this transport-only stage is safe; never retry a partially applied
 # upgrade, disable package signatures, or change the reviewed mirror.
 phios_prefetch_snapshot_upgrade() {
-    local attempt status
+    local attempt status fallback_config=''
+    local -a config_args=()
     for attempt in 1 2 3; do
-        echo "PHIOS_ARCH_UPGRADE_PREFETCH_ATTEMPT: ${attempt}/3 (pinned archive; no installation)"
+        # Preserve native pacman behavior first. If its 10-second connection
+        # deadline fails, use the *same* signed pinned repository configuration
+        # with the existing HTTPS-only curl XferCommand for download retries.
+        # No mirror substitution, key changes, or partially applied installs.
+        if (( attempt == 2 )); then
+            fallback_config=$(mktemp /tmp/phios-signed-upgrade-prefetch.XXXXXXXX) || return 2
+            if ! phios_make_pinned_archive_curl_config "$fallback_config"; then
+                rm -f "$fallback_config"
+                echo 'PHIOS_ARCH_UPGRADE_PREFETCH_FAILED: secure transfer fallback unavailable; signed image HELD' >&2
+                return 1
+            fi
+            config_args=(--config "$fallback_config")
+        fi
+        echo "PHIOS_ARCH_UPGRADE_PREFETCH_ATTEMPT: ${attempt}/3 (pinned archive; no installation; transfer=$([[ $attempt == 1 ]] && echo native || echo https-curl))"
         if timeout --signal=TERM --kill-after=15s 600s \
-            pacman --disable-download-timeout -Syyuu --downloadonly --noconfirm; then
+            pacman "${config_args[@]}" --disable-download-timeout -Syyuu --downloadonly --noconfirm; then
             echo "PHIOS_ARCH_UPGRADE_PREFETCH_OK: attempt ${attempt}/3"
+            [[ -z $fallback_config ]] || rm -f "$fallback_config"
             return 0
         else
             status=$?
             echo "PHIOS_ARCH_UPGRADE_PREFETCH_RETRY: attempt=${attempt}/3 exit=${status}" >&2
         fi
-        if [[ $attempt -lt 3 ]]; then
-            sleep 5
-        fi
+        [[ $attempt -lt 3 ]] && sleep 5
     done
+    [[ -z $fallback_config ]] || rm -f "$fallback_config"
     echo 'PHIOS_ARCH_UPGRADE_PREFETCH_FAILED: signed pinned-snapshot prefetch exhausted; image build HELD' >&2
     return 1
 }

@@ -60,3 +60,39 @@ The first builder package prefetch attempt still uses the ordinary pacman/libalp
 Pacman continues to resolve the same signed package identities/dependencies and enforce the same source configuration, repository Include directives, trusted keys, and `SigLevel`; curl does **not** substitute for pacman's signature validation. The fallback explicitly refuses an existing, unreviewed `XferCommand`, missing curl, unreadable pacman config, or a config without `[options]`. No mirror changes, package-version changes, insecure TLS flags, signature bypass, manual archive replacement, or retries of a partially applied installation occur. The initial full snapshot prefetch, single-shot installed transaction, independent Archiso cache prefetch, ISO/QEMU gates and release hold remain intact.
 
 Offline test cases cover native-first behavior, transport fallback and identical configuration across later attempts, refusal to overwrite existing transfer policy, no-option-section refusal, no-package refusal, and full failure holding image qualification. **Only a fresh fixture-free image run with boot and install checks can prove the upstream network issue is actually resolved.** A green mock test cannot.
+
+
+## Follow-up: full-upgrade metadata timeout in PhiOS PR #425, November 21, 2026
+
+The exact-head PhiOS R4a qualification failed twice in both normal and QA
+image builders **before any package installation**. Pacman could not retrieve
+the frozen archive's `core.db` and `extra.db` metadata: each default transfer
+connection timed out after roughly 10 seconds. Attempts 1–3 all failed in
+`phios_prefetch_snapshot_upgrade`. Python/typing/package tests passed, and
+the release gate correctly held the candidate.
+
+The prior HTTPS-only curl fallback covered `phios_prefetch_snapshot_packages`,
+but **not the earlier full-snapshot upgrade prefetch**, which is the stage
+that actually failed. It already had three bounded attempts but repeated the
+native 10-second connection deadline on every attempt.
+
+### Targeted correction
+
+- Keep attempt 1 native pacman and the original `-Syyuu --downloadonly`
+  selection against the frozen `2026/09/30` Arch archive.
+- After the first failure, reuse the existing `phios_make_pinned_archive_curl_config`
+  helper for attempts 2–3. The configuration copy preserves the exact
+  repository Include directives, signed package keys and SigLevel and adds
+  only HTTPS-only curl transfer with a 45-second connect budget.
+- Keep existing 600-second whole-attempt bounds, three attempts and two
+  five-second backoffs. Delete the temporary transfer configuration.
+- Refuse unexpected existing transfer commands or malformed configurations.
+  Never change mirrors, package pins, signature checks, `--downloadonly`
+  semantics, single-shot install, ISO or QEMU qualification.
+- Offline regression tests now check native-to-curl fallback, unchanged
+  signed config, and fail-closed refusal on unreviewed configs.
+
+**Required verification:** this correction needs exact-head offline contract
+tests and the full image build plus QEMU qualification. Prior two CI failures
+were external archive timeouts; no completed ISO/boot can be claimed. A new
+live failure must be investigated separately rather than bypassed.
