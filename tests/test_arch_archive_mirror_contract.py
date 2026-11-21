@@ -41,8 +41,10 @@ def test_archiso_profile_uses_identical_two_archive_origins_for_both_repositorie
 
 def test_fallback_retains_https_and_signed_package_requirements():
     source = PREFETCH.read_text(encoding="utf-8")
-    assert "--proto https --proto-redir https" in source
-    assert "--connect-timeout 45" in source
-    assert "--skippgpcheck" not in source
+    transfer = (ROOT / "packaging/linux/archive-package-fetch.sh").read_text(encoding="utf-8")
+    assert "--proto https --proto-redir https" in transfer
+    assert "--connect-timeout 45" in transfer
+    assert "--skippgpcheck" not in source + transfer
+    assert "archive-package-fetch.sh" in source
     assert "--disable-download-timeout -Syyuu --downloadonly --noconfirm" in source
     assert re.search(r"PHIOS_ARCH_UPGRADE_PREFETCH_FAILED", source)
