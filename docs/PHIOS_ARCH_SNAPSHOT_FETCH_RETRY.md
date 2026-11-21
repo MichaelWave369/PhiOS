@@ -96,3 +96,34 @@ native 10-second connection deadline on every attempt.
 tests and the full image build plus QEMU qualification. Prior two CI failures
 were external archive timeouts; no completed ISO/boot can be claimed. A new
 live failure must be investigated separately rather than bypassed.
+
+
+## Follow-up: pinned archive's origin unreachable after HTTPS retry (PR #425)
+
+The R4a image builds at commit `96784dc` reached the new fallback
+correctly, but `archive.archlinux.org` remained unreachable from both
+isolated GitHub runners: native pacman hit 10-second connection timeouts,
+and HTTPS-only curl hit 45-second connection timeouts or a TCP reset.
+Both image builds remained HELD. There was no completed ISO or boot test.
+
+Arch Linux's own infrastructure documents the dedicated managed archive
+host **`https://umea.archive.pkgbuild.com`** in
+[its infrastructure server inventory](https://github.com/archlinux/infrastructure/blob/main/docs/servers.md#archive-mirrors).
+
+The next candidate uses precisely two **Arch-operated historical archive**
+servers, in this order:
+1. `umea.archive.pkgbuild.com/repos/2026/09/30/$repo/os/$arch`
+2. `archive.archlinux.org/repos/2026/09/30/$repo/os/$arch`
+
+Both share the **same pinned September 30, 2026 snapshot path**.
+The builder mirrorlist and the separate Archiso `pacman.conf` list these
+same two hosts, so an archive-origin failure cannot simply recur in the
+second rootfs installation path. The existing HTTPS-only curl transfer
+fallback and signed-package checks remain unchanged. No rolling mirror,
+package-version change, keyring bypass, alternate snapshot, CI gate skip,
+or unsafe retry of an installation is permitted.
+
+Offline contract tests explicitly check the ordered, reviewed hosts and
+their presence in both build stages. They cannot prove endpoint availability.
+**Only full fixture-free/QA ISO builds and QEMU boot/recovery checks establish
+real qualification.** A network failure still holds the release gate.

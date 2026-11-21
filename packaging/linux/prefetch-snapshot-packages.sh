@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Download pinned Arch snapshot packages before attempting installation.
 # Package signatures and exact snapshot mirror remain enforced by pacman.
-# Only transport errors are retried; no mirror fallback or signature bypass.
+# Only transfer errors are retried; the builder pins two Arch-operated
+# historical archive hosts to the same dated snapshot. No current mirror or signature bypass.
 # If the pinned archive repeatedly refuses libalpm's 10-second connection
 # window, use pacman's documented XferCommand for download-only retries.
 # This retains the exact original repositories, trust keys and SigLevel.
@@ -45,7 +46,7 @@ phios_prefetch_snapshot_packages() {
     local -a config_args=()
     for attempt in 1 2 3; do
         # Native pacman transfer first. Only after it fails do we use
-        # a temporary copy of the same configuration with HTTPS-only curl.
+        # a temporary copy of the same frozen archive configuration with HTTPS-only curl.
         if (( attempt == 2 )); then
             fallback_config=$(mktemp /tmp/phios-signed-pacman-prefetch.XXXXXXXX) || return 2
             if ! phios_make_pinned_archive_curl_config "$fallback_config"; then
@@ -79,7 +80,7 @@ phios_prefetch_snapshot_packages() {
 # allowing one installation transaction. -w / --downloadonly forbids installs.
 # The whole snapshot (including eligible downgrades) is selected by -uu.
 # Retrying this transport-only stage is safe; never retry a partially applied
-# upgrade, disable package signatures, or change the reviewed mirror.
+# upgrade, disable package signatures, or switch to an unpinned/current mirror.
 phios_prefetch_snapshot_upgrade() {
     local attempt status fallback_config=''
     local -a config_args=()

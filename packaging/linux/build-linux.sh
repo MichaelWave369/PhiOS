@@ -8,7 +8,11 @@ fi
 snapshot=$(sed -n 's/.*"arch_snapshot": "\([0-9/]\{10\}\)".*/\1/p' "$repo/packaging/linux/release.json")
 expected_archiso=$(sed -n 's/.*"archiso_version": "\([0-9-]\+\)".*/\1/p' "$repo/packaging/linux/release.json")
 [[ $snapshot =~ ^[0-9]{4}/[0-9]{2}/[0-9]{2}$ && $expected_archiso =~ ^[0-9]+-[0-9]+$ ]] || exit 1
+# Two Arch-operated *historical archive* endpoints, same frozen snapshot.
+# The second is only a transfer fallback, never a current rolling mirror.
+# Preserve pacman's existing signing keys and signature validation.
 cat > /etc/pacman.d/mirrorlist <<MIRRORS
+Server = https://umea.archive.pkgbuild.com/repos/$snapshot/\$repo/os/\$arch
 Server = https://archive.archlinux.org/repos/$snapshot/\$repo/os/\$arch
 MIRRORS
 # Stage the signed full-upgrade package set before any installation. The pinned

@@ -39,8 +39,10 @@ CheckSpace
 DisableDownloadTimeout
 ParallelDownloads = 2
 [core]
+Server = https://umea.archive.pkgbuild.com/repos/{snapshot}/$repo/os/$arch
 Server = https://archive.archlinux.org/repos/{snapshot}/$repo/os/$arch
 [extra]
+Server = https://umea.archive.pkgbuild.com/repos/{snapshot}/$repo/os/$arch
 Server = https://archive.archlinux.org/repos/{snapshot}/$repo/os/$arch
 [phios-local]
 SigLevel = Optional TrustAll
