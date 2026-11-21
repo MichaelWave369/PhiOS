@@ -6,6 +6,9 @@ on:
       - "packaging/linux/build-linux.sh"
       - "packaging/linux/prepare_profile.py"
       - "packaging/linux/prefetch-snapshot-packages.sh"
+      - "packaging/linux/archive-package-fetch.sh"
+      - "tests/test_arch_archive_package_fetch.py"
+      - "tests/test_archiso_final_fetch_contract.py"
       - "tests/test_arch_snapshot_prefetch.py"
       - ".github/workflows/arch-snapshot-fetch-contract.yml"
   push:
@@ -14,6 +17,9 @@ on:
       - "packaging/linux/build-linux.sh"
       - "packaging/linux/prepare_profile.py"
       - "packaging/linux/prefetch-snapshot-packages.sh"
+      - "packaging/linux/archive-package-fetch.sh"
+      - "tests/test_arch_archive_package_fetch.py"
+      - "tests/test_archiso_final_fetch_contract.py"
       - "tests/test_arch_snapshot_prefetch.py"
       - ".github/workflows/arch-snapshot-fetch-contract.yml"
   workflow_dispatch:
@@ -33,6 +39,10 @@ jobs:
       - name: Validate snapshot prefetch and Linux builder bash syntax
         run: |
           bash -n packaging/linux/prefetch-snapshot-packages.sh
+          bash -n packaging/linux/archive-package-fetch.sh
           bash -n packaging/linux/build-linux.sh
       - name: Test bounded signed-package download retry contract without network
-        run: python3 -m unittest discover -s tests -p 'test_arch_snapshot_prefetch.py' -v
+        run: |
+          python3 -m unittest discover -s tests -p 'test_arch_snapshot_prefetch.py' -v
+          python3 -m unittest discover -s tests -p 'test_arch_archive_package_fetch.py' -v
+          python3 -m unittest discover -s tests -p 'test_archiso_final_fetch_contract.py' -v

@@ -60,3 +60,155 @@ The first builder package prefetch attempt still uses the ordinary pacman/libalp
 Pacman continues to resolve the same signed package identities/dependencies and enforce the same source configuration, repository Include directives, trusted keys, and `SigLevel`; curl does **not** substitute for pacman's signature validation. The fallback explicitly refuses an existing, unreviewed `XferCommand`, missing curl, unreadable pacman config, or a config without `[options]`. No mirror changes, package-version changes, insecure TLS flags, signature bypass, manual archive replacement, or retries of a partially applied installation occur. The initial full snapshot prefetch, single-shot installed transaction, independent Archiso cache prefetch, ISO/QEMU gates and release hold remain intact.
 
 Offline test cases cover native-first behavior, transport fallback and identical configuration across later attempts, refusal to overwrite existing transfer policy, no-option-section refusal, no-package refusal, and full failure holding image qualification. **Only a fresh fixture-free image run with boot and install checks can prove the upstream network issue is actually resolved.** A green mock test cannot.
+
+
+## Follow-up: full-upgrade metadata timeout in PhiOS PR #425, November 21, 2026
+
+The exact-head PhiOS R4a qualification failed twice in both normal and QA
+image builders **before any package installation**. Pacman could not retrieve
+the frozen archive's `core.db` and `extra.db` metadata: each default transfer
+connection timed out after roughly 10 seconds. Attempts 1–3 all failed in
+`phios_prefetch_snapshot_upgrade`. Python/typing/package tests passed, and
+the release gate correctly held the candidate.
+
+The prior HTTPS-only curl fallback covered `phios_prefetch_snapshot_packages`,
+but **not the earlier full-snapshot upgrade prefetch**, which is the stage
+that actually failed. It already had three bounded attempts but repeated the
+native 10-second connection deadline on every attempt.
+
+### Targeted correction
+
+- Keep attempt 1 native pacman and the original `-Syyuu --downloadonly`
+  selection against the frozen `2026/09/30` Arch archive.
+- After the first failure, reuse the existing `phios_make_pinned_archive_curl_config`
+  helper for attempts 2–3. The configuration copy preserves the exact
+  repository Include directives, signed package keys and SigLevel and adds
+  only HTTPS-only curl transfer with a 45-second connect budget.
+- Keep existing 600-second whole-attempt bounds, three attempts and two
+  five-second backoffs. Delete the temporary transfer configuration.
+- Refuse unexpected existing transfer commands or malformed configurations.
+  Never change mirrors, package pins, signature checks, `--downloadonly`
+  semantics, single-shot install, ISO or QEMU qualification.
+- Offline regression tests now check native-to-curl fallback, unchanged
+  signed config, and fail-closed refusal on unreviewed configs.
+
+**Required verification:** this correction needs exact-head offline contract
+tests and the full image build plus QEMU qualification. Prior two CI failures
+were external archive timeouts; no completed ISO/boot can be claimed. A new
+live failure must be investigated separately rather than bypassed.
+
+
+## Follow-up: pinned archive's origin unreachable after HTTPS retry (PR #425)
+
+The R4a image builds at commit `96784dc` reached the new fallback
+correctly, but `archive.archlinux.org` remained unreachable from both
+isolated GitHub runners: native pacman hit 10-second connection timeouts,
+and HTTPS-only curl hit 45-second connection timeouts or a TCP reset.
+Both image builds remained HELD. There was no completed ISO or boot test.
+
+Arch Linux's own infrastructure documents the dedicated managed archive
+host **`https://umea.archive.pkgbuild.com`** in
+[its infrastructure server inventory](https://github.com/archlinux/infrastructure/blob/main/docs/servers.md#archive-mirrors).
+
+The next candidate uses precisely two **Arch-operated historical archive**
+servers, in this order:
+1. `umea.archive.pkgbuild.com/repos/2026/09/30/$repo/os/$arch`
+2. `archive.archlinux.org/repos/2026/09/30/$repo/os/$arch`
+
+Both share the **same pinned September 30, 2026 snapshot path**.
+The builder mirrorlist and the separate Archiso `pacman.conf` list these
+same two hosts, so an archive-origin failure cannot simply recur in the
+second rootfs installation path. The existing HTTPS-only curl transfer
+fallback and signed-package checks remain unchanged. No rolling mirror,
+package-version change, keyring bypass, alternate snapshot, CI gate skip,
+or unsafe retry of an installation is permitted.
+
+Offline contract tests explicitly check the ordered, reviewed hosts and
+their presence in both build stages. They cannot prove endpoint availability.
+**Only full fixture-free/QA ISO builds and QEMU boot/recovery checks establish
+real qualification.** A network failure still holds the release gate.
+
+## Follow-up: dated repository DB succeeds, package blobs return 404
+
+The exact-head PR #425 qualification at `9b5df90` reached Umeå's
+`/repos/2026/09/30/core/os/x86_64/core.db`, but received HTTP 404
+for the pinned `glibc-2.44+r50+g1848099f063e-1`,
+`coreutils-9.12-2` and `pcre2-10.49-1` package blobs in that
+same directory. The second original archive host timed out. No image
+was built or installed.
+
+Public indexes of the reviewed Umeå Arch Linux Archive confirm that
+the historical `/repos/YYYY/MM/DD` directory contains snapshot
+repository databases while the exact signed versioned packages also
+exist under `/packages/<initial>/<package-name>/<filename>`.
+The specific missing `glibc`, `coreutils` and `pcre2` files and
+their detached signatures appear in those historical package indexes.
+
+A new `archive-package-fetch.sh` is used ONLY by pacman during
+download-only retries. It validates that the request starts from
+exactly one of two reviewed HTTPS archive origins and the **date
+from release.json**. Metadata stays on dated repository URLs.
+For the pinned package filename, it fetches the **exact identical
+version** from the historical archive's package pool, with an
+ordered fallback between the same two approved archive hosts.
+An external fetch never marks a package installed: pacman continues
+to validate its signatures/hashes and its single-shot package install
+remains unchanged. A separate temporary destination per origin
+prevents mixing partial byte ranges.
+
+The Archiso profile's own download-only cache prefetch is given the
+same fallback on attempts 2–3. Its actual mkarchiso installation
+keeps the original profile; no unpinned current mirrors, changed
+signing keys, signature bypass, altered release pins, skipped VM
+qualification, or automatic release are introduced.
+
+**Acceptance:** the offline routing/refusal regression suite and
+the full exact-head image/QEMU tests must pass separately. No archive
+availability or ISO readiness is claimed from mock tests alone.
+
+### Accepted ALPM epoch characters after first live cache prefetch
+
+In the following exact-head run, the **initial frozen upgrade passed**
+with keyring and package-integrity checks; the 318-package builder prefetch
+then failed because some source package filenames include an ALPM numeric
+epoch (for example `libpipewire-1:1.6.9-1`). The transport allowlist
+rejected the colon, including pacman's percent-encoded `%3A` form.
+The archive's `/packages/l/libpipewire/` index confirms this exact
+epoch-versioned package and signature.
+
+The next patch accepts only literal colons/plus signs and their exact
+`%3A`/`%2B` URL encoding in an otherwise strict source filename.
+Encoded slashes, path traversal, unapproved URLs, hosts and snapshot dates
+are still refused. Offline tests cover both epoch variants and rejection
+of encoded slashes. No package version is changed and pacman's signature
+verification remains authoritative.
+
+## Follow-up: mkarchiso final install bypassed version-pool transfer
+
+The exact-head qualification at `4004fca` passed the initial signed
+upgrade, the 318-package (~488 MiB) application prefetch/install, the
+local package builds, and the separate signed Archiso cache prefetch
+(`PHIOS_ARCHISO_PREFETCH_OK: attempt 2/3`). Both actual ISO jobs still
+failed inside **mkarchiso's independent new-root package installation**:
+`icu-78.3-1` and `binutils-2.47-4` were absent from the prefetch cache,
+and the default pacman downloader requested them from the dated `/repos`
+directory (HTTP 404) then the unavailable original host (timeout).
+The job failed with `Failed to install packages to new root`; no QEMU
+boot or recovery qualified.
+
+**Targeted correction:** The generated Archiso `pacman.conf` now sets
+the *same reviewed*, absolute `XferCommand` helper used by the
+download-only fallback. When the final new-root transaction encounters
+any previously uncached package, pacman keeps the frozen 2026/09/30
+repository database's **exact filename** and retrieves that historical
+signed version from the archive's `/packages` pool. The helper's strict
+local `phios-local` path policy remains in place for the isolated
+builder's own repo. The helper path must exist and contain only
+reviewed shell-safe characters; any other generated profile is refused.
+
+No rolling mirrors, alternate package versions, signature bypass,
+new root-install retry, new signing keys, weakened CI gate, automatic
+release or merge. Integration and contract tests explicitly inspect
+the generated `pacman.conf` for the final-installer `XferCommand` and
+original signature policy. Offline tests are *not* ISO qualification;
+the two image builds and QEMU checks must succeed at the exact PR head.

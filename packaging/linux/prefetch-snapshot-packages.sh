@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Download pinned Arch snapshot packages before attempting installation.
 # Package signatures and exact snapshot mirror remain enforced by pacman.
-# Only transport errors are retried; no mirror fallback or signature bypass.
+# Only transfer errors are retried; the builder pins two Arch-operated
+# historical archive hosts to the same dated snapshot. No current mirror or signature bypass.
 # If the pinned archive repeatedly refuses libalpm's 10-second connection
 # window, use pacman's documented XferCommand for download-only retries.
 # This retains the exact original repositories, trust keys and SigLevel.
@@ -12,7 +13,9 @@ phios_make_pinned_archive_curl_config() {
     fi
     local output=$1
     local source_config=${PHIOS_PREFETCH_PACMAN_CONFIG:-/etc/pacman.conf}
-    if [[ ! -r $source_config || ! -x /usr/bin/curl ]]; then
+    local transfer_script
+    transfer_script=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/archive-package-fetch.sh
+    if [[ ! -r $source_config || ! -x /usr/bin/curl || ! -r $transfer_script ]]; then
         echo 'PHIOS_ARCH_CURL_PREFETCH_REFUSED: pacman configuration or curl unavailable' >&2
         return 2
     fi
@@ -20,10 +23,14 @@ phios_make_pinned_archive_curl_config() {
         echo 'PHIOS_ARCH_CURL_PREFETCH_REFUSED: existing XferCommand needs review' >&2
         return 2
     fi
-    awk '
+    if [[ $transfer_script == *[[:space:]]* ]]; then
+        echo 'PHIOS_ARCH_CURL_PREFETCH_REFUSED: unsupported transfer script path' >&2
+        return 2
+    fi
+    awk -v script="$transfer_script" '
         /^[[:space:]]*\[options\][[:space:]]*$/ && !added {
             print
-            print "XferCommand = /usr/bin/curl --fail --location --show-error --silent --http1.1 --proto https --proto-redir https --connect-timeout 45 --max-time 540 --retry 2 --retry-connrefused --retry-delay 3 -C - -o %o %u"
+            print "XferCommand = /usr/bin/bash " script " %u %o"
             added=1
             next
         }
@@ -45,7 +52,7 @@ phios_prefetch_snapshot_packages() {
     local -a config_args=()
     for attempt in 1 2 3; do
         # Native pacman transfer first. Only after it fails do we use
-        # a temporary copy of the same configuration with HTTPS-only curl.
+        # a temporary copy of the same frozen archive configuration with HTTPS-only curl.
         if (( attempt == 2 )); then
             fallback_config=$(mktemp /tmp/phios-signed-pacman-prefetch.XXXXXXXX) || return 2
             if ! phios_make_pinned_archive_curl_config "$fallback_config"; then
@@ -59,7 +66,7 @@ phios_prefetch_snapshot_packages() {
         # --disable-download-timeout handles slow transfers, but the native
         # connection can still time out at 10 seconds. GNU timeout caps both
         # the command and curl's bounded internal retries; no installs occur.
-        if timeout --signal=TERM --kill-after=15s 600s \
+        if timeout --signal=TERM --kill-after=15s 1500s \
             pacman "${config_args[@]}" --disable-download-timeout -Sw --needed --noconfirm "$@"; then
             echo "PHIOS_ARCH_PREFETCH_OK: attempt ${attempt}/3"
             [[ -z $fallback_config ]] || rm -f "$fallback_config"
@@ -67,6 +74,11 @@ phios_prefetch_snapshot_packages() {
         else
             status=$?
             echo "PHIOS_ARCH_PREFETCH_RETRY: attempt=${attempt}/3 exit=${status}" >&2
+            if (( status == 124 || status == 137 )); then
+                [[ -z $fallback_config ]] || rm -f "$fallback_config"
+                echo "PHIOS_ARCH_PREFETCH_HELD: download timeout, refusing unsafe retry" >&2
+                return 1
+            fi
         fi
         [[ $attempt -lt 3 ]] && sleep 5
     done
@@ -79,23 +91,37 @@ phios_prefetch_snapshot_packages() {
 # allowing one installation transaction. -w / --downloadonly forbids installs.
 # The whole snapshot (including eligible downgrades) is selected by -uu.
 # Retrying this transport-only stage is safe; never retry a partially applied
-# upgrade, disable package signatures, or change the reviewed mirror.
+# upgrade, disable package signatures, or switch to an unpinned/current mirror.
 phios_prefetch_snapshot_upgrade() {
-    local attempt status
+    local attempt status fallback_config=''
+    local -a config_args=()
     for attempt in 1 2 3; do
-        echo "PHIOS_ARCH_UPGRADE_PREFETCH_ATTEMPT: ${attempt}/3 (pinned archive; no installation)"
+        # Preserve native pacman behavior first. If its 10-second connection
+        # deadline fails, use the *same* signed pinned repository configuration
+        # with the existing HTTPS-only curl XferCommand for download retries.
+        # No mirror substitution, key changes, or partially applied installs.
+        if (( attempt == 2 )); then
+            fallback_config=$(mktemp /tmp/phios-signed-upgrade-prefetch.XXXXXXXX) || return 2
+            if ! phios_make_pinned_archive_curl_config "$fallback_config"; then
+                rm -f "$fallback_config"
+                echo 'PHIOS_ARCH_UPGRADE_PREFETCH_FAILED: secure transfer fallback unavailable; signed image HELD' >&2
+                return 1
+            fi
+            config_args=(--config "$fallback_config")
+        fi
+        echo "PHIOS_ARCH_UPGRADE_PREFETCH_ATTEMPT: ${attempt}/3 (pinned archive; no installation; transfer=$([[ $attempt == 1 ]] && echo native || echo https-curl))"
         if timeout --signal=TERM --kill-after=15s 600s \
-            pacman --disable-download-timeout -Syyuu --downloadonly --noconfirm; then
+            pacman "${config_args[@]}" --disable-download-timeout -Syyuu --downloadonly --noconfirm; then
             echo "PHIOS_ARCH_UPGRADE_PREFETCH_OK: attempt ${attempt}/3"
+            [[ -z $fallback_config ]] || rm -f "$fallback_config"
             return 0
         else
             status=$?
             echo "PHIOS_ARCH_UPGRADE_PREFETCH_RETRY: attempt=${attempt}/3 exit=${status}" >&2
         fi
-        if [[ $attempt -lt 3 ]]; then
-            sleep 5
-        fi
+        [[ $attempt -lt 3 ]] && sleep 5
     done
+    [[ -z $fallback_config ]] || rm -f "$fallback_config"
     echo 'PHIOS_ARCH_UPGRADE_PREFETCH_FAILED: signed pinned-snapshot prefetch exhausted; image build HELD' >&2
     return 1
 }
@@ -132,22 +158,39 @@ phios_prefetch_archiso_profile_packages() {
         echo 'PHIOS_ARCHISO_PREFETCH_REFUSED: profile and builder cache differ' >&2
         return 2
     fi
+    local fallback_config='' transfer_config=$profile_config
     for attempt in 1 2 3; do
+        if (( attempt == 2 )); then
+            fallback_config=$(mktemp /tmp/phios-archiso-prefetch.XXXXXXXX) || return 2
+            if ! PHIOS_PREFETCH_PACMAN_CONFIG="$profile_config" \
+                phios_make_pinned_archive_curl_config "$fallback_config"; then
+                rm -f "$fallback_config"
+                echo 'PHIOS_ARCHISO_PREFETCH_FAILED: reviewed archive transfer unavailable; ISO HELD' >&2
+                return 1
+            fi
+            transfer_config=$fallback_config
+        fi
         echo "PHIOS_ARCHISO_PREFETCH_ATTEMPT: ${attempt}/3 (exact profile, signed archive)"
-        # -Syw downloads but never installs; the profile pins the snapshot.
-        # Retain verified cache across three bounded attempts. No mirror
-        # fallback, signature bypass, or retry of a partial installation.
-        if timeout --signal=TERM --kill-after=15s 600s \
-            pacman --config "$profile_config" --disable-download-timeout \
+        # -Syw only prefetches signed packages. The later mkarchiso install
+        # retains the original profile and remains single-shot.
+        if timeout --signal=TERM --kill-after=15s 1500s \
+            pacman --config "$transfer_config" --disable-download-timeout \
             -Syw --noconfirm "${packages[@]}"; then
             echo "PHIOS_ARCHISO_PREFETCH_OK: attempt ${attempt}/3"
+            [[ -z $fallback_config ]] || rm -f "$fallback_config"
             return 0
         else
             status=$?
             echo "PHIOS_ARCHISO_PREFETCH_RETRY: attempt=${attempt}/3 exit=${status}" >&2
+            if (( status == 124 || status == 137 )); then
+                [[ -z $fallback_config ]] || rm -f "$fallback_config"
+                echo "PHIOS_ARCHISO_PREFETCH_HELD: download timeout, refusing unsafe retry" >&2
+                return 1
+            fi
         fi
         [[ $attempt -lt 3 ]] && sleep 5
     done
+    [[ -z $fallback_config ]] || rm -f "$fallback_config"
     echo 'PHIOS_ARCHISO_PREFETCH_FAILED: pinned profile packages unavailable; normal ISO HELD' >&2
     return 1
 }

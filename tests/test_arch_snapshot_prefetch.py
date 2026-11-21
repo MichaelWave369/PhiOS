@@ -7,6 +7,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 HELPER = ROOT / "packaging/linux/prefetch-snapshot-packages.sh"
 BUILDER = ROOT / "packaging/linux/build-linux.sh"
+TRANSFER = ROOT / "packaging/linux/archive-package-fetch.sh"
 
 
 class ArchSnapshotPrefetchTests(unittest.TestCase):
@@ -127,7 +128,9 @@ fi
         self.assertEqual(status, 0, output)
         self.assertEqual(len(calls), 3)
         self.assertEqual(len(sleeps), 2)
-        self.assertEqual(len(set(calls)), 1)
+        self.assertEqual(calls[1], calls[2])
+        self.assertNotEqual(calls[0], calls[1])
+        self.assertIn("--config /tmp/phios-archiso-prefetch.", calls[1])
         self.assertIn("PHIOS_ARCHISO_PREFETCH_OK: attempt 3/3", output)
         self.assertIn("--disable-download-timeout", calls[0])
         self.assertIn("-Syw --noconfirm linux linux-firmware phios", calls[0])
@@ -180,10 +183,13 @@ fi
         self.assertIn("PHIOS_ARCH_PREFETCH_OK: attempt 3/3", out)
         self.assertIn("SigLevel = Required DatabaseOptional", config)
         self.assertIn("Include = /etc/pacman.d/mirrorlist", config)
-        self.assertIn("--proto https --proto-redir https", config)
-        self.assertIn("--connect-timeout 45", config)
-        self.assertIn("--http1.1", config)
-        self.assertIn("-C - -o %o %u", config)
+        self.assertIn("XferCommand = /usr/bin/bash ", config)
+        self.assertIn("archive-package-fetch.sh %u %o", config)
+        transfer = TRANSFER.read_text(encoding="utf-8")
+        self.assertIn("--proto https --proto-redir https", transfer)
+        self.assertIn("--connect-timeout 45", transfer)
+        self.assertIn("--http1.1", transfer)
+        self.assertIn("/packages/$first/$name/$file", transfer)
         self.assertNotIn("--insecure", config)
         self.assertNotIn("--skippgpcheck", " ".join(log))
 
