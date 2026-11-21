@@ -86,10 +86,12 @@ def test_pinned_arch_upgrade_prefetch_only_retries_downloads(
     if attempts > 1:
         assert "SigLevel = Required DatabaseOptional" in config
         assert "Include = /etc/pacman.d/mirrorlist" in config
-        assert "--proto https --proto-redir https" in config
-        assert "--connect-timeout 45" in config
-        assert "--http1.1" in config
-        assert "-C - -o %o %u" in config
+        assert "XferCommand = /usr/bin/bash " in config
+        assert "archive-package-fetch.sh %u %o" in config
+        fetcher = (ROOT / "packaging/linux/archive-package-fetch.sh").read_text()
+        assert "--proto https --proto-redir https" in fetcher
+        assert "--connect-timeout 45" in fetcher
+        assert "--http1.1" in fetcher
         assert "--insecure" not in config
     else:
         assert config == ""

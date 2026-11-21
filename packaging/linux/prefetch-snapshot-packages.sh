@@ -13,7 +13,9 @@ phios_make_pinned_archive_curl_config() {
     fi
     local output=$1
     local source_config=${PHIOS_PREFETCH_PACMAN_CONFIG:-/etc/pacman.conf}
-    if [[ ! -r $source_config || ! -x /usr/bin/curl ]]; then
+    local transfer_script
+    transfer_script=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/archive-package-fetch.sh
+    if [[ ! -r $source_config || ! -x /usr/bin/curl || ! -r $transfer_script ]]; then
         echo 'PHIOS_ARCH_CURL_PREFETCH_REFUSED: pacman configuration or curl unavailable' >&2
         return 2
     fi
@@ -21,10 +23,14 @@ phios_make_pinned_archive_curl_config() {
         echo 'PHIOS_ARCH_CURL_PREFETCH_REFUSED: existing XferCommand needs review' >&2
         return 2
     fi
-    awk '
+    if [[ $transfer_script == *[[:space:]]* ]]; then
+        echo 'PHIOS_ARCH_CURL_PREFETCH_REFUSED: unsupported transfer script path' >&2
+        return 2
+    fi
+    awk -v script="$transfer_script" '
         /^[[:space:]]*\[options\][[:space:]]*$/ && !added {
             print
-            print "XferCommand = /usr/bin/curl --fail --location --show-error --silent --http1.1 --proto https --proto-redir https --connect-timeout 45 --max-time 540 --retry 2 --retry-connrefused --retry-delay 3 -C - -o %o %u"
+            print "XferCommand = /usr/bin/bash " script " %u %o"
             added=1
             next
         }
@@ -147,15 +153,26 @@ phios_prefetch_archiso_profile_packages() {
         echo 'PHIOS_ARCHISO_PREFETCH_REFUSED: profile and builder cache differ' >&2
         return 2
     fi
+    local fallback_config='' transfer_config=$profile_config
     for attempt in 1 2 3; do
+        if (( attempt == 2 )); then
+            fallback_config=$(mktemp /tmp/phios-archiso-prefetch.XXXXXXXX) || return 2
+            if ! PHIOS_PREFETCH_PACMAN_CONFIG="$profile_config" \
+                phios_make_pinned_archive_curl_config "$fallback_config"; then
+                rm -f "$fallback_config"
+                echo 'PHIOS_ARCHISO_PREFETCH_FAILED: reviewed archive transfer unavailable; ISO HELD' >&2
+                return 1
+            fi
+            transfer_config=$fallback_config
+        fi
         echo "PHIOS_ARCHISO_PREFETCH_ATTEMPT: ${attempt}/3 (exact profile, signed archive)"
-        # -Syw downloads but never installs; the profile pins the snapshot.
-        # Retain verified cache across three bounded attempts. No mirror
-        # fallback, signature bypass, or retry of a partial installation.
+        # -Syw only prefetches signed packages. The later mkarchiso install
+        # retains the original profile and remains single-shot.
         if timeout --signal=TERM --kill-after=15s 600s \
-            pacman --config "$profile_config" --disable-download-timeout \
+            pacman --config "$transfer_config" --disable-download-timeout \
             -Syw --noconfirm "${packages[@]}"; then
             echo "PHIOS_ARCHISO_PREFETCH_OK: attempt ${attempt}/3"
+            [[ -z $fallback_config ]] || rm -f "$fallback_config"
             return 0
         else
             status=$?
@@ -163,6 +180,7 @@ phios_prefetch_archiso_profile_packages() {
         fi
         [[ $attempt -lt 3 ]] && sleep 5
     done
+    [[ -z $fallback_config ]] || rm -f "$fallback_config"
     echo 'PHIOS_ARCHISO_PREFETCH_FAILED: pinned profile packages unavailable; normal ISO HELD' >&2
     return 1
 }

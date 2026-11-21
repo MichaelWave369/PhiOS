@@ -127,3 +127,41 @@ Offline contract tests explicitly check the ordered, reviewed hosts and
 their presence in both build stages. They cannot prove endpoint availability.
 **Only full fixture-free/QA ISO builds and QEMU boot/recovery checks establish
 real qualification.** A network failure still holds the release gate.
+
+## Follow-up: dated repository DB succeeds, package blobs return 404
+
+The exact-head PR #425 qualification at `9b5df90` reached Umeå's
+`/repos/2026/09/30/core/os/x86_64/core.db`, but received HTTP 404
+for the pinned `glibc-2.44+r50+g1848099f063e-1`,
+`coreutils-9.12-2` and `pcre2-10.49-1` package blobs in that
+same directory. The second original archive host timed out. No image
+was built or installed.
+
+Public indexes of the reviewed Umeå Arch Linux Archive confirm that
+the historical `/repos/YYYY/MM/DD` directory contains snapshot
+repository databases while the exact signed versioned packages also
+exist under `/packages/<initial>/<package-name>/<filename>`.
+The specific missing `glibc`, `coreutils` and `pcre2` files and
+their detached signatures appear in those historical package indexes.
+
+A new `archive-package-fetch.sh` is used ONLY by pacman during
+download-only retries. It validates that the request starts from
+exactly one of two reviewed HTTPS archive origins and the **date
+from release.json**. Metadata stays on dated repository URLs.
+For the pinned package filename, it fetches the **exact identical
+version** from the historical archive's package pool, with an
+ordered fallback between the same two approved archive hosts.
+An external fetch never marks a package installed: pacman continues
+to validate its signatures/hashes and its single-shot package install
+remains unchanged. A separate temporary destination per origin
+prevents mixing partial byte ranges.
+
+The Archiso profile's own download-only cache prefetch is given the
+same fallback on attempts 2–3. Its actual mkarchiso installation
+keeps the original profile; no unpinned current mirrors, changed
+signing keys, signature bypass, altered release pins, skipped VM
+qualification, or automatic release are introduced.
+
+**Acceptance:** the offline routing/refusal regression suite and
+the full exact-head image/QEMU tests must pass separately. No archive
+availability or ISO readiness is claimed from mock tests alone.
