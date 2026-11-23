@@ -9,6 +9,7 @@ from pathlib import Path
 from phios.mandala import OriginKind
 from phios.state_paths import configured_state_root, memory_config_path
 
+from .agentora_writeback_server import DEFAULT_WRITEBACK_PORT, serve_agentora_writeback
 from .config import MemoryRuntimeConfig, write_disabled_template
 from .legacy import plan_legacy_agent_memory_import
 from .history_projection_server import DEFAULT_HISTORY_PORT, serve_system_history
@@ -88,6 +89,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="Serve bounded governed persistent history over loopback-only HTTP",
     )
     history_read.add_argument("--port", type=int, default=DEFAULT_HISTORY_PORT)
+
+    bridge = sub.add_parser(
+        "serve-agentora-writeback",
+        help="Explicitly serve an authenticated Agentora memory bridge on loopback",
+    )
+    bridge.add_argument("--port", type=int, default=DEFAULT_WRITEBACK_PORT)
 
     return parser
 
@@ -186,6 +193,10 @@ def main() -> int:
 
         if args.command == "serve-system-history":
             serve_system_history(runtime, port=args.port)
+            return 0
+
+        if args.command == "serve-agentora-writeback":
+            serve_agentora_writeback(runtime, port=args.port)
             return 0
 
         if args.command == "persist-system-history":
