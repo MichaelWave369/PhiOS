@@ -64,6 +64,7 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     permissions:
       contents: read
+      actions: read
       pages: write
       id-token: write
     steps:
@@ -88,6 +89,31 @@ jobs:
         with:
           name: github-pages-${{ github.run_attempt }}
           path: site/dist
+      - name: Wait for exact attempt artifact to be visible
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_ARTIFACT: github-pages-${{ github.run_attempt }}
+          EXPECTED_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          for attempt in {1..12}; do
+            if response=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts?name=$EXPECTED_ARTIFACT&per_page=100"); then
+              if jq -e --arg name "$EXPECTED_ARTIFACT" --arg sha "$EXPECTED_SHA" --arg run "$GITHUB_RUN_ID" '
+                [.artifacts[] | select(.name == $name)] |
+                length == 1 and
+                (.[0] | .expired == false and .size_in_bytes > 0 and
+                 .workflow_run.head_sha == $sha and (.workflow_run.id | tostring) == $run)
+              ' <<<"$response" >/dev/null; then
+                echo "Exact run-attempt artifact visible."
+                exit 0
+              fi
+            fi
+            echo "Waiting for exact Pages artifact metadata ($attempt/12)."
+            if [[ "$attempt" != 12 ]]; then sleep 5; fi
+          done
+          echo "::error::Exact Pages artifact never became visible; deployment held."
+          exit 1
       - name: Deploy GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v5
