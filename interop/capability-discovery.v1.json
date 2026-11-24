@@ -1,0 +1,78 @@
+{
+  "schema": "phios.capability-discovery.v1",
+  "authority": "NONE",
+  "entries": [
+    {
+      "id": "agentora.blind-review",
+      "repository": "https://github.com/MichaelWave369/Agentora",
+      "revision": "bd42d4337f7f2fad674191cb3911500ea2a7d7d3",
+      "capability": "research.review",
+      "input_contract": "phidiscovery.reviewer-packets.v0.2",
+      "output_contract": "agentora.discovery-review.v0.3",
+      "mode": "opt-in-local",
+      "evidence": {
+        "path": "docs/PHIDISCOVERY_REVIEW_BRIDGE.md",
+        "start": 3,
+        "end": 9
+      },
+      "limitations": "Requires separately enabled loopback endpoint, operator key and allowlisted real model; no live machine run confirmed.",
+      "latency_ms": null,
+      "memory_mib": null,
+      "authority": "NONE"
+    },
+    {
+      "id": "altermath.causal-score",
+      "repository": "https://github.com/MichaelWave369/Altermath",
+      "revision": "dbc4fcdab427242b2f628e826ad51ae3a199e9c3",
+      "capability": "causal.schedule",
+      "input_contract": "altermath.causal-score.r1",
+      "output_contract": "altermath.causal-receipt.r1",
+      "mode": "synthetic",
+      "evidence": {
+        "path": "docs/CAUSAL_POCKET_MACHINE_R1.md",
+        "start": 9,
+        "end": 17
+      },
+      "limitations": "Sequential numeric fixture; no live worker, concurrency or production authority.",
+      "latency_ms": null,
+      "memory_mib": null,
+      "authority": "NONE"
+    },
+    {
+      "id": "phiserve.benchmark",
+      "repository": "https://github.com/MichaelWave369/PhiServe",
+      "revision": "9c341cdb9dc24a590e78ca0e51a44a958b2844f7",
+      "capability": "inference.benchmark",
+      "input_contract": "phiserve.benchmark-workload.v1",
+      "output_contract": "phiserve.benchmark-observation.v1",
+      "mode": "opt-in-local",
+      "evidence": {
+        "path": "README.md",
+        "start": 5,
+        "end": 11
+      },
+      "limitations": "Requires trusted local model and llama-server; no actual device performance claimed.",
+      "latency_ms": null,
+      "memory_mib": null,
+      "authority": "NONE"
+    },
+    {
+      "id": "pocketmesh.route",
+      "repository": "https://github.com/MichaelWave369/NBGPocketMesh",
+      "revision": "d1de6d3fe40208dc837577ba827551b2e08da124",
+      "capability": "capability.route",
+      "input_contract": "nbgpocketmesh.e0.task-and-manifests",
+      "output_contract": "nbgpocketmesh.e0.receipt",
+      "mode": "synthetic",
+      "evidence": {
+        "path": "src/router.mjs",
+        "start": 23,
+        "end": 59
+      },
+      "limitations": "Routing metadata only; no model loading, execution or measured resources.",
+      "latency_ms": null,
+      "memory_mib": null,
+      "authority": "NONE"
+    }
+  ]
+}
