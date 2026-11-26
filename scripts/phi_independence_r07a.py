@@ -41,10 +41,9 @@ MANUAL = {
 
 
 def canonical(value):
-    # Agentora's autonomous-turn canonical JSON uses UTF-8; its bridge uses
-    # ASCII escaping. For the bridge review digest use its exact convention below.
+    # Match Agentora autonomous-turn and bridge canonical JSON, including Unicode escaping.
     return json.dumps(value, sort_keys=True, separators=(",", ":"),
-                      ensure_ascii=False, allow_nan=False).encode("utf-8")
+                      ensure_ascii=True, allow_nan=False).encode("ascii")
 
 
 def sha(raw):

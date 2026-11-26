@@ -122,3 +122,65 @@ def test_mesh_rejects_unknown_restart():
     field.correlate("mesh",dict(zip(field.GATES["mesh"],(a,b,b))))
     with pytest.raises(ValueError):
         field.correlate("mesh",dict(zip(field.GATES["mesh"],(a,b,dict(b,state="OUTCOME_UNKNOWN")))))
+
+
+def test_forge_positive_unicode_and_drift():
+    task = {"source_sha":"a"*40,"instruction":"Review Φ"}
+    patch = "+Φ\n"
+    proposal = {"patch":patch,"patch_sha256":field.sha(patch.encode()),
+                "after_sha256":"b"*64}
+    pplan = {"task":task,"model":"test:local"}
+    import hashlib
+    # Independent producer serialization convention, not the verifier helper.
+    digest = lambda value: hashlib.sha256(json.dumps(value, sort_keys=True,
+        separators=(",", ":"), ensure_ascii=True).encode()).hexdigest()
+    p = {"schema":"agentora.phiforge.r05b.v1","state":"CANDIDATE_REVIEW_REQUIRED",
+         "plan":pplan,"plan_sha256":digest(pplan),"proposal":proposal,
+         "operator_declared_offline":True,"build_authorized":False,
+         "eligible_for_merge":False,"execution_authority":False,"offline_verified":False}
+    image = "sha256:"+"c"*64
+    plan = {"schema":"agentora.phiforge.r05a.v1","state":"REVIEW_REQUIRED",
+            "task":task,"proposal":proposal,"image_id":image}
+    wrapper = {"plan":plan,"plan_sha256":digest(plan)}
+    b = {"schema":"agentora.phiforge.r05a.v1","state":"BUILD_PASS_REVIEW_ONLY",
+         "exit_code":0,"plan_sha256":digest(plan),"source_sha":task["source_sha"],
+         "image_id":image,"patch_sha256":proposal["patch_sha256"],
+         "after_sha256":proposal["after_sha256"],"operator_declared_offline":True,
+         "network_none_requested":True,"pull_never_requested":True,
+         "eligible_for_merge":False,"execution_authority":False,"offline_verified":False}
+    values = dict(zip(field.GATES["forge"],(p,wrapper,b)))
+    field.correlate("forge",values)
+    b["after_sha256"] = "d"*64
+    with pytest.raises(ValueError):
+        field.correlate("forge",values)
+
+
+def test_inference_counts_and_duplicate_cases():
+    cases = ("arithmetic","ordering","logic","extraction","code_trace","instruction")
+    reports = []
+    for model in ("test:one","test:two"):
+        reports.append({"model":model,"attempts":[{"case":c,"repeat":1,
+                        "status":"CORRECT","correct":True} for c in cases],
+                        "correct":6,"attempted":6,"expected_attempts":6,
+                        "errors":0,"exact_match_fraction":1})
+    r = {"schema":1,"suite":"phi-inference-smoke-v1","complete":True,
+         "operator_declared_offline":True,"offline_verified":False,
+         "routing_authority":False,"repeats":1,"reports":reports}
+    field.correlate("inference",{"r03.json":r})
+    reports[0]["attempts"][0]["case"] = "logic"
+    with pytest.raises(ValueError):
+        field.correlate("inference",{"r03.json":r})
+
+
+def test_bridge_unicode_review_digest():
+    review = {k:"Φ synthetic" for k in ("assessment","risks","next_steps","uncertainties")}
+    r = {"schema":"agentora.phibuddy-review-receipt.v1",
+         "state":"LOCAL_REVIEW_UNVERIFIED","consent_sha256":"a"*64,
+         "packet_sha256":"b"*64,"review_sha256":field.sha(field.canonical(review)),
+         "review":review,"human_review_required":True,"tool_calls":0,
+         "execution_authority":False,"source_verified":False,"completion_verified":False,
+         "model_identity_attested":False,"offline_verified":False,"persisted_by_bridge":False}
+    field.correlate("bridge",{"r04b.json":r})
+    r["review"]["risks"]="modified"
+    with pytest.raises(ValueError):
+        field.correlate("bridge",{"r04b.json":r})
