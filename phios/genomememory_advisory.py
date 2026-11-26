@@ -51,7 +51,8 @@ def load_report(path):
     def unique(pairs):
         out = {}
         for key,value in pairs:
-            if key in out: raise ValueError('duplicate JSON key')
+            if key in out:
+                raise ValueError('duplicate JSON key')
             out[key] = value
         return out
     return json.loads(path.read_text(encoding='utf-8'),object_pairs_hook=unique)
