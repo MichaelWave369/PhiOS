@@ -7,6 +7,7 @@ import json
 import re
 import time
 import uuid
+import warnings
 
 from phios.local_chat_smoke import FIRST, SECOND, TOKEN, valid_model
 
@@ -141,9 +142,11 @@ def main():
         print(json.dumps({"status": "NOT_RUN_EXPLICIT_OPT_IN_REQUIRED"}))
         return 2
     try:
-        token = getpass.getpass("Disposable BrainC access token: ")
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", getpass.GetPassWarning)
+            token = getpass.getpass("Disposable BrainC access token: ")
         report = smoke(args.model, token, args.timeout)
-    except (OSError, ValueError, http.client.HTTPException, EOFError, RecursionError):
+    except (OSError, ValueError, http.client.HTTPException, EOFError, RecursionError, getpass.GetPassWarning):
         print(json.dumps({"status": "PILOT_OR_RESPONSE_UNQUALIFIED"}))
         return 2
     print(json.dumps(report, indent=2, allow_nan=False))
