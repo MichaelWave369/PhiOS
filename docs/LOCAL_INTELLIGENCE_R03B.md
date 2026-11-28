@@ -41,13 +41,14 @@ From PhiOS:
 python -m phios.local_companion_review review --report C:\\Pilot\\crew-quick.jsonl --depth quick
 ```
 
-The reviewer requires every case, exact prompt/reference, expected alternating
+The reviewer requires the native format_version 1 envelope, exact declared model tag,
+every case, exact prompt/reference, expected alternating
 execution order and declared request counts. It returns a SHA-256 of the
 input, declared elapsed times/call counts, exact checks on two literal-answer
 tasks and a human-review requirement for the coding task. No generated text
 or filenames appear in the review. Review a debate run separately with
 --depth debate. Neither a valid report nor an exact answer proves live
-inference or local-only execution; the report has no authenticated model ID.
+inference or local-only execution; the declared model tag is unauthenticated.
 Council uses more requests than Solo; this is not compute-matched, blinded,
 or a general intelligence benchmark. Do not publish private raw reports.
 
