@@ -21,13 +21,13 @@ def fixture(depth="quick"):
 
 
 def encode(rows):
-    return ("\n".join(json.dumps(row) for row in rows) + "\n").encode()
+    return ("\n".join(json.dumps({"format_version": 1, "model": "qwen3:4b", "evaluation": row}) for row in rows) + "\n").encode()
 
 
 @pytest.mark.parametrize("depth,count", [("quick", 12), ("debate", 21)])
 def test_native_shape(depth, count):
     raw = encode(fixture(depth))
-    result = review.review(raw, depth)
+    result = review.review(raw, depth, "qwen3:4b")
     assert result["report_sha256"] == hashlib.sha256(raw).hexdigest()
     assert result["solo_declared_requests"] == 3
     assert result["council_declared_requests"] == count
@@ -46,7 +46,7 @@ def test_reject_changed_case(field, value):
     rows = fixture()
     rows[0][field] = value
     with pytest.raises(ValueError):
-        review.review(encode(rows), "quick")
+        review.review(encode(rows), "quick", "qwen3:4b")
 
 
 @pytest.mark.parametrize("field,value", [
@@ -56,28 +56,38 @@ def test_reject_invalid_answer(field, value):
     rows = fixture()
     rows[0]["solo"][field] = value
     with pytest.raises(ValueError):
-        review.review(encode(rows), "quick")
+        review.review(encode(rows), "quick", "qwen3:4b")
 
 
 def test_wrong_answer_is_not_transport_failure():
     rows = fixture()
     rows[0]["solo"]["answer"] = "wrong"
-    assert review.review(encode(rows), "quick")["cases"][0]["solo"]["exact_match"] is False
+    assert review.review(encode(rows), "quick", "qwen3:4b")["cases"][0]["solo"]["exact_match"] is False
 
 
 @pytest.mark.parametrize("raw", [b"", b"not json", b"\xff", b"x" * (review.MAX_REPORT + 1)])
 def test_bad_bytes(raw):
     with pytest.raises(ValueError):
-        review.review(raw, "quick")
+        review.review(raw, "quick", "qwen3:4b")
 
 
 def test_partial_and_reordered():
     rows = fixture()
     for selection in (rows[:2], rows[::-1], rows + rows[:1]):
         with pytest.raises(ValueError):
-            review.review(encode(selection), "quick")
+            review.review(encode(selection), "quick", "qwen3:4b")
 
 
 def test_suite_matches_cases():
     assert review.suite()["cases"][0]["id"] == "literal"
     assert len(review.suite()["cases"]) == 3
+
+
+def test_native_model_and_envelope():
+    raw = encode(fixture())
+    with pytest.raises(ValueError):
+        review.review(raw, "quick", "other:latest")
+    with pytest.raises(ValueError):
+        review.review(raw.replace(b'"format_version": 1', b'"format_version": true'), "quick", "qwen3:4b")
+    with pytest.raises(ValueError):
+        review.review(raw.replace(b'"evaluation":', b'"different":'), "quick", "qwen3:4b")
