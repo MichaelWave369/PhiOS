@@ -17,20 +17,20 @@ Use a private new directory for artifacts, and a new output filename on each run
 From PhiOS, with the output directory already created:
 
 ```powershell
-python -m phios.local_companion_review suite | Set-Content -Encoding utf8NoBOM C:\\Pilot\\crew-cases.json
+python -m phios.local_companion_review suite | Set-Content -Encoding utf8NoBOM C:\Pilot\crew-cases.json
 ```
 
 The command above requires PowerShell 7 for utf8NoBOM. On Windows PowerShell
 5.1, use Python to write UTF-8 without a BOM instead (from PhiOS):
 
 ```powershell
-python -c "from pathlib import Path; import json; from phios.local_companion_review import suite; Path(r'C:\\Pilot\\crew-cases.json').write_text(json.dumps(suite()), encoding='utf-8')"
+python -c "from pathlib import Path; import json; from phios.local_companion_review import suite; Path(r'C:\Pilot\crew-cases.json').write_text(json.dumps(suite()), encoding='utf-8')"
 ```
 
 From the PhiBuddy checkout:
 
 ```powershell
-cargo run --offline -p phibuddy -- --model qwen3:4b --endpoint http://127.0.0.1:11434 eval --cases C:\\Pilot\\crew-cases.json --output C:\\Pilot\\crew-quick.jsonl --depth quick
+cargo run --offline -p phibuddy -- --model qwen3:4b --endpoint http://127.0.0.1:11434 eval --cases C:\Pilot\crew-cases.json --output C:\Pilot\crew-quick.jsonl --depth quick
 ```
 
 The native eval workflow uses an in-memory database and refuses to overwrite
@@ -38,7 +38,7 @@ an existing output file. Full generated answers remain in the private JSONL.
 From PhiOS:
 
 ```powershell
-python -m phios.local_companion_review review --report C:\\Pilot\\crew-quick.jsonl --depth quick
+python -m phios.local_companion_review review --report C:\Pilot\crew-quick.jsonl --model qwen3:4b --depth quick
 ```
 
 The reviewer requires the native format_version 1 envelope, exact declared model tag,
