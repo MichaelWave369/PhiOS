@@ -3,6 +3,7 @@
 import argparse
 import hashlib
 import json
+import re
 from pathlib import Path
 
 MAX_REPORT = 4 * 1024 * 1024
@@ -44,17 +45,24 @@ def answer_metrics(row, requests, reference):
     }
 
 
-def review(raw, depth):
+def review(raw, depth, model):
     if not isinstance(raw, bytes) or not 0 < len(raw) <= MAX_REPORT:
         raise ValueError("invalid report size")
     if depth not in ("quick", "debate"):
         raise ValueError("invalid depth")
+    if (not isinstance(model, str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._/:-]{0,127}", model)
+            or "cloud" in model.lower()):
+        raise ValueError("invalid expected model tag")
     lines = raw.decode("utf-8").splitlines()
     if len(lines) != len(CASES):
         raise ValueError("missing or extra cases")
     rows = []
     for i, (line, (key, prompt, reference)) in enumerate(zip(lines, CASES)):
-        row = json.loads(line, object_pairs_hook=unique_object)
+        wrapper = json.loads(line, object_pairs_hook=unique_object)
+        if (not isinstance(wrapper, dict) or type(wrapper.get("format_version")) is not int
+                or wrapper["format_version"] != 1 or wrapper.get("model") != model):
+            raise ValueError("native report envelope or declared model mismatch")
+        row = wrapper.get("evaluation")
         if (not isinstance(row, dict) or row.get("case_id") != key
                 or row.get("prompt") != prompt or "reference" not in row
                 or row["reference"] != reference or row.get("council_depth") != depth
@@ -76,6 +84,7 @@ def review(raw, depth):
         "human_review_required": True,
         "native_execution_verified": False,
         "offline_execution_verified": False,
+        "declared_model_matches": True,
         "model_identity_verified": False,
         "superiority_verified": False,
         "authority_granted": False,
@@ -88,6 +97,7 @@ def main():
     sub.add_parser("suite", help="print the fixed public case file")
     inspect = sub.add_parser("review", help="review explicitly selected native JSONL")
     inspect.add_argument("--report", required=True)
+    inspect.add_argument("--model", required=True, help="expected declared model tag")
     inspect.add_argument("--depth", choices=("quick", "debate"), default="quick")
     args = parser.parse_args()
     if args.command == "suite":
@@ -95,7 +105,7 @@ def main():
         return 0
     try:
         with Path(args.report).open("rb") as stream:
-            report = review(stream.read(MAX_REPORT + 1), args.depth)
+            report = review(stream.read(MAX_REPORT + 1), args.depth, args.model)
     except (OSError, ValueError, RecursionError):
         print(json.dumps({"status": "INVALID_OR_INCOMPLETE_REPORT"}))
         return 2
